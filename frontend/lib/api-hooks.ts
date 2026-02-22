@@ -117,6 +117,37 @@ export function useUsers() {
     });
 }
 
+// ── Branding ──────────────────────────────────────────────────────────────────
+
+export interface BrandingPrefs {
+    tenant_app_title?: string;
+    tenant_display_name?: string;
+    tenant_logo_url?: string;
+    tenant_primary_color?: string;
+    tenant_support_email?: string;
+    tenant_timezone?: string;
+    tenant_locale?: string;
+}
+
+export function useBranding() {
+    return useQuery({
+        queryKey: ["branding"],
+        queryFn: () => fetchJSON<BrandingPrefs>("/admin/tenant-preferences"),
+        staleTime: 300_000, // 5min — ändert sich selten
+    });
+}
+
+export function useSaveBranding() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (prefs: Partial<BrandingPrefs>) =>
+            postJSON<BrandingPrefs>("/admin/tenant-preferences", prefs),
+        onSuccess: () => {
+            void qc.invalidateQueries({ queryKey: ["branding"] });
+        },
+    });
+}
+
 // ── Billing ───────────────────────────────────────────────────────────────────
 
 export function useBillingStatus() {
