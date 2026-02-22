@@ -55,3 +55,20 @@ yolov8n.pt
 
 # Logs
 *.log
+
+# ---- Logs (runtime) ----
+*.log
+bridge*.log
+gateway.log
+polling.log
+uvicorn.log
+t.log
+
+# ---- Dev/Debug Scripts output ----
+scripts/dev/
+
+# ---- ML Models (too large for Git) ----
+*.onnx
+*.pt
+*.npz
+app/voice/models/*.json

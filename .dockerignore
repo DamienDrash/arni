@@ -3,7 +3,42 @@ __pycache__
 .git
 .venv
 .env
+.env.*
 .DS_Store
-tests/
+
+# Logs
+*.log
 logs/
+
+# Runtime data
 data/
+*.db
+
+# ML Models (large binaries)
+*.onnx
+*.pt
+*.npz
+app/voice/models/*.json
+
+# Dev/Debug Scripts (not needed in Docker)
+scripts/dev/
+
+# Tests & Docs (not needed in production image)
+tests/
+docs/
+memory/
+output/
+.playwright-cli/
+
+# CI/CD
+.github/
+
+# Node
+frontend/node_modules/
+frontend/.next/
+
+# Python tooling
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+htmlcov/
