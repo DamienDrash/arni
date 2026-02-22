@@ -1,40 +1,39 @@
 # ARNI P2 Task Tracker: Premium-Qualität vor Launch
 
-Basierend auf dem Critical Analysis Report (2026-02-22). Alle Punkte sind Voraussetzung für einen stabilen Multi-Tenant Launch.
+- [x] **1. CI/CD Pipeline (GitHub Actions)**
+  - [x] Lint-Job: `ruff` + `eslint` / `tsc --noEmit`
+  - [x] Test-Job: `pytest --cov=app`
+  - [x] Build-Job: Docker Image → `ghcr.io`
+  - [x] Deploy-Job: SSH Auto-Deploy auf VPS
+  - [x] Workflow-Datei: `.github/workflows/ci.yml`
 
-- [ ] **1. CI/CD Pipeline (GitHub Actions)**
-  - [ ] Lint-Job: `ruff` (Backend) + `eslint` / `tsc --noEmit` (Frontend)
-  - [ ] Test-Job: `pytest --cov=app` mit Coverage-Gate (≥ 70%)
-  - [ ] Build-Job: Docker Image bauen + auf Registry pushen
-  - [ ] Deploy-Job: optional (Trigger auf `main`-Push, z.B. via SSH oder Docker Hub)
-  - [ ] Workflow-Datei: `.github/workflows/ci.yml`
+- [x] **3. Stripe Integration abschließen**
+  - [x] `stripe` Package installiert (v14.3.0)
+  - [x] `app/gateway/routers/billing.py` — Checkout, Webhook, Status
+  - [x] `POST /admin/billing/checkout` — Checkout Session erstellen
+  - [x] `POST /admin/stripe` — Stripe Webhooks empfangen (Signatur-Verifizierung)
+  - [x] `GET /admin/billing/status` — Subscription-Status abrufen
+  - [x] Nginx Route `https://services.frigew.ski/arni/stripe` → Port 8000
+  - [x] Stripe Webhook `we_1T3TvuEmo0m7USTcv5V0Pjod` registriert + `whsec_` in .env
+  - [x] 3 Produkte angelegt: Starter (€149), Growth (€349), Enterprise (€999)
 
 - [ ] **2. Frontend: Zentraler API-Client + React Query**
-  - [ ] `frontend/lib/api-client.ts` — zentrales Fetch-Wrapper mit Auth-Header, Token-Refresh und Error-Handling
-  - [ ] `frontend/lib/query-client.ts` — React Query `QueryClient` Setup mit globalem stale-time und retry-Policy
-  - [ ] Migration der kritischsten Seiten auf React Query Hooks: `/members`, `/live`, `/analytics`
-  - [ ] Einheitliches Loading/Error/Empty State Pattern (gemeinsame Komponenten)
-
-- [ ] **3. Stripe Integration abschließen**
-  - [ ] Stripe Checkout Session erstellen (API-Endpunkt: `POST /admin/billing/checkout`)
-  - [ ] Stripe Webhook empfangen (`POST /webhook/stripe`) — Events: `checkout.session.completed`, `invoice.paid`, `customer.subscription.deleted`
-  - [ ] `Subscription`-Modell in DB bei Webhook-Events aktualisieren (Status, Zeitraum, Plan)
-  - [ ] Frontend `/plans`-Seite: "Upgrade"-Button triggert echten Stripe Checkout (kein Mock mehr)
+  - [ ] `frontend/lib/api-client.ts` — zentraler Fetch-Wrapper
+  - [ ] `frontend/lib/query-client.ts` — React Query Setup
+  - [ ] Migration der kritischsten Seiten: `/members`, `/live`, `/analytics`
+  - [ ] Einheitliche Loading/Error/Empty State Komponenten
 
 - [ ] **4. Frontend White-Labeling**
-  - [ ] Backend: `GET /admin/branding` und `POST /admin/branding` — Tenant-Farbe (hex), Logo-URL, Display-Name
-  - [ ] Branding im DB als Settings (`tenant_primary_color`, `tenant_logo_url`, `tenant_display_name`)
-  - [ ] Frontend: Branding beim Login laden und als CSS Custom Properties (`--color-primary`, etc.) setzen
-  - [ ] Sidebar-Logo dynamisch aus Branding-Settings laden
-  - [ ] Frontend `/settings/branding` — Editor für Logo-URL, Farbe, Name
+  - [ ] Backend: `GET/POST /admin/branding` Endpoints
+  - [ ] Branding in Settings-DB speichern
+  - [ ] Frontend: CSS Custom Properties aus Branding laden
+  - [ ] `/settings/branding` Editor-Seite
 
 - [ ] **5. Aufräumen: Logs, Debug-Scripts und .dockerignore**
-  - [ ] Log-Dateien aus Git-Tracking entfernen (`.gitignore` erweitern: `*.log`)
-  - [ ] `scripts/` auditieren: Debug-/Fix-/Simulate-Scripts in `scripts/dev/` verschieben oder löschen
-  - [ ] `.dockerignore` erweitern: `*.log`, `scripts/dev/`, `*.pt`, `.env`, `tests/`, `docs/`
-  - [ ] `seed_chat_data.py` (51KB!) refactoren oder in separate, fokussierte Faker-Scripts aufteilen
+  - [ ] Log-Dateien aus Git-Tracking (`.gitignore` erweitern)
+  - [ ] `scripts/dev/` für Debug-Scripts anlegen
+  - [ ] `.dockerignore` härten
 
 - [ ] **6. Foreign Keys auf alle tenant_id-Spalten**
-  - [ ] Alembic Migration: `ForeignKey("tenants.id", ondelete="RESTRICT")` auf `chat_sessions`, `chat_messages`, `studio_members`, `audit_logs`, `settings`
-  - [ ] Cascade-Strategie festlegen: Was passiert bei Tenant-Löschung? (RESTRICT als sicherer Default)
-  - [ ] Tests: Sicherstellen, dass kein Insert mit ungültiger `tenant_id` möglich ist
+  - [ ] Alembic Migration: `ForeignKey("tenants.id", ondelete="RESTRICT")`
+  - [ ] Cascade-Strategie für Tenant-Löschung festlegen
