@@ -204,6 +204,10 @@ app.include_router(admin_router)
 from app.gateway.auth import router as auth_router
 app.include_router(auth_router)
 
+# --- Stripe Billing Router (P2) ---
+from app.gateway.routers.billing import router as billing_router
+app.include_router(billing_router, prefix="/admin")
+
 
 
 # ──────────────────────────────────────────
