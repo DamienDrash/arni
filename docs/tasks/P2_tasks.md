@@ -1,30 +1,15 @@
 # ARNI P2 Task Tracker: Premium-Qualität vor Launch
 
-- [x] **1. CI/CD Pipeline (GitHub Actions)**
-  - [x] Lint, Test, Docker Build/Push, SSH Auto-Deploy Jobs
-  - [x] `.github/workflows/ci.yml` deployed
+- [x] **1. CI/CD Pipeline** — `.github/workflows/ci.yml` mit SSH Auto-Deploy live
+- [x] **2. Frontend React Query** — `query-client`, `providers`, `api-hooks` (14 Hooks), `QueryStates`
+- [x] **3. Stripe Integration** — Checkout, Webhook (`whsec_`), Status-Endpoints live
+- [x] **4. Frontend White-Labeling** — NavShell, Sidebar, branding.ts, `/settings/branding` und `useBranding` Hook vollständig
 
-- [x] **2. Frontend: Zentraler API-Client + React Query**
-  - [x] `@tanstack/react-query` installiert
-  - [x] `frontend/lib/query-client.ts` — QueryClient mit globalen Defaults
-  - [x] `frontend/app/providers.tsx` — QueryClientProvider als Client Component
-  - [x] `frontend/app/layout.tsx` — Providers-Wrapper eingebunden
-  - [x] `frontend/components/ui/QueryStates.tsx` — LoadingSpinner, ErrorCard, EmptyState
-  - [x] `frontend/lib/api-hooks.ts` — 12 useQuery/useMutation Hooks (members, analytics, live, audit, tenants, users, billing)
-
-- [x] **3. Stripe Integration**
-  - [x] Checkout, Webhook, Status Endpoints live
-  - [x] Webhook `whsec_` konfiguriert
-
-- [ ] **4. Frontend White-Labeling**
-  - [ ] Backend: `GET/POST /admin/branding` Endpoints
-  - [ ] Frontend: CSS Custom Properties aus Branding laden
-  - [ ] `/settings/branding` Editor-Seite
-
-- [ ] **5. Aufräumen: Logs, Debug-Scripts und .dockerignore**
-  - [ ] Log-Dateien aus Git-Tracking (`.gitignore`)
-  - [ ] `scripts/dev/` für Debug-Scripts
+- [ ] **5. Aufräumen**
+  - [ ] `.gitignore` — `*.log` ergänzen
+  - [ ] `scripts/dev/` für Debug-Scripts anlegen
   - [ ] `.dockerignore` härten
 
 - [ ] **6. Foreign Keys auf alle tenant_id-Spalten**
-  - [ ] Alembic Migration mit FK-Constraints
+  - [ ] Alembic Migration: `ForeignKey("tenants.id", ondelete="RESTRICT")`
+  - [ ] Cascade-Strategie festlegen
