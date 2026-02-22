@@ -31,7 +31,7 @@ services:
     ports:
       - "8000:8000"
     command: >
-      sh -c "alembic upgrade head &&
+      sh -c "python -m alembic stamp head &&
              uvicorn app.gateway.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips ${FORWARDED_ALLOW_IPS:-127.0.0.1}"
     environment:
       - PYTHONPATH=/app
@@ -54,7 +54,7 @@ services:
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
       - LANGFUSE_HOST=${LANGFUSE_HOST:-https://cloud.langfuse.com}
-      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/ariia.db}
+      - DATABASE_URL=postgresql+psycopg://arni:${POSTGRES_PASSWORD:-arni_dev_password}@postgres:5432/arni
     depends_on:
       - redis
       - qdrant

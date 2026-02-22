@@ -45,9 +45,9 @@ export async function apiFetch(path: string, init?: RequestInit) {
   const isAdminPath = normalizedPath === "/admin" || normalizedPath.startsWith("/admin/");
   const isAuthPath = normalizedPath === "/auth" || normalizedPath.startsWith("/auth/");
   const candidates = isAdminPath
-    ? [`/ariia/api/admin${adminSuffix}`]
+    ? [`/arni/api/admin${adminSuffix}`]
     : isAuthPath
-      ? [`/ariia/api/auth${authSuffix}`]
+      ? [`/arni/api/auth${authSuffix}`]
       : [normalizedPath];
 
   const uniqueCandidates = [...new Set(candidates)];

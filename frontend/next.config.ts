@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  basePath: "/ariia",
-  assetPrefix: "/ariia",
+  basePath: "/arni",
+  assetPrefix: "/arni",
   async rewrites() {
     return [
       {
