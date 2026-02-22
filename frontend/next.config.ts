@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   basePath: "/arni",
-  assetPrefix: "/arni",
+  trailingSlash: true,
   async rewrites() {
     return [
       {
@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/ws/:path*",
-        destination: `${process.env.GATEWAY_INTERNAL_URL || "http://ariia-core:8000"}/ws/:path*`, // Next.js supports WebSocket proxying on rewrites
+        destination: `${process.env.GATEWAY_INTERNAL_URL || "http://ariia-core:8000"}/ws/:path*`, 
       },
     ];
   },

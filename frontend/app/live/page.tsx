@@ -123,9 +123,9 @@ export default function LiveGhostPage() {
       ? ["ws://localhost:8000/ws/control"]
       : [...new Set([
         "/ws/control",
-        "/ariia/ws/control",
+        "/arni/ws/control",
         "/proxy/ws/control",
-        "/ariia/proxy/ws/control",
+        "/arni/proxy/ws/control",
         `${configuredBasePath}/ws/control`,
         `${configuredBasePath}/proxy/ws/control`,
       ])].map(p => `${protocol}//${window.location.host}${p}`);

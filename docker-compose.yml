@@ -1,17 +1,11 @@
-
 services:
   # 1. Frontend (Next.js Admin Panel)
   ariia-frontend:
-    # Use Debian-based slim image for better stability than Alpine
-    image: node:20-slim
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: ariia_frontend
     restart: always
-    working_dir: /app
-    command: sh -c "npm install --production=false && npm run build && cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/ && node .next/standalone/server.js"
-    volumes:
-      - ./frontend:/app
-      - /app/.next # Anonymous volume for build artifacts (keep this!)
-      - /app/node_modules # Anonymous volume: isolates container's node_modules (Alpine musl) from host (glibc)
     ports:
       - "3000:3000"
     environment:
@@ -35,10 +29,9 @@ services:
              uvicorn app.gateway.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips ${FORWARDED_ALLOW_IPS:-127.0.0.1}"
     environment:
       - PYTHONPATH=/app
-      - REDIS_URL=redis://redis:6379/0
-      - QDRANT_URL=http://qdrant:6333
+      - REDIS_URL=redis://ariia_redis:6379/0
+      - QDRANT_URL=http://ariia_qdrant:6333
       - LOG_LEVEL=INFO
-      # Secrets should be in .env file
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_ADMIN_CHAT_ID=${TELEGRAM_ADMIN_CHAT_ID}
@@ -48,42 +41,29 @@ services:
       - MAGICLINE_API_KEY=${MAGICLINE_API_KEY}
       - MAGICLINE_BASE_URL=${MAGICLINE_BASE_URL}
       - AUTH_SECRET=${AUTH_SECRET}
-      - AUTH_TRANSITION_MODE=${AUTH_TRANSITION_MODE}
-      - AUTH_ALLOW_HEADER_FALLBACK=${AUTH_ALLOW_HEADER_FALLBACK}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
-      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
-      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
-      - LANGFUSE_HOST=${LANGFUSE_HOST:-https://cloud.langfuse.com}
-      - DATABASE_URL=postgresql+psycopg://arni:${POSTGRES_PASSWORD:-arni_dev_password}@postgres:5432/arni
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia_postgres:5432/ariia
     depends_on:
-      - redis
-      - qdrant
-      - postgres
+      - ariia_redis
+      - ariia_qdrant
+      - ariia_postgres
     volumes:
       - ariia_data:/app/data
       - ./data/knowledge:/app/data/knowledge
-      # Hot Reload: Mount source code directly
       - ./app:/app/app
       - ./config:/app/config
       - ./scripts:/app/scripts
     networks:
       - ariia-network
 
-  # 3. Telegram Poller (Sidecar)
+  # 3. Telegram Poller
   ariia-telegram:
     build: .
     container_name: ariia_telegram
     restart: always
     command: python scripts/telegram_polling_worker.py
     healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - |
-          import pathlib,sys;
-          cmd=(pathlib.Path('/proc/1/cmdline').read_bytes() if pathlib.Path('/proc/1/cmdline').exists() else b'');
-          sys.exit(0 if b'telegram_polling_worker.py' in cmd else 1)
+      test: ["CMD", "python", "-c", "import pathlib,sys; cmd=(pathlib.Path('/proc/1/cmdline').read_bytes() if pathlib.Path('/proc/1/cmdline').exists() else b''); sys.exit(0 if b'telegram_polling_worker.py' in cmd else 1)"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -93,21 +73,19 @@ services:
       - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET}
       - TELEGRAM_OFFSET_FILE=/app/data/telegram_offset.txt
       - LOG_LEVEL=INFO
-      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/ariia.db}
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia_postgres:5432/ariia
     depends_on:
       - ariia-core
-      - redis
+      - ariia_redis
     volumes:
       - ariia_data:/app/data
-      - ./data/knowledge:/app/data/knowledge
-      # Hot Reload: Mount source code directly
       - ./app:/app/app
       - ./config:/app/config
       - ./scripts:/app/scripts 
     networks:
       - ariia-network
-  # 2. Vector Database (No Mocks)
-  qdrant:
+
+  ariia_qdrant:
     image: qdrant/qdrant:latest
     container_name: ariia_qdrant
     restart: always
@@ -116,8 +94,7 @@ services:
     networks:
       - ariia-network
 
-  # 3. Cache & PubSub
-  redis:
+  ariia_redis:
     image: redis:alpine
     container_name: ariia_redis
     restart: always
@@ -126,8 +103,7 @@ services:
     networks:
       - ariia-network
 
-  # 4. Primary relational DB (Postgres-first for multi-tenant SaaS)
-  postgres:
+  ariia_postgres:
     image: postgres:16-alpine
     container_name: ariia_postgres
     restart: always
@@ -140,31 +116,11 @@ services:
     networks:
       - ariia-network
 
-  # 7. Seed Utility (Sidecar)
-  ariia-seed:
-    build: .
-    container_name: ariia_seed
-    profiles: ["seed"]
-    command: python scripts/seed_demo_tenant.py --reset
-    environment:
-      - PYTHONPATH=/app
-      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/ariia.db}
-      - LOG_LEVEL=INFO
-    depends_on:
-      - ariia-core
-      - postgres
-    volumes:
-      - ariia_data:/app/data
-      - ./scripts:/app/scripts
-    networks:
-      - ariia-network
-
 volumes:
   qdrant_data:
   redis_data:
   ariia_data:
   postgres_data:
-  qdrant_storage:
 
 networks:
   ariia-network:

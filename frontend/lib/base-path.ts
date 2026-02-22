@@ -1,4 +1,4 @@
-const BASE_PATH = "/ariia";
+const BASE_PATH = "/arni";
 
 export function withBasePath(path: string): string {
   if (!path) return BASE_PATH;

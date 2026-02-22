@@ -31,24 +31,14 @@ export async function apiFetch(path: string, init?: RequestInit) {
   const normalizedPath = normalizePath(path);
   const method = (init?.method || "GET").toUpperCase();
   const isRetryableRead = isRetryableMethod(method);
-  const adminSuffix = normalizedPath.startsWith("/admin/")
-    ? normalizedPath.slice("/admin".length)
-    : normalizedPath === "/admin"
-      ? ""
-      : normalizedPath;
-  const authSuffix = normalizedPath.startsWith("/auth/")
-    ? normalizedPath.slice("/auth".length)
-    : normalizedPath === "/auth"
-      ? ""
-      : normalizedPath;
-
-  const isAdminPath = normalizedPath === "/admin" || normalizedPath.startsWith("/admin/");
-  const isAuthPath = normalizedPath === "/auth" || normalizedPath.startsWith("/auth/");
-  const candidates = isAdminPath
-    ? [`/arni/api/admin${adminSuffix}`]
-    : isAuthPath
-      ? [`/arni/api/auth${authSuffix}`]
-      : [normalizedPath];
+  
+  // Internal API routes should go through our Next.js proxy
+  // /admin/... -> /arni/proxy/admin/...
+  // /auth/... -> /arni/proxy/auth/...
+  
+  const candidates = [
+    withBasePath(`/proxy${normalizedPath}`)
+  ];
 
   const uniqueCandidates = [...new Set(candidates)];
   let lastError: unknown;
@@ -57,6 +47,7 @@ export async function apiFetch(path: string, init?: RequestInit) {
     const url = uniqueCandidates[index];
     const requestUrl = withCacheBust(url, isRetryableRead && index === 0);
     const headers = new Headers(init?.headers || {});
+    
     if (!isRetryableRead && typeof window !== "undefined") {
       const csrf = readCookie("ariia_csrf_token");
       if (csrf && !headers.has("x-csrf-token")) {
@@ -66,44 +57,31 @@ export async function apiFetch(path: string, init?: RequestInit) {
         headers.set("content-type", "application/json");
       }
     }
+    
     const requestInitBase: RequestInit = {
       ...init,
       headers,
       credentials: "same-origin",
     };
+    
     const requestInit = isRetryableRead
       ? { ...requestInitBase, cache: "no-store" as RequestCache, redirect: "manual" as RequestRedirect }
       : requestInitBase;
+      
     try {
       const response = await fetch(requestUrl, requestInit);
-      const contentType = response.headers.get("content-type") || "";
-      const isHtml = contentType.includes("text/html");
-      const isUnexpectedHtml = response.ok && normalizedPath.startsWith("/admin/") && isHtml;
-      if (response.ok && !isUnexpectedHtml) return response;
-
-      const shouldFallbackByStatus =
-        response.status === 404 || response.status === 405;
+      if (response.ok) return response;
 
       const shouldRetry =
-        (
-          (isRetryableRead && (RETRYABLE_STATUSES.has(response.status) || isUnexpectedHtml)) ||
-          shouldFallbackByStatus
-        ) &&
+        isRetryableRead && RETRYABLE_STATUSES.has(response.status) &&
         index < uniqueCandidates.length - 1;
 
       if (!shouldRetry) {
         if (typeof window !== "undefined" && response.status === 401) {
           window.sessionStorage.removeItem("ariia_user");
           window.localStorage.removeItem("ariia_user");
-          window.sessionStorage.removeItem("access_token");
-          window.sessionStorage.removeItem("auth_token");
-          window.sessionStorage.removeItem("token");
-          window.localStorage.removeItem("access_token");
-          window.localStorage.removeItem("auth_token");
-          window.localStorage.removeItem("token");
-          const loginPath = withBasePath("/login");
-          const registerPath = withBasePath("/register");
-          if (window.location.pathname !== loginPath && window.location.pathname !== registerPath) {
+          const loginPath = withBasePath("/login/");
+          if (window.location.pathname !== loginPath) {
             window.location.href = loginPath;
           }
         }
