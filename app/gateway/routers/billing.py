@@ -15,10 +15,15 @@ from typing import Any
 from app.core.auth import get_current_user, AuthContext
 from app.core.models import Subscription
 from app.core.db import SessionLocal
-from app.gateway.auth import _require_tenant_admin_or_system
 import structlog
 
 logger = structlog.get_logger()
+
+
+def _require_billing_access(user: AuthContext) -> None:
+    """Allow tenant_admin and system_admin, deny tenant_user."""
+    if user.role not in ("system_admin", "tenant_admin"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
 
 router = APIRouter()
 
@@ -55,7 +60,7 @@ async def create_checkout_session(
     user: AuthContext = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Create a Stripe Checkout Session for a given plan."""
-    _require_tenant_admin_or_system(user)
+    _require_billing_access(user)
 
     plan = body.plan.lower()
     price_id = PRICE_MAP.get(plan)
@@ -181,7 +186,7 @@ async def get_billing_status(
     user: AuthContext = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get current subscription status for the calling tenant."""
-    _require_tenant_admin_or_system(user)
+    _require_billing_access(user)
     db = SessionLocal()
     try:
         sub = db.query(Subscription).filter(Subscription.tenant_id == user.tenant_id).first()
