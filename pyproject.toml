@@ -1,9 +1,9 @@
-# @ARCH: pyproject.toml – ARNI v1.4 Project Definition
+# @ARCH: pyproject.toml – ARIIA v1.4 Project Definition
 
 [project]
-name = "arni"
+name = "ariia"
 version = "1.4.0"
-description = "ARNI – Living System Agent for GetImpulse Berlin"
+description = "ARIIA – Living System Agent for GetImpulse Berlin"
 requires-python = ">=3.12"
 license = {text = "Proprietary"}
 
@@ -36,6 +36,7 @@ dependencies = [
     "numpy>=1.26.0",       # Math/Array operations
     "python-multipart>=0.0.9", # FastAPI Form/File support
     "stripe>=8.0.0",           # Stripe Billing Integration
+    "cryptography>=44.0.0",    # Encryption for BYOK/Sensitive Settings
 ]
 
 [project.optional-dependencies]

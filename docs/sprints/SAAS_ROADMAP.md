@@ -1,7 +1,7 @@
-# ARNI – Multi-Tenant SaaS Finalisierungs-Roadmap
+# ARIIA – Multi-Tenant SaaS Finalisierungs-Roadmap
 **Erstellt:** 2026-02-21
 **Basis:** `docs/audits/SAAS_READINESS_AUDIT_2026-02-21.md`
-**Ziel:** ARNI von einem GetImpulse-spezifischen Einzelmieter-System zu einem vollständigen, produktionsreifen Multi-Tenant SaaS-Produkt transformieren.
+**Ziel:** ARIIA von einem GetImpulse-spezifischen Einzelmieter-System zu einem vollständigen, produktionsreifen Multi-Tenant SaaS-Produkt transformieren.
 
 ---
 
@@ -78,7 +78,7 @@ Jede Aufgabe wird in dieser Reihenfolge bewertet:
 3. Alle `redis.get(f"user_token:{user_id}", ...)` ersetzen durch `redis.get(redis_key(tenant_id, "user_token", str(user_id)), ...)`.
 4. Alle `human_mode:{user_id}` Keys ersetzen.
 5. Dialog-Context-Keys in `app/memory/context.py`: `dialog:{user_id}` → `redis_key(tenant_id, "dialog", user_id)`.
-6. Pub/Sub-Channels (`arni:inbound`, `arni:outbound`, `arni:events`) bleiben vorerst global — sie transportieren vollständige Messages mit `tenant_id` im Payload. Dies ist akzeptabel für Phase 1.
+6. Pub/Sub-Channels (`ariia:inbound`, `ariia:outbound`, `ariia:events`) bleiben vorerst global — sie transportieren vollständige Messages mit `tenant_id` im Payload. Dies ist akzeptabel für Phase 1.
 
 **Migration:** Bestehende Redis-Keys von GetImpulse haben kein Präfix. Sie laufen nach TTL automatisch ab (max. 30 min für Dialog, 24h für Tokens). Keine aktive Migration notwendig — Nutzer müssen sich einmalig neu verifizieren.
 
@@ -168,7 +168,7 @@ Jede Aufgabe wird in dieser Reihenfolge bewertet:
    PROMPT_SETTINGS_KEYS = [
        "studio_name",           # "GetImpulse Berlin" | "SportPark München"
        "studio_short_name",     # "GetImpulse" | "SportPark"
-       "agent_display_name",    # "ARNI" | "SPORTIE" | beliebig
+       "agent_display_name",    # "ARIIA" | "SPORTIE" | beliebig
        "studio_locale",         # "de-DE" | "en-US" | "de-AT"
        "studio_timezone",       # "Europe/Berlin" | "Europe/Vienna"
        "studio_emergency_number", # "112" | "911" | "999"
@@ -218,7 +218,7 @@ Jede Aufgabe wird in dieser Reihenfolge bewertet:
            return template.format(
                studio_name=self._get("studio_name", "Fitnessstudio"),
                studio_short_name=self._get("studio_short_name", "Studio"),
-               agent_name=self._get("agent_display_name", "ARNI"),
+               agent_name=self._get("agent_display_name", "ARIIA"),
                locale=self._get("studio_locale", "de-DE"),
                emergency_number=self._get("studio_emergency_number", "112"),
                prices_text=self._get("sales_prices_text", ""),
@@ -252,7 +252,7 @@ Jede Aufgabe wird in dieser Reihenfolge bewertet:
 **1. Sales-Agent (`app/swarm/agents/sales.py`):**
 ```python
 # VORHER (Zeile 19-47):
-SALES_SYSTEM_PROMPT = """Du bist ARNI, der Retention-Agent von GetImpulse Berlin...
+SALES_SYSTEM_PROMPT = """Du bist ARIIA, der Retention-Agent von GetImpulse Berlin...
 Tarife GetImpulse Berlin:
 - Flex: 29,90€/Monat..."""
 
@@ -426,7 +426,7 @@ Und alte Endpunkte als Deprecated markieren (noch 30 Tage erreichbar, dann entfe
    {
      "magicline": {"configured": true, "reachable": true, "last_sync": "2026-02-21T10:00:00Z"},
      "whatsapp": {"configured": true, "phone_number_id": "123456"},
-     "telegram": {"configured": true, "bot_username": "@arni_bot"},
+     "telegram": {"configured": true, "bot_username": "@ariia_bot"},
      "smtp": {"configured": true, "reachable": false, "error": "Connection timeout"}
    }
    ```
@@ -674,7 +674,7 @@ class StripeService:
 **Durchführung:**
 1. `UserAccount` bekommt neues Feld: `email_verified_at = Column(DateTime, nullable=True)`.
 2. `Tenant` bekommt neues Feld: `is_verified = Column(Boolean, default=False)`.
-3. Nach Registrierung: SMTP-Mail mit Verifikationslink senden: `https://app.arni.ai/verify?token={token}&tenant={tenant_slug}`.
+3. Nach Registrierung: SMTP-Mail mit Verifikationslink senden: `https://app.ariia.ai/verify?token={token}&tenant={tenant_slug}`.
 4. Verifikationstoken: `HMAC-SHA256(email + tenant_id + timestamp, AUTH_SECRET)` mit 24h TTL in Redis.
 5. Neuer Endpoint `GET /auth/verify?token=&tenant=` setzt `email_verified_at` und `tenant.is_verified = True`.
 6. Tenants mit `is_verified = False` können sich zwar einloggen, aber Webhooks werden abgewiesen (HTTP 403 mit Hinweis auf Verifizierung).
@@ -761,8 +761,8 @@ class StripeService:
 
 **Durchführung:**
 1. Backend: `X-Tenant-Slug` Header-Support in `get_current_user()` — wenn Header gesetzt, wird Tenant daraus aufgelöst (zusätzlich zu Token).
-2. Frontend: Next.js Middleware liest `req.headers.host`, extrahiert Subdomain (`{slug}.arni.app`), setzt `X-Tenant-Slug` Header für alle API-Requests.
-3. DNS und Deployment (Nginx/Caddy): Wildcard-DNS `*.arni.app → Server-IP` konfigurieren.
+2. Frontend: Next.js Middleware liest `req.headers.host`, extrahiert Subdomain (`{slug}.ariia.app`), setzt `X-Tenant-Slug` Header für alle API-Requests.
+3. DNS und Deployment (Nginx/Caddy): Wildcard-DNS `*.ariia.app → Server-IP` konfigurieren.
 
 ---
 

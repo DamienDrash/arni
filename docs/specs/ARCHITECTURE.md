@@ -1,8 +1,8 @@
-# ARNI v1.4 System Architecture
+# ARIIA v1.4 System Architecture
 
 ## 1. High-Level Philosophy
-Arni is an autonomous, local-first system agent for "GetImpulse Berlin".
-Unlike traditional chatbots, Arni is a "Living System" that:
+Ariia is an autonomous, local-first system agent for "GetImpulse Berlin".
+Unlike traditional chatbots, Ariia is a "Living System" that:
 1.  **Observes** (Vision/Sensors)
 2.  **Reasons** (Swarm Intelligence)
 3.  **Acts** (API/IoT/Voice)
@@ -29,7 +29,7 @@ Unlike traditional chatbots, Arni is a "Living System" that:
 - **IoT:** MQTT for Door/Light control (Shelly/Nuki).
 
 ### D. Self-Improvement Loop
-- **ACP (Agent Client Protocol):** Arni connects to IDEs to refactor his own code.
+- **ACP (Agent Client Protocol):** Ariia connects to IDEs to refactor his own code.
 - **Soul Evolution:** Weekly analysis of chat logs to update `SOUL.md` via Git PR.
 
 ## 3. System Diagram (Mermaid)

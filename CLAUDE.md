@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-ARNI is a multi-tenant SaaS AI agent platform for fitness studios (WhatsApp, Telegram, SMS, Email, Voice) with a full admin dashboard. Tenants are fully isolated — each gets their own subscription plan, Jinja2 prompt templates, knowledge base, and branding. Powered by swarm-based agent routing (GPT-4o-mini).
+ARIIA is a multi-tenant SaaS AI agent platform for fitness studios (WhatsApp, Telegram, SMS, Email, Voice) with a full admin dashboard. Tenants are fully isolated — each gets their own subscription plan, Jinja2 prompt templates, knowledge base, and branding. Powered by swarm-based agent routing (GPT-4o-mini).
 
 ## Commands
 
@@ -39,7 +39,7 @@ cd frontend
 npm install
 npm run dev                   # dev server on :3000
 npm run qa:gate               # full quality gate: lint + typecheck + build
-npm run lint:strict           # ESLint with zero warnings
+npm run lint:strict           # ESLint with zero wariiangs
 npm run typecheck             # tsc --noEmit
 npm run test:rbac             # RBAC contract tests
 npm run build                 # production build
@@ -65,7 +65,7 @@ Platform (WA/TG/SMS) → Webhook Endpoint (FastAPI)
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | Gateway | `app/gateway/main.py` | Webhook ingress, WebSocket `/ws/control` (Ghost Mode), health |
-| Redis Bus | `app/gateway/redis_bus.py` | Async pub/sub: `arni:inbound`, `arni:outbound`, `arni:events` |
+| Redis Bus | `app/gateway/redis_bus.py` | Async pub/sub: `ariia:inbound`, `ariia:outbound`, `ariia:events` |
 | Swarm Router | `app/swarm/` | Intent classification → agent dispatch |
 | Agents | `app/swarm/agents/` | Ops (booking), Sales (retention), Medic (health), Vision, Persona |
 | Persistence | `app/gateway/persistence.py` | Singleton wrapping SQLAlchemy SessionLocal |
@@ -76,7 +76,7 @@ Platform (WA/TG/SMS) → Webhook Endpoint (FastAPI)
 
 ### Frontend Structure
 
-Next.js app router with role-gated pages. Auth uses a cookie `arni_access_token` (HMAC-SHA256, not JWT). Role matrix is contract-tested in `frontend/tests/rbac.contract.test.ts`.
+Next.js app router with role-gated pages. Auth uses a cookie `ariia_access_token` (HMAC-SHA256, not JWT). Role matrix is contract-tested in `frontend/tests/rbac.contract.test.ts`.
 
 - `frontend/app/` – Pages (login, users, settings, integrations, etc.)
 - `frontend/components/` – NavShell, Sidebar, Modal, settings sub-components
@@ -91,7 +91,7 @@ Key tables: `tenants`, `users`, `chat_sessions`, `chat_messages`, `studio_member
 
 ### Authentication
 
-- **Admin users**: HMAC-SHA256 token, cookie `arni_access_token`, 12h TTL. Backend dependency `get_current_user()` returns `AuthContext`.
+- **Admin users**: HMAC-SHA256 token, cookie `ariia_access_token`, 12h TTL. Backend dependency `get_current_user()` returns `AuthContext`.
 - **End users (members)**: Phone-based 6-digit MFA, code cached in Redis, matched to Magicline member.
 - **Webhooks**: WhatsApp → HMAC-SHA256 on raw body; Telegram → secret header; Twilio → HMAC-SHA1.
 - **Passwords**: PBKDF2-HMAC-SHA256 with 200k iterations.
@@ -102,7 +102,7 @@ Key tables: `tenants`, `users`, `chat_sessions`, `chat_messages`, `studio_member
 |---------|----------|-------|
 | Plans & Billing | `app/core/feature_gates.py`, `app/core/models.py` | Starter/Pro/Enterprise; metered usage; HTTP 402/429 gates |
 | Prompt Templates | `app/prompts/`, `app/prompts/templates/` | Per-agent Jinja2 `.j2`; per-tenant override via `data/knowledge/tenants/{slug}/prompts/` |
-| Knowledge Bases | `app/knowledge/` | Per-tenant ChromaDB collections (`arni_knowledge_{slug}`); ingest MD files |
+| Knowledge Bases | `app/knowledge/` | Per-tenant ChromaDB collections (`ariia_knowledge_{slug}`); ingest MD files |
 | Redis Namespacing | `app/gateway/redis_bus.py` | Keys: `t{tenant_id}:{domain}:{key}` |
 | White-label Branding | Admin API + `frontend/app/settings/branding/` | `tenant_logo_url`, `tenant_primary_color`, `tenant_app_title` |
 | Tenant Onboarding | `app/gateway/auth.py` | On register: auto-seed Starter subscription + prompt defaults |

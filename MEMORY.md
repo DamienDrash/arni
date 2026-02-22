@@ -1,4 +1,4 @@
-# ARNI Session Memory
+# ARIIA Session Memory
 _Letzte Aktualisierung: 2026-02-18_
 
 ## Zuletzt bearbeitete Dateien
@@ -76,3 +76,8 @@ gender, preferred_language, member_since, is_paused, additional_info (JSON), che
 | key | value | Beschreibung |
 |-----|-------|-------------|
 | checkin_enabled | true | Check-in System aktiv / Statistik-Fallback |
+
+## Enterprise Architecture Standards
+- **Strict Authentication**: Legacy fallbacks (`auth_transition_mode`, `auth_allow_header_fallback`) are strictly prohibited and removed. All clients must use JWT Bearer tokens.
+- **Data Isolation**: PostgreSQL Row-Level Security (RLS) is enforced on all tenant-specific tables to guarantee strict tenant data isolation at the database level.
+- **Audit Logging**: Tenant-level audit logs must be exposed to tenant admins for compliance.

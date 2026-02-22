@@ -8,7 +8,7 @@
 ## 1. Test-Ergebnisse (@QA)
 
 ```
-68/68 Tests PASSED | 0 Failures | 0 Errors | 0 Warnings
+68/68 Tests PASSED | 0 Failures | 0 Errors | 0 Wariiangs
 Laufzeit: 1.14s
 ```
 
@@ -30,7 +30,7 @@ Laufzeit: 1.14s
 | `app/swarm/llm.py` | **51%** | 🔴 | ≥80% ❌ |
 | **TOTAL** | **77%** | 🟡 | ≥80% ⚠️ |
 
-> [!WARNING]
+> [!WARIIANG]
 > **Coverage-Gate nicht erreicht.** `main.py` (55%) und `llm.py` (51%) liegen deutlich unter der 80%-Schwelle aus `QA.md §Coverage-Pflicht`. Hauptgrund: Lifespan-Events, WebSocket-Handler und LLM-API-Calls sind nicht voll getestet.
 
 ---
@@ -98,7 +98,7 @@ Laufzeit: 1.14s
 | CI/CD Pipeline Basis (Dockerfile, Pytest) | ✅ | Multi-stage, 68 Tests |
 | **@DEVOPS:** Docker Compose Setup | ✅ | Gateway + Redis |
 | **@SEC:** DSGVO-Baseline | ✅ | PII-Masking + 0s Retention |
-| **@UX:** Arni Persona Audit | ❌ | **Kein dediziertes Dokument** |
+| **@UX:** Ariia Persona Audit | ❌ | **Kein dediziertes Dokument** |
 
 ### Phase 2 (Swarm Intelligence) vs. ROADMAP.md Zeile 36–43
 
@@ -161,7 +161,7 @@ Laufzeit: 1.14s
 - ✅ Notfall-Keywords → 112 + Staff Alert
 
 ### Persona Integrity (SOUL.md)
-- ✅ Persona-Handler nutzt Arni-Stil („Komm schon! 💪", „Servus!")
+- ✅ Persona-Handler nutzt Ariia-Stil („Komm schon! 💪", „Servus!")
 - ✅ Kein „As an AI" oder „I'm a bot" in Antworten (getestet)
 - ⚠️ **Fehlend:** Dediziertes Persona Audit Dokument (Task 1.16)
 
@@ -216,6 +216,6 @@ Laufzeit: 1.14s
 | **ROADMAP Compliance** | ✅ Phase 1+2 Kernfunktionalität vorhanden |
 | **One-Way-Door** | ✅ Konform |
 | **DSGVO** | ✅ Konform |
-| **Persona** | ✅ Arni bleibt Arni |
+| **Persona** | ✅ Ariia bleibt Ariia |
 
 > **@PO Urteil:** Sprint 1 und Sprint 2 haben die **Kernfunktionalität** wie in der ROADMAP definiert geliefert. Die 4 offenen Tasks (UX Persona Audit, Gateway Integration, SEC Audit, Docs Update) und die Coverage-Lücken sollten **vor Sprint 3 Start** geschlossen werden.

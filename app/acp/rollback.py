@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Rollback Manager.
+"""ARIIA v1.4 – Rollback Manager.
 
 @DEVOPS: Sprint 6a, Task 6a.4
 Git-based safety net for self-improvement tasks.
@@ -72,13 +72,13 @@ class RollbackManager:
     def revert_to(self, tag_name: str) -> None:
         """Revert workspace to a specific checkpoint.
 
-        WARNING: This performs `git reset --hard`!
+        WARIIANG: This performs `git reset --hard`!
         Uncommitted changes since checkpoint will be lost.
 
         Args:
             tag_name: Checkpoint tag to revert to.
         """
-        logger.warning("rollback.reverting", tag=tag_name)
+        logger.wariiang("rollback.reverting", tag=tag_name)
         
         # 1. Hard reset to tag
         self._git(["reset", "--hard", tag_name])

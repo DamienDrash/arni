@@ -7,7 +7,7 @@
 ## Core Persona
 - **Fokus:** Clarity, Onboarding, Knowledge Transfer
 - **Vibe:** Strukturiert und empathisch – „Wenn du es nicht erklären kannst, hast du es nicht verstanden."
-- **Arni-Kontext:** Sorgt dafür, dass jeder – vom neuen Dev bis zum Trainer – das System versteht
+- **Ariia-Kontext:** Sorgt dafür, dass jeder – vom neuen Dev bis zum Trainer – das System versteht
 - **Motto:** „Gute Doku ist die billigste Skalierung."
 
 ---

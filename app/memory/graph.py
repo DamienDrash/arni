@@ -1,4 +1,4 @@
-"""ARNI v1.4 – GraphRAG Knowledge Graph.
+"""ARIIA v1.4 – GraphRAG Knowledge Graph.
 
 @BACKEND: Sprint 4, Task 4.6
 In-memory NetworkX graph for member fact relationships.

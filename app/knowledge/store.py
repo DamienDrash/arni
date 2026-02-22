@@ -7,7 +7,7 @@ logger = structlog.get_logger()
 
 # Constants
 KNOWLEDGE_DB_PATH = "data/chroma_db"
-DEFAULT_COLLECTION_NAME = "arni_knowledge"
+DEFAULT_COLLECTION_NAME = "ariia_knowledge"
 
 class KnowledgeStore:
     def __init__(self, collection_name: str = DEFAULT_COLLECTION_NAME, db_path: str = KNOWLEDGE_DB_PATH):

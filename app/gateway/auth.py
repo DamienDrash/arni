@@ -26,8 +26,8 @@ from app.gateway.persistence import persistence
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 RESERVED_TENANT_SLUGS = {"system", "admin", "api"}
-AUTH_COOKIE = "arni_access_token"
-CSRF_COOKIE = "arni_csrf_token"
+AUTH_COOKIE = "ariia_access_token"
+CSRF_COOKIE = "ariia_csrf_token"
 IMPERSONATION_TTL_SECONDS = 45 * 60
 
 
@@ -206,7 +206,7 @@ async def register(req: RegisterRequest, response: Response) -> dict:
                 db.add(Sub(tenant_id=tenant.id, plan_id=starter.id, status="active"))
                 db.commit()
         except Exception as _sub_err:
-            logger.warning("tenant.register.subscription_seed_failed", tenant_id=tenant.id, error=str(_sub_err))
+            logger.wariiang("tenant.register.subscription_seed_failed", tenant_id=tenant.id, error=str(_sub_err))
 
         try:
             from app.core.prompt_builder import seed_prompt_settings
@@ -215,7 +215,7 @@ async def register(req: RegisterRequest, response: Response) -> dict:
             # Seed tenant display name from registration name
             _ps.upsert_setting("tenant_display_name", tenant.name, tenant_id=tenant.id)
         except Exception as _ps_err:
-            logger.warning("tenant.register.prompt_seed_failed", tenant_id=tenant.id, error=str(_ps_err))
+            logger.wariiang("tenant.register.prompt_seed_failed", tenant_id=tenant.id, error=str(_ps_err))
 
         token = create_access_token(
             user_id=user.id,
@@ -589,7 +589,7 @@ async def create_tenant(req: CreateTenantRequest, user: AuthContext = Depends(ge
                 db.add(Subscription(tenant_id=row.id, plan_id=starter.id, status="active"))
                 db.commit()
         except Exception as _sub_err:
-            logger.warning("tenant.create.subscription_seed_failed", tenant_id=row.id, error=str(_sub_err))
+            logger.wariiang("tenant.create.subscription_seed_failed", tenant_id=row.id, error=str(_sub_err))
 
         try:
             from app.core.prompt_builder import seed_prompt_settings
@@ -597,7 +597,7 @@ async def create_tenant(req: CreateTenantRequest, user: AuthContext = Depends(ge
             seed_prompt_settings(_ps, row.id)
             _ps.upsert_setting("tenant_display_name", row.name, tenant_id=row.id)
         except Exception as _ps_err:
-            logger.warning("tenant.create.prompt_seed_failed", tenant_id=row.id, error=str(_ps_err))
+            logger.wariiang("tenant.create.prompt_seed_failed", tenant_id=row.id, error=str(_ps_err))
 
         _write_audit(
             actor=user,

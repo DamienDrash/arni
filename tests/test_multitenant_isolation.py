@@ -73,7 +73,7 @@ async def test_tenant_user_cannot_write_tenant_preferences(client: AsyncClient) 
     """A tenant_user must be blocked from writing tenant preferences (needs tenant_admin)."""
     admin_login = await client.post(
         "/auth/login",
-        json={"email": "admin@arni.local", "password": "password123"},
+        json={"email": "admin@ariia.local", "password": "password123"},
     )
     assert admin_login.status_code == 200
     admin_token = admin_login.json()["access_token"]
@@ -180,7 +180,7 @@ async def test_tenant_user_cannot_access_admin_endpoints(client: AsyncClient) ->
     """A tenant_user must not be able to access admin-only endpoints."""
     admin_login = await client.post(
         "/auth/login",
-        json={"email": "admin@arni.local", "password": "password123"},
+        json={"email": "admin@ariia.local", "password": "password123"},
     )
     assert admin_login.status_code == 200
     admin_token = admin_login.json()["access_token"]

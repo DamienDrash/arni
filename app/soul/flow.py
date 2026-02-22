@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Evolution Flow.
+"""ARIIA v1.4 – Evolution Flow.
 
 @BACKEND: Sprint 6b, Task 6b.3
 Orchestrates the Self-Improvement cycle (Analyze -> Evolve).

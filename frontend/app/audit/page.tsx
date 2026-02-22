@@ -33,12 +33,12 @@ export default function AuditPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch("/auth/audit?limit=300")
+    apiFetch("/admin/audit?limit=300")
       .then(async (res) => {
         if (!res.ok) throw new Error(`Audit load failed (${res.status})`);
         return res.json();
       })
-      .then((data) => setRows(Array.isArray(data) ? data : []))
+      .then((data) => setRows(data.items || []))
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
   }, []);
@@ -123,7 +123,7 @@ export default function AuditPage() {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `arni-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `ariia-audit-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
   }

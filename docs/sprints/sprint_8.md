@@ -23,7 +23,7 @@
 | 8b.3 | HMAC Bypass | @SEC | Signaturprüfung deaktiviert (Bridge signiert nicht) | ✅ |
 | 8b.4 | Reply Loop | @BACKEND | Webhook → SwarmRouter → Agent → Bridge `/send` → WhatsApp | ✅ |
 | 8b.5 | Self-Message | @BACKEND | `fromMe`-Filter entfernt (User kann sich selbst schreiben) | ✅ |
-| 8b.6 | E2E Reply Test | @QA | Nachricht senden → ARNI antwortet via WhatsApp | 🟡 |
+| 8b.6 | E2E Reply Test | @QA | Nachricht senden → ARIIA antwortet via WhatsApp | 🟡 |
 
 ## Geänderte Dateien
 
@@ -37,6 +37,6 @@
 
 ## Definition of Done
 - [x] WhatsApp verbindet via QR Code
-- [x] Inbound Messages erreichen ARNI Gateway
+- [x] Inbound Messages erreichen ARIIA Gateway
 - [x] Reply Loop verdrahtet (Webhook → Router → Agent → Bridge)
-- [ ] E2E: User sendet Nachricht → ARNI antwortet via WhatsApp
+- [ ] E2E: User sendet Nachricht → ARIIA antwortet via WhatsApp

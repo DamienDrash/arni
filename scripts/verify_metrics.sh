@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🔄 Restarting ARNI Gateway for Verification..."
+echo "🔄 Restarting ARIIA Gateway for Verification..."
 pkill -f uvicorn || true
 
 source .venv/bin/activate

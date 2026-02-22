@@ -37,26 +37,26 @@
   padding: 0 1rem;
   height: 3.5rem;
   flex-shrink: 0;
-  background: var(--arni-surface);
-  border-bottom: 1px solid var(--arni-border);
+  background: var(--ariia-surface);
+  border-bottom: 1px solid var(--ariia-border);
 }
 
 .brand {
   font-size: 20px;
   font-weight: 800;
-  color: var(--arni-text);
+  color: var(--ariia-text);
   letter-spacing: -0.5px;
 }
 
 .brandDot {
-  color: var(--arni-accent);
+  color: var(--ariia-accent);
 }
 
 .menuButton {
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--arni-text-muted);
+  color: var(--ariia-text-muted);
   display: flex;
   padding: 6px;
   border-radius: 8px;
@@ -80,8 +80,8 @@
   gap: 12px;
   margin-bottom: 16px;
   padding: 12px 14px;
-  border: 1px solid color-mix(in oklab, var(--arni-accent) 45%, var(--arni-border));
-  background: color-mix(in oklab, var(--arni-accent) 16%, var(--arni-surface));
+  border: 1px solid color-mix(in oklab, var(--ariia-accent) 45%, var(--ariia-border));
+  background: color-mix(in oklab, var(--ariia-accent) 16%, var(--ariia-surface));
   border-radius: 12px;
 }
 
@@ -89,13 +89,13 @@
   display: grid;
   gap: 2px;
   font-size: 12px;
-  color: var(--arni-text);
+  color: var(--ariia-text);
 }
 
 .ghostBannerExit {
   border: none;
   border-radius: 10px;
-  background: var(--arni-accent);
+  background: var(--ariia-accent);
   color: #061018;
   font-size: 12px;
   font-weight: 700;
@@ -110,7 +110,7 @@
 
 .pageTitle {
   margin: 0;
-  color: var(--arni-text);
+  color: var(--ariia-text);
   font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -118,7 +118,7 @@
 
 .pageSubtitle {
   margin: 4px 0 0;
-  color: var(--arni-text-dim);
+  color: var(--ariia-text-dim);
   font-size: 12px;
 }
 

@@ -285,7 +285,7 @@ def _fetch_recent_bookings(client, customer_id: int) -> dict:
                 "status": str(status).upper(),
             })
     except Exception as e:
-        logger.warning("member_enrichment.appointments_failed", customer_id=customer_id, error=str(e))
+        logger.wariiang("member_enrichment.appointments_failed", customer_id=customer_id, error=str(e))
 
     # Class bookings
     try:
@@ -309,7 +309,7 @@ def _fetch_recent_bookings(client, customer_id: int) -> dict:
                 "status": str(status).upper(),
             })
     except Exception as e:
-        logger.warning("member_enrichment.classes_failed", customer_id=customer_id, error=str(e))
+        logger.wariiang("member_enrichment.classes_failed", customer_id=customer_id, error=str(e))
 
     completed_statuses = {"COMPLETED", "ATTENDED"}
     upcoming_statuses = {"BOOKED", "PLANNED", "CONFIRMED"}
@@ -403,7 +403,7 @@ def enrich_member(customer_id: int, force: bool = False, tenant_id: int | None =
                     offset += CHECKIN_SLICE_SIZE
                 checkins_30 = [c for c in checkins_90 if (c.get("checkInDateTime") or "") >= cutoff_30]
             except Exception as e:
-                logger.warning("member_enrichment.checkins_failed", customer_id=customer_id, error=str(e))
+                logger.wariiang("member_enrichment.checkins_failed", customer_id=customer_id, error=str(e))
 
         checkin_stats = _compute_checkin_stats(checkins_90, checkins_30)
 

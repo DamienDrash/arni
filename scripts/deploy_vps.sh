@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Starting ARNI VPS Deployment..."
+echo "🚀 Starting ARIIA VPS Deployment..."
 
 # 0. Check & Install Docker
 if ! command -v docker &> /dev/null; then
@@ -24,7 +24,7 @@ fi
 echo "🛑 Checking for legacy processes..."
 PIDS=$(pgrep -f "python.*app.gateway.main") || true
 if [ -n "$PIDS" ]; then
-    echo "Found old Arni process(es): $PIDS. Stopping..."
+    echo "Found old Ariia process(es): $PIDS. Stopping..."
     kill $PIDS
     sleep 2
 else
@@ -71,10 +71,10 @@ docker compose up -d --build
 echo "⏳ Waiting for services to be healthy..."
 sleep 10
 if curl -s http://localhost:8000/health | grep -q "ok"; then
-    echo "✅ ARNI Core is Up!"
+    echo "✅ ARIIA Core is Up!"
 else
-    echo "⚠️ Health check failed or timed out. Check logs with: docker compose logs -f arni-core"
+    echo "⚠️ Health check failed or timed out. Check logs with: docker compose logs -f ariia-core"
 fi
 
-echo "✅ Deployment Complete. Arni is running on port 8000."
+echo "✅ Deployment Complete. Ariia is running on port 8000."
 echo "🌍 External Access: Ensure your reverse proxy points services.frigew.ski -> localhost:8000"

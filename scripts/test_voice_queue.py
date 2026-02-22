@@ -17,7 +17,7 @@ async def test_voice_queue():
     await redis_bus.connect()
     
     # 1. Clear Queue
-    print("🧹 Clearing arni:voice_queue...")
+    print("🧹 Clearing ariia:voice_queue...")
     while await redis_bus.pop_from_queue(RedisBus.CHANNEL_VOICE_QUEUE, timeout=1):
         pass
 

@@ -18,7 +18,7 @@ async def test_send():
     bot = TelegramBot(bot_token=token)
     
     try:
-        await bot.send_message(chat_id, "👋 Hallo! Hier ist ARNI. Test-Nachricht erfolgreich.")
+        await bot.send_message(chat_id, "👋 Hallo! Hier ist ARIIA. Test-Nachricht erfolgreich.")
         print("✅ Message sent!")
     except Exception as e:
         print(f"❌ Failed to send: {e}")

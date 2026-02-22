@@ -20,7 +20,7 @@ let latestQR = null;
 let connectionStatus = 'disconnected';
 let messageStats = { forwarded: 0, ignored: 0, errors: 0 };
 
-console.log(`[ARNI Bridge] Mode: ${BRIDGE_MODE} | Port: ${PORT} | Webhook: ${WEBHOOK_URL}`);
+console.log(`[ARIIA Bridge] Mode: ${BRIDGE_MODE} | Port: ${PORT} | Webhook: ${WEBHOOK_URL}`);
 
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
@@ -28,7 +28,7 @@ async function connectToWhatsApp() {
     const sock = makeWASocket({
         auth: state,
         logger: pino({ level: LOG_LEVEL }),
-        browser: ["ARNI", "Chrome", "1.0"]
+        browser: ["ARIIA", "Chrome", "1.0"]
     });
 
     sock.ev.on('connection.update', (update) => {
@@ -105,7 +105,7 @@ async function connectToWhatsApp() {
                             messaging_product: "whatsapp",
                             metadata: {
                                 display_phone_number: ownJid.replace('@s.whatsapp.net', ''),
-                                phone_number_id: "ARNI_BRIDGE"
+                                phone_number_id: "ARIIA_BRIDGE"
                             },
                             contacts: [{
                                 profile: { name: msg.pushName || "User" },
@@ -153,7 +153,7 @@ async function connectToWhatsApp() {
             return res.send(`
                 <html><body style="background:#111;color:#0f0;font-family:monospace;text-align:center;padding:60px">
                 <h1>✅ WhatsApp Connected!</h1>
-                <p>ARNI Bridge is active (${BRIDGE_MODE} mode). You can close this page.</p>
+                <p>ARIIA Bridge is active (${BRIDGE_MODE} mode). You can close this page.</p>
                 </body></html>
             `);
         }
@@ -171,7 +171,7 @@ async function connectToWhatsApp() {
             res.send(`
                 <html><head><meta http-equiv="refresh" content="15"></head>
                 <body style="background:#111;color:#fff;font-family:monospace;text-align:center;padding:40px">
-                <h1>📱 ARNI WhatsApp Bridge</h1>
+                <h1>📱 ARIIA WhatsApp Bridge</h1>
                 <p>Scan with WhatsApp → Linked Devices → Link a Device</p>
                 <img src="${qrDataUrl}" style="margin:20px;border-radius:12px"/>
                 <p style="color:#888">Auto-refreshes every 15s</p>
@@ -200,4 +200,4 @@ async function connectToWhatsApp() {
 
 // Start
 connectToWhatsApp();
-app.listen(PORT, '0.0.0.0', () => console.log(`[ARNI Bridge] Running on http://0.0.0.0:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`[ARIIA Bridge] Running on http://0.0.0.0:${PORT}`));

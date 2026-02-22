@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Redis Bus Unit Tests.
+"""ARIIA v1.4 – Redis Bus Unit Tests.
 
 @QA: Sprint 1, Task 1.9
 Tests: Connection, Pub/Sub roundtrip, health check, error handling.
@@ -52,7 +52,7 @@ class TestRedisBusPubSub:
 
     @pytest.mark.anyio
     async def test_publish_returns_subscriber_count(self, bus: RedisBus) -> None:
-        count = await bus.publish("arni:test", '{"msg": "hello"}')
+        count = await bus.publish("ariia:test", '{"msg": "hello"}')
         # No subscribers yet, so count is 0
         assert count == 0
 
@@ -86,10 +86,10 @@ class TestRedisBusChannels:
     """Verify channel naming conventions."""
 
     def test_channel_inbound_name(self) -> None:
-        assert RedisBus.CHANNEL_INBOUND == "arni:inbound"
+        assert RedisBus.CHANNEL_INBOUND == "ariia:inbound"
 
     def test_channel_outbound_name(self) -> None:
-        assert RedisBus.CHANNEL_OUTBOUND == "arni:outbound"
+        assert RedisBus.CHANNEL_OUTBOUND == "ariia:outbound"
 
     def test_channel_events_name(self) -> None:
-        assert RedisBus.CHANNEL_EVENTS == "arni:events"
+        assert RedisBus.CHANNEL_EVENTS == "ariia:events"

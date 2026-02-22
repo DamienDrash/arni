@@ -112,4 +112,4 @@
 | **RBAC / Audit Log** | Sprint 13 (Admin) | ✅ Done |
 | **SLA / Uptime** | Sprint 7 (Load Test)| ✅ Done |
 
-> **Conclusion:** With Sprint 14, ARNI achieves "Enterprise Grade Level 3" (Autonomous & Observable).
+> **Conclusion:** With Sprint 14, ARIIA achieves "Enterprise Grade Level 3" (Autonomous & Observable).

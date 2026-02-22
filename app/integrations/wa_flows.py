@@ -1,4 +1,4 @@
-"""ARNI v1.4 – WhatsApp Native Flows (Stub).
+"""ARIIA v1.4 – WhatsApp Native Flows (Stub).
 
 @BACKEND: Sprint 3, Task 3.9
 JSON schemas for WhatsApp Interactive Messages (Buttons, Lists).
@@ -12,7 +12,7 @@ def booking_confirmation_buttons(
     course_name: str,
     time_slot: str,
     date: str,
-    studio_name: str = "ARNI",
+    studio_name: str = "ARIIA",
 ) -> dict[str, Any]:
     """Generate WhatsApp interactive button for booking confirmation.
 
@@ -48,7 +48,7 @@ def booking_confirmation_buttons(
 def time_slot_list(
     available_slots: list[dict[str, str]],
     course_name: str,
-    studio_name: str = "ARNI",
+    studio_name: str = "ARIIA",
 ) -> dict[str, Any]:
     """Generate WhatsApp interactive list for time slot selection.
 

@@ -26,28 +26,26 @@ def _enrich_tenant_members(tenant_id: int) -> None:
     finally:
         db.close()
 
-    ok = err = skipped = 0
-    for cid in ids:
-        try:
-            result = enrich_member(cid, force=False, tenant_id=tenant_id)
-            if result.get("cached"):
-                skipped += 1
-            elif "error" in result:
-                err += 1
-            else:
-                ok += 1
-        except Exception as e:
-            logger.error("magicline.scheduler.enrich_member_failed", tenant_id=tenant_id, customer_id=cid, error=str(e))
-            err += 1
-
-    logger.info(
-        "magicline.scheduler.enrich_completed",
-        tenant_id=tenant_id,
-        ok=ok,
-        skipped=skipped,
-        err=err,
-        total=len(ids),
-    )
+    if not ids:
+        return
+        
+    import redis as _redis
+    from app.config.settings import get_settings
+    
+    try:
+        r = _redis.from_url(get_settings().redis_url, decode_responses=True)
+        queue_key = f"tenant:{tenant_id}:enrich_queue"
+        chunk_size = 500
+        for i in range(0, len(ids), chunk_size):
+            r.sadd(queue_key, *ids[i:i+chunk_size])
+            
+        logger.info(
+            "magicline.scheduler.enrich_queued",
+            tenant_id=tenant_id,
+            enqueued=len(ids),
+        )
+    except Exception as e:
+        logger.error("magicline.scheduler.enrich_enqueue_failed", tenant_id=tenant_id, error=str(e))
 
 
 def _field_match(expr: str, value: int) -> bool:

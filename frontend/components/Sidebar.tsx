@@ -136,7 +136,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
             />
           ) : (
             <h1 className={styles.brandTitle}>
-              {appTitle || "ARNI"}<span className={styles.brandDot}>.</span>
+              {appTitle || "ARIIA"}<span className={styles.brandDot}>.</span>
             </h1>
           )}
         </div>

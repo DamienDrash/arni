@@ -1,4 +1,4 @@
-# ARNI v1.4 – Coding Guidelines & Agent Rules
+# ARIIA v1.4 – Coding Guidelines & Agent Rules
 
 > **CRITICAL:** Diese Regeln gelten für JEDE Code-Änderung in diesem Projekt. Kein Commit ohne Einhaltung.
 

@@ -20,7 +20,7 @@
   --color-base-content: #1B1D21;
   --color-info: #6C5DD3;
   --color-success: #3DD598;
-  --color-warning: #FFC542;
+  --color-wariiang: #FFC542;
   --color-error: #FC5A5A;
   --rounded-box: 1.5rem;
   --rounded-btn: 0.75rem;
@@ -31,16 +31,16 @@
 /* DaisyUI handles themes automatically based on data-theme attribute */
 :root {
   color-scheme: dark;
-  --arni-bg: #0a0b0f;
-  --arni-surface: #12131a;
-  --arni-surface-alt: #1a1b24;
-  --arni-border: #252630;
-  --arni-text: #e8e9ed;
-  --arni-text-dim: #5a5c6b;
-  --arni-text-muted: #8b8d9a;
-  --arni-accent: #6c5ce7;
-  --arni-accent-dim: rgba(108, 92, 231, 0.15);
-  --arni-danger: #ff6b6b;
+  --ariia-bg: #0a0b0f;
+  --ariia-surface: #12131a;
+  --ariia-surface-alt: #1a1b24;
+  --ariia-border: #252630;
+  --ariia-text: #e8e9ed;
+  --ariia-text-dim: #5a5c6b;
+  --ariia-text-muted: #8b8d9a;
+  --ariia-accent: #6c5ce7;
+  --ariia-accent-dim: rgba(108, 92, 231, 0.15);
+  --ariia-danger: #ff6b6b;
 }
 
 /* Inntegrate Hybrid Utilities */
@@ -111,23 +111,23 @@
   }
 
   /* Editor readability on bright surfaces inside dark app shell */
-  .arni-editor,
-  .arni-editor.ProseMirror {
+  .ariia-editor,
+  .ariia-editor.ProseMirror {
     color: #11142d;
   }
 
-  .arni-editor h1,
-  .arni-editor h2,
-  .arni-editor h3,
-  .arni-editor h4,
-  .arni-editor h5,
-  .arni-editor h6,
-  .arni-editor p,
-  .arni-editor li,
-  .arni-editor blockquote,
-  .arni-editor code,
-  .arni-editor strong,
-  .arni-editor em {
+  .ariia-editor h1,
+  .ariia-editor h2,
+  .ariia-editor h3,
+  .ariia-editor h4,
+  .ariia-editor h5,
+  .ariia-editor h6,
+  .ariia-editor p,
+  .ariia-editor li,
+  .ariia-editor blockquote,
+  .ariia-editor code,
+  .ariia-editor strong,
+  .ariia-editor em {
     color: #11142d;
   }
 }

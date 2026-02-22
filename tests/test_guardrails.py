@@ -19,7 +19,7 @@ def test_iron_dome():
     rails = get_guardrails()
     
     # Test 1: Harmless input
-    res = rails.check("Hello Arni")
+    res = rails.check("Hello Ariia")
     assert res is None, "Harmless input should pass"
     print("✅ Passed: Harmless input")
     

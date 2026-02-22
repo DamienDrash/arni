@@ -1,8 +1,8 @@
 .root {
   width: 264px;
   height: 100%;
-  background: var(--arni-surface);
-  border-right: 1px solid var(--arni-border);
+  background: var(--ariia-surface);
+  border-right: 1px solid var(--ariia-border);
   display: flex;
   flex-direction: column;
 }
@@ -20,13 +20,13 @@
 .brandTitle {
   font-size: 23px;
   font-weight: 800;
-  color: var(--arni-text);
+  color: var(--ariia-text);
   margin: 0;
   letter-spacing: -0.03em;
 }
 
 .brandDot {
-  color: var(--arni-accent);
+  color: var(--ariia-accent);
 }
 
 .brandLogo {
@@ -38,7 +38,7 @@
 .brandSub {
   margin: 6px 0 0;
   font-size: 11px;
-  color: var(--arni-text-dim);
+  color: var(--ariia-text-dim);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-weight: 700;
@@ -54,14 +54,14 @@
   margin-bottom: 16px;
   padding: 10px;
   border-radius: 12px;
-  border: 1px solid var(--arni-border);
-  background: var(--arni-surface-alt);
+  border: 1px solid var(--ariia-border);
+  background: var(--ariia-surface-alt);
 }
 
 .quickTitle {
   margin: 0 0 8px;
   font-size: 10px;
-  color: var(--arni-text-dim);
+  color: var(--ariia-text-dim);
   text-transform: uppercase;
   letter-spacing: 0.12em;
   font-weight: 700;
@@ -75,9 +75,9 @@
 .quickLink {
   font-size: 12px;
   text-decoration: none;
-  color: var(--arni-text);
+  color: var(--ariia-text);
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--arni-border);
+  border: 1px solid var(--ariia-border);
   border-radius: 8px;
   padding: 7px 9px;
 }
@@ -91,7 +91,7 @@
   padding: 0 12px;
   font-size: 10px;
   font-weight: 700;
-  color: var(--arni-text-dim);
+  color: var(--ariia-text-dim);
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
@@ -109,33 +109,33 @@
 }
 
 .itemActive {
-  background: var(--arni-accent-dim);
+  background: var(--ariia-accent-dim);
   border-color: rgba(108, 92, 231, 0.4);
 }
 
 .itemIcon {
   flex-shrink: 0;
-  color: var(--arni-text-muted);
+  color: var(--ariia-text-muted);
 }
 
 .itemIconActive {
-  color: var(--arni-accent);
+  color: var(--ariia-accent);
 }
 
 .itemText {
   flex: 1;
   font-size: 13px;
   font-weight: 500;
-  color: var(--arni-text-muted);
+  color: var(--ariia-text-muted);
 }
 
 .itemTextActive {
-  color: var(--arni-text);
+  color: var(--ariia-text);
   font-weight: 600;
 }
 
 .itemBadge {
-  background: var(--arni-danger);
+  background: var(--ariia-danger);
   color: #fff;
   font-size: 10px;
   font-weight: 700;
@@ -145,7 +145,7 @@
 
 .footer {
   padding: 14px 18px;
-  border-top: 1px solid var(--arni-border);
+  border-top: 1px solid var(--ariia-border);
 }
 
 .footerRow {
@@ -158,12 +158,12 @@
   width: 34px;
   height: 34px;
   border-radius: 9px;
-  background: var(--arni-accent-dim);
+  background: var(--ariia-accent-dim);
   border: 1px solid rgba(108, 92, 231, 0.33);
   display: grid;
   place-items: center;
   font-size: 12px;
-  color: var(--arni-accent);
+  color: var(--ariia-accent);
   font-weight: 700;
 }
 
@@ -175,7 +175,7 @@
 .footerEmail {
   margin: 0;
   font-size: 12px;
-  color: var(--arni-text);
+  color: var(--ariia-text);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -185,13 +185,13 @@
 .footerRole {
   margin: 1px 0 0;
   font-size: 11px;
-  color: var(--arni-text-dim);
+  color: var(--ariia-text-dim);
 }
 
 .logout {
   border: none;
   background: transparent;
-  color: var(--arni-text-muted);
+  color: var(--ariia-text-muted);
   cursor: pointer;
   padding: 4px;
   display: grid;

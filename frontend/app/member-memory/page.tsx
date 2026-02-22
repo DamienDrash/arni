@@ -236,7 +236,7 @@ export default function MemberMemoryPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
         <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Memory Files</div><div style={{ fontSize: 21, fontWeight: 800, color: T.text }}>{files.length}</div></Card>
-        <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Scheduler</div><div style={{ fontSize: 14, fontWeight: 800, color: meta?.cron_enabled ? T.success : T.warning }}>{meta?.cron_enabled ? "Aktiv" : "Pausiert"}</div></Card>
+        <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Scheduler</div><div style={{ fontSize: 14, fontWeight: 800, color: meta?.cron_enabled ? T.success : T.wariiang }}>{meta?.cron_enabled ? "Aktiv" : "Pausiert"}</div></Card>
         <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Last Run</div><div style={{ fontSize: 13, fontWeight: 700, color: runColor }}>{meta?.last_run_status || "never"}</div><div style={{ marginTop: 2, fontSize: 11, color: T.textMuted }}>{meta?.last_run_at ? new Date(meta.last_run_at).toLocaleString("de-DE") : "noch nie"}</div></Card>
         <Card style={{ padding: 12, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
           <button
@@ -304,7 +304,7 @@ export default function MemberMemoryPage() {
                 placeholder="Änderungsgrund (mind. 8 Zeichen)"
                 style={{ width: 260, borderRadius: 8, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, padding: "7px 8px", fontSize: 12 }}
               />
-              <div style={{ color: conflict ? T.warning : dirty ? T.text : T.textDim, fontSize: 12 }}>{conflict ? "Konflikt" : dirty ? "Ungespeichert" : status}</div>
+              <div style={{ color: conflict ? T.wariiang : dirty ? T.text : T.textDim, fontSize: 12 }}>{conflict ? "Konflikt" : dirty ? "Ungespeichert" : status}</div>
               {conflict && (
                 <>
                   <button

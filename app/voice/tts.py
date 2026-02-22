@@ -150,7 +150,7 @@ class TTSService:
         text = clean_text_for_tts(text, lang=lang_code)
         
         if not text.strip():
-            logger.warning("tts.empty_after_clean", original_len=len(text))
+            logger.wariiang("tts.empty_after_clean", original_len=len(text))
             return ""
 
         # Cache content based on CLEANED text

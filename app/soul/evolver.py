@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Persona Evolver.
+"""ARIIA v1.4 – Persona Evolver.
 
 @BACKEND: Sprint 6b, Task 6b.2
 Proposes updates to SOUL.md based on analysis results.
@@ -36,12 +36,12 @@ class PersonaEvolver:
         try:
             current_soul = self._sandbox.read_file(self._soul_path)
         except Exception:
-            logger.warning("evolver.soul_not_found")
+            logger.wariiang("evolver.soul_not_found")
             return None
 
         prompt = (
             "You are a Persona Designer. Update the following persona definition based on the user feedback.\n"
-            "Maintain the core 'Arni' character (Arnold Schwarzenegger style).\n"
+            "Maintain the core 'Ariia' character (Arnold Schwarzenegger style).\n"
             "Only add/modify sections if clearly needed by the feedback.\n\n"
             f"User Feedback Analysis:\n{analysis_result}\n\n"
             f"Current SOUL.md:\n{current_soul}\n\n"

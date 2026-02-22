@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Intent Definitions & Routing Table.
+"""ARIIA v1.4 – Intent Definitions & Routing Table.
 
 @BACKEND: Sprint 2, Task 2.3
 Maps user intents to their corresponding Swarm Agents.

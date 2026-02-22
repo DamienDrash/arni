@@ -1,13 +1,13 @@
-# ARNI v1.4 Runbook (Ops)
+# ARIIA v1.4 Runbook (Ops)
 
 > **Status:** Draft | **Updated:** 2026-02-14
 
-This document describes operational procedures for maintaining the ARNI Gateway.
+This document describes operational procedures for maintaining the ARIIA Gateway.
 
 ## 🚨 Incident Response
 
 ### 1. Redis is Down
-**Symptoms:** Logs show `arni.gateway.redis_unavailable`, Agents not responding.
+**Symptoms:** Logs show `ariia.gateway.redis_unavailable`, Agents not responding.
 **Action:**
 ```bash
 # Check status
@@ -17,7 +17,7 @@ systemctl status redis-server
 sudo systemctl restart redis-server
 
 # Verify logs
-tail -f logs/arni.log | grep "redis"
+tail -f logs/ariia.log | grep "redis"
 ```
 
 ### 2. High Latency (>500ms)
@@ -25,7 +25,7 @@ tail -f logs/arni.log | grep "redis"
 **Check:**
 - **CPU/RAM:** `htop`
 - **OpenAI:** Check status.openai.com
-- **Logs:** `grep "llm.openai_failed" logs/arni.log` (Is system flapping to Ollama?)
+- **Logs:** `grep "llm.openai_failed" logs/ariia.log` (Is system flapping to Ollama?)
 
 ### 3. Application Crash
 **Symptoms:** 502 Bad Gateway (if Nginx), or Connection Refused.

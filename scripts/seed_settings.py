@@ -9,7 +9,7 @@ def seed_settings():
     db = SessionLocal()
     try:
         settings = [
-            Setting(key="system_name", value="ARNI Control Deck", description="Name of the system displayed in header"),
+            Setting(key="system_name", value="ARIIA Control Deck", description="Name of the system displayed in header"),
             Setting(key="notification_email", value="admin@example.com", description="Email for critical alerts"),
             Setting(key="handoff_threshold", value="0.8", description="Confidence score below which handoff is triggered"),
             Setting(key="maintenance_mode", value="false", description="If true, bot will reply with maintenance message"),

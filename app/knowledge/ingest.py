@@ -18,10 +18,10 @@ _SLUG_RE = re.compile(r"[^a-z0-9_-]")
 def collection_name_for_slug(tenant_slug: str) -> str:
     """Return the ChromaDB collection name for a given tenant slug."""
     safe = _SLUG_RE.sub("_", (tenant_slug or "system").lower())
-    return f"arni_knowledge_{safe}"
+    return f"ariia_knowledge_{safe}"
 
 
-def ingest_knowledge(knowledge_dir: str = KNOWLEDGE_DIR, collection_name: str = "arni_knowledge_system") -> dict:
+def ingest_knowledge(knowledge_dir: str = KNOWLEDGE_DIR, collection_name: str = "ariia_knowledge_system") -> dict:
     """Scan knowledge directory, chunk markdown files, and upsert into ChromaDB.
 
     Uses upsert (not add) so re-ingesting after edits is always safe.
@@ -40,7 +40,7 @@ def ingest_knowledge(knowledge_dir: str = KNOWLEDGE_DIR, collection_name: str = 
             with open(file_path, encoding="utf-8") as f:
                 content = f.read()
         except OSError as exc:
-            logger.warning("knowledge.ingest.read_failed", path=file_path, error=str(exc))
+            logger.wariiang("knowledge.ingest.read_failed", path=file_path, error=str(exc))
             continue
 
         filename = os.path.basename(file_path)

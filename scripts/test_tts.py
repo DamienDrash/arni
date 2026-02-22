@@ -13,7 +13,7 @@ def main():
         tts = get_tts()
         print("✅ TTS Initialized.")
         
-        text = "Hello! This is Arni testing voice generation."
+        text = "Hello! This is Ariia testing voice generation."
         print(f"🗣️  Generating audio for: '{text}'")
         
         path = tts.generate_audio(text)

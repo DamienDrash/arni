@@ -1,4 +1,4 @@
-# ARNI v1.4 – Aktueller Status
+# ARIIA v1.4 – Aktueller Status
 
 > **Letzte Aktualisierung:** 2026-02-14T01:40:00+01:00
 > **VPS:** `185.209.228.251` | **Gateway:** Port 8000 | **Redis:** Port 6379
@@ -25,7 +25,7 @@
 ### Metriken
 - **Tests:** 68/68 passed ✅ (34 Sprint 1 + 34 Sprint 2)
 - **Coverage:** 77% global | Router 91% | Agents 79–93%
-- **Warnings:** 0
+- **Wariiangs:** 0
 
 ### Nächster Schritt
 🚀 **Sprint 3:** Communication Layer (WhatsApp, Telegram, Message Normalization)

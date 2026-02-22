@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Session Repository.
+"""ARIIA v1.4 – Session Repository.
 
 @BACKEND: Sprint 4, Task 4.3
 Async Repository Pattern for Session/Message CRUD.

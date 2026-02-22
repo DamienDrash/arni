@@ -22,8 +22,8 @@ export function applyBrandingCSS(prefs: Partial<BrandingPrefs>): void {
   const root = document.documentElement;
   const color = prefs.tenant_primary_color?.trim();
   if (color && /^#[0-9a-fA-F]{6}$/.test(color)) {
-    root.style.setProperty("--arni-accent", color);
-    root.style.setProperty("--arni-accent-dim", `rgba(${hexToRgb(color)}, 0.15)`);
+    root.style.setProperty("--ariia-accent", color);
+    root.style.setProperty("--ariia-accent-dim", `rgba(${hexToRgb(color)}, 0.15)`);
   }
   const title = prefs.tenant_app_title?.trim();
   if (title) document.title = title;

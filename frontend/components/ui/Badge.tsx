@@ -3,7 +3,7 @@
 import { ReactNode } from "react";
 import { T } from "@/lib/tokens";
 
-type BadgeVariant = "default" | "success" | "warning" | "danger" | "info" | "accent";
+type BadgeVariant = "default" | "success" | "wariiang" | "danger" | "info" | "accent";
 type BadgeSize = "sm" | "xs";
 
 interface BadgeProps {
@@ -15,7 +15,7 @@ interface BadgeProps {
 const styles: Record<BadgeVariant, { background: string; color: string; border: string }> = {
   default: { background: T.surfaceAlt, color: T.textMuted, border: T.border },
   success: { background: T.successDim, color: T.success, border: "transparent" },
-  warning: { background: T.warningDim, color: T.warning, border: "transparent" },
+  wariiang: { background: T.wariiangDim, color: T.wariiang, border: "transparent" },
   danger:  { background: T.dangerDim,  color: T.danger,  border: "transparent" },
   info:    { background: T.infoDim,    color: T.info,    border: "transparent" },
   accent:  { background: T.accentDim,  color: T.accentLight, border: "transparent" },

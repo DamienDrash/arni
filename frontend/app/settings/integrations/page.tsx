@@ -404,7 +404,7 @@ export default function SettingsIntegrationsPage() {
                 <input style={inputStyle} value={integrations.email_channel.message_stream} onChange={(e) => updateField("email_channel.message_stream", e.target.value)} placeholder="outbound" />
               </Field>
               <Field label="Absender-E-Mail" hint="Von-Adresse für ausgehende Kanal-E-Mails">
-                <input style={inputStyle} value={integrations.email_channel.from_email} onChange={(e) => updateField("email_channel.from_email", e.target.value)} placeholder="arni@mein-studio.de" />
+                <input style={inputStyle} value={integrations.email_channel.from_email} onChange={(e) => updateField("email_channel.from_email", e.target.value)} placeholder="ariia@mein-studio.de" />
               </Field>
             </IntegrationCard>
 

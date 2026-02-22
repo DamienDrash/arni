@@ -123,9 +123,9 @@ export default function LiveGhostPage() {
       ? ["ws://localhost:8000/ws/control"]
       : [...new Set([
         "/ws/control",
-        "/arni/ws/control",
+        "/ariia/ws/control",
         "/proxy/ws/control",
-        "/arni/proxy/ws/control",
+        "/ariia/proxy/ws/control",
         `${configuredBasePath}/ws/control`,
         `${configuredBasePath}/proxy/ws/control`,
       ])].map(p => `${protocol}//${window.location.host}${p}`);
@@ -424,7 +424,7 @@ export default function LiveGhostPage() {
                   <Phone size={12} /> Link Member
                 </MiniButton>
               )}
-              <Badge variant={wsStatus === "connected" ? "success" : "warning"}>
+              <Badge variant={wsStatus === "connected" ? "success" : "wariiang"}>
                 {wsStatus === "connected" ? "Realtime aktiv" : wsStatus === "connecting" ? "Verbinde…" : wsStatus === "stale" ? "Reconnect…" : "Fallback Polling"}
               </Badge>
             </div>
@@ -503,7 +503,7 @@ export default function LiveGhostPage() {
                       <span style={{ fontSize: 10, color: T.textDim }}>
                         {new Date(msg.timestamp).toLocaleTimeString()}
                       </span>
-                      {!isUser && <Badge variant="accent" size="xs">ARNI</Badge>}
+                      {!isUser && <Badge variant="accent" size="xs">ARIIA</Badge>}
                     </div>
                   </div>
                 </div>

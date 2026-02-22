@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Log Analyzer.
+"""ARIIA v1.4 – Log Analyzer.
 
 @DATA: Sprint 6b, Task 6b.1
 Analyzes recent chat logs to identify trending topics and user sentiment.

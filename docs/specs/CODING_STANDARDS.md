@@ -7,7 +7,7 @@ We use the **Model Context Protocol (MCP)** standard for all tool integrations.
 - **No Scripts:** Do not write loose Python scripts. Encapsulate logic in `app/tools/` classes inheriting from `BaseTool`.
 
 ## 2. Sandboxing & Execution Safety
-- **Dockerized Self-Improvement:** When Arni refactors his own code, this process MUST run inside a **Docker Container** (Ephemeral Sandbox).
+- **Dockerized Self-Improvement:** When Ariia refactors his own code, this process MUST run inside a **Docker Container** (Ephemeral Sandbox).
 - **No Root:** The Agent must NEVER have root access to the host VPS.
 - **File Access:** Restricted to `./workspace/` and `./data/`. Access to `/etc/`, `/var/`, or `../` is strictly prohibited.
 

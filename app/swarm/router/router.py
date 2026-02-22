@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Swarm Router.
+"""ARIIA v1.4 – Swarm Router.
 
 @BACKEND: Sprint 2, Task 2.2
 GPT-4o-mini intent classifier → dispatches to correct sub-agent.
@@ -165,11 +165,13 @@ class SwarmRouter:
                     f"{context_lines}\n\n"
                     f"AKTUELLE NACHRICHT:\n{content}"
                 )
-            # Build tenant-aware Jinja2 router prompt (S2.5)
             tid = tenant_id if tenant_id is not None else 0
             _tenant_slug = persistence.get_tenant_slug(tenant_id)
             _ctx = build_tenant_context(persistence, tid)
             router_prompt = get_engine().render_for_tenant("router/system.j2", _tenant_slug, **_ctx)
+
+            # Resolve tenant-specific API key (BYOK)
+            tenant_api_key = persistence.get_setting("openai_api_key", tenant_id=tenant_id)
 
             response = await self._llm.chat(
                 messages=[
@@ -179,6 +181,7 @@ class SwarmRouter:
                 model="gpt-4o-mini",
                 temperature=0.1,
                 max_tokens=20,
+                api_key=tenant_api_key,
             )
 
             # Parse: "booking|0.95"
@@ -189,7 +192,7 @@ class SwarmRouter:
             try:
                 intent = Intent(intent_str)
             except ValueError:
-                logger.warning("router.unknown_intent", raw=intent_str)
+                logger.wariiang("router.unknown_intent", raw=intent_str)
                 return Intent.UNKNOWN, 0.0
 
             return intent, confidence

@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Message Normalizer.
+"""ARIIA v1.4 – Message Normalizer.
 
 @BACKEND: Sprint 3, Task 3.5
 Multi-platform inbound normalization → unified InboundMessage schema.

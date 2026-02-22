@@ -16,8 +16,8 @@ export type AuthUser = {
   };
 };
 
-const USER_KEYS = ["arni_user", "user"] as const;
-const LEGACY_TOKEN_KEYS = ["arni_access_token", "access_token", "auth_token", "token"] as const;
+const USER_KEYS = ["ariia_user", "user"] as const;
+const LEGACY_TOKEN_KEYS = ["ariia_access_token", "access_token", "auth_token", "token"] as const;
 
 export function getStoredToken(): string | null {
   return null;
@@ -25,7 +25,7 @@ export function getStoredToken(): string | null {
 
 export function getStoredUser(): AuthUser | null {
   if (typeof window === "undefined") return null;
-  const raw = window.sessionStorage.getItem("arni_user");
+  const raw = window.sessionStorage.getItem("ariia_user");
   if (!raw) return null;
   try {
     return JSON.parse(raw) as AuthUser;
@@ -37,21 +37,21 @@ export function getStoredUser(): AuthUser | null {
 export function storeSession(_token: string, user: AuthUser): void {
   if (typeof window === "undefined") return;
   void _token;
-  window.sessionStorage.setItem("arni_user", JSON.stringify(user));
+  window.sessionStorage.setItem("ariia_user", JSON.stringify(user));
   for (const key of LEGACY_TOKEN_KEYS) {
     window.sessionStorage.removeItem(key);
     window.localStorage.removeItem(key);
   }
   for (const key of USER_KEYS) window.localStorage.removeItem(key);
-  window.dispatchEvent(new Event("arni:session-updated"));
+  window.dispatchEvent(new Event("ariia:session-updated"));
 }
 
 export function setStoredUser(user: AuthUser): void {
   if (typeof window === "undefined") return;
-  window.sessionStorage.setItem("arni_user", JSON.stringify(user));
-  window.localStorage.removeItem("arni_user");
+  window.sessionStorage.setItem("ariia_user", JSON.stringify(user));
+  window.localStorage.removeItem("ariia_user");
   window.localStorage.removeItem("user");
-  window.dispatchEvent(new Event("arni:session-updated"));
+  window.dispatchEvent(new Event("ariia:session-updated"));
 }
 
 export function clearSession(): void {
@@ -62,6 +62,6 @@ export function clearSession(): void {
   }
   for (const key of USER_KEYS) window.sessionStorage.removeItem(key);
   for (const key of USER_KEYS) window.localStorage.removeItem(key);
-  window.dispatchEvent(new Event("arni:session-updated"));
-  void fetch("/arni/api/auth/logout", { method: "POST" }).catch(() => {});
+  window.dispatchEvent(new Event("ariia:session-updated"));
+  void fetch("/ariia/api/auth/logout", { method: "POST" }).catch(() => {});
 }

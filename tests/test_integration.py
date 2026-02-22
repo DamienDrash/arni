@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Integration Tests.
+"""ARIIA v1.4 – Integration Tests.
 
 @QA: Sprint 1, Task 1.10
 E2E Test: Webhook → Redis Bus → Message Pipeline.

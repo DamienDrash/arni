@@ -1,4 +1,4 @@
-# ARNI P2 Task Tracker — ✅ ABGESCHLOSSEN
+# ARIIA P2 Task Tracker — ✅ ABGESCHLOSSEN
 
 - [x] **1. CI/CD Pipeline** — GitHub Actions mit SSH Auto-Deploy
 - [x] **2. Frontend React Query** — 14 Hooks, QueryStates, Provider

@@ -3,7 +3,7 @@ from app.core.models import ChatSession
 import sys
 
 # Add project root to sys.path
-sys.path.append("/root/.openclaw/workspace/arni")
+sys.path.append("/root/.openclaw/workspace/ariia")
 
 def list_users():
     print("🔍 Scanning DB for Telegram Users...")

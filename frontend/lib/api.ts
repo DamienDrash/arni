@@ -24,7 +24,7 @@ function readCookie(name: string) {
 function withCacheBust(url: string, enabled: boolean) {
   if (!enabled) return url;
   const separator = url.includes("?") ? "&" : "?";
-  return `${url}${separator}__arni_cb=${Date.now()}`;
+  return `${url}${separator}__ariia_cb=${Date.now()}`;
 }
 
 export async function apiFetch(path: string, init?: RequestInit) {
@@ -45,9 +45,9 @@ export async function apiFetch(path: string, init?: RequestInit) {
   const isAdminPath = normalizedPath === "/admin" || normalizedPath.startsWith("/admin/");
   const isAuthPath = normalizedPath === "/auth" || normalizedPath.startsWith("/auth/");
   const candidates = isAdminPath
-    ? [`/arni/api/admin${adminSuffix}`]
+    ? [`/ariia/api/admin${adminSuffix}`]
     : isAuthPath
-      ? [`/arni/api/auth${authSuffix}`]
+      ? [`/ariia/api/auth${authSuffix}`]
       : [normalizedPath];
 
   const uniqueCandidates = [...new Set(candidates)];
@@ -58,7 +58,7 @@ export async function apiFetch(path: string, init?: RequestInit) {
     const requestUrl = withCacheBust(url, isRetryableRead && index === 0);
     const headers = new Headers(init?.headers || {});
     if (!isRetryableRead && typeof window !== "undefined") {
-      const csrf = readCookie("arni_csrf_token");
+      const csrf = readCookie("ariia_csrf_token");
       if (csrf && !headers.has("x-csrf-token")) {
         headers.set("x-csrf-token", csrf);
       }
@@ -93,8 +93,8 @@ export async function apiFetch(path: string, init?: RequestInit) {
 
       if (!shouldRetry) {
         if (typeof window !== "undefined" && response.status === 401) {
-          window.sessionStorage.removeItem("arni_user");
-          window.localStorage.removeItem("arni_user");
+          window.sessionStorage.removeItem("ariia_user");
+          window.localStorage.removeItem("ariia_user");
           window.sessionStorage.removeItem("access_token");
           window.sessionStorage.removeItem("auth_token");
           window.sessionStorage.removeItem("token");

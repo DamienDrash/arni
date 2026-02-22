@@ -1,4 +1,4 @@
-"""Locust Load Test for ARNI Gateway.
+"""Locust Load Test for ARIIA Gateway.
 
 Simulates concurrent users interacting with the system.
 Targets:
@@ -10,7 +10,7 @@ from locust import HttpUser, task, between
 import uuid
 import json
 
-class ArniUser(HttpUser):
+class AriiaUser(HttpUser):
     wait_time = between(1, 3)  # Wait 1-3s between tasks
 
     @task(1)
@@ -34,7 +34,7 @@ class ArniUser(HttpUser):
                                         "from": user_id,
                                         "id": f"msg-{uuid.uuid4()}",
                                         "timestamp": "1234567890",
-                                        "text": {"body": "Hallo Arni, wie sind die Preise?"},
+                                        "text": {"body": "Hallo Ariia, wie sind die Preise?"},
                                         "type": "text"
                                     }
                                 ],

@@ -34,7 +34,7 @@ interface AgentTemplate {
 const FIELD_META: Record<keyof PromptConfig, { label: string; help: string; multiline?: boolean }> = {
   studio_name: { label: "Studio-Name (vollständig)", help: 'z.B. "GetImpulse Berlin"' },
   studio_short_name: { label: "Studio-Kurzname", help: 'z.B. "GetImpulse"' },
-  agent_display_name: { label: "Agent-Name", help: 'Name des Assistenten, z.B. "ARNI"' },
+  agent_display_name: { label: "Agent-Name", help: 'Name des Assistenten, z.B. "ARIIA"' },
   studio_locale: { label: "Sprache / Locale", help: 'z.B. "de-DE", "en-US"' },
   studio_timezone: { label: "Zeitzone", help: 'IANA-Zeitzone, z.B. "Europe/Berlin"' },
   studio_emergency_number: { label: "Notrufnummer", help: 'z.B. "112" (DE) oder "911" (US)' },

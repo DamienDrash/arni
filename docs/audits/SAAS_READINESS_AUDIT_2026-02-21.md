@@ -1,4 +1,4 @@
-# SaaS Readiness Audit – ARNI v1.4
+# SaaS Readiness Audit – ARIIA v1.4
 **Datum:** 2026-02-21
 **Analysiert von:** Claude Code (claude-sonnet-4-6)
 **Zweck:** Baseline-Snapshot vor der Multi-Tenant-SaaS-Finalisierung. Dieser Stand wird nach Abschluss der Roadmap mit dem fertigen System verglichen.
@@ -7,7 +7,7 @@
 
 ## Gesamtbefund
 
-> **ARNI ist aktuell kein Multi-Tenant SaaS-Produkt. Es ist ein Single-Tenant-System mit nachträglich eingezogenen `tenant_id`-Feldern.**
+> **ARIIA ist aktuell kein Multi-Tenant SaaS-Produkt. Es ist ein Single-Tenant-System mit nachträglich eingezogenen `tenant_id`-Feldern.**
 
 Das Datenbankschema ist zu ~70 % mandantenfähig. Die Applikationsschicht (Agents, Webhooks, Billing) ist es zu ~20 %. Die Infrastrukturschicht bietet keine Tenant-Isolation. Die kritischste Einzelschwachstelle: Alle Agent-System-Prompts sind fest für **GetImpulse Berlin** verdrahtet — jeder weitere Tenant erhält unweigerlich falsche Branding-Daten.
 
@@ -78,7 +78,7 @@ Alle fünf Agent-System-Prompts nennen **GetImpulse Berlin** explizit und enthal
 | Medic | `app/swarm/agents/medic.py` | `"Fitness-Coach-Agent von GetImpulse Berlin"` |
 | Vision | `app/swarm/agents/vision.py` | GetImpulse-spezifischer Kontext |
 
-**Konsequenz:** Tenant B (z. B. "SportPark München") empfängt Nachrichten wie: *"Hallo! Ich bin ARNI, der digitale Fitness-Buddy von GetImpulse Berlin."* Das ist für ein SaaS-Produkt unakzeptabel.
+**Konsequenz:** Tenant B (z. B. "SportPark München") empfängt Nachrichten wie: *"Hallo! Ich bin ARIIA, der digitale Fitness-Buddy von GetImpulse Berlin."* Das ist für ein SaaS-Produkt unakzeptabel.
 
 **Es existiert kein Mechanismus** um Prompts zur Laufzeit mit Tenant-Konfigurationsdaten zu befüllen.
 
@@ -191,10 +191,10 @@ Neuer Tenant ist sofort aktiv — kein Approval-Schritt, keine Zahlungsverifizie
 Ein User ist exklusiv an einen Tenant gebunden. Kein UI um zwischen Tenants zu wechseln (relevant für system_admin und zukünftige Multi-Tenant-User).
 
 **L6.2 – Kein White-Label-Layer**
-Logo, Primärfarbe, Studio-Name: Fix als "ARNI" und GetImpulse-Kontext. Kein Branding-System.
+Logo, Primärfarbe, Studio-Name: Fix als "ARIIA" und GetImpulse-Kontext. Kein Branding-System.
 
 **L6.3 – Keine Subdomain-basierte Tenant-Auflösung**
-Kein `{tenant-slug}.arni.app` Routing. Alle Tenants teilen eine URL.
+Kein `{tenant-slug}.ariia.app` Routing. Alle Tenants teilen eine URL.
 
 ---
 
@@ -204,10 +204,10 @@ Kein `{tenant-slug}.arni.app` Routing. Alle Tenants teilen eine URL.
 
 | Resource | Tenant-Isolation | Anmerkung |
 |---|---|---|
-| `arni-core` Container | ❌ Geteilt | Monolith für alle Tenants |
+| `ariia-core` Container | ❌ Geteilt | Monolith für alle Tenants |
 | PostgreSQL | ❌ Shared Schema | App-Level Isolation via `tenant_id` |
 | Redis | ❌ Kein Namespace | Keys ohne Tenant-Präfix |
-| Qdrant | ⚠️ Logisch | Collections `arni_knowledge_{tenant_slug}` — korrekt |
+| Qdrant | ⚠️ Logisch | Collections `ariia_knowledge_{tenant_slug}` — korrekt |
 | Netzwerk | ❌ Bridge shared | Alle Container im selben Netz |
 
 Shared Infrastructure für Early-Stage SaaS akzeptabel — aber ohne Redis-Namespacing und DB-RLS ist das Blast-Radius bei einem Bug maximal.
@@ -221,7 +221,7 @@ Dies ist die **am besten implementierte** Multi-Tenant-Dimension.
 
 - Knowledge-Files: `data/knowledge/tenants/{tenant_slug}/` ✅
 - Member-Memory: `data/knowledge/tenants/{tenant_slug}/members/` ✅
-- Qdrant-Collections: `arni_knowledge_{tenant_slug}` ✅
+- Qdrant-Collections: `ariia_knowledge_{tenant_slug}` ✅
 - Cron-Einstellungen für Memory-Analyzer: per-tenant konfigurierbar ✅
 
 **Keine kritischen Lücken in dieser Dimension.**

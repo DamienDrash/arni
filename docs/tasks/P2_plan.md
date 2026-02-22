@@ -1,4 +1,4 @@
-# ARNI P2 Implementation Plan: Premium-Qualität vor Launch
+# ARIIA P2 Implementation Plan: Premium-Qualität vor Launch
 
 Adressiert die 6 verbleibenden P2-Maßnahmen aus dem Critical Analysis Report (2026-02-22).
 
@@ -84,7 +84,7 @@ Hook `useBranding()` — lädt beim App-Start Branding für den aktuellen Tenant
 ```
 
 #### [MODIFY] `frontend/components/Sidebar.tsx`
-Logo-`<img>` src aus Branding-Settings, Fallback auf ARNI-Logo.
+Logo-`<img>` src aus Branding-Settings, Fallback auf ARIIA-Logo.
 
 #### [NEW] `frontend/app/settings/branding/page.tsx`
 Einfaches Formular: Farb-Picker, Logo-URL-Input, Anzeigename. Preview-Box zeigt Live-Update.
@@ -97,7 +97,7 @@ Einfaches Formular: Farb-Picker, Logo-URL-Input, Anzeigename. Preview-Box zeigt 
 ```
 # .gitignore ergänzen:
 *.log
-/data/arni.db
+/data/ariia.db
 
 # .dockerignore ergänzen:
 *.log, *.pt, .env, tests/, docs/, scripts/dev/

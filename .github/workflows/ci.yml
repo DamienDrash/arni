@@ -139,17 +139,17 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            cd /root/.openclaw/workspace/arni
+            cd /root/.openclaw/workspace/ariia
 
             echo "📦 Pulling latest code..."
             git pull origin main
 
             echo "🐳 Pulling new Docker image..."
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose pull arni-core
+            docker compose pull ariia-core
 
             echo "🚀 Restarting services..."
-            docker compose up -d --no-build arni-core arni-frontend
+            docker compose up -d --no-build ariia-core ariia-frontend
 
             echo "✅ Health check..."
             sleep 5

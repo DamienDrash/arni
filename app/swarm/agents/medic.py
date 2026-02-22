@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Agent Medic (The Coach).
+"""ARIIA v1.4 – Agent Medic (The Coach).
 
 @BACKEND: Sprint 2 → Sprint 9 (LLM-powered)
 Handles health-related queries with MANDATORY disclaimer.

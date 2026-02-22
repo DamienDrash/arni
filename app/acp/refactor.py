@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Refactoring Engine.
+"""ARIIA v1.4 – Refactoring Engine.
 
 @BACKEND: Sprint 6a, Task 6a.3
 Simple static analysis and auto-refactoring suggestions.
@@ -25,7 +25,7 @@ class CodeIssue:
     line_number: int
     issue_type: str
     message: str
-    severity: str = "warning"
+    severity: str = "wariiang"
 
 
 @dataclass

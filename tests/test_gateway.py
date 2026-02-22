@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Gateway Unit Tests.
+"""ARIIA v1.4 – Gateway Unit Tests.
 
 @QA: Sprint 1, Task 1.8
 Tests: Health endpoint, Webhook verification, Webhook ingress.
@@ -40,7 +40,7 @@ class TestHealthEndpoint:
         data = response.json()
         assert "status" in data
         assert "service" in data
-        assert data["service"] == "arni-gateway"
+        assert data["service"] == "ariia-gateway"
         assert data["version"] == "1.4.0"
         assert "timestamp" in data
 
@@ -104,7 +104,7 @@ class TestWebhookIngress:
                                     "id": "test-msg-001",
                                     "from": "491701234567",
                                     "type": "text",
-                                    "text": {"body": "Hey Arni!"},
+                                    "text": {"body": "Hey Ariia!"},
                                 }
                             ]
                         }
@@ -132,7 +132,7 @@ class TestWebhookIngress:
     @pytest.mark.anyio
     async def test_webhook_post_returns_200(self, client: AsyncClient) -> None:
         response = await client.post(
-            "/webhook/whatsapp",
+            "/webhook/whatsapp/system",
             content=json.dumps(self.VALID_PAYLOAD, separators=(",", ":"), ensure_ascii=False),
             headers=self._headers_for_payload(self.VALID_PAYLOAD),
         )
@@ -141,7 +141,7 @@ class TestWebhookIngress:
     @pytest.mark.anyio
     async def test_webhook_post_returns_status_ok(self, client: AsyncClient) -> None:
         response = await client.post(
-            "/webhook/whatsapp",
+            "/webhook/whatsapp/system",
             content=json.dumps(self.VALID_PAYLOAD, separators=(",", ":"), ensure_ascii=False),
             headers=self._headers_for_payload(self.VALID_PAYLOAD),
         )
@@ -152,7 +152,7 @@ class TestWebhookIngress:
     async def test_webhook_post_processes_message(self, client: AsyncClient) -> None:
         """Message should be processed (count may be 0 if Redis is down, that's ok)."""
         response = await client.post(
-            "/webhook/whatsapp",
+            "/webhook/whatsapp/system",
             content=json.dumps(self.VALID_PAYLOAD, separators=(",", ":"), ensure_ascii=False),
             headers=self._headers_for_payload(self.VALID_PAYLOAD),
         )
@@ -162,7 +162,7 @@ class TestWebhookIngress:
     @pytest.mark.anyio
     async def test_webhook_post_empty_entry(self, client: AsyncClient) -> None:
         response = await client.post(
-            "/webhook/whatsapp",
+            "/webhook/whatsapp/system",
             content=json.dumps(self.EMPTY_PAYLOAD, separators=(",", ":"), ensure_ascii=False),
             headers=self._headers_for_payload(self.EMPTY_PAYLOAD),
         )
@@ -182,7 +182,7 @@ class TestWebhookIngress:
             ).hexdigest()
             headers["x-hub-signature-256"] = f"sha256={signature}"
         response = await client.post(
-            "/webhook/whatsapp",
+            "/webhook/whatsapp/system",
             content="not json",
             headers=headers,
         )

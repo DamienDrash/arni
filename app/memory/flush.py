@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Silent Flush (Context Compaction).
+"""ARIIA v1.4 – Silent Flush (Context Compaction).
 
 @BACKEND: Sprint 4, Task 4.4
 Extracts facts from conversation context when nearing capacity.

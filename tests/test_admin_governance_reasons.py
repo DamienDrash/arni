@@ -14,7 +14,7 @@ async def client():
 
 
 async def _admin_headers(client: AsyncClient) -> dict[str, str]:
-    login = await client.post("/auth/login", json={"email": "admin@arni.local", "password": "password123"})
+    login = await client.post("/auth/login", json={"email": "admin@ariia.local", "password": "password123"})
     assert login.status_code == 200
     token = login.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

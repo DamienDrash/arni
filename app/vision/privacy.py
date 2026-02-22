@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Vision Privacy Engine.
+"""ARIIA v1.4 – Vision Privacy Engine.
 
 @SEC: Sprint 5a, Task 5a.3
 Enforces 0s retention policy for all image/video data.

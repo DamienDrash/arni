@@ -1,1 +1,1 @@
-# ARNI – Multi-Tenant SaaS AI Agent Platform
+# ARIIA – Multi-Tenant SaaS AI Agent Platform

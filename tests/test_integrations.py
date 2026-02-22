@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Integration Tests.
+"""ARIIA v1.4 – Integration Tests.
 
 @QA: Sprint 3, Task 3.10
 Tests: WhatsApp, Telegram, Normalizer, Dispatcher, PII Filter.
@@ -48,7 +48,7 @@ class TestWhatsAppClient:
             mock_http.__aexit__ = AsyncMock(return_value=False)
             mock_cls.return_value = mock_http
 
-            result = await self.client.send_text("491701234567", "Hey Arni!")
+            result = await self.client.send_text("491701234567", "Hey Ariia!")
             assert result["messages"][0]["id"] == "wamid.test123"
             mock_http.post.assert_called_once()
 
@@ -146,7 +146,7 @@ class TestTelegramBot:
         assert args == "on"
 
     def test_parse_command_with_bot_name(self) -> None:
-        cmd, args = self.bot.parse_command("/status@ArniBot")
+        cmd, args = self.bot.parse_command("/status@AriiaBot")
         assert cmd == "/status"
 
     def test_parse_command_no_command(self) -> None:
@@ -325,13 +325,13 @@ class TestMessageNormalizer:
                 "message_id": 42,
                 "from": {"id": 123456, "username": "testuser", "first_name": "Max"},
                 "chat": {"id": 123456, "type": "private"},
-                "text": "Hallo Arni!",
+                "text": "Hallo Ariia!",
             }
         }
         result = self.normalizer.normalize_telegram(update)
         assert result is not None
         assert result.platform == Platform.TELEGRAM
-        assert result.content == "Hallo Arni!"
+        assert result.content == "Hallo Ariia!"
         assert result.user_id == "123456"
 
     def test_normalize_telegram_photo(self) -> None:

@@ -1,4 +1,4 @@
-"""ARNI – Tenant-aware Prompt Builder (S2.2).
+"""ARIIA – Tenant-aware Prompt Builder (S2.2).
 
 Every agent system-prompt is a template with {placeholders}. This module
 fills those placeholders from the tenant's Settings table at call time,
@@ -23,7 +23,7 @@ logger = structlog.get_logger()
 PROMPT_SETTINGS_KEYS: list[str] = [
     "studio_name",             # Full studio name, e.g. "Mein Fitnessstudio GmbH"
     "studio_short_name",       # Short name, e.g. "MyStudio"
-    "agent_display_name",      # Agent name shown to members: "ARNI"
+    "agent_display_name",      # Agent name shown to members: "ARIIA"
     "studio_locale",           # BCP-47 locale: "de-DE" | "en-US"
     "studio_timezone",         # IANA tz: "Europe/Berlin"
     "studio_emergency_number", # Emergency services: "112" | "911"
@@ -39,7 +39,7 @@ PROMPT_SETTINGS_KEYS: list[str] = [
 PROMPT_SETTINGS_DEFAULTS: dict[str, str] = {
     "studio_name": "Mein Studio",
     "studio_short_name": "Studio",
-    "agent_display_name": "ARNI",
+    "agent_display_name": "ARIIA",
     "studio_locale": "de-DE",
     "studio_timezone": "Europe/Berlin",
     "studio_emergency_number": "112",
@@ -98,7 +98,7 @@ class PromptBuilder:
         try:
             return template.format_map(_SafeDict(replacements))
         except Exception as exc:
-            logger.warning("prompt_builder.format_failed", error=str(exc))
+            logger.wariiang("prompt_builder.format_failed", error=str(exc))
             return template
 
     # Convenience accessors
@@ -137,4 +137,4 @@ def seed_prompt_settings(persistence: object, tenant_id: int) -> None:
             if existing is None:
                 persistence.set_setting(key, default, tenant_id=tenant_id)  # type: ignore[attr-defined]
         except Exception as exc:
-            logger.warning("prompt_builder.seed_failed", key=key, error=str(exc))
+            logger.wariiang("prompt_builder.seed_failed", key=key, error=str(exc))

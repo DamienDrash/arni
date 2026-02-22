@@ -7,9 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "lint:strict": "eslint . --max-warnings=0",
+    "lint:strict": "eslint . --max-wariiangs=0",
     "typecheck": "tsc --noEmit",
     "test:rbac": "node --import tsx --test tests/rbac.contract.test.ts",
+    "test:e2e": "playwright test",
     "qa:gate": "npm run lint:strict && npm run typecheck && npm run build"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
     "turndown": "^7.2.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

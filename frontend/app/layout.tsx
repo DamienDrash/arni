@@ -18,8 +18,8 @@ const monoFont = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ARNI Control Deck",
-  description: "Enterprise Admin Interface for Arni AI",
+  title: "ARIIA Control Deck",
+  description: "Enterprise Admin Interface for Ariia AI",
 };
 
 export default function RootLayout({
@@ -30,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="inntegrate-hybrid">
       <body
-        suppressHydrationWarning={true}
+        suppressHydrationWariiang={true}
         className={`${headingFont.variable} ${monoFont.variable} font-sans antialiased`}
       >
         <Providers>

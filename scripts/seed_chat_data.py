@@ -24,11 +24,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlalchemy import create_engine, text
 from redis import Redis
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://arni:arni_dev_password@postgres:5432/arni")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://ariia:ariia_dev_password@postgres:5432/ariia")
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 TENANT_ID = 6  # GETIMPULSE Berlin
 
-# ── Conversation templates (German, realistic Arni persona) ──────────────────
+# ── Conversation templates (German, realistic Ariia persona) ──────────────────
 
 TEMPLATES = {
     "preise_premium": {
@@ -615,7 +615,7 @@ def seed(
     engine = create_engine(DATABASE_URL)
     members = _load_members_from_db(engine, tenant_id)
     if len(members) < 20:
-        print(f"WARNING: Only {len(members)} members found in DB for tenant {tenant_id}. Falling back to bundled sample.")
+        print(f"WARIIANG: Only {len(members)} members found in DB for tenant {tenant_id}. Falling back to bundled sample.")
         members = MEMBERS_WITH_PHONE
     print(f"Using {len(members)} members for tenant {tenant_id}.")
 

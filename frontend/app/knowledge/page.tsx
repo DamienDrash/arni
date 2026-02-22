@@ -226,7 +226,7 @@ export default function KnowledgePage() {
             ))}
           </select>
           {selectedTenantName && (
-            <span style={{ fontSize: 11, color: T.textDim }}>Collection: arni_knowledge_{selectedTenantSlug}</span>
+            <span style={{ fontSize: 11, color: T.textDim }}>Collection: ariia_knowledge_{selectedTenantSlug}</span>
           )}
         </div>
       )}
@@ -305,7 +305,7 @@ export default function KnowledgePage() {
                 placeholder="Änderungsgrund (mind. 8 Zeichen)"
                 style={{ width: 260, borderRadius: 8, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, padding: "7px 8px", fontSize: 12 }}
               />
-              <span style={{ color: conflict ? T.warning : dirty ? T.text : T.textDim, fontSize: 12 }}>
+              <span style={{ color: conflict ? T.wariiang : dirty ? T.text : T.textDim, fontSize: 12 }}>
                 {conflict ? "Konflikt" : dirty ? "Ungespeichert" : status}
               </span>
               {conflict && (

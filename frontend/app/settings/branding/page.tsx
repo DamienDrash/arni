@@ -85,7 +85,7 @@ export default function BrandingPage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Branding & White-Label</h1>
         <p className="text-gray-400 mt-1 text-sm">
-          Passe ARNI an dein Studio an — Logo, Farbe und App-Titel.
+          Passe ARIIA an dein Studio an — Logo, Farbe und App-Titel.
           Änderungen sind nach einem Browser-Reload sichtbar.
         </p>
       </div>
@@ -111,7 +111,7 @@ export default function BrandingPage() {
             </div>
           )}
           <div>
-            <p className="text-sm font-semibold text-white">{config.tenant_app_title || "ARNI"}</p>
+            <p className="text-sm font-semibold text-white">{config.tenant_app_title || "ARIIA"}</p>
             <p className="text-xs text-gray-400">{config.tenant_display_name || "Dein Studio"}</p>
           </div>
         </div>

@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Outbound Message Dispatcher.
+"""ARIIA v1.4 – Outbound Message Dispatcher.
 
 @BACKEND: Sprint 3, Task 3.6
 Routes OutboundMessages to the correct platform channel.
@@ -46,7 +46,7 @@ class OutboundDispatcher:
             elif message.platform == Platform.DASHBOARD:
                 return await self._dispatch_dashboard(message)
             else:
-                logger.warning(
+                logger.wariiang(
                     "dispatcher.unknown_platform",
                     platform=message.platform,
                     message_id=message.message_id,
@@ -64,7 +64,7 @@ class OutboundDispatcher:
     async def _dispatch_whatsapp(self, message: OutboundMessage) -> bool:
         """Send message via WhatsApp."""
         if not self._whatsapp:
-            logger.warning("dispatcher.whatsapp_not_configured")
+            logger.wariiang("dispatcher.whatsapp_not_configured")
             return False
         await self._whatsapp.send_text(message.user_id, message.content)
         logger.info(
@@ -76,7 +76,7 @@ class OutboundDispatcher:
     async def _dispatch_telegram(self, message: OutboundMessage) -> bool:
         """Send message via Telegram."""
         if not self._telegram:
-            logger.warning("dispatcher.telegram_not_configured")
+            logger.wariiang("dispatcher.telegram_not_configured")
             return False
         chat_id = message.user_id
         await self._telegram.send_message(chat_id, message.content, parse_mode="")
@@ -89,7 +89,7 @@ class OutboundDispatcher:
     async def _dispatch_dashboard(self, message: OutboundMessage) -> bool:
         """Send message via WebSocket to admin dashboard."""
         if not self._ws_broadcast:
-            logger.warning("dispatcher.dashboard_not_configured")
+            logger.wariiang("dispatcher.dashboard_not_configured")
             return False
         await self._ws_broadcast({
             "type": "outbound",

@@ -1,4 +1,4 @@
-"""ARNI v1.4 – SQLite Session Database.
+"""ARIIA v1.4 – SQLite Session Database.
 
 @BACKEND: Sprint 4, Task 4.2
 Async SQLite with sessions + messages tables. 90-day retention.

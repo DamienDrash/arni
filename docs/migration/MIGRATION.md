@@ -1,4 +1,4 @@
-# Real World Migration Guide (ARNI v1.4)
+# Real World Migration Guide (ARIIA v1.4)
 
 You are moving from Mock/Sandbox to Production. Follow these steps systematically.
 
@@ -23,7 +23,7 @@ The current `.env` is minimal. You must fill in the real credentials.
 - **META_APP_SECRET:** From Meta App Dashboard > App Settings > Basic.
 - **META_ACCESS_TOKEN:** System User Token (Permanent) with `whatsapp_business_messaging` permission.
 - **META_PHONE_NUMBER_ID:** From WhatsApp > API Setup.
-- **META_VERIFY_TOKEN:** Choose a random string (e.g. `arni-verify-123`) and set it here AND in Meta Dashboard.
+- **META_VERIFY_TOKEN:** Choose a random string (e.g. `ariia-verify-123`) and set it here AND in Meta Dashboard.
 
 ### Voice (ElevenLabs)
 - **ELEVENLABS_API_KEY:** From ElevenLabs.io (Profile > API Key).
@@ -63,11 +63,11 @@ The current `.env` is minimal. You must fill in the real credentials.
 ---
 
 ## 4. Verification
-After setting secrets, restart ARNI:
+After setting secrets, restart ARIIA:
 ```bash
 ./scripts/launch.sh
 ```
 Check logs:
 ```bash
-tail -f logs/arni.log
+tail -f logs/ariia.log
 ```

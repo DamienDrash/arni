@@ -1,4 +1,4 @@
-# ARNI v1.4 – Logging Audit Report (Sprint 1)
+# ARIIA v1.4 – Logging Audit Report (Sprint 1)
 
 > **Auditor:** @SEC | **Datum:** 2026-02-14 | **Status:** ✅ Bestanden
 
@@ -14,7 +14,7 @@
 | User Content in Logs | ✅ | `webhook.message_received` loggt nur `message_id` + `content_type` |
 | Redis Messages | ⚠️ Hinweis | `InboundMessage.content` enthält User-Text → nur Redis-intern, nicht geloggt |
 | Credentials in Code | ✅ | Alle via `pydantic-settings`, keine Hardcoded Secrets |
-| Docker Security | ✅ | Non-root User `arni` (UID 1000, GID 1000) |
+| Docker Security | ✅ | Non-root User `ariia` (UID 1000, GID 1000) |
 | File Access | ✅ | Nur `/app/data/` writable im Container |
 
 ## Empfehlungen für Sprint 2

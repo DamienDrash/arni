@@ -1,6 +1,6 @@
 # Sprint 10 – Deep Integration (Magicline)
 
-**Ziel:** ARNI mit echten Studio-Daten verbinden (Kursplan, Mitglieder-Status).
+**Ziel:** ARIIA mit echten Studio-Daten verbinden (Kursplan, Mitglieder-Status).
 **Basis:** Existierender Code aus `magicline_test4` + `.env` aus `getimpulse`.
 
 ---

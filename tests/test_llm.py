@@ -1,4 +1,4 @@
-"""ARNI v1.4 – LLM Client Tests.
+"""ARIIA v1.4 – LLM Client Tests.
 
 @QA: Fixing F2 – llm.py coverage from 51% to ≥80%
 Tests: OpenAI calls, Ollama fallback, emergency response, reset_fallback.

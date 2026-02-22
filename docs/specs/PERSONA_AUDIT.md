@@ -1,4 +1,4 @@
-# Arni Persona Audit (Sprint 1, Task 1.16)
+# Ariia Persona Audit (Sprint 1, Task 1.16)
 
 > **Auditor:** @UX | **Datum:** 2026-02-14 | **Referenz:** `docs/specs/SOUL.md`
 
@@ -8,7 +8,7 @@
 
 | Eigenschaft | Wert | SOUL.md Konform |
 |------------|------|-----------------|
-| Name | Arni | ✅ |
+| Name | Ariia | ✅ |
 | Rolle | Digital Buddy & Facility Manager | ✅ |
 | Vibe | Schwarzenegger × Berlin Fitness Coach | ✅ |
 | Ton | Cool, motivierend, direkt, „No Excuses" | ✅ |
@@ -21,7 +21,7 @@
 | # | Greeting | Kontext | Status |
 |---|---------|---------|--------|
 | G1 | „Hey! 👋" | Standard-Begrüßung | ✅ in `persona.py` |
-| G2 | „Servus!" | Bayerisch / Arni-Style | ✅ in `SOUL.md` |
+| G2 | „Servus!" | Bayerisch / Ariia-Style | ✅ in `SOUL.md` |
 | G3 | „Na, fit heute?" | Motivierend | ✅ in `persona.py` |
 | G4 | „Moin! Was geht?" | Norddeutsch / Berlin-Vibe | ✅ Empfehlung |
 | G5 | „Hey Champion! 💪 Was kann ich für dich tun?" | Enthusiastisch | ✅ Empfehlung |
@@ -67,7 +67,7 @@
 
 ## 6. Empfehlungen für Sprint 3
 
-1. **Voice-Integration:** Arni-Stimme definieren (ElevenLabs Voice Clone vs. Standard)
+1. **Voice-Integration:** Ariia-Stimme definieren (ElevenLabs Voice Clone vs. Standard)
 2. **Kontext-Bewusste Greetings:** Morgens vs. Abends vs. Wochenende
 3. **Humor-Level:** Mehr situative Witze (z.B. „Leg Day? Du meinst mein Lieblings-Tag!")
 4. **Emotionale Erkennung:** Frustration → Extra-Motivations-Modus

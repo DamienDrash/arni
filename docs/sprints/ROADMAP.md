@@ -1,6 +1,6 @@
-# ARNI v1.4 – Roadmap & Sprint Plan
+# ARIIA v1.4 – Roadmap & Sprint Plan
 
-> **Projekt:** ARNI – Living System Agent für GetImpulse Berlin
+> **Projekt:** ARIIA – Living System Agent für GetImpulse Berlin
 > **Version:** 1.4  |  **Start:** 2026-02-14  |  **Methodik:** BMAD + 2-Wochen-Sprints
 
 ---
@@ -32,7 +32,7 @@
 - CI/CD Pipeline Basis (Dockerfile, Pytest Setup)
 - 🆕 **@DEVOPS:** Docker Compose Setup (Gateway + Redis Services)
 - 🆕 **@SEC:** DSGVO-Baseline (Consent-Schema, PII-Masking Policy)
-- 🆕 **@UX:** Arni Persona Audit (SOUL.md → Greeting/Error-Flows)
+- 🆕 **@UX:** Ariia Persona Audit (SOUL.md → Greeting/Error-Flows)
 
 ## Phase 2 – Swarm Intelligence
 **Sprint 2 (Woche 3–4)**
@@ -130,7 +130,7 @@
 | 7a.4 | Dependency Audit | `pip-audit`, License Check | Keine CVEs, Licenses OK |
 | 7a.5 | **@DEVOPS:** Fallback Testing | Internet-Kill → Ollama Switchover | <3s Failover |
 | 7a.6 | Pen Testing | One-Way-Door Bypass-Versuche | Alle Bypasses blockiert |
-| 7a.7 | **@UX:** Final Persona Review | Arni-Konsistenz über alle Kanäle | Persona-Audit bestanden |
+| 7a.7 | **@UX:** Final Persona Review | Ariia-Konsistenz über alle Kanäle | Persona-Audit bestanden |
 
 ### Sprint 7b – Launch & Monitoring (Woche 19–20)
 | # | Task | Beschreibung | Acceptance Criteria |
@@ -169,7 +169,7 @@
 | 9.3 | Bridge Production | Production/Self Mode via `.env` | Kunden-Nachrichten korrekt verarbeitet |
 | 9.4 | SOUL.md Rewrite | Keyword-Listen → Persona-Definition | LLM-ready, wartbar |
 | 9.5 | E2E Test | WhatsApp Nachricht → Antwort live | Roundtrip < 10s |
-| 9.6 | Error Handling | Arni-Style Fehler statt Stack Traces | AGENTS.md §4 erfüllt |
+| 9.6 | Error Handling | Ariia-Style Fehler statt Stack Traces | AGENTS.md §4 erfüllt |
 | 9.7 | Telegram Alerts | Notfall → Admin-Telegram-Alert | Alert < 3s nach Erkennung |
 
 ---
@@ -191,14 +191,14 @@
 
 | # | Task | Beschreibung | Acceptance Criteria |
 |---|------|-------------|---------------------|
-| 11.1 | Voice Messages | Whisper STT + Arni + ElevenLabs TTS | Audio-zu-Audio Konversation |
+| 11.1 | Voice Messages | Whisper STT + Ariia + ElevenLabs TTS | Audio-zu-Audio Konversation |
 | 11.2 | Multi-User Scale | Redis-Queue Optimierung für Last | 50 concurrent Users < 1s Latenz |
 | 11.3 | Analytics Dashboard | Metriken zu Intent-Verteilung | Dashboard live |
 
 ---
 
 ## Phase 12 – Enterprise Premium (Sprint 14) ✅
-**Goal:** Make Arni "Corporate Ready".
+**Goal:** Make Ariia "Corporate Ready".
 - [x] **Observability:** LangFuse Integration (Tracing/Spans).
 - [x] **Evaluation:** DeepEval CI/CD Pipeline (Faithfulness/Relevancy).
 - [x] **Guardrails:** Deterministic "Iron Dome" layer (PII/Jailbreak blocking).

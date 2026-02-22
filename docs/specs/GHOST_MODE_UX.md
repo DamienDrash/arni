@@ -6,7 +6,7 @@
 
 ## Konzept
 
-Ghost Mode erlaubt Trainern/Admins, Live-Konversationen von Arni mitzulesen, ohne dass der User (Member) davon weiß. Der Admin kann bei Bedarf eingreifen und die Antwort überschreiben.
+Ghost Mode erlaubt Trainern/Admins, Live-Konversationen von Ariia mitzulesen, ohne dass der User (Member) davon weiß. Der Admin kann bei Bedarf eingreifen und die Antwort überschreiben.
 
 ---
 
@@ -23,19 +23,19 @@ sequenceDiagram
     Note over A: WebSocket /ws/control verbinden
 
     M->>G: "Hey, ich will einen Kurs buchen"
-    G->>R: publish(arni:inbound, message)
+    G->>R: publish(ariia:inbound, message)
     R->>S: Swarm Router empfängt
     R-->>A: 🔔 Ghost Mode: Nachricht sichtbar
 
-    S->>R: publish(arni:outbound, response)
+    S->>R: publish(ariia:outbound, response)
     R-->>G: Gateway empfängt Antwort
-    R-->>A: 🔔 Ghost Mode: Arni-Antwort sichtbar
+    R-->>A: 🔔 Ghost Mode: Ariia-Antwort sichtbar
 
     alt Admin greift NICHT ein
-        G->>M: Arni antwortet automatisch
+        G->>M: Ariia antwortet automatisch
     else Admin greift ein (Override)
         A->>G: Override-Nachricht via WebSocket
-        G->>M: Admin-Antwort statt Arni-Antwort
+        G->>M: Admin-Antwort statt Ariia-Antwort
         Note over G: Event: admin.override geloggt
     end
 ```
@@ -64,7 +64,7 @@ sequenceDiagram
 │ [14:23] Max: "Ist es gerade     │
 │          voll?"                   │
 │                                   │
-│ [14:23] 🤖 Arni: "📊 Aktuelle   │
+│ [14:23] 🤖 Ariia: "📊 Aktuelle   │
 │          Auslastung: mittel"      │
 │                                   │
 │ ─────────────────────────────── │
@@ -78,7 +78,7 @@ sequenceDiagram
 ┌──────────────────────────────────┐
 │ ⚠️ OVERRIDE AKTIV               │
 │ ─────────────────────────────── │
-│ Arni's Entwurf:                  │
+│ Ariia's Entwurf:                  │
 │ "📊 Auslastung: mittel (~25)"   │
 │                                   │
 │ Ihre Nachricht:                  │
@@ -87,7 +87,7 @@ sequenceDiagram
 │ │ komm vorbei! 💪              │ │
 │ └──────────────────────────────┘ │
 │                                   │
-│ [Arni senden] [Override senden] │
+│ [Ariia senden] [Override senden] │
 └──────────────────────────────────┘
 ```
 
@@ -98,9 +98,9 @@ sequenceDiagram
 | Type | Richtung | Beschreibung |
 |------|----------|-------------|
 | `ghost.message_in` | Server → Admin | Neue User-Nachricht |
-| `ghost.message_out` | Server → Admin | Arni's Antwort-Entwurf |
-| `ghost.override` | Admin → Server | Admin überschreibt Arni |
-| `ghost.approve` | Admin → Server | Admin bestätigt Arni's Antwort |
+| `ghost.message_out` | Server → Admin | Ariia's Antwort-Entwurf |
+| `ghost.override` | Admin → Server | Admin überschreibt Ariia |
+| `ghost.approve` | Admin → Server | Admin bestätigt Ariia's Antwort |
 | `admin.connected` | Server → Redis | Admin hat sich verbunden |
 | `admin.disconnected` | Server → Redis | Admin hat sich getrennt |
 
@@ -111,5 +111,5 @@ sequenceDiagram
 1. **Authentifizierung:** WebSocket-Verbindung braucht Auth-Token (Sprint 3)
 2. **Logging:** Jeder Override wird geloggt (`event_type: admin.override`)
 3. **PII:** Admin sieht nur Vorname + letzte 3 Ziffern der Nummer
-4. **Timeout:** Arni antwortet automatisch nach 30s ohne Admin-Override
+4. **Timeout:** Ariia antwortet automatisch nach 30s ohne Admin-Override
 5. **One-Way-Door:** Override bei Medic-Themen erfordert Bestätigung

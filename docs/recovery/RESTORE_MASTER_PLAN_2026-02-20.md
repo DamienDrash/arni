@@ -1,4 +1,4 @@
-# ARNI Restore Master Plan (Post-Loss Recovery)
+# ARIIA Restore Master Plan (Post-Loss Recovery)
 _Datum: 2026-02-20_
 
 ## Ziel
@@ -161,7 +161,7 @@ Rekonstruktion des Stands unmittelbar vor dem Löschvorfall inklusive Multi-Tena
 - `pyproject.toml`: `psycopg[binary]` hinzugefügt.
 
 3. **Frontend Auth/BasePath Stabilisierung (P0)**
-- `/arni` basePath-safe Auth-Requests (`login/register/users/audit`).
+- `/ariia` basePath-safe Auth-Requests (`login/register/users/audit`).
 - Legacy token fallback + 401 session reset in `apiFetch`.
 
 4. **Premium UI/UX Upgrade (P1)**
@@ -176,7 +176,7 @@ Rekonstruktion des Stands unmittelbar vor dem Löschvorfall inklusive Multi-Tena
 - Frontend: `eslint` + `tsc --noEmit` grün.
 - API Smoke:
   - `/auth/login` (system_admin) -> 200
-  - `/arni/api/auth/login` -> 200
+  - `/ariia/api/auth/login` -> 200
   - RBAC-Guard siehe oben.
 
 ### Update 2026-02-20 (Tenant UX + Postgres Cutover)
@@ -192,15 +192,15 @@ Rekonstruktion des Stands unmittelbar vor dem Löschvorfall inklusive Multi-Tena
 ## Update 2026-02-20 (Restore Fortsetzung: Knowledge UX + Telegram Stabilisierung)
 - **Knowledge Editor Lesbarkeit final gehärtet**
   - `frontend/components/TiptapEditor.tsx`: eigenes, kontraststarkes Farbschema für Toolbar + Editorfläche.
-  - `frontend/app/globals.css`: `.arni-editor` Regeln mit expliziter dunkler Schriftfarbe (`#11142d`) für alle relevanten Rich-Text-Elemente.
+  - `frontend/app/globals.css`: `.ariia-editor` Regeln mit expliziter dunkler Schriftfarbe (`#11142d`) für alle relevanten Rich-Text-Elemente.
   - Ziel: Keine unlesbaren Texte mehr in `/knowledge`, `/member-memory`, `/system-prompt`.
 - **Telegram Worker Health nachhaltig gefixt**
   - Root cause: gemeinsamer Image-Healthcheck prüfte `http://localhost:8000/health`, aber der Polling-Worker bietet keinen HTTP-Port.
-  - `docker-compose.yml`: eigener `healthcheck` für `arni-telegram` via Python-Check auf `/proc/1/cmdline` (`telegram_polling_worker.py`).
-  - Ergebnis: `arni-telegram` läuft jetzt `healthy` statt permanent `unhealthy`.
+  - `docker-compose.yml`: eigener `healthcheck` für `ariia-telegram` via Python-Check auf `/proc/1/cmdline` (`telegram_polling_worker.py`).
+  - Ergebnis: `ariia-telegram` läuft jetzt `healthy` statt permanent `unhealthy`.
 - **Verifikation**
   - Frontend: `npx tsc --noEmit` ✅
-  - Frontend: `npx eslint components/TiptapEditor.tsx --max-warnings=0` ✅
+  - Frontend: `npx eslint components/TiptapEditor.tsx --max-wariiangs=0` ✅
   - Backend-Regression: `.venv/bin/pytest -q tests/test_auth_restore.py tests/test_security_hardening.py` => `4 passed` ✅
 
 ## Update 2026-02-20 (R7 Deepening: Tenant/Role Guardrails)

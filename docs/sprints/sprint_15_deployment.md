@@ -1,6 +1,6 @@
 # Sprint 15: Deployment & Scale (No Mocks)
 
-**Goal:** Transition ARNI from a development prototype (with mocks) to a production-ready containerized application connected to real infrastructure.
+**Goal:** Transition ARIIA from a development prototype (with mocks) to a production-ready containerized application connected to real infrastructure.
 
 ## User Stories
 | ID | Story | Acceptance Criteria |

@@ -2,7 +2,7 @@
 > **Phase 9** | Woche 22–23 | Status: 🟡 Aktiv
 
 ## Ziel
-ARNI von Prototyp → Produktionsreif. Alle Mocks entfernt, LLM-Agenten live, E2E getestet.
+ARIIA von Prototyp → Produktionsreif. Alle Mocks entfernt, LLM-Agenten live, E2E getestet.
 
 ## Tasks
 | # | Task | Status | Owner |
@@ -12,7 +12,7 @@ ARNI von Prototyp → Produktionsreif. Alle Mocks entfernt, LLM-Agenten live, E2
 | 9.3 | Bridge Production Mode (`BRIDGE_MODE` via .env) | ✅ | @BACKEND |
 | 9.4 | SOUL.md Rewrite (Persona statt Keywords) | ✅ | @PO |
 | 9.5 | E2E WhatsApp Test (Nachricht → Antwort) | ✅ | @BACKEND + User |
-| 9.6 | Error Handling (Arni-Style Fallbacks) | ✅ | @BACKEND |
+| 9.6 | Error Handling (Ariia-Style Fallbacks) | ✅ | @BACKEND |
 | 9.7 | Telegram Admin-Alerts bei Notfällen | ✅ | @BACKEND |
 
 ## Geänderte Dateien
@@ -31,7 +31,7 @@ ARNI von Prototyp → Produktionsreif. Alle Mocks entfernt, LLM-Agenten live, E2
 - `config/settings.py` – Bridge-Felder
 - `.env` – Bridge-Config
 - `scripts/launch.sh` – Production Launch
-- `app/gateway/main.py` – TelegramBot + ARNI_ERROR_MESSAGES + error handling
+- `app/gateway/main.py` – TelegramBot + ARIIA_ERROR_MESSAGES + error handling
 - `app/swarm/router/router.py` – Emergency Hard-Route
 - `docs/personas/SOUL.md` – Persona-Rewrite
 - `docs/sprints/ROADMAP.md` – Phase 9
@@ -41,5 +41,5 @@ ARNI von Prototyp → Produktionsreif. Alle Mocks entfernt, LLM-Agenten live, E2
 - ✅ `grep mock/stub/fake` = 0 Treffer im `app/` Verzeichnis
 - ✅ YOLOv8 real geladen, faster-whisper installiert
 - ✅ Emergency Hard-Route: Notfall-Keywords bypassen LLM-Klassifikation
-- ✅ Error Handling: Arni-Style Messages statt Stack Traces
+- ✅ Error Handling: Ariia-Style Messages statt Stack Traces
 - ✅ Telegram Alerts: Notfälle + System-Fehler → Admin

@@ -9,7 +9,7 @@
 ```mermaid
 sequenceDiagram
     participant U as User (WhatsApp)
-    participant A as Arni (Agent Ops)
+    participant A as Ariia (Agent Ops)
     participant M as Magicline API
 
     U->>A: "Ich will einen Kurs buchen"
@@ -40,7 +40,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant A as Arni (Agent Sales)
+    participant A as Ariia (Agent Sales)
     participant G as Ghost Mode Admin
 
     U->>A: "Ich will kündigen"
@@ -72,7 +72,7 @@ sequenceDiagram
 sequenceDiagram
     participant U as User
     participant R as Router (GPT-4o-mini)
-    participant A as Arni (passender Agent)
+    participant A as Ariia (passender Agent)
 
     U->>R: "Wann habt ihr offen?"
     R->>R: classify("Wann habt ihr offen?")
@@ -93,5 +93,5 @@ sequenceDiagram
 | **Max 3 Buttons** | WhatsApp-Limit, immer eine "Zurück"-Option |
 | **Bestätigung bei Type-2** | AGENTS.md §1: JA/NEIN vor irreversiblen Aktionen |
 | **Emoji sparsam** | Max 1-2 pro Nachricht (SOUL.md) |
-| **Arni-Persona** | Nie "Ich bin ein Bot", immer in Character |
+| **Ariia-Persona** | Nie "Ich bin ein Bot", immer in Character |
 | **Fallback** | Bei Unklarheit: "Kann ich dir sonst helfen?" |

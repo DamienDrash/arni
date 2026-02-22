@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Short-Term Memory (RAM Context).
+"""ARIIA v1.4 – Short-Term Memory (RAM Context).
 
 @BACKEND: Sprint 4, Task 4.1
 Per-user conversation context with 20-turn limit and TTL.

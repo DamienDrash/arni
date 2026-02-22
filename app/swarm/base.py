@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Base Agent Interface.
+"""ARIIA v1.4 – Base Agent Interface.
 
 @ARCH: Abstract base class for all Swarm Agents (Sprint 2, Task 2.1).
 Every agent MUST implement `handle()` and provide metadata.
@@ -104,7 +104,7 @@ class BaseAgent(ABC):
             from app.core.guardrails import get_guardrails
             block_msg = get_guardrails().check(user_message)
             if block_msg:
-                logger.warning("agent.guardrail_blocked", agent=self.name, user_id=user_id)
+                logger.wariiang("agent.guardrail_blocked", agent=self.name, user_id=user_id)
                 return block_msg
         except ImportError:
             pass # Fallback if guardrails module broken/missing
@@ -149,11 +149,16 @@ class BaseAgent(ABC):
 
             messages.append({"role": "user", "content": user_message})
 
+            # Resolve tenant-specific API key (BYOK)
+            from app.gateway.persistence import persistence
+            tenant_api_key = persistence.get_setting("openai_api_key", tenant_id=tenant_id)
+
             response = await self._llm.chat(
                 messages=messages,
                 model="gpt-4o-mini",
                 temperature=0.7,
                 max_tokens=300,
+                api_key=tenant_api_key,
             )
             
             if span:
@@ -162,7 +167,7 @@ class BaseAgent(ABC):
             return response.strip()
             
         except Exception as e:
-            logger.warning("agent.llm_fallback", agent=self.name, error=str(e))
+            logger.wariiang("agent.llm_fallback", agent=self.name, error=str(e))
             if span:
                 span.update(status_message=str(e), level="ERROR")
             return None

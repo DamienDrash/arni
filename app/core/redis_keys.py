@@ -1,4 +1,4 @@
-"""ARNI – Tenant-scoped Redis key factory.
+"""ARIIA – Tenant-scoped Redis key factory.
 
 All Redis keys MUST go through this module to ensure tenant isolation.
 No key may be stored without a tenant prefix.

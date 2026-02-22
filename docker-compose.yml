@@ -1,10 +1,10 @@
 
 services:
   # 1. Frontend (Next.js Admin Panel)
-  arni-frontend:
+  ariia-frontend:
     # Use Debian-based slim image for better stability than Alpine
     image: node:20-slim
-    container_name: arni_frontend
+    container_name: ariia_frontend
     restart: always
     working_dir: /app
     command: sh -c "npm install --production=false && npm run build && cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/ && node .next/standalone/server.js"
@@ -17,20 +17,22 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_ENABLE_WS=true
-      - GATEWAY_INTERNAL_URL=http://arni-core:8000
+      - GATEWAY_INTERNAL_URL=http://ariia-core:8000
     depends_on:
-      - arni-core
+      - ariia-core
     networks:
-      - arni-network
+      - ariia-network
 
-  # 2. ARNI Core Service
-  arni-core:
+  # 2. ARIIA Core Service
+  ariia-core:
     build: .
-    container_name: arni_core
+    container_name: ariia_core
     restart: always
     ports:
       - "8000:8000"
-    command: uvicorn app.gateway.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.gateway.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips ${FORWARDED_ALLOW_IPS:-127.0.0.1}"
     environment:
       - PYTHONPATH=/app
       - REDIS_URL=redis://redis:6379/0
@@ -52,25 +54,25 @@ services:
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
       - LANGFUSE_HOST=${LANGFUSE_HOST:-https://cloud.langfuse.com}
-      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/arni.db}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/ariia.db}
     depends_on:
       - redis
       - qdrant
       - postgres
     volumes:
-      - arni_data:/app/data
+      - ariia_data:/app/data
       - ./data/knowledge:/app/data/knowledge
       # Hot Reload: Mount source code directly
       - ./app:/app/app
       - ./config:/app/config
       - ./scripts:/app/scripts
     networks:
-      - arni-network
+      - ariia-network
 
   # 3. Telegram Poller (Sidecar)
-  arni-telegram:
+  ariia-telegram:
     build: .
-    container_name: arni_telegram
+    container_name: ariia_telegram
     restart: always
     command: python scripts/telegram_polling_worker.py
     healthcheck:
@@ -86,64 +88,84 @@ services:
       timeout: 5s
       retries: 3
     environment:
-      - GATEWAY_INTERNAL_URL=http://arni-core:8000
+      - GATEWAY_INTERNAL_URL=http://ariia-core:8000
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET}
       - TELEGRAM_OFFSET_FILE=/app/data/telegram_offset.txt
       - LOG_LEVEL=INFO
-      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/arni.db}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/ariia.db}
     depends_on:
-      - arni-core
+      - ariia-core
       - redis
     volumes:
-      - arni_data:/app/data
+      - ariia_data:/app/data
       - ./data/knowledge:/app/data/knowledge
       # Hot Reload: Mount source code directly
       - ./app:/app/app
       - ./config:/app/config
       - ./scripts:/app/scripts 
     networks:
-      - arni-network
+      - ariia-network
   # 2. Vector Database (No Mocks)
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: arni_qdrant
+    container_name: ariia_qdrant
     restart: always
     volumes:
       - qdrant_data:/qdrant/storage
     networks:
-      - arni-network
+      - ariia-network
 
   # 3. Cache & PubSub
   redis:
     image: redis:alpine
-    container_name: arni_redis
+    container_name: ariia_redis
     restart: always
     volumes:
       - redis_data:/data
     networks:
-      - arni-network
+      - ariia-network
 
   # 4. Primary relational DB (Postgres-first for multi-tenant SaaS)
   postgres:
     image: postgres:16-alpine
-    container_name: arni_postgres
+    container_name: ariia_postgres
     restart: always
     environment:
-      - POSTGRES_DB=arni
-      - POSTGRES_USER=arni
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-arni_dev_password}
+      - POSTGRES_DB=ariia
+      - POSTGRES_USER=ariia
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ariia_dev_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - arni-network
+      - ariia-network
+
+  # 7. Seed Utility (Sidecar)
+  ariia-seed:
+    build: .
+    container_name: ariia_seed
+    profiles: ["seed"]
+    command: python scripts/seed_demo_tenant.py --reset
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/ariia.db}
+      - LOG_LEVEL=INFO
+    depends_on:
+      - ariia-core
+      - postgres
+    volumes:
+      - ariia_data:/app/data
+      - ./scripts:/app/scripts
+    networks:
+      - ariia-network
 
 volumes:
   qdrant_data:
   redis_data:
-  arni_data:
+  ariia_data:
   postgres_data:
+  qdrant_storage:
 
 networks:
-  arni-network:
+  ariia-network:
     driver: bridge

@@ -1,13 +1,13 @@
 # Sprint 12: 1st & 2nd Level Support (RAG & Handoff)
 
-**Goal:** Strengthen the core competence of Arni as a support assistant. No gimmicks (Vision), just solid answers and escalation paths.
+**Goal:** Strengthen the core competence of Ariia as a support assistant. No gimmicks (Vision), just solid answers and escalation paths.
 
 ---
 
 ## 🏗️ Architecture
 
 ### 1. Knowledge Base (RAG) - 1st Level Support
--   **Problem:** Arni hallucinates prices or rules if not in prompt.
+-   **Problem:** Ariia hallucinates prices or rules if not in prompt.
 -   **Solution:** Retrieval Augmented Generation (RAG).
 -   **Stack:**
     -   `chromadb` (Local Vector Store).
@@ -31,7 +31,7 @@
 ### US-12.1: Knowledge Base Integration (@AI)
 **As** Studio Owner
 **I want** to upload my Terms & Conditions and Price List,
-**so that** Arni answers legal/pricing questions correctly (Hallucination Free).
+**so that** Ariia answers legal/pricing questions correctly (Hallucination Free).
 
 **Constraint:**
 -   Source of Truth must be easily updateable (files in repo).

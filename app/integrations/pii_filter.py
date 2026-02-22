@@ -1,4 +1,4 @@
-"""ARNI v1.4 – PII Filter Middleware.
+"""ARIIA v1.4 – PII Filter Middleware.
 
 @SEC: Sprint 3, Task 3.8
 Regex-based PII detection and masking for log safety.

@@ -134,13 +134,13 @@ export default function SettingsAutomationPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
             <Card style={{ padding: 12, background: T.surfaceAlt }}>
               <div style={{ fontSize: 11, color: T.textDim }}>Scheduler</div>
-              <div style={{ marginTop: 2, fontSize: 18, fontWeight: 800, color: cronEnabled ? T.success : T.warning }}>
+              <div style={{ marginTop: 2, fontSize: 18, fontWeight: 800, color: cronEnabled ? T.success : T.wariiang }}>
                 {cronEnabled ? "Aktiv" : "Pausiert"}
               </div>
             </Card>
             <Card style={{ padding: 12, background: T.surfaceAlt }}>
               <div style={{ fontSize: 11, color: T.textDim }}>LLM</div>
-              <div style={{ marginTop: 2, fontSize: 18, fontWeight: 800, color: llmEnabled ? T.success : T.warning }}>
+              <div style={{ marginTop: 2, fontSize: 18, fontWeight: 800, color: llmEnabled ? T.success : T.wariiang }}>
                 {llmEnabled ? "Aktiv" : "Deaktiviert"}
               </div>
             </Card>

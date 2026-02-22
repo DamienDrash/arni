@@ -12,8 +12,8 @@ export const HOP_BY_HOP_HEADERS = new Set([
   "upgrade",
 ]);
 
-export const AUTH_COOKIE = "arni_access_token";
-export const CSRF_COOKIE = "arni_csrf_token";
+export const AUTH_COOKIE = "ariia_access_token";
+export const CSRF_COOKIE = "ariia_csrf_token";
 
 export function isMutatingMethod(method: string) {
   return !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase());

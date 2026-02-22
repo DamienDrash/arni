@@ -25,7 +25,7 @@
 - [ ] Integration in Swarm Router (Audio -> Text -> Agent)
 
 ### US-11.2: Voice Egress (TTS) @ARCH
-**Als** ARNI
+**Als** ARIIA
 **möchte ich** mit meiner Stimme antworten,
 **damit** die Interaktion persönlicher wirkt.
 

@@ -3,7 +3,7 @@ name: magicline-support
 description: Kontextbasierter Support-Skill fuer Mitgliederanfragen zu Terminen, Kursen und Buchungsverwaltung in Magicline.
 ---
 
-# Magicline Support Skill (Arni)
+# Magicline Support Skill (Ariia)
 
 Ziel: Bei Mitglieder-Support immer die richtige Aktion aus dem Verlauf ableiten, nicht aus einzelnen Schluesselwoertern.
 

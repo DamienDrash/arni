@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Voice Module Tests.
+"""ARIIA v1.4 – Voice Module Tests.
 
 @QA: Sprint 5b, Task 5b.5
 Tests: STT, Ingress, TTS, Pipeline.

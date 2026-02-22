@@ -1,4 +1,4 @@
-"""ARNI v1.4 – LLM Client Abstraction.
+"""ARIIA v1.4 – LLM Client Abstraction.
 
 @BACKEND: Sprint 2, Task 2.9
 OpenAI primary → Ollama fallback. Automatic switchover on error/timeout.
@@ -39,6 +39,7 @@ class LLMClient:
         model: str = "gpt-4o-mini",
         temperature: float = 0.3,
         max_tokens: int = 500,
+        api_key: str | None = None,
     ) -> str:
         """Send a chat completion request.
 
@@ -49,16 +50,20 @@ class LLMClient:
             model: Model name (ignored for Ollama fallback).
             temperature: Sampling temperature.
             max_tokens: Max response tokens.
+            api_key: Optional tenant-specific API key.
 
         Returns:
             Response text content.
         """
+        # Use provided api_key or fallback to instance default
+        effective_key = api_key or self._openai_api_key
+
         # Try OpenAI first
-        if self._openai_api_key and not self._using_fallback:
+        if effective_key and not self._using_fallback:
             try:
-                return await self._call_openai(messages, model, temperature, max_tokens)
+                return await self._call_openai(messages, model, temperature, max_tokens, effective_key)
             except Exception as e:
-                logger.warning(
+                logger.wariiang(
                     "llm.openai_failed",
                     error=str(e),
                     action="switching_to_ollama",
@@ -78,6 +83,7 @@ class LLMClient:
         model: str,
         temperature: float,
         max_tokens: int,
+        api_key: str,
     ) -> str:
         """Call OpenAI Chat Completions API."""
         import httpx
@@ -86,7 +92,7 @@ class LLMClient:
             response = await client.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {self._openai_api_key}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json={

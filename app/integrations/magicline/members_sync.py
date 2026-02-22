@@ -233,7 +233,7 @@ def sync_members_from_magicline(tenant_id: int | None = None) -> dict[str, int]:
     """Sync MEMBER status customers from Magicline into local studio_members table."""
     client = get_client(tenant_id=tenant_id)
     if not client:
-        logger.warning("magicline.members_sync.client_unavailable")
+        logger.wariiang("magicline.members_sync.client_unavailable")
         return {"fetched": 0, "upserted": 0, "deleted": 0}
 
     # Fetch additional-info field definitions once (best-effort; continue if unavailable)
@@ -247,7 +247,7 @@ def sync_members_from_magicline(tenant_id: int | None = None) -> dict[str, int]:
                 field_defs[int(fid)] = name
         logger.info("magicline.members_sync.field_defs_loaded", count=len(field_defs))
     except Exception as e:
-        logger.warning("magicline.members_sync.field_defs_failed", error=str(e))
+        logger.wariiang("magicline.members_sync.field_defs_failed", error=str(e))
 
     rows = MagiclineClient.iter_pages(
         client.customer_list,
@@ -310,7 +310,7 @@ def sync_members_from_magicline(tenant_id: int | None = None) -> dict[str, int]:
         except IntegrityError as e:
             db.rollback()
             if attempt == 0 and _is_studio_members_pk_sequence_error(e):
-                logger.warning("magicline.members_sync.sequence_realign_retry", error=str(e))
+                logger.wariiang("magicline.members_sync.sequence_realign_retry", error=str(e))
                 try:
                     _align_studio_members_sequence(db)
                     db.commit()

@@ -1,9 +1,9 @@
 #!/bin/bash
-echo "🚀 Starting Arni Dashboard..."
+echo "🚀 Starting Ariia Dashboard..."
 
 # 1. Start Backend (Background)
 echo "🔌 Starting Backend (Port 8000)..."
-cd /root/.openclaw/workspace/arni
+cd /root/.openclaw/workspace/ariia
 source .venv/bin/activate
 uvicorn app.gateway.main:app --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
@@ -14,8 +14,8 @@ cd frontend
 npm run dev &
 FRONTEND_PID=$!
 
-echo "✅ Arni is Live!"
-echo "👉 Dashboard: http://localhost:3000/arni"
+echo "✅ Ariia is Live!"
+echo "👉 Dashboard: http://localhost:3000/ariia"
 echo "👉 Backend:   http://localhost:8000"
 
 # Trap Ctrl+C to kill both

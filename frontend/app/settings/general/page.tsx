@@ -274,7 +274,7 @@ export default function SettingsGeneralPage() {
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <div style={{ color: T.text, fontSize: 13, fontWeight: 700 }}>{label}</div>
-                            <span className={`badge badge-sm badge-outline font-bold ${risk === "high" ? "badge-error" : risk === "medium" ? "badge-warning" : "badge-success"}`}>
+                            <span className={`badge badge-sm badge-outline font-bold ${risk === "high" ? "badge-error" : risk === "medium" ? "badge-wariiang" : "badge-success"}`}>
                               {risk.toUpperCase()}
                             </span>
                           </div>

@@ -47,7 +47,7 @@ async def test_rag():
         )
         
         response = await agent.handle(msg)
-        print(f"🤖 Arni: {response.content}")
+        print(f"🤖 Ariia: {response.content}")
         
         # Verify
         if expected_keyword.lower() in response.content.lower():

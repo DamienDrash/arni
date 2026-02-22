@@ -1,4 +1,4 @@
-"""ARNI – Jinja2 Prompt Engine (S2.5).
+"""ARIIA – Jinja2 Prompt Engine (S2.5).
 
 Renders LLM system prompts from Jinja2 templates with per-tenant override support.
 
@@ -84,7 +84,7 @@ class PromptEngine:
                     raw = tenant_override.read_text(encoding="utf-8")
                     return self.env.from_string(raw).render(**context)
                 except Exception as exc:
-                    logger.warning(
+                    logger.wariiang(
                         "prompt_engine.tenant_override_failed",
                         template=template_name,
                         tenant=tenant_slug,

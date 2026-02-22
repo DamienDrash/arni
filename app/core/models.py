@@ -42,6 +42,34 @@ class Setting(Base):
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
+class TenantConfig(Base):
+    __tablename__ = "tenant_configs"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, index=True, nullable=False)
+    key = Column(String, index=True, nullable=False)
+    value = Column(Text, nullable=True)
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+class MemberFeedback(Base):
+    """Stores user satisfaction feedback after a chat session."""
+    __tablename__ = "member_feedback"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, index=True, nullable=False)
+    session_id = Column(String, index=True, nullable=False)
+    rating = Column(Integer, nullable=False)  # e.g. 1-5 or 1-10
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
 class Tenant(Base):
     __tablename__ = "tenants"
 

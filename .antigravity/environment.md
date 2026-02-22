@@ -1,4 +1,4 @@
-# ARNI v1.4 – Entwicklungsumgebung
+# ARIIA v1.4 – Entwicklungsumgebung
 
 > **CRITICAL:** Wir entwickeln REMOTE auf einem VPS.
 

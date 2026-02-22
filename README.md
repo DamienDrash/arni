@@ -1,4 +1,4 @@
-# ARNI v1.4 🤖
+# ARIIA v1.4 🤖
 
 > **Living System Agent für GetImpulse Berlin** – KI-gestützter Fitnessstudio-Assistent mit WhatsApp, Voice, Vision & Swarm Intelligence.
 
@@ -31,7 +31,7 @@ docker compose up --build
 ## Projektstruktur
 
 ```
-arni/
+ariia/
 ├── app/
 │   ├── gateway/          # Hybrid Gateway (FastAPI + Redis + WebSocket)
 │   │   ├── main.py       # Endpoints: /health, /webhook, /ws/control
@@ -103,7 +103,7 @@ Fallback: Ollama/Llama-3 wenn OpenAI offline
 | **Sales** | `sales` | Retention-First, 3 Alternativen |
 | **Medic** | `health` | ⚕️ Disclaimer IMMER, Notfall → 112 |
 | **Vision** | `crowd` | Stub (Sprint 5: YOLOv8) |
-| **Persona** | `smalltalk` | Arni-Persönlichkeit (SOUL.md) |
+| **Persona** | `smalltalk` | Ariia-Persönlichkeit (SOUL.md) |
 
 ## Communication Layer (Sprint 3)
 

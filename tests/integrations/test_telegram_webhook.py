@@ -19,7 +19,7 @@ def test_telegram_webhook_chat(mock_process, mock_redis):
             "from": {"id": 999111, "is_bot": False, "first_name": "Test", "username": "tester"},
             "chat": {"id": 999111, "type": "private"},
             "date": 1678900000,
-            "text": "Hallo Arni"
+            "text": "Hallo Ariia"
         }
     }
     
@@ -31,7 +31,7 @@ def test_telegram_webhook_chat(mock_process, mock_redis):
     # Verify Redis Publish
     mock_redis.publish.assert_called_once()
     call_args = mock_redis.publish.call_args[0]
-    assert "arni:inbound" == call_args[0]
+    assert "ariia:inbound" == call_args[0]
     assert '"platform":"telegram"' in call_args[1]
     assert '"user_id":"999111"' in call_args[1]
     

@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Agent Ops (The Scheduler).
+"""ARIIA v1.4 – Agent Ops (The Scheduler).
 
 @BACKEND: Sprint 2 → Sprint 9 (LLM-powered)
 Handles bookings, schedules, check-ins.
@@ -36,7 +36,7 @@ def _load_magicline_skill_prompt() -> str:
         if candidate.exists():
             return candidate.read_text(encoding="utf-8")
     except Exception as e:
-        logger.warning("agent.ops.skill_prompt_load_failed", error=str(e))
+        logger.wariiang("agent.ops.skill_prompt_load_failed", error=str(e))
     return ""
 
 
@@ -129,6 +129,7 @@ class AgentOps(BaseAgent):
         session = persistence.get_session_by_user_id(message.user_id, tenant_id=message.tenant_id)
         user_name = (session and session.user_name) or message.user_id
         member_id = (session and session.member_id) or "Unknown"
+        session_id = (session and hasattr(session, "session_id") and session.session_id) or str(message.message_id)
 
         # Build member profile context for prompt
         member_profile_block = ""
@@ -158,7 +159,7 @@ class AgentOps(BaseAgent):
                 finally:
                     db.close()
             except Exception as e:
-                logger.warning("agent.ops.member_profile_failed", error=str(e))
+                logger.wariiang("agent.ops.member_profile_failed", error=str(e))
 
         engine = get_engine()
         context = {
@@ -166,6 +167,7 @@ class AgentOps(BaseAgent):
             "current_date": date.today().isoformat(),
             "user_name": user_name,
             "member_id": member_id,
+            "session_id": session_id,
             "member_profile": member_profile_block,
         }
         tenant_slug = persistence.get_tenant_slug(message.tenant_id)
@@ -183,7 +185,7 @@ class AgentOps(BaseAgent):
                 tenant_prompt_raw = tenant_prompt_path.read_text(encoding="utf-8")
                 ops_system_prompt = engine.env.from_string(tenant_prompt_raw).render(**context)
             except Exception as e:
-                logger.warning("agent.ops.tenant_prompt_render_failed", error=str(e), tenant=tenant_slug)
+                logger.wariiang("agent.ops.tenant_prompt_render_failed", error=str(e), tenant=tenant_slug)
                 ops_system_prompt = engine.render("ops/system.j2", **context)
         else:
             ops_system_prompt = engine.render("ops/system.j2", **context)
@@ -229,7 +231,7 @@ class AgentOps(BaseAgent):
 
         # Safety: never expose raw TOOL commands to users.
         if "TOOL:" in response_1:
-            logger.warning("agent.ops.unparsed_tool_response", response=response_1)
+            logger.wariiang("agent.ops.unparsed_tool_response", response=response_1)
             return AgentResponse(
                 content="Ich habe den Terminbefehl erkannt, aber die Ausführung war unklar. Sag kurz: 'Welche Termine habe ich heute?'",
                 confidence=0.6,

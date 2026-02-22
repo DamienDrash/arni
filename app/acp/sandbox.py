@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Soft Sandbox (Python-Level Isolation).
+"""ARIIA v1.4 – Soft Sandbox (Python-Level Isolation).
 
 @BACKEND: Sprint 6a, Task 6a.2
 Enforces path restrictions for code execution and file modifications.

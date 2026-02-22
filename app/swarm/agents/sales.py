@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Agent Sales (The Hunter).
+"""ARIIA v1.4 – Agent Sales (The Hunter).
 
 @BACKEND: Sprint 2 → Sprint 9 (LLM-powered)
 Handles cancellations, renewals, upgrades, pricing. Retention-focused.
@@ -98,7 +98,7 @@ class AgentSales(BaseAgent):
 
         # Safety: never expose raw TOOL commands to users.
         if "TOOL:" in response_1:
-            logger.warning("agent.sales.unparsed_tool_response", response=response_1)
+            logger.wariiang("agent.sales.unparsed_tool_response", response=response_1)
             return AgentResponse(
                 content="Ich brauche einen kurzen Retry für die Vertragsabfrage. Sag bitte noch einmal: 'Bin ich Premium?'",
                 confidence=0.6,

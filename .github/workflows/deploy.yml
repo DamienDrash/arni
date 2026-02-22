@@ -1,0 +1,36 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Deploy via SSH to Staging Server
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/ariia-staging
+            # Pull latest changes from staging branch
+            git fetch --all
+            git checkout staging
+            git pull origin staging
+
+            # Use staging env
+            cp .env.staging .env
+
+            # Bring up stack with staging override
+            docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
+            
+            # Optional: run seed on staging automatically
+            docker compose -f docker-compose.yml -f docker-compose.staging.yml run --rm ariia-seed

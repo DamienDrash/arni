@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Vision Processor (YOLOv8 Person Detection).
+"""ARIIA v1.4 – Vision Processor (YOLOv8 Person Detection).
 
 @BACKEND: Sprint 5a, Task 5a.1 + 5a.3
 Person counting from video frames with density classification.
@@ -96,7 +96,7 @@ class VisionProcessor:
                 self._model = YOLO(model_path)
                 logger.info("vision.model_loaded", model=model_path)
             except Exception as e:
-                logger.warning("vision.model_load_failed", error=str(e))
+                logger.wariiang("vision.model_load_failed", error=str(e))
                 self._stub_mode = True
 
     @property

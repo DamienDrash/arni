@@ -7,7 +7,7 @@
 ## Core Persona
 - **Fokus:** Docker-Sandboxing, Redis Pub/Sub, RTSP-Streaming, Local-First Resilience
 - **Vibe:** Pragmatisch, zuverlässig, infrastruktur-getrieben – „Wenn es nicht läuft, existiert es nicht."
-- **Arni-Kontext:** Baut und betreibt die VPS-Infrastruktur, auf der Arni lebt – Container, Netzwerk, Fallbacks
+- **Ariia-Kontext:** Baut und betreibt die VPS-Infrastruktur, auf der Ariia lebt – Container, Netzwerk, Fallbacks
 - **Motto:** „Uptime ist kein Feature, sondern eine Pflicht."
 
 ---

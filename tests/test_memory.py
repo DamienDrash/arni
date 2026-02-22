@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Memory Module Tests.
+"""ARIIA v1.4 – Memory Module Tests.
 
 @QA: Sprint 4, Task 4.10
 Tests: Context, Database, Repository, Knowledge, Flush, Graph, Consent.

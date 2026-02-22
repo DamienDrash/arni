@@ -61,7 +61,7 @@ Getestet wurden alle Stellen, an denen User-Input in LLM-Prompts einfließt:
 
 ## 4. Risiken (für Sprint 3+)
 
-> [!WARNING]
+> [!WARIIANG]
 > Wenn Agents in späteren Sprints LLM-basierte Antworten generieren, steigt das Injection-Risiko deutlich. Folgende Maßnahmen sind dann PFLICHT:
 
 | Risiko | Mitigation | Sprint |
@@ -76,7 +76,7 @@ Getestet wurden alle Stellen, an denen User-Input in LLM-Prompts einfließt:
 ## 5. Empfehlungen
 
 1. **Input-Sanitizer** einbauen: `<script>`, `\n\nSystem:`, `IGNORE` etc. filtern
-2. **Output-Validator** für LLM-Responses: Arni darf nie PII, URLs zu externen Sites, oder Code ausgeben
+2. **Output-Validator** für LLM-Responses: Ariia darf nie PII, URLs zu externen Sites, oder Code ausgeben
 3. **Rate Limiting** pro User: Max. 30 Messages/Minute
 4. **Logging:** Verdächtige Patterns loggen (ohne PII) → Alerting
 

@@ -453,11 +453,8 @@ async def get_member_detail(customer_id: int, user: AuthContext = Depends(get_cu
 async def enrich_all_members(force: bool = False, user: AuthContext = Depends(get_current_user)) -> dict[str, Any]:
     """Trigger background enrichment for all members (non-blocking).
 
-    Returns immediately; enrichment runs in a background thread.
+    Enqueues the members into Redis for the bulk_enrich_worker to process slowly.
     """
-    import asyncio
-    import threading
-
     _require_tenant_admin_or_system(user)
     db = SessionLocal()
     try:
@@ -465,24 +462,27 @@ async def enrich_all_members(force: bool = False, user: AuthContext = Depends(ge
     finally:
         db.close()
 
-    def _run():
-        ok = err = 0
-        for cid in ids:
-            try:
-                result = enrich_member(cid, force=force, tenant_id=user.tenant_id)
-                if "error" in result:
-                    err += 1
-                else:
-                    ok += 1
-            except Exception as e:
-                logger.error("admin.enrich_all.member_failed", customer_id=cid, error=str(e))
-                err += 1
-        logger.info("admin.enrich_all.completed", ok=ok, err=err, total=len(ids))
+    if not ids:
+        return {"enqueued": 0, "estimated_minutes": 0}
 
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
-    logger.info("admin.enrich_all.started", total=len(ids))
-    return {"status": "started", "total": len(ids)}
+    import redis as _redis
+    from config.settings import get_settings
+    r = _redis.from_url(get_settings().redis_url, decode_responses=True)
+    
+    queue_key = f"tenant:{user.tenant_id}:enrich_queue"
+    if force:
+        r.delete(queue_key)
+        
+    # push to list in chunks to avoid single massive command if tenant is huge
+    chunk_size = 500
+    for i in range(0, len(ids), chunk_size):
+        r.sadd(queue_key, *ids[i:i+chunk_size])
+        
+    enqueued = r.scard(queue_key)
+    minutes = (enqueued * 6) // 60
+    
+    logger.info("admin.enrich_all.enqueued", total=enqueued, minutes=minutes)
+    return {"enqueued": enqueued, "estimated_minutes": minutes}
 
 
 @router.post("/members/{customer_id}/enrich")
@@ -1285,7 +1285,7 @@ def _parse_json_setting(key: str, default: Any, tenant_id: int | None = None) ->
     try:
         return _json.loads(raw)
     except Exception:
-        logger.warning("admin.settings.json_parse_failed", key=key)
+        logger.wariiang("admin.settings.json_parse_failed", key=key)
         return default
 
 
@@ -1509,7 +1509,7 @@ async def get_integrations_config(user: AuthContext = Depends(get_current_user))
             "from_email": _get_setting_with_env_fallback("smtp_from_email", "smtp_from_email", tenant_id=user.tenant_id),
             "from_name": _get_setting_with_env_fallback("smtp_from_name", "smtp_from_name", tenant_id=user.tenant_id),
             "use_starttls": _get_setting_with_env_fallback("smtp_use_starttls", "smtp_use_starttls", "true", tenant_id=user.tenant_id),
-            "verification_subject": _get_setting_with_env_fallback("verification_email_subject", None, "Dein ARNI Verifizierungscode", tenant_id=user.tenant_id),
+            "verification_subject": _get_setting_with_env_fallback("verification_email_subject", None, "Dein ARIIA Verifizierungscode", tenant_id=user.tenant_id),
         },
         "email_channel": {
             "enabled": _get_setting_with_env_fallback("email_channel_enabled", None, "false", tenant_id=user.tenant_id),
@@ -1733,7 +1733,7 @@ async def get_tenant_preferences(user: AuthContext = Depends(get_current_user)) 
         # White-label branding (S6)
         "tenant_logo_url": _get_setting_with_env_fallback("tenant_logo_url", None, "", tenant_id=user.tenant_id),
         "tenant_primary_color": _get_setting_with_env_fallback("tenant_primary_color", None, "#3B82F6", tenant_id=user.tenant_id),
-        "tenant_app_title": _get_setting_with_env_fallback("tenant_app_title", None, "ARNI", tenant_id=user.tenant_id),
+        "tenant_app_title": _get_setting_with_env_fallback("tenant_app_title", None, "ARIIA", tenant_id=user.tenant_id),
         "tenant_support_email": _get_setting_with_env_fallback("tenant_support_email", None, "", tenant_id=user.tenant_id),
     }
 
@@ -2262,256 +2262,7 @@ def _initials(name: str | None) -> str:
     return name[:2].upper()
 
 
-@router.get("/analytics/overview")
-async def analytics_overview(
-    tenant_slug: str | None = Query(None),
-    user: AuthContext = Depends(get_current_user),
-) -> dict[str, Any]:
-    """KPI overview: 24h stats + 30-day trend + channel breakdown + confidence."""
-    _require_tenant_admin_or_system(user)
-    effective_tid = _resolve_tenant_id_for_slug(user, tenant_slug)
 
-    from datetime import timedelta
-    now = datetime.now(timezone.utc)
-    day_ago = now - timedelta(hours=24)
-    days_30 = now - timedelta(days=30)
-    days_60 = now - timedelta(days=60)
-
-    db = SessionLocal()
-    try:
-        # Assistant messages carry the analytics metadata
-        msgs_24h = (
-            db.query(ChatMessage)
-            .filter(
-                ChatMessage.tenant_id == effective_tid,
-                ChatMessage.role == "assistant",
-                ChatMessage.timestamp >= day_ago,
-            )
-            .all()
-        )
-        parsed_24h = [_parse_msg_meta(m.metadata_json) for m in msgs_24h]
-        total_24h = len(parsed_24h)
-        escalated_24h = sum(1 for m in parsed_24h if m.get("escalated"))
-        resolved_24h = total_24h - escalated_24h
-
-        # Channel counts
-        channels: dict[str, int] = {}
-        for m in parsed_24h:
-            ch = m.get("channel", "unknown")
-            channels[ch] = channels.get(ch, 0) + 1
-
-        # Confidence distribution
-        confidences = [float(m["confidence"]) for m in parsed_24h if m.get("confidence") is not None]
-        avg_conf = round(sum(confidences) / len(confidences) * 100, 1) if confidences else 0.0
-        conf_dist = [
-            {"range": "90–100%", "count": sum(1 for c in confidences if c >= 0.90)},
-            {"range": "75–89%",  "count": sum(1 for c in confidences if 0.75 <= c < 0.90)},
-            {"range": "50–74%",  "count": sum(1 for c in confidences if 0.50 <= c < 0.75)},
-            {"range": "<50%",    "count": sum(1 for c in confidences if c < 0.50)},
-        ]
-        high_conf = sum(1 for c in confidences if c >= 0.90)
-        low_conf = sum(1 for c in confidences if c < 0.50)
-        high_conf_pct = round(high_conf / max(len(confidences), 1) * 100)
-        low_conf_pct = round(low_conf / max(len(confidences), 1) * 100)
-
-        # 30-day totals
-        tickets_30d = (
-            db.query(ChatMessage)
-            .filter(
-                ChatMessage.tenant_id == effective_tid,
-                ChatMessage.role == "assistant",
-                ChatMessage.timestamp >= days_30,
-            )
-            .count()
-        )
-        tickets_prev_30d = (
-            db.query(ChatMessage)
-            .filter(
-                ChatMessage.tenant_id == effective_tid,
-                ChatMessage.role == "assistant",
-                ChatMessage.timestamp >= days_60,
-                ChatMessage.timestamp < days_30,
-            )
-            .count()
-        )
-        month_trend_pct = round(
-            (tickets_30d - tickets_prev_30d) / max(tickets_prev_30d, 1) * 100, 1
-        )
-
-        return {
-            "tickets_24h": total_24h,
-            "resolved_24h": resolved_24h,
-            "escalated_24h": escalated_24h,
-            "ai_resolution_rate": round(resolved_24h / max(total_24h, 1) * 100, 1),
-            "escalation_rate": round(escalated_24h / max(total_24h, 1) * 100, 1),
-            "confidence_avg": avg_conf,
-            "confidence_high_pct": high_conf_pct,
-            "confidence_low_pct": low_conf_pct,
-            "confidence_distribution": conf_dist,
-            "channels_24h": channels,
-            "tickets_30d": tickets_30d,
-            "tickets_prev_30d": tickets_prev_30d,
-            "month_trend_pct": month_trend_pct,
-        }
-    finally:
-        db.close()
-
-
-@router.get("/analytics/trends")
-async def analytics_trends(
-    days: int = 7,
-    tenant_slug: str | None = Query(None),
-    user: AuthContext = Depends(get_current_user),
-) -> list[dict[str, Any]]:
-    """Daily ticket/resolved/escalated trend for the last N days."""
-    _require_tenant_admin_or_system(user)
-    effective_tid = _resolve_tenant_id_for_slug(user, tenant_slug)
-    days = min(max(days, 1), 90)
-
-    from datetime import timedelta
-    from collections import defaultdict
-    now = datetime.now(timezone.utc)
-    since = now - timedelta(days=days)
-
-    db = SessionLocal()
-    try:
-        msgs = (
-            db.query(ChatMessage)
-            .filter(
-                ChatMessage.tenant_id == effective_tid,
-                ChatMessage.role == "assistant",
-                ChatMessage.timestamp >= since,
-            )
-            .all()
-        )
-
-        daily: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "escalated": 0})
-        for msg in msgs:
-            ts = msg.timestamp
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
-            key = ts.strftime("%Y-%m-%d")
-            meta = _parse_msg_meta(msg.metadata_json)
-            daily[key]["total"] += 1
-            if meta.get("escalated"):
-                daily[key]["escalated"] += 1
-
-        # Build sorted result spanning the full date range
-        _DAY_NAMES_DE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
-        result = []
-        for i in range(days):
-            d = (now - timedelta(days=days - 1 - i)).date()
-            key = d.strftime("%Y-%m-%d")
-            rec = daily.get(key, {"total": 0, "escalated": 0})
-            total = rec["total"]
-            esc = rec["escalated"]
-            result.append({
-                "day": _DAY_NAMES_DE[d.weekday()],
-                "date": key,
-                "tickets": total,
-                "resolved": total - esc,
-                "escalated": esc,
-            })
-        return result
-    finally:
-        db.close()
-
-
-@router.get("/analytics/hourly")
-async def analytics_hourly(
-    tenant_slug: str | None = Query(None),
-    user: AuthContext = Depends(get_current_user),
-) -> list[dict[str, Any]]:
-    """Hourly AI-resolved vs escalated counts for the last 24h."""
-    _require_tenant_admin_or_system(user)
-    effective_tid = _resolve_tenant_id_for_slug(user, tenant_slug)
-
-    from datetime import timedelta
-    now = datetime.now(timezone.utc)
-    since = now - timedelta(hours=24)
-
-    db = SessionLocal()
-    try:
-        msgs = (
-            db.query(ChatMessage)
-            .filter(
-                ChatMessage.tenant_id == effective_tid,
-                ChatMessage.role == "assistant",
-                ChatMessage.timestamp >= since,
-            )
-            .all()
-        )
-
-        buckets: dict[int, dict[str, int]] = {h: {"aiResolved": 0, "escalated": 0} for h in range(24)}
-        for msg in msgs:
-            ts = msg.timestamp
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
-            meta = _parse_msg_meta(msg.metadata_json)
-            h = ts.hour
-            if meta.get("escalated"):
-                buckets[h]["escalated"] += 1
-            else:
-                buckets[h]["aiResolved"] += 1
-
-        return [
-            {"hour": f"{h:02d}:00", "aiResolved": buckets[h]["aiResolved"], "escalated": buckets[h]["escalated"]}
-            for h in range(24)
-        ]
-    finally:
-        db.close()
-
-
-@router.get("/analytics/intents")
-async def analytics_intents(
-    limit: int = 8,
-    days: int = 30,
-    tenant_slug: str | None = Query(None),
-    user: AuthContext = Depends(get_current_user),
-) -> list[dict[str, Any]]:
-    """Top intents by frequency with AI-resolution rates."""
-    _require_tenant_admin_or_system(user)
-    effective_tid = _resolve_tenant_id_for_slug(user, tenant_slug)
-    limit = min(max(limit, 1), 20)
-    days = min(max(days, 1), 90)
-
-    from datetime import timedelta
-    from collections import defaultdict
-    now = datetime.now(timezone.utc)
-    since = now - timedelta(days=days)
-
-    db = SessionLocal()
-    try:
-        msgs = (
-            db.query(ChatMessage)
-            .filter(
-                ChatMessage.tenant_id == effective_tid,
-                ChatMessage.role == "assistant",
-                ChatMessage.timestamp >= since,
-            )
-            .all()
-        )
-
-        intent_stats: dict[str, dict[str, int]] = defaultdict(lambda: {"count": 0, "resolved": 0})
-        for msg in msgs:
-            meta = _parse_msg_meta(msg.metadata_json)
-            intent = meta.get("intent", "unknown")
-            intent_stats[intent]["count"] += 1
-            if not meta.get("escalated"):
-                intent_stats[intent]["resolved"] += 1
-
-        sorted_intents = sorted(intent_stats.items(), key=lambda x: x[1]["count"], reverse=True)[:limit]
-        return [
-            {
-                "intent": k,
-                "label": _INTENT_LABELS.get(k, k.replace("_", " ").title()),
-                "count": v["count"],
-                "aiRate": round(v["resolved"] / max(v["count"], 1) * 100),
-            }
-            for k, v in sorted_intents
-        ]
-    finally:
-        db.close()
 
 
 @router.get("/analytics/channels")
@@ -2528,7 +2279,7 @@ async def analytics_channels(
     from datetime import timedelta
     from collections import defaultdict
     now = datetime.now(timezone.utc)
-    since = now - timedelta(days=days)
+    since = (now - timedelta(days=days)).replace(tzinfo=None)
 
     db = SessionLocal()
     try:
@@ -2691,5 +2442,306 @@ async def get_billing_usage(user: AuthContext = Depends(get_current_user)) -> di
         "messages_limit": max_msgs,
         "messages_pct": round(total_msgs / int(max_msgs) * 100, 1) if max_msgs else None,
         "active_members": usage.get("active_members", 0),
-        "llm_tokens_used": usage.get("llm_tokens_used", 0),
     }
+
+
+# ─── Analytics Aggregation Endpoints (K1) ────────────────────────────────────
+# Server-side replacements for the N+1 client pattern in chat-analytics.ts.
+# All aggregation runs in the DB; tenant_id-scoped for full isolation.
+
+def _parse_msg_meta_safe(raw: str | None) -> dict:
+    if not raw:
+        return {}
+    try:
+        return _json.loads(raw)
+    except Exception:
+        return {}
+
+
+@router.get("/analytics/overview")
+async def get_analytics_overview(user: AuthContext = Depends(get_current_user)) -> dict[str, Any]:
+    """KPI overview: tickets 24h/30d, AI resolution rate, confidence, channels.
+
+    Replaces the N+1 pattern (up to 220 HTTP calls) in chat-analytics.ts with a
+    single DB query pass per time window.
+    """
+    _require_tenant_admin_or_system(user)
+    from datetime import timedelta
+    from sqlalchemy import text as _text
+
+    now = datetime.now(timezone.utc)
+    cutoff_24h = (now - timedelta(hours=24)).replace(tzinfo=None)
+    cutoff_30d = (now - timedelta(days=30)).replace(tzinfo=None)
+    cutoff_60d = (now - timedelta(days=60)).replace(tzinfo=None)
+
+    db = SessionLocal()
+    try:
+        def _fetch_window(since: datetime) -> list[dict]:
+            rows = (
+                db.query(ChatMessage)
+                .filter(
+                    ChatMessage.tenant_id == user.tenant_id,
+                    ChatMessage.role == "assistant",
+                    ChatMessage.timestamp >= since,
+                )
+                .all()
+            )
+            result = []
+            for r in rows:
+                meta = _parse_msg_meta_safe(r.metadata_json)
+                conf_raw = meta.get("confidence")
+                conf: float | None = None
+                if isinstance(conf_raw, (int, float)):
+                    conf = float(conf_raw)
+                elif isinstance(conf_raw, str):
+                    try:
+                        conf = float(conf_raw)
+                    except ValueError:
+                        pass
+                result.append({
+                    "escalated": meta.get("escalated") is True or meta.get("escalated") == "true",
+                    "confidence": conf,
+                    "channel": str(meta.get("channel") or "unknown").lower(),
+                    "ts": r.timestamp,
+                })
+            return result
+
+        msgs_24h = _fetch_window(cutoff_24h)
+        msgs_30d = _fetch_window(cutoff_30d)
+        msgs_60d = _fetch_window(cutoff_60d)
+
+        # Only keep 60d that are OUTSIDE 30d window for comparison
+        msgs_prev_30d = [m for m in msgs_60d if m["ts"] < cutoff_30d]
+
+        escal_24h = sum(1 for m in msgs_24h if m["escalated"])
+        total_24h = len(msgs_24h)
+        confs = [m["confidence"] for m in msgs_24h if m["confidence"] is not None]
+        conf_avg = round((sum(confs) / len(confs)) * 100, 1) if confs else 0.0
+        channels_24h: dict[str, int] = {}
+        for m in msgs_24h:
+            channels_24h[m["channel"]] = channels_24h.get(m["channel"], 0) + 1
+
+        conf_dist = [
+            {"range": "90–100%", "count": sum(1 for c in confs if c >= 0.9)},
+            {"range": "75–89%",  "count": sum(1 for c in confs if 0.75 <= c < 0.9)},
+            {"range": "50–74%",  "count": sum(1 for c in confs if 0.5 <= c < 0.75)},
+            {"range": "<50%",    "count": sum(1 for c in confs if c < 0.5)},
+        ]
+        conf_total = len(confs)
+        tickets_30d = len(msgs_30d)
+        tickets_prev = len(msgs_prev_30d)
+        ai_rate = round(((total_24h - escal_24h) / max(1, total_24h)) * 100, 1)
+        month_trend = round(((tickets_30d - tickets_prev) / max(1, tickets_prev)) * 100, 1)
+        return {
+            "tickets_24h": total_24h,
+            "resolved_24h": total_24h - escal_24h,
+            "escalated_24h": escal_24h,
+            "ai_resolution_rate": ai_rate,
+            "escalation_rate": round((escal_24h / max(1, total_24h)) * 100, 1),
+            "confidence_avg": conf_avg,
+            "confidence_high_pct": round(sum(1 for c in confs if c >= 0.9) / max(1, conf_total) * 100),
+            "confidence_low_pct": round(sum(1 for c in confs if c < 0.5) / max(1, conf_total) * 100),
+            "confidence_distribution": conf_dist,
+            "channels_24h": channels_24h,
+            "tickets_30d": tickets_30d,
+            "tickets_prev_30d": tickets_prev,
+            "month_trend_pct": month_trend,
+        }
+    finally:
+        db.close()
+
+
+@router.get("/analytics/satisfaction")
+async def analytics_satisfaction(
+    tenant_slug: str | None = Query(None),
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Aggregate member feedback (average rating and count)."""
+    _require_tenant_admin_or_system(user)
+    effective_tid = _resolve_tenant_id_for_slug(user, tenant_slug)
+
+    from app.core.models import MemberFeedback
+    from sqlalchemy import func
+    
+    db = SessionLocal()
+    try:
+        result = db.query(
+            func.avg(MemberFeedback.rating).label("avg_rating"),
+            func.count(MemberFeedback.id).label("total_feedback")
+        ).filter(MemberFeedback.tenant_id == effective_tid).first()
+        
+        avg_raw = result.avg_rating if result and result.avg_rating else 0.0
+        total = result.total_feedback if result and result.total_feedback else 0
+        
+        return {
+            "average": round(float(avg_raw), 1),
+            "total": total
+        }
+    finally:
+        db.close()
+
+
+@router.get("/analytics/hourly")
+async def get_analytics_hourly(user: AuthContext = Depends(get_current_user)) -> list[dict[str, Any]]:
+    """Stündlicher Verlauf der letzten 24h: KI-gelöst vs. eskaliert."""
+    _require_tenant_admin_or_system(user)
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    cutoff = (now - timedelta(hours=24)).replace(tzinfo=None)
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(ChatMessage)
+            .filter(
+                ChatMessage.tenant_id == user.tenant_id,
+                ChatMessage.role == "assistant",
+                ChatMessage.timestamp >= cutoff,
+            )
+            .all()
+        )
+        hourly: dict[int, dict[str, int]] = {h: {"aiResolved": 0, "escalated": 0} for h in range(24)}
+        for r in rows:
+            ts = r.timestamp
+            if ts and ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            h = ts.hour if ts else 0
+            meta = _parse_msg_meta_safe(r.metadata_json)
+            if meta.get("escalated") is True or meta.get("escalated") == "true":
+                hourly[h]["escalated"] += 1
+            else:
+                hourly[h]["aiResolved"] += 1
+        return [
+            {"hour": f"{h:02d}:00", "aiResolved": hourly[h]["aiResolved"], "escalated": hourly[h]["escalated"]}
+            for h in range(24)
+        ]
+    finally:
+        db.close()
+
+
+@router.get("/analytics/weekly")
+async def get_analytics_weekly(user: AuthContext = Depends(get_current_user)) -> list[dict[str, Any]]:
+    """Täglicher Verlauf der letzten 7 Tage."""
+    _require_tenant_admin_or_system(user)
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=7)
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(ChatMessage)
+            .filter(
+                ChatMessage.tenant_id == user.tenant_id,
+                ChatMessage.role == "assistant",
+                ChatMessage.timestamp >= cutoff,
+            )
+            .all()
+        )
+        DAY_DE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
+        daily: dict[str, dict[str, int]] = {}
+        for r in rows:
+            ts = r.timestamp
+            if ts and ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            day_key = ts.strftime("%Y-%m-%d") if ts else ""
+            if not day_key:
+                continue
+            if day_key not in daily:
+                daily[day_key] = {"tickets": 0, "escalated": 0}
+            daily[day_key]["tickets"] += 1
+            meta = _parse_msg_meta_safe(r.metadata_json)
+            if meta.get("escalated") is True or meta.get("escalated") == "true":
+                daily[day_key]["escalated"] += 1
+
+        result = []
+        for i in range(7):
+            d = now - timedelta(days=6 - i)
+            key = d.strftime("%Y-%m-%d")
+            rec = daily.get(key, {"tickets": 0, "escalated": 0})
+            result.append({
+                "day": DAY_DE[d.weekday() % 7],
+                "date": key,
+                "tickets": rec["tickets"],
+                "resolved": rec["tickets"] - rec["escalated"],
+                "escalated": rec["escalated"],
+            })
+        return result
+    finally:
+        db.close()
+
+
+@router.get("/analytics/intents")
+async def get_analytics_intents(user: AuthContext = Depends(get_current_user)) -> list[dict[str, Any]]:
+    """Top-8 Support-Intents der letzten 30 Tage mit AI-Lösungsrate."""
+    _require_tenant_admin_or_system(user)
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=30)
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(ChatMessage)
+            .filter(
+                ChatMessage.tenant_id == user.tenant_id,
+                ChatMessage.role == "assistant",
+                ChatMessage.timestamp >= cutoff,
+            )
+            .all()
+        )
+        intent_stats: dict[str, dict[str, int]] = {}
+        for r in rows:
+            meta = _parse_msg_meta_safe(r.metadata_json)
+            intent = str(meta.get("intent") or "unknown").strip() or "unknown"
+            if intent not in intent_stats:
+                intent_stats[intent] = {"count": 0, "resolved": 0}
+            intent_stats[intent]["count"] += 1
+            if not (meta.get("escalated") is True or meta.get("escalated") == "true"):
+                intent_stats[intent]["resolved"] += 1
+
+        sorted_intents = sorted(intent_stats.items(), key=lambda x: x[1]["count"], reverse=True)[:8]
+        return [
+            {
+                "intent": intent,
+                "label": intent.replace("_", " ").title(),
+                "count": s["count"],
+                "aiRate": round((s["resolved"] / max(1, s["count"])) * 100),
+            }
+            for intent, s in sorted_intents
+        ]
+    finally:
+        db.close()
+
+@router.get("/audit")
+async def get_audit_logs(
+    limit: int = Query(50, le=500),
+    offset: int = Query(0, ge=0),
+    user: AuthContext = Depends(get_current_user)
+) -> dict[str, Any]:
+    """Fetch audit logs for the current tenant (SaaS compliance)."""
+    _require_tenant_admin_or_system(user)
+    db = SessionLocal()
+    try:
+        q = db.query(AuditLog).filter(AuditLog.tenant_id == user.tenant_id)
+        total = q.count()
+        rows = q.order_by(AuditLog.created_at.desc()).offset(offset).limit(limit).all()
+        return {
+            "total": total,
+            "items": [
+                {
+                    "id": r.id,
+                    "actor_user_id": r.actor_user_id,
+                    "actor_email": r.actor_email,
+                    "action": r.action,
+                    "category": r.category,
+                    "target_type": r.target_type,
+                    "target_id": r.target_id,
+                    "details": _json.loads(r.details_json) if r.details_json else {},
+                    "created_at": r.created_at.isoformat(),
+                }
+                for r in rows
+            ]
+        }
+    finally:
+        db.close()

@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  ariia-core:
+    volumes:
+      - ariia_data_staging:/app/data
+      - ./data/knowledge:/app/data/knowledge
+      # Removed dev mounts (./app, ./config, ./scripts) for staging!
+  
+  ariia-telegram:
+    volumes:
+      - ariia_data_staging:/app/data
+
+  qdrant:
+    volumes:
+      - qdrant_data_staging:/qdrant/storage
+
+  redis:
+    volumes:
+      - redis_data_staging:/data
+
+  postgres:
+    volumes:
+      - postgres_data_staging:/var/lib/postgresql/data
+
+  ariia-seed:
+    volumes:
+      - ariia_data_staging:/app/data
+      - ./scripts:/app/scripts
+
+volumes:
+  qdrant_data_staging:
+  redis_data_staging:
+  ariia_data_staging:
+  postgres_data_staging:

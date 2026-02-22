@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Long-Term Knowledge Store.
+"""ARIIA v1.4 – Long-Term Knowledge Store.
 
 @BACKEND: Sprint 4, Task 4.5
 Manages per-member knowledge files in data/knowledge/members/{id}.md.

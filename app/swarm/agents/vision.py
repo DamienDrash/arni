@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Agent Vision (The Eye).
+"""ARIIA v1.4 – Agent Vision (The Eye).
 
 @BACKEND: Sprint 5a (live pipeline)
 Crowd counting via YOLOv8 on RTSP streams.

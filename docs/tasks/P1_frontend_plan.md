@@ -1,4 +1,4 @@
-# ARNI P1 Implementation Plan: UX, A11y & Skalierung
+# ARIIA P1 Implementation Plan: UX, A11y & Skalierung
 
 Dieser Plan adressiert die P1-Prioritäten aus dem Frontend Deep Audit (Sprint B / C) für das Premium Enterprise Zielbild. Das übergeordnete Ziel ist eine deutliche Steigerung der Zugänglichkeit, eine Beseitigung von Provisorien (z.B. system-native Dialogs) und eine Stabilisierung auf mobilen Endgeräten.
 

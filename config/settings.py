@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Application Configuration.
+"""ARIIA v1.4 – Application Configuration.
 
 @ARCH/@BACKEND: Pydantic Settings (Sprint 1, Task 1.3)
 Loads from .env file or environment variables.
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     log_level: str = "info"
     gateway_host: str = "0.0.0.0"
     gateway_port: int = 8000
-    gateway_public_url: str = ""  # For Webhook registration (e.g. https://arni.getimpulse.de)
+    gateway_public_url: str = ""  # For Webhook registration (e.g. https://ariia.getimpulse.de)
     cors_allowed_origins: str = "http://localhost:3000"
 
     # --- Redis ---
@@ -44,11 +44,10 @@ class Settings(BaseSettings):
     telegram_webhook_secret: str = ""
 
     # --- ACP (Sprint 6a) ---
-    acp_secret: str = "arni-acp-secret-changeme"
+    acp_secret: str = "ariia-acp-secret-changeme"
     auth_secret: str = "change-me-long-random-secret"
-    auth_transition_mode: bool = False
-    auth_allow_header_fallback: bool = False
     auth_token_ttl_hours: int = 12
+    oidc_enabled: bool = False
 
     # --- WhatsApp Bridge (Sprint 8) ---
     bridge_mode: str = "production"  # 'self' = dev (self-chat only), 'production' = all incoming
@@ -72,9 +71,9 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_from_email: str = ""
-    smtp_from_name: str = "Arni"
+    smtp_from_name: str = "Ariia"
     smtp_use_starttls: bool = True
-    verification_email_subject: str = "Dein ARNI Verifizierungscode"
+    verification_email_subject: str = "Dein ARIIA Verifizierungscode"
 
     @property
     def is_production(self) -> bool:

@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Telegram Bot Integration.
+"""ARIIA v1.4 – Telegram Bot Integration.
 
 @BACKEND: Sprint 3, Task 3.3 + 3.4
 Admin Bot for alerts, Ghost Mode control, and system monitoring.
@@ -220,7 +220,7 @@ class TelegramBot:
 
         Args:
             message: Alert message text.
-            severity: info|warning|error|critical.
+            severity: info|wariiang|error|critical.
             chat_id: Override chat ID (defaults to admin_chat_id).
 
         Returns:
@@ -228,17 +228,17 @@ class TelegramBot:
         """
         target = chat_id or self._admin_chat_id
         if not target:
-            logger.warning("telegram.no_admin_chat", msg="Admin chat ID not configured")
+            logger.wariiang("telegram.no_admin_chat", msg="Admin chat ID not configured")
             return {"ok": False, "error": "no_admin_chat_id"}
 
         emoji_map = {
             "info": "ℹ️",
-            "warning": "⚠️",
+            "wariiang": "⚠️",
             "error": "❌",
             "critical": "🚨",
         }
         emoji = emoji_map.get(severity, "📢")
-        formatted = f"{emoji} <b>ARNI Alert [{severity.upper()}]</b>\n\n{message}"
+        formatted = f"{emoji} <b>ARIIA Alert [{severity.upper()}]</b>\n\n{message}"
         return await self.send_message(target, formatted)
 
     async def send_emergency_alert(
@@ -343,12 +343,12 @@ class TelegramBot:
             redis = health_data.get("redis", "unknown")
             version = health_data.get("version", "?")
             return (
-                f"📊 <b>ARNI System Status</b>\n\n"
+                f"📊 <b>ARIIA System Status</b>\n\n"
                 f"🟢 Status: <code>{status}</code>\n"
                 f"🔗 Redis: <code>{redis}</code>\n"
                 f"📦 Version: <code>{version}</code>"
             )
-        return "📊 <b>ARNI System Status</b>\n\n🟢 Gateway: <code>online</code>"
+        return "📊 <b>ARIIA System Status</b>\n\n🟢 Gateway: <code>online</code>"
 
     def _cmd_ghost(self, args: str) -> str:
         """Generate ghost mode response."""
@@ -361,7 +361,7 @@ class TelegramBot:
     def _cmd_help(self) -> str:
         """Generate help response."""
         return (
-            "🤖 <b>ARNI Admin Bot</b>\n\n"
+            "🤖 <b>ARIIA Admin Bot</b>\n\n"
             "📊 /status – System-Status\n"
             "👻 /ghost on|off – Ghost Mode\n"
             "❓ /help – Diese Hilfe"

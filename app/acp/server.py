@@ -1,4 +1,4 @@
-"""ARNI v1.4 – ACP Server (WebSocket).
+"""ARIIA v1.4 – ACP Server (WebSocket).
 
 @BACKEND: Sprint 6a, Task 6a.1
 WebSocket endpoint for IDE integration and control.
@@ -125,7 +125,7 @@ async def acp_websocket(websocket: WebSocket) -> None:
     try:
         auth_msg = await websocket.receive_json()
         settings = get_settings()
-        secret = getattr(settings, "acp_secret", "arni-acp-secret")
+        secret = getattr(settings, "acp_secret", "ariia-acp-secret")
         
         if auth_msg.get("auth") != secret:
             await websocket.close(code=1008)

@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Vision Module Tests.
+"""ARIIA v1.4 – Vision Module Tests.
 
 @QA: Sprint 5a, Task 5a.5
 Tests: Processor, RTSP, Privacy Engine, Agent Vision.

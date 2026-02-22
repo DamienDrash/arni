@@ -16,7 +16,7 @@ class SMTPMailer:
         username: str,
         password: str,
         from_email: str,
-        from_name: str = "Arni",
+        from_name: str = "Ariia",
         use_starttls: bool = True,
     ) -> None:
         self.host = host

@@ -2,7 +2,7 @@ from app.gateway.persistence import persistence
 from app.core.models import ChatSession
 import sys
 
-sys.path.append("/root/.openclaw/workspace/arni")
+sys.path.append("/root/.openclaw/workspace/ariia")
 
 def check_sessions():
     print("🔍 Checking Chat Sessions...")

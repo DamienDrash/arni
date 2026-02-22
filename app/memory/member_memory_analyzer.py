@@ -291,7 +291,7 @@ def analyze_member(member_id: str, tenant_id: int | None) -> None:
             )
         )
     except Exception as exc:
-        logger.warning("member_memory.llm_extract_failed", member_id=member_id, tenant_id=tenant_id, error=str(exc))
+        logger.wariiang("member_memory.llm_extract_failed", member_id=member_id, tenant_id=tenant_id, error=str(exc))
     if not profile_summary:
         profile_summary = _heuristic_profile_summary(chat)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -338,11 +338,12 @@ async def scheduler_loop() -> None:
             if slot != last_slot:
                 last_slot = slot
                 db = SessionLocal()
-                tenant_ids: set[int | None] = set()
+                tenant_ids: set[int] = set()
                 try:
-                    tenant_ids.add(persistence.get_default_tenant_id())
-                    rows = db.query(ChatSession.tenant_id).distinct().all()
-                    tenant_ids.update(row.tenant_id for row in rows)
+                    system_tid = persistence.get_system_tenant_id()
+                    tenant_ids.add(system_tid)
+                    rows = db.query(ChatSession.tenant_id).filter(ChatSession.tenant_id.isnot(None)).distinct().all()
+                    tenant_ids.update(int(row.tenant_id) for row in rows)
                 finally:
                     db.close()
 
@@ -365,12 +366,12 @@ async def scheduler_loop() -> None:
                     )
         except Exception as exc:
             now = datetime.now(timezone.utc).isoformat()
-            default_tenant_id = persistence.get_default_tenant_id()
-            persistence.upsert_setting("member_memory_last_run_at", now, tenant_id=default_tenant_id)
+            system_tid = persistence.get_system_tenant_id()
+            persistence.upsert_setting("member_memory_last_run_at", now, tenant_id=system_tid)
             persistence.upsert_setting(
                 "member_memory_last_run_status",
                 f"error:{str(exc)[:120]}",
-                tenant_id=default_tenant_id,
+                tenant_id=system_tid,
             )
             logger.error("member_memory.scheduler_error", error=str(exc))
         await asyncio.sleep(30)

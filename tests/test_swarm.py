@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Swarm Router & Agent Tests.
+"""ARIIA v1.4 – Swarm Router & Agent Tests.
 
 @QA: Sprint 2, Tasks 2.11–2.13
 Tests: Intent classification, agent dispatch, keyword fallback, Medic disclaimer.

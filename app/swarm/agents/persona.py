@@ -1,8 +1,8 @@
-"""ARNI v1.4 – Persona Handler (Smalltalk).
+"""ARIIA v1.4 – Persona Handler (Smalltalk).
 
 @BACKEND: Sprint 2 → Sprint 9 (LLM-powered)
 Handles greetings, chitchat, and general questions using SOUL.md persona.
-Arni = Arnold Schwarzenegger meets Berlin Fitness Coach.
+Ariia = Arnold Schwarzenegger meets Berlin Fitness Coach.
 """
 
 import structlog
@@ -26,7 +26,7 @@ class AgentPersona(BaseAgent):
 
     @property
     def description(self) -> str:
-        return "Persona & Smalltalk Handler – Begrüßung, Chitchat, Arni-Style"
+        return "Persona & Smalltalk Handler – Begrüßung, Chitchat, Ariia-Style"
 
     def __init__(self) -> None:
         super().__init__()
@@ -38,7 +38,7 @@ class AgentPersona(BaseAgent):
             with open("docs/personas/SOUL.md", "r", encoding="utf-8") as f:
                 return f.read()
         except Exception:
-            logger.warning("agent.persona.soul_missing")
+            logger.wariiang("agent.persona.soul_missing")
             return ""
 
     async def _trigger_handoff(self, user_id: str, tenant_id: int | None = None) -> None:
@@ -70,13 +70,13 @@ class AgentPersona(BaseAgent):
                 try:
                     await bus.disconnect()
                 except Exception as disc_err:
-                    logger.warning(
+                    logger.wariiang(
                         "agent.persona.handoff_disconnect_failed",
                         error=str(disc_err),
                     )
 
     async def handle(self, message: InboundMessage) -> AgentResponse:
-        """Handle smalltalk with Arni persona via GPT-4o-mini."""
+        """Handle smalltalk with Ariia persona via GPT-4o-mini."""
         logger.info("agent.persona.handle", message_id=message.message_id)
 
         # Reload soul for live evolution

@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Extended Gateway Tests for Coverage.
+"""ARIIA v1.4 – Extended Gateway Tests for Coverage.
 
 @QA: Fixing F1 – main.py coverage from 55% to ≥80%
 Tests: WebSocket handler, broadcast_to_admins, webhook edge cases.
@@ -36,10 +36,10 @@ class TestWebSocketControl:
 
         with TestClient(app) as tc:
             with tc.websocket_connect("/ws/control") as ws:
-                ws.send_text("Hello Arni!")
+                ws.send_text("Hello Ariia!")
                 data = ws.receive_json()
                 assert data["type"] == "echo"
-                assert data["data"] == "Hello Arni!"
+                assert data["data"] == "Hello Ariia!"
                 assert "client_id" in data
                 assert "timestamp" in data
 

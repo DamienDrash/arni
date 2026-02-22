@@ -1,4 +1,4 @@
-"""ARNI v1.4 – RTSP Connector.
+"""ARIIA v1.4 – RTSP Connector.
 
 @BACKEND: Sprint 5a, Task 5a.2
 Snapshot grabber for CCTV/RTSP streams.

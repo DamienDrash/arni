@@ -66,7 +66,7 @@ async def test_whatsapp_webhook_requires_valid_signature_when_secret_configured(
 async def test_settings_secret_redaction_and_write_only_semantics(client) -> None:
     login = await client.post(
         "/auth/login",
-        json={"email": "admin@arni.local", "password": "password123"},
+        json={"email": "admin@ariia.local", "password": "password123"},
     )
     assert login.status_code == 200
     token = login.json()["access_token"]

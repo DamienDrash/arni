@@ -46,11 +46,11 @@ COPY . .
 ENV PYTHONPATH=/app
 
 # Create non-root user and ensure data directory exists
-RUN useradd -m arni && \
+RUN useradd -m ariia && \
     mkdir -p /app/data && \
-    chown -R arni:arni /app && \
+    chown -R ariia:ariia /app && \
     chmod 755 /app/data
-USER arni
+USER ariia
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s \

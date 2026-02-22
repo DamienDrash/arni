@@ -1,15 +1,15 @@
 #!/bin/bash
 set -e
 
-ARNI_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ARNI_DIR"
+ARIIA_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ARIIA_DIR"
 
 # Load .env
 set -a
 source .env
 set +a
 
-echo "🚀 ARNI v1.4 – Production Launch"
+echo "🚀 ARIIA v1.4 – Production Launch"
 echo "   Mode: $BRIDGE_MODE | Bridge: :${BRIDGE_PORT} | Gateway: :8000"
 echo ""
 
@@ -30,9 +30,9 @@ sleep 1
 # ─── Start WhatsApp Bridge ───
 echo "🌉 Starting WhatsApp Bridge..."
 cd app/integrations/whatsapp_web
-node index.js >> "$ARNI_DIR/bridge.log" 2>&1 &
+node index.js >> "$ARIIA_DIR/bridge.log" 2>&1 &
 BRIDGE_PID=$!
-cd "$ARNI_DIR"
+cd "$ARIIA_DIR"
 echo "   PID: $BRIDGE_PID"
 
 # Wait for bridge
@@ -44,7 +44,7 @@ else
 fi
 
 # ─── Start Gateway ───
-echo "⚡ Starting ARNI Gateway..."
+echo "⚡ Starting ARIIA Gateway..."
 exec uvicorn app.gateway.main:app \
     --host 0.0.0.0 \
     --port 8000 \

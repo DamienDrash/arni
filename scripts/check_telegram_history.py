@@ -3,7 +3,7 @@ from app.core.models import ChatMessage
 import sys
 from sqlalchemy import desc
 
-sys.path.append("/root/.openclaw/workspace/arni")
+sys.path.append("/root/.openclaw/workspace/ariia")
 
 def check_history():
     print("🔍 Checking Chat History for Telegram User 999888777...")

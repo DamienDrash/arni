@@ -181,48 +181,26 @@ def _resolve_context_from_payload(payload: dict) -> AuthContext:
             context.impersonator_tenant_slug = actor_tenant.slug
             context.impersonation_reason = str(imp.get("reason") or "")
             context.impersonation_started_at = str(imp.get("started_at") or "")
+        
+        from app.core.db import tenant_context
+        tenant_context.set(context.tenant_id)
+
         return context
     finally:
         db.close()
 
 
-def _resolve_context_from_legacy_headers(
-    x_user_id: str | None,
-    x_tenant_id: str | None,
-    x_role: str | None,
-) -> AuthContext:
-    if not x_user_id or not x_tenant_id or not x_role:
-        raise HTTPException(status_code=401, detail="Missing legacy auth headers")
-    db = SessionLocal()
-    try:
-        user = db.query(UserAccount).filter(UserAccount.id == int(x_user_id)).first()
-        tenant = db.query(Tenant).filter(Tenant.id == int(x_tenant_id)).first()
-        if not user or not tenant:
-            raise HTTPException(status_code=401, detail="Invalid legacy auth principal")
-        return AuthContext(
-            user_id=user.id,
-            email=user.email,
-            tenant_id=tenant.id,
-            tenant_slug=tenant.slug,
-            role=x_role,
-        )
-    finally:
-        db.close()
-
 
 def get_current_user(
     authorization: str | None = Header(default=None),
-    arni_access_token: str | None = Cookie(default=None),
-    x_user_id: str | None = Header(default=None),
-    x_tenant_id: str | None = Header(default=None),
-    x_role: str | None = Header(default=None),
+    ariia_access_token: str | None = Cookie(default=None),
 ) -> AuthContext:
     settings = get_settings()
     if authorization and authorization.startswith("Bearer "):
         payload = decode_access_token(authorization.removeprefix("Bearer ").strip())
         return _resolve_context_from_payload(payload)
-    if arni_access_token:
-        payload = decode_access_token(arni_access_token)
+    if ariia_access_token:
+        payload = decode_access_token(ariia_access_token)
         return _resolve_context_from_payload(payload)
 
     if os.getenv("PYTEST_CURRENT_TEST"):
@@ -240,9 +218,6 @@ def get_current_user(
                 )
         finally:
             db.close()
-
-    if settings.auth_transition_mode and settings.auth_allow_header_fallback:
-        return _resolve_context_from_legacy_headers(x_user_id, x_tenant_id, x_role)
 
     raise HTTPException(status_code=401, detail="Missing bearer token")
 
@@ -263,17 +238,17 @@ def normalize_tenant_slug(name: str) -> str:
 
 def _validate_admin_password(password: str) -> None:
     """Refuse startup if admin password is weak or default (S1.1)."""
-    weak_defaults = {"password123", "password", "admin", "changeme", "arni", "12345678", ""}
+    weak_defaults = {"password123", "password", "admin", "changeme", "ariia", "12345678", ""}
     if password.lower() in weak_defaults:
         sys.exit(
-            "\n[ARNI STARTUP BLOCKED]\n"
+            "\n[ARIIA STARTUP BLOCKED]\n"
             "SYSTEM_ADMIN_PASSWORD is weak or uses a known default value.\n"
             "Set a strong password (≥16 chars) in your .env file:\n"
             "  SYSTEM_ADMIN_PASSWORD=<strong-random-password>\n"
         )
     if len(password) < 12:
         sys.exit(
-            "\n[ARNI STARTUP BLOCKED]\n"
+            "\n[ARIIA STARTUP BLOCKED]\n"
             f"SYSTEM_ADMIN_PASSWORD must be at least 12 characters (got {len(password)}).\n"
         )
 
@@ -296,7 +271,7 @@ def invalidate_user_sessions(user_id: int, tenant_id: int, ttl_seconds: int = 43
 
 def ensure_default_tenant_and_admin() -> None:
     settings = get_settings()
-    admin_email = os.getenv("SYSTEM_ADMIN_EMAIL", "admin@arni.local").strip().lower()
+    admin_email = os.getenv("SYSTEM_ADMIN_EMAIL", "admin@ariia.local").strip().lower()
     admin_password = os.getenv("SYSTEM_ADMIN_PASSWORD", "")
     if settings.is_production:
         _validate_admin_password(admin_password)

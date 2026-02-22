@@ -72,3 +72,7 @@ scripts/dev/
 *.pt
 *.npz
 app/voice/models/*.json
+
+# ---- Dev artifacts ----
+whatsapp_qr.png
+"; done"

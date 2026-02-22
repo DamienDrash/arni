@@ -1,12 +1,17 @@
 import structlog
 import threading
+import json
+from datetime import datetime, timezone
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.core.models import ChatSession, ChatMessage, Setting, Tenant
 from app.core.db import SessionLocal, engine, Base
 from app.gateway.schemas import Platform
+from app.core.crypto import encrypt_value, decrypt_value
 
 logger = structlog.get_logger()
+
+# Global system settings that belong to the 'system' tenant
 GLOBAL_SYSTEM_SETTING_KEYS = {
     "billing_default_provider",
     "billing_plans_json",
@@ -18,117 +23,111 @@ GLOBAL_SYSTEM_SETTING_KEYS = {
     "billing_stripe_webhook_secret",
 }
 
-# Ensure tables exist + run column migrations
+# Settings that should be encrypted at rest (BYOK)
+SENSITIVE_SETTING_KEYS = {
+    "openai_api_key",
+    "elevenlabs_api_key",
+    "twilio_auth_token",
+    "magicline_api_key",
+    "smtp_password",
+    "postmark_server_token",
+    "billing_stripe_secret_key",
+}
+
+# Ensure tables exist (PostgreSQL bootstrap)
 Base.metadata.create_all(bind=engine)
 
 class PersistenceService:
+    """Core persistence layer for ARIIA. Exclusively PostgreSQL."""
+
     def __init__(self):
         self.db = SessionLocal()
         self._lock = threading.RLock()
-        self._dialect = engine.dialect.name
         self._backfill_legacy_settings_tenant_ids()
 
     def __del__(self):
         self.db.close()
 
     def _backfill_legacy_settings_tenant_ids(self) -> None:
+        """Maintenance: Ensure all settings have a tenant_id."""
         try:
             self.db.rollback()
-            system = self.db.query(Tenant).filter(Tenant.slug == "system").first()
-            if not system:
-                return
+            system_id = self.get_system_tenant_id()
             self.db.execute(
                 text("UPDATE settings SET tenant_id = :tenant_id WHERE tenant_id IS NULL"),
-                {"tenant_id": system.id},
+                {"tenant_id": system_id},
             )
             self.db.commit()
         except Exception:
             self.db.rollback()
 
-    def _resolve_tenant_id(self, tenant_id: int | None = None) -> int | None:
+    def _resolve_tenant_id(self, tenant_id: int | None) -> int:
+        """Resolve tenant_id. Raises ValueError if None is provided to enforce isolation."""
         if tenant_id is not None:
-            return tenant_id
-        tenant = self.db.query(Tenant).filter(Tenant.slug == "system").first()
-        return tenant.id if tenant else None
+            return int(tenant_id)
+        
+        # In a strict SaaS, we no longer allow implicit fallbacks to 'system'.
+        # Callers must explicitly resolve the tenant (e.g. from slug or auth context).
+        raise ValueError("Strict Multi-Tenancy Violation: tenant_id is required.")
 
-    def get_default_tenant_id(self) -> int | None:
+    def get_system_tenant_id(self) -> int:
+        """Explicitly get the 'system' tenant ID for global operations."""
         with self._lock:
-            return self._resolve_tenant_id(None)
+            tenant = self.db.query(Tenant).filter(Tenant.slug == "system").first()
+            if not tenant:
+                # Emergency auto-create if missing during bootstrap
+                tenant = Tenant(slug="system", name="System")
+                self.db.add(tenant)
+                self.db.commit()
+                self.db.refresh(tenant)
+            return int(tenant.id)
 
-    def get_tenant_slug(self, tenant_id: int | None) -> str:
+    def get_tenant_slug(self, tenant_id: int) -> str:
+        """Get the slug for a given tenant ID."""
         with self._lock:
             resolved = self._resolve_tenant_id(tenant_id)
-            if resolved is None:
-                return "system"
             row = self.db.query(Tenant).filter(Tenant.id == resolved).first()
-            return (row.slug if row and row.slug else "system").strip().lower()
+            return (row.slug if row and row.slug else "unknown").strip().lower()
 
     def is_global_system_setting(self, key: str) -> bool:
+        """Check if a setting key is global."""
         return (key or "").strip().lower() in GLOBAL_SYSTEM_SETTING_KEYS
 
-    def _settings_tenant_id_for_key(self, key: str, tenant_id: int | None = None) -> int | None:
-        if self.is_global_system_setting(key):
-            return self._resolve_tenant_id(None)
-        return self._resolve_tenant_id(tenant_id)
+    def _is_sensitive_setting(self, key: str) -> bool:
+        """Check if a setting key should be encrypted."""
+        return (key or "").strip().lower() in SENSITIVE_SETTING_KEYS
 
-    def _storage_key_for_setting(self, key: str, tenant_id: int | None) -> str:
-        if self._dialect != "sqlite":
-            return key
-        # SQLite legacy schema still has unique(settings.key). Use key namespacing
-        # for tenant overrides while preserving plain keys as system defaults.
-        system_tenant_id = self._resolve_tenant_id(None)
-        if tenant_id is None or tenant_id == system_tenant_id or self.is_global_system_setting(key):
-            return key
-        return f"tenant:{tenant_id}:{key}"
+    def _settings_tenant_id_for_key(self, key: str, tenant_id: int | None = None) -> int:
+        """Determine which tenant scope a setting belongs to."""
+        if self.is_global_system_setting(key):
+            return self.get_system_tenant_id()
+        return self._resolve_tenant_id(tenant_id)
 
     def get_or_create_session(
         self,
         user_id: str,
         platform: Platform,
+        tenant_id: int,
         user_name: str = None,
         phone_number: str = None,
         member_id: str = None,
-        tenant_id: int | None = None,
     ) -> ChatSession:
+        """Get or create a chat session scoped to a tenant."""
         with self._lock:
-            # Keep the long-lived SQLAlchemy session in sync with external updates
-            # (e.g. admin reset endpoints using separate transactions).
             self.db.expire_all()
-            resolved_tenant_id = self._resolve_tenant_id(tenant_id)
+            resolved_tid = self._resolve_tenant_id(tenant_id)
             platform_str = platform.value if isinstance(platform, Platform) else str(platform)
-            base_q = self.db.query(ChatSession).filter(ChatSession.user_id == user_id)
-
-            session = None
-            if resolved_tenant_id is not None:
-                session = (
-                    base_q
-                    .filter(ChatSession.tenant_id == resolved_tenant_id)
-                    .first()
-                )
-                if not session:
-                    legacy = base_q.filter(ChatSession.tenant_id.is_(None)).first()
-                    if legacy:
-                        legacy.tenant_id = resolved_tenant_id
-                        session = legacy
-            else:
-                session = base_q.first()
-
-            if not session:
-                # Legacy uniqueness: chat_sessions.user_id is globally unique.
-                # Until composite uniqueness (tenant_id, user_id) is introduced,
-                # reuse the existing row if the same external user_id already exists.
-                existing_any = base_q.first()
-                if existing_any:
-                    session = existing_any
-                    if session.tenant_id is None and resolved_tenant_id is not None:
-                        session.tenant_id = resolved_tenant_id
-                        self.db.commit()
-                        self.db.refresh(session)
+            
+            session = (
+                self.db.query(ChatSession)
+                .filter(ChatSession.user_id == user_id, ChatSession.tenant_id == resolved_tid)
+                .first()
+            )
 
             if not session:
                 session = ChatSession(
                     user_id=user_id,
-                    tenant_id=resolved_tenant_id,
+                    tenant_id=resolved_tid,
                     platform=platform_str,
                     user_name=user_name,
                     phone_number=phone_number,
@@ -137,13 +136,10 @@ class PersistenceService:
                 self.db.add(session)
                 self.db.commit()
                 self.db.refresh(session)
-                logger.info("db.session_created", user_id=user_id, tenant_id=resolved_tenant_id, platform=platform_str)
+                logger.info("db.session_created", user_id=user_id, tenant_id=resolved_tid, platform=platform_str)
             else:
-                # Update fields if provided and different
+                # Update identifying fields if provided
                 updated = False
-                if resolved_tenant_id is not None and session.tenant_id != resolved_tenant_id:
-                    session.tenant_id = resolved_tenant_id
-                    updated = True
                 if user_name and session.user_name != user_name:
                     session.user_name = user_name
                     updated = True
@@ -157,25 +153,18 @@ class PersistenceService:
                 if updated:
                     self.db.commit()
                     self.db.refresh(session)
-                    logger.info(
-                        "db.session_updated",
-                        user_id=user_id,
-                        tenant_id=session.tenant_id,
-                        name=user_name,
-                        phone=phone_number,
-                        member_id=member_id,
-                    )
+                    logger.info("db.session_updated", user_id=user_id, tenant_id=resolved_tid)
 
             return session
 
-    def get_session_by_user_id(self, user_id: str, tenant_id: int | None = None) -> ChatSession | None:
-        """Get session by user_id (any platform)."""
+    def get_session_by_user_id(self, user_id: str, tenant_id: int) -> ChatSession | None:
+        """Get session by user_id scoped to tenant."""
         with self._lock:
-            q = self.db.query(ChatSession).filter(ChatSession.user_id == user_id)
-            resolved_tenant_id = self._resolve_tenant_id(tenant_id)
-            if resolved_tenant_id is not None:
-                q = q.filter(ChatSession.tenant_id == resolved_tenant_id)
-            return q.first()
+            resolved_tid = self._resolve_tenant_id(tenant_id)
+            return self.db.query(ChatSession).filter(
+                ChatSession.user_id == user_id, 
+                ChatSession.tenant_id == resolved_tid
+            ).first()
 
     def save_message(
         self,
@@ -183,25 +172,24 @@ class PersistenceService:
         role: str,
         content: str,
         platform: Platform,
+        tenant_id: int,
         metadata: dict = None,
         user_name: str = None,
         phone_number: str = None,
         member_id: str = None,
-        tenant_id: int | None = None,
     ):
+        """Save a message to the database, automatically managing the session context."""
         with self._lock:
             try:
                 session = self.get_or_create_session(
-                    user_id,
-                    platform,
-                    user_name,
-                    phone_number,
-                    member_id,
+                    user_id=user_id,
+                    platform=platform,
                     tenant_id=tenant_id,
+                    user_name=user_name,
+                    phone_number=phone_number,
+                    member_id=member_id,
                 )
 
-                # Convert metadata to JSON string if needed
-                import json
                 meta_json = json.dumps(metadata) if metadata else None
 
                 msg = ChatMessage(
@@ -213,8 +201,6 @@ class PersistenceService:
                 )
                 self.db.add(msg)
 
-                # Update last activity
-                from datetime import datetime, timezone
                 session.last_message_at = datetime.now(timezone.utc)
                 session.is_active = True
 
@@ -224,53 +210,35 @@ class PersistenceService:
                 logger.error("db.save_failed", error=str(e))
                 self.db.rollback()
 
-    # Admin Stats
-    def get_stats(self, tenant_id: int | None = None):
+    def get_stats(self, tenant_id: int) -> dict:
+        """Get usage statistics for a specific tenant."""
         with self._lock:
-            resolved_tenant_id = self._resolve_tenant_id(tenant_id)
-            msg_q = self.db.query(ChatMessage)
-            sess_q = self.db.query(ChatSession)
-            if resolved_tenant_id is not None:
-                msg_q = msg_q.filter(ChatMessage.tenant_id == resolved_tenant_id)
-                sess_q = sess_q.filter(ChatSession.tenant_id == resolved_tenant_id)
-            total_messages = msg_q.count()
-            active_users = sess_q.count()
-        
-        # Count active handoff requests from Redis
-        # We need to access Redis here. Ideally inject RedisBus or use a separate Redis client.
-        # For simplicity in this monolithic service, let's assume we can get it via a helper or pass it in.
-        # OR: faster, just check DB if we were storing handoffs there. 
-        # But we store handoffs in Redis `session:*:human_mode`.
-        # Let's count them using a direct redis connection for now or rely on the caller?
-        # Better: caller (admin.py) has redis logic for handoffs. Let's move that logic here OR keep stats simple.
-        
-        # ACTUALLY: Let's store handoffs in DB? No, they are ephemeral.
-        # Let's just return the two we have, and let admin.py enrich it or 
-        # let's add a `get_handoffs_count` here if we move redis logic.
-        
-        return {
-            "total_messages": total_messages,
-            "active_users": active_users
-        }
+            resolved_tid = self._resolve_tenant_id(tenant_id)
+            msg_count = self.db.query(ChatMessage).filter(ChatMessage.tenant_id == resolved_tid).count()
+            sess_count = self.db.query(ChatSession).filter(ChatSession.tenant_id == resolved_tid).count()
+            
+            return {
+                "total_messages": msg_count,
+                "active_users": sess_count
+            }
     
-    def get_recent_sessions(self, limit=10, tenant_id: int | None = None, active_only: bool = False):
+    def get_recent_sessions(self, tenant_id: int, limit: int = 10, active_only: bool = False):
+        """List recent chat sessions for a tenant."""
         with self._lock:
-            q = self.db.query(ChatSession)
-            resolved_tenant_id = self._resolve_tenant_id(tenant_id)
-            if resolved_tenant_id is not None:
-                q = q.filter(ChatSession.tenant_id == resolved_tenant_id)
+            resolved_tid = self._resolve_tenant_id(tenant_id)
+            q = self.db.query(ChatSession).filter(ChatSession.tenant_id == resolved_tid)
             if active_only:
                 q = q.filter(ChatSession.is_active.is_(True))
             return q.order_by(ChatSession.last_message_at.desc()).limit(limit).all()
 
-    def get_chat_history(self, user_id: str, limit=50, tenant_id: int | None = None):
+    def get_chat_history(self, user_id: str, tenant_id: int, limit: int = 50):
+        """Retrieve chronological chat history scoped to tenant."""
         with self._lock:
-            # Return the newest messages capped by limit, but keep chronological order
-            # for downstream consumers (router context + admin history rendering).
-            q = self.db.query(ChatMessage).filter(ChatMessage.session_id == user_id)
-            resolved_tenant_id = self._resolve_tenant_id(tenant_id)
-            if resolved_tenant_id is not None:
-                q = q.filter(ChatMessage.tenant_id == resolved_tenant_id)
+            resolved_tid = self._resolve_tenant_id(tenant_id)
+            q = self.db.query(ChatMessage).filter(
+                ChatMessage.session_id == user_id,
+                ChatMessage.tenant_id == resolved_tid
+            )
             rows = q.order_by(ChatMessage.timestamp.desc()).limit(limit).all()
             rows.reverse()
             return rows
@@ -278,32 +246,30 @@ class PersistenceService:
     def reset_chat(
         self,
         user_id: str,
+        tenant_id: int,
         *,
         clear_verification: bool = True,
         clear_contact: bool = False,
         clear_history: bool = True,
-        tenant_id: int | None = None,
     ) -> dict:
-        """Reset chat state in the same shared session used by runtime flow."""
+        """Reset conversation state for a user within a tenant's scope."""
         with self._lock:
             deleted_messages = 0
-            session_found = False
             try:
                 self.db.expire_all()
-                resolved_tenant_id = self._resolve_tenant_id(tenant_id)
-                sess_q = self.db.query(ChatSession).filter(ChatSession.user_id == user_id)
-                if resolved_tenant_id is not None:
-                    sess_q = sess_q.filter(ChatSession.tenant_id == resolved_tenant_id)
-                session = sess_q.first()
-                session_found = session is not None
+                resolved_tid = self._resolve_tenant_id(tenant_id)
+                session = self.db.query(ChatSession).filter(
+                    ChatSession.user_id == user_id,
+                    ChatSession.tenant_id == resolved_tid
+                ).first()
 
                 if clear_history:
-                    msg_q = self.db.query(ChatMessage).filter(ChatMessage.session_id == user_id)
-                    if resolved_tenant_id is not None:
-                        msg_q = msg_q.filter(ChatMessage.tenant_id == resolved_tenant_id)
-                    deleted_messages = msg_q.delete(synchronize_session=False)
+                    deleted_messages = self.db.query(ChatMessage).filter(
+                        ChatMessage.session_id == user_id,
+                        ChatMessage.tenant_id == resolved_tid
+                    ).delete(synchronize_session=False)
 
-                if session is not None:
+                if session:
                     if clear_verification:
                         session.member_id = None
                     if clear_contact:
@@ -312,46 +278,20 @@ class PersistenceService:
                     session.is_active = False
 
                 self.db.commit()
-                self.db.expire_all()
-                logger.info(
-                    "db.chat_reset",
-                    user_id=user_id,
-                    deleted_messages=deleted_messages,
-                    clear_verification=clear_verification,
-                    clear_contact=clear_contact,
-                    clear_history=clear_history,
-                )
-                return {"session_found": session_found, "deleted_messages": deleted_messages}
+                logger.info("db.chat_reset", user_id=user_id, tenant_id=resolved_tid)
+                return {"session_found": session is not None, "deleted_messages": deleted_messages}
             except Exception as e:
                 self.db.rollback()
                 logger.error("db.chat_reset_failed", user_id=user_id, error=str(e))
                 raise
 
-    def get_settings(self, tenant_id: int | None = None):
+    def get_settings(self, tenant_id: int) -> list[Setting]:
+        """List all settings for a tenant."""
         with self._lock:
-            self._backfill_legacy_settings_tenant_ids()
-            resolved_tenant_id = self._resolve_tenant_id(tenant_id)
-            if resolved_tenant_id is None:
-                return []
-            if self._dialect == "sqlite":
-                system_tenant_id = self._resolve_tenant_id(None)
-                if resolved_tenant_id == system_tenant_id:
-                    return (
-                        self.db.query(Setting)
-                        .filter(~Setting.key.like("tenant:%"))
-                        .order_by(Setting.key.asc())
-                        .all()
-                    )
-                prefix = f"tenant:{resolved_tenant_id}:"
-                return (
-                    self.db.query(Setting)
-                    .filter(Setting.key.like(f"{prefix}%"))
-                    .order_by(Setting.key.asc())
-                    .all()
-                )
+            resolved_tid = self._resolve_tenant_id(tenant_id)
             return (
                 self.db.query(Setting)
-                .filter(Setting.tenant_id == resolved_tenant_id)
+                .filter(Setting.tenant_id == resolved_tid)
                 .order_by(Setting.key.asc())
                 .all()
             )
@@ -363,39 +303,31 @@ class PersistenceService:
         tenant_id: int | None = None,
         fallback_to_system: bool = True,
     ) -> str | None:
+        """Get a setting value, optionally falling back to global system defaults."""
         with self._lock:
             self._backfill_legacy_settings_tenant_ids()
-            target_tenant_id = self._settings_tenant_id_for_key(key, tenant_id)
-            if target_tenant_id is None:
-                return default
-            if self._dialect == "sqlite":
-                storage_key = self._storage_key_for_setting(key, target_tenant_id)
-                row = self.db.query(Setting).filter(Setting.key == storage_key).first()
-                if row:
-                    return row.value
-                if fallback_to_system and not self.is_global_system_setting(key):
-                    system_key = self._storage_key_for_setting(key, self._resolve_tenant_id(None))
-                    system_row = self.db.query(Setting).filter(Setting.key == system_key).first()
-                    if system_row:
-                        return system_row.value
-                return default
+            target_tid = self._settings_tenant_id_for_key(key, tenant_id)
+            
             row = (
                 self.db.query(Setting)
-                .filter(Setting.tenant_id == target_tenant_id, Setting.key == key)
+                .filter(Setting.tenant_id == target_tid, Setting.key == key)
                 .first()
             )
             if row:
-                return row.value
+                val = row.value
+                return decrypt_value(val) if self._is_sensitive_setting(key) else val
+            
             if fallback_to_system and not self.is_global_system_setting(key):
-                system_tenant_id = self._resolve_tenant_id(None)
-                if system_tenant_id is not None and system_tenant_id != target_tenant_id:
-                    system_row = (
+                sys_tid = self.get_system_tenant_id()
+                if sys_tid != target_tid:
+                    sys_row = (
                         self.db.query(Setting)
-                        .filter(Setting.tenant_id == system_tenant_id, Setting.key == key)
+                        .filter(Setting.tenant_id == sys_tid, Setting.key == key)
                         .first()
                     )
-                    if system_row:
-                        return system_row.value
+                    if sys_row:
+                        val = sys_row.value
+                        return decrypt_value(val) if self._is_sensitive_setting(key) else val
             return default
 
     def upsert_setting(
@@ -405,51 +337,35 @@ class PersistenceService:
         description: str | None = None,
         tenant_id: int | None = None,
     ) -> None:
+        """Create or update a setting, with automatic encryption for sensitive keys."""
         with self._lock:
             self._backfill_legacy_settings_tenant_ids()
-            target_tenant_id = self._settings_tenant_id_for_key(key, tenant_id)
-            if target_tenant_id is None:
-                raise ValueError(f"Unable to resolve tenant scope for setting: {key}")
-            if self._dialect == "sqlite":
-                storage_key = self._storage_key_for_setting(key, target_tenant_id)
-                row = self.db.query(Setting).filter(Setting.key == storage_key).first()
-                if row:
-                    row.value = value
-                    if description is not None:
-                        row.description = description
-                else:
-                    self.db.add(
-                        Setting(
-                            tenant_id=target_tenant_id,
-                            key=storage_key,
-                            value=value,
-                            description=description,
-                        )
-                    )
-                self.db.commit()
-                return
+            
+            storage_val = encrypt_value(value) if self._is_sensitive_setting(key) else value
+            target_tid = self._settings_tenant_id_for_key(key, tenant_id)
+            
             row = (
                 self.db.query(Setting)
-                .filter(Setting.tenant_id == target_tenant_id, Setting.key == key)
+                .filter(Setting.tenant_id == target_tid, Setting.key == key)
                 .first()
             )
             if row:
-                row.value = value
+                row.value = storage_val
                 if description is not None:
                     row.description = description
             else:
                 self.db.add(
                     Setting(
-                        tenant_id=target_tenant_id,
+                        tenant_id=target_tid,
                         key=key,
-                        value=value,
+                        value=storage_val,
                         description=description,
                     )
                 )
             self.db.commit()
 
     def init_default_settings(self) -> None:
-        """Seed default settings if they don't exist yet."""
+        """Seed initial system settings."""
         defaults = [
             ("checkin_enabled", "true",
              "Magicline Check-in System aktiv. Wenn deaktiviert, werden Besuchs-Statistiken aus Buchungsdaten berechnet."),
@@ -466,7 +382,7 @@ class PersistenceService:
             ("member_memory_llm_model", "gpt-4o-mini",
              "LLM-Modell für die tägliche Member-Memory Extraktion."),
             ("whatsapp_mode", "qr", "WhatsApp Betriebsmodus (qr|business_api)."),
-            ("bridge_webhook_url", "http://arni-core:8000/webhook/whatsapp", "Webhook-Ziel fuer WhatsApp QR-Bridge."),
+            ("bridge_webhook_url", "http://ariia-core:8000/webhook/whatsapp", "Webhook-Ziel fuer WhatsApp QR-Bridge."),
             ("bridge_port", "3000", "Port der WhatsApp QR-Bridge."),
             ("bridge_auth_dir", "/app/data/whatsapp/auth_info_baileys", "Auth-Verzeichnis der WhatsApp QR-Bridge."),
             ("bridge_qr_url", "http://localhost:3000/qr", "URL zur QR-Code-Seite der WhatsApp Bridge."),
@@ -495,14 +411,14 @@ class PersistenceService:
             ("smtp_username", "", "SMTP Benutzername."),
             ("smtp_password", "", "SMTP Passwort / App-Passwort."),
             ("smtp_from_email", "", "Absender-E-Mail für Verifizierung."),
-            ("smtp_from_name", "Arni", "Absendername für Verifizierung."),
+            ("smtp_from_name", "Ariia", "Absendername für Verifizierung."),
             ("smtp_use_starttls", "true", "STARTTLS für SMTP aktivieren."),
-            ("verification_email_subject", "Dein ARNI Verifizierungscode", "Betreff der Verifizierungs-E-Mail."),
+            ("verification_email_subject", "Dein ARIIA Verifizierungscode", "Betreff der Verifizierungs-E-Mails."),
             ("postmark_server_token", "", "Postmark Server Token für transaktionale E-Mails."),
             ("postmark_inbound_token", "", "Shared Secret für Postmark Inbound Webhook."),
             ("postmark_message_stream", "outbound", "Postmark Message Stream (z. B. outbound)."),
             ("email_channel_enabled", "false", "Aktiviert den E-Mail Kommunikationskanal."),
-            ("email_outbound_from", "", "Absenderadresse für Channel-Antworten (z. B. support@tenant.arni.io)."),
+            ("email_outbound_from", "", "Absenderadresse für Channel-Antworten (z. B. support@tenant.ariia.io)."),
             ("twilio_account_sid", "", "Twilio Account SID für SMS/Voice."),
             ("twilio_auth_token", "", "Twilio Auth Token für Webhook-Signatur und API."),
             ("twilio_sms_number", "", "Twilio Telefonnummer für SMS Outbound."),
@@ -530,27 +446,23 @@ class PersistenceService:
         ]
         with self._lock:
             self._backfill_legacy_settings_tenant_ids()
-            system_tenant_id = self._resolve_tenant_id(None)
-            if system_tenant_id is None:
-                return
+            sys_tid = self.get_system_tenant_id()
             for key, value, description in defaults:
-                storage_key = self._storage_key_for_setting(key, system_tenant_id)
                 exists = (
                     self.db.query(Setting)
-                    .filter(Setting.key == storage_key)
+                    .filter(Setting.tenant_id == sys_tid, Setting.key == key)
                     .first()
                 )
                 if not exists:
                     self.db.add(
                         Setting(
-                            tenant_id=system_tenant_id,
-                            key=storage_key,
+                            tenant_id=sys_tid,
+                            key=key,
                             value=value,
                             description=description,
                         )
                     )
             self.db.commit()
-
 
 # Singleton Instance
 persistence = PersistenceService()

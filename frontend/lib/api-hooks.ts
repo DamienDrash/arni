@@ -1,5 +1,5 @@
 /**
- * Zentrale React Query Hooks für ARNI API-Calls.
+ * Zentrale React Query Hooks für ARIIA API-Calls.
  * Basiert auf dem bestehenden `apiFetch` in lib/api.ts.
  *
  * Verwendung:

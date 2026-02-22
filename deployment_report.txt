@@ -1,12 +1,12 @@
-🔍 ARNI Deployment Report
+🔍 ARIIA Deployment Report
 ========================
 Tue Feb 17 14:51:03 CET 2026
 
 1. Docker Processes:
 CONTAINER ID   IMAGE                  COMMAND                  CREATED         STATUS                          PORTS                                                   NAMES
-3f9c8ec6c15e   arni-arni-core         "uvicorn app.gateway…"   2 minutes ago   Restarting (1) 51 seconds ago                                                           arni_core
-ebf0b655be2b   redis:alpine           "docker-entrypoint.s…"   2 minutes ago   Up 2 minutes                    0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp             arni_redis
-96a25b9a313c   qdrant/qdrant:latest   "./entrypoint.sh"        2 minutes ago   Up 2 minutes                    0.0.0.0:6333->6333/tcp, [::]:6333->6333/tcp, 6334/tcp   arni_qdrant
+3f9c8ec6c15e   ariia-ariia-core         "uvicorn app.gateway…"   2 minutes ago   Restarting (1) 51 seconds ago                                                           ariia_core
+ebf0b655be2b   redis:alpine           "docker-entrypoint.s…"   2 minutes ago   Up 2 minutes                    0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp             ariia_redis
+96a25b9a313c   qdrant/qdrant:latest   "./entrypoint.sh"        2 minutes ago   Up 2 minutes                    0.0.0.0:6333->6333/tcp, [::]:6333->6333/tcp, 6334/tcp   ariia_qdrant
 
 2. Internal Connectivity (localhost):
 * Host localhost:8000 was resolved.
@@ -20,7 +20,7 @@ ebf0b655be2b   redis:alpine           "docker-entrypoint.s…"   2 minutes ago  
 * Closing connection
 curl: (7) Failed to connect to localhost port 8000 after 0 ms: Couldn't connect to server
 
-3. Container Logs (Last 50 lines - arni_core):
+3. Container Logs (Last 50 lines - ariia_core):
 
 4. Redis Logs (Last 20 lines):
 1:M 17 Feb 2026 13:48:52.117 * <ReJSON> Exported RedisJSON_V6 API
@@ -42,6 +42,6 @@ curl: (7) Failed to connect to localhost port 8000 after 0 ms: Couldn't connect 
 1:M 17 Feb 2026 13:48:52.121 * <search> Loading event ended successfully
 1:M 17 Feb 2026 13:48:52.121 * DB loaded from disk: 0.002 seconds
 1:M 17 Feb 2026 13:48:52.121 * Ready to accept connections tcp
-1:M 17 Feb 2026 13:48:52.121 # WARNING: Redis does not require authentication and is not protected by network restrictions. Redis will accept connections from any IP address on any network interface.
+1:M 17 Feb 2026 13:48:52.121 # WARIIANG: Redis does not require authentication and is not protected by network restrictions. Redis will accept connections from any IP address on any network interface.
 
 ========================

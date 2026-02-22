@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Redis Bus Connector.
+"""ARIIA v1.4 – Redis Bus Connector.
 
 @BACKEND: Redis Pub/Sub Integration (Sprint 1, Task 1.4)
 Single Source of Truth: ALL messages pass through the Redis Bus.
@@ -17,15 +17,20 @@ class RedisBus:
 
     Connects the Gateway to the Swarm and all other services.
     Channels:
-        - `arni:inbound`  – Incoming messages from all platforms
-        - `arni:outbound` – Responses from Swarm back to platforms
-        - `arni:events`   – System events (alerts, health, admin)
+        - `ariia:inbound`  – Incoming messages from all platforms
+        - `ariia:outbound` – Responses from Swarm back to platforms
+        - `ariia:events`   – System events (alerts, health, admin)
     """
 
-    CHANNEL_INBOUND = "arni:inbound"
-    CHANNEL_OUTBOUND = "arni:outbound"
-    CHANNEL_EVENTS = "arni:events"
-    CHANNEL_VOICE_QUEUE = "arni:voice_queue"
+    CHANNEL_INBOUND = "ariia:inbound"
+    CHANNEL_OUTBOUND = "ariia:outbound"
+    CHANNEL_EVENTS = "ariia:events"
+    CHANNEL_VOICE_QUEUE = "ariia:voice_queue"
+
+    @staticmethod
+    def get_tenant_channel(channel: str, tenant_id: int) -> str:
+        """Namespace a channel name by tenant ID for isolation."""
+        return f"t{tenant_id}:{channel}"
 
     def __init__(self, redis_url: str = "redis://127.0.0.1:6379/0") -> None:
         self._redis_url = redis_url

@@ -1,4 +1,4 @@
-# ARNI P1 Task Tracker: Premium UX & Frontend Accessibility
+# ARIIA P1 Task Tracker: Premium UX & Frontend Accessibility
 
 Dieser Plan zielt darauf ab, die im Frontend Audit definierten P1-Ziele zu erreichen, um "Enterprise Grade" zu festigen.
 

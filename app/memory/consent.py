@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Consent Manager (GDPR Art. 6 + Art. 17).
+"""ARIIA v1.4 – Consent Manager (GDPR Art. 6 + Art. 17).
 
 @SEC: Sprint 4, Task 4.7
 Enforces consent checks before data processing and cascade deletion.

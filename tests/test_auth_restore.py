@@ -60,7 +60,7 @@ async def test_register_login_and_admin_guard(client: AsyncClient) -> None:
 async def test_system_admin_user_creation_enforces_tenant_rules(client: AsyncClient) -> None:
     admin_login = await client.post(
         "/auth/login",
-        json={"email": "admin@arni.local", "password": "password123"},
+        json={"email": "admin@ariia.local", "password": "password123"},
     )
     assert admin_login.status_code == 200
     admin_token = admin_login.json()["access_token"]
@@ -144,7 +144,7 @@ async def test_reserved_tenant_slug_is_rejected(client: AsyncClient) -> None:
 async def test_system_admin_can_impersonate_tenant_user_and_exit(client: AsyncClient) -> None:
     admin_login = await client.post(
         "/auth/login",
-        json={"email": "admin@arni.local", "password": "password123"},
+        json={"email": "admin@ariia.local", "password": "password123"},
     )
     assert admin_login.status_code == 200
     admin_token = admin_login.json()["access_token"]
@@ -212,7 +212,7 @@ async def test_user_deactivation_revokes_session(client: AsyncClient) -> None:
     # 1. System-Admin-Token holen
     admin_login = await client.post(
         "/auth/login",
-        json={"email": "admin@arni.local", "password": "password123"},
+        json={"email": "admin@ariia.local", "password": "password123"},
     )
     assert admin_login.status_code == 200
     admin_token = admin_login.json()["access_token"]

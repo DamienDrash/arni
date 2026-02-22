@@ -1,11 +1,11 @@
 # Sprint 13: Admin Dashboard 🎛️
 
-**Goal:** Centralized Control Panel for Arni.
+**Goal:** Centralized Control Panel for Ariia.
 
 ## 🏗️ Tech Stack
 -   **Framework:** Next.js 14 (App Router)
 -   **Style:** Tailwind CSS + DaisyUI (Dark Mode default)
--   **Deployment:** Static Export or Node Server (mapped to `/arni`)
+-   **Deployment:** Static Export or Node Server (mapped to `/ariia`)
 
 ## 🎨 Layout
 -   **Sidebar:**

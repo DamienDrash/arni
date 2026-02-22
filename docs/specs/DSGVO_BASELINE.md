@@ -1,4 +1,4 @@
-# DSGVO-Baseline – Datenschutz & Privacy Policy für ARNI v1.4
+# DSGVO-Baseline – Datenschutz & Privacy Policy für ARIIA v1.4
 
 > **Status:** Verbindlich ab Sprint 1 | **Verantwortlich:** @SEC
 > **Rechtsgrundlage:** DSGVO/GDPR (EU 2016/679), insb. Art. 5, 6, 17, 25, 32
@@ -7,7 +7,7 @@
 
 ## 1. PII-Masking-Regeln (Personally Identifiable Information)
 
-### Definition: Was ist PII im ARNI-Kontext?
+### Definition: Was ist PII im ARIIA-Kontext?
 
 | Kategorie | Beispiele | Risiko |
 |-----------|----------|--------|

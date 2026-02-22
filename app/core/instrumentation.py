@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Instrumentation & Metrics.
+"""ARIIA v1.4 – Instrumentation & Metrics.
 
 @OPS: Sprint 7b, Task 7b.1
 Exposes Prometheus metrics at /metrics.

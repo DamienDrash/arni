@@ -46,7 +46,7 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
         Object.entries(pageMeta)
             .filter(([route]) => route !== "/" && pathname?.startsWith(`${route}/`))
             .sort((a, b) => b[0].length - a[0].length)[0]?.[1] ||
-        { title: "ARNI", subtitle: "Control Deck" };
+        { title: "ARIIA", subtitle: "Control Deck" };
     // Prevent body scroll when drawer is open
     useEffect(() => {
         document.body.style.overflow = open ? "hidden" : "";
@@ -110,8 +110,8 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         const onSessionUpdated = () => setUser(getStoredUser());
-        window.addEventListener("arni:session-updated", onSessionUpdated);
-        return () => window.removeEventListener("arni:session-updated", onSessionUpdated);
+        window.addEventListener("ariia:session-updated", onSessionUpdated);
+        return () => window.removeEventListener("ariia:session-updated", onSessionUpdated);
     }, []);
 
     useEffect(() => {
@@ -188,7 +188,7 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
                 className={styles.mobileTopbar}
             >
                 <span className={styles.brand}>
-                    {branding?.tenant_app_title || "ARNI"}<span className={styles.brandDot}>.</span>
+                    {branding?.tenant_app_title || "ARIIA"}<span className={styles.brandDot}>.</span>
                 </span>
                 <button
                     onClick={() => setOpen(v => !v)}

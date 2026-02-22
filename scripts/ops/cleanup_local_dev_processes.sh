@@ -6,7 +6,7 @@ if [[ "${1:-}" == "--apply" ]]; then
   MODE="apply"
 fi
 
-ROOT="/root/.openclaw/workspace/arni"
+ROOT="/root/.openclaw/workspace/ariia"
 PATTERN='(pytest|next dev|npm run (dev|test|build)|tail -f|watch )'
 
 printf "[%s] scanning stale dev processes in %s\n" "$MODE" "$ROOT"

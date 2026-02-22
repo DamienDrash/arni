@@ -14,7 +14,7 @@ type FilterStatus = "all" | "resolved" | "pending" | "escalated";
 
 const mockMessages = (issue: string) => [
   { from: "member", text: issue, time: "14:22" },
-  { from: "ai", text: "Hallo! Ich bin ARNI, dein KI-Assistent. Lass mich das für dich prüfen. Einen Moment bitte…", time: "14:22" },
+  { from: "ai", text: "Hallo! Ich bin ARIIA, dein KI-Assistent. Lass mich das für dich prüfen. Einen Moment bitte…", time: "14:22" },
   { from: "ai", text: "Ich habe deine Mitgliederdaten in Magicline gefunden. Ich kann dir bei dieser Anfrage weiterhelfen.", time: "14:23" },
   { from: "member", text: "Super, danke!", time: "14:23" },
 ];
@@ -76,7 +76,7 @@ export function ConversationsPage() {
                 <Avatar
                   initials={conv.avatar}
                   size={36}
-                  color={conv.status === "escalated" ? T.danger : conv.status === "pending" ? T.warning : T.accent}
+                  color={conv.status === "escalated" ? T.danger : conv.status === "pending" ? T.wariiang : T.accent}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -86,7 +86,7 @@ export function ConversationsPage() {
                   <p style={{ fontSize: 11, color: T.textMuted, margin: "3px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.issue}</p>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                     <ChannelIcon channel={conv.channel as "whatsapp" | "telegram" | "email" | "phone"} size={10} />
-                    <Badge variant={conv.status === "resolved" ? "success" : conv.status === "escalated" ? "danger" : "warning"} size="xs">
+                    <Badge variant={conv.status === "resolved" ? "success" : conv.status === "escalated" ? "danger" : "wariiang"} size="xs">
                       {conv.status === "resolved" ? "Gelöst" : conv.status === "escalated" ? "Eskaliert" : "Offen"}
                     </Badge>
                     <Badge size="xs">{conv.confidence}%</Badge>
@@ -142,7 +142,7 @@ export function ConversationsPage() {
               <p style={{ fontSize: 13, color: T.text, margin: 0, lineHeight: 1.5 }}>{msg.text}</p>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, marginTop: 6 }}>
                 <span style={{ fontSize: 10, color: T.textDim }}>{msg.time}</span>
-                {msg.from === "ai" && <Badge variant="accent" size="xs">ARNI</Badge>}
+                {msg.from === "ai" && <Badge variant="accent" size="xs">ARIIA</Badge>}
               </div>
             </div>
           </div>

@@ -1,4 +1,4 @@
-"""ARNI – Jinja2 Tenant Context Builder (S2.5).
+"""ARIIA – Jinja2 Tenant Context Builder (S2.5).
 
 Provides a unified dict of tenant-specific values for Jinja2 template rendering.
 Reads from the Settings table via persistence at call time — never cached.
@@ -37,6 +37,6 @@ def build_tenant_context(persistence: object, tenant_id: int) -> dict[str, objec
             if val is not None:
                 ctx[key] = str(val).strip()
         except Exception as exc:
-            logger.warning("tenant_context.setting_load_failed", key=key, error=str(exc))
+            logger.wariiang("tenant_context.setting_load_failed", key=key, error=str(exc))
 
     return ctx

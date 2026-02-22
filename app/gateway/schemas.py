@@ -1,4 +1,4 @@
-"""ARNI v1.4 – Gateway Message Schemas.
+"""ARIIA v1.4 – Gateway Message Schemas.
 
 @BACKEND: Pydantic Models (Sprint 1, Task 1.7)
 Defines all message types flowing through the Redis Bus.
@@ -82,7 +82,7 @@ class SystemEvent(BaseModel):
     event_type: str = Field(..., description="Event type identifier")
     source: str = Field(..., description="Originating service/agent")
     payload: dict[str, Any] = Field(default_factory=dict, description="Event data")
-    severity: str = Field(default="info", description="info|warning|error|critical")
+    severity: str = Field(default="info", description="info|wariiang|error|critical")
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
     )

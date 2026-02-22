@@ -1,2 +1,2 @@
 # @ARCH: app/gateway/__init__.py
-"""ARNI Hybrid Gateway – FastAPI + Redis Pub/Sub + WebSocket."""
+"""ARIIA Hybrid Gateway – FastAPI + Redis Pub/Sub + WebSocket."""

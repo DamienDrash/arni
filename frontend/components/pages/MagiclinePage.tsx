@@ -59,6 +59,8 @@ export function MagiclinePage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isEnrichingAll, setIsEnrichingAll] = useState(false);
   const [enrichAllDone, setEnrichAllDone] = useState(false);
+  const [enrichEnqueued, setEnrichEnqueued] = useState<number | null>(null);
+  const [enrichMinutes, setEnrichMinutes] = useState<number | null>(null);
   const [syncResult, setSyncResult] = useState<SyncResult>(null);
   const [syncError, setSyncError] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
@@ -109,9 +111,16 @@ export function MagiclinePage() {
   const triggerEnrichAll = async () => {
     setIsEnrichingAll(true);
     setEnrichAllDone(false);
+    setEnrichEnqueued(null);
+    setEnrichMinutes(null);
     try {
       const res = await apiFetch("/admin/members/enrich-all", { method: "POST" });
-      if (res.ok) setEnrichAllDone(true);
+      if (res.ok) {
+        const data = await res.json();
+        setEnrichEnqueued(data.enqueued);
+        setEnrichMinutes(data.estimated_minutes);
+        setEnrichAllDone(true);
+      }
     } finally {
       setIsEnrichingAll(false);
       // Refresh stats after a short delay
@@ -123,27 +132,27 @@ export function MagiclinePage() {
 
   // Always render 4 stat cards
   const memberStats = [
-    { label: "Gesamt-Mitglieder", value: stats ? stats.total_members.toLocaleString("de") : "–", color: T.accent,   icon: <Users size={18} /> },
-    { label: "Mit Telefon",       value: stats ? stats.with_phone.toLocaleString("de") : "–",    color: T.whatsapp, icon: <Phone size={18} /> },
-    { label: "Mit E-Mail",        value: stats ? stats.with_email.toLocaleString("de") : "–",    color: T.info,     icon: <Mail size={18} /> },
-    { label: "Neu (heute)",       value: stats ? `+${stats.new_today}` : "–",                    color: T.success,  icon: <UserCheck size={18} /> },
+    { label: "Gesamt-Mitglieder", value: stats ? stats.total_members.toLocaleString("de") : "–", color: T.accent, icon: <Users size={18} /> },
+    { label: "Mit Telefon", value: stats ? stats.with_phone.toLocaleString("de") : "–", color: T.whatsapp, icon: <Phone size={18} /> },
+    { label: "Mit E-Mail", value: stats ? stats.with_email.toLocaleString("de") : "–", color: T.info, icon: <Mail size={18} /> },
+    { label: "Neu (heute)", value: stats ? `+${stats.new_today}` : "–", color: T.success, icon: <UserCheck size={18} /> },
   ];
 
-  // ARNI Adoption
+  // ARIIA Adoption
   const totalMembers = stats?.total_members ?? 0;
-  const activeUsers  = globalStats?.active_users ?? 0;
-  const adoptionPct  = totalMembers > 0 ? Math.round((activeUsers / totalMembers) * 100) : 0;
-  const neverUsed    = Math.max(0, totalMembers - activeUsers);
+  const activeUsers = globalStats?.active_users ?? 0;
+  const adoptionPct = totalMembers > 0 ? Math.round((activeUsers / totalMembers) * 100) : 0;
+  const neverUsed = Math.max(0, totalMembers - activeUsers);
 
   // Platform & Verification
-  const whatsapp  = chats.filter(c => c.platform === "whatsapp").length;
-  const telegram  = chats.filter(c => c.platform === "telegram").length;
-  const total     = chats.length;
-  const verified  = chats.filter(c => c.member_id).length;
+  const whatsapp = chats.filter(c => c.platform === "whatsapp").length;
+  const telegram = chats.filter(c => c.platform === "telegram").length;
+  const total = chats.length;
+  const verified = chats.filter(c => c.member_id).length;
   const unverified = total - verified;
-  const whatsappPct  = total > 0 ? Math.round((whatsapp  / total) * 100) : 0;
-  const telegramPct  = total > 0 ? Math.round((telegram  / total) * 100) : 0;
-  const verifiedPct  = total > 0 ? Math.round((verified  / total) * 100) : 0;
+  const whatsappPct = total > 0 ? Math.round((whatsapp / total) * 100) : 0;
+  const telegramPct = total > 0 ? Math.round((telegram / total) * 100) : 0;
+  const verifiedPct = total > 0 ? Math.round((verified / total) * 100) : 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -173,9 +182,15 @@ export function MagiclinePage() {
             {syncResult && (
               <>
                 <Badge variant="success" size="xs">{syncResult.fetched} geladen</Badge>
-                <Badge variant="accent"  size="xs">{syncResult.upserted} aktualisiert</Badge>
-                {syncResult.deleted > 0 && <Badge variant="warning" size="xs">{syncResult.deleted} entfernt</Badge>}
+                <Badge variant="accent" size="xs">{syncResult.upserted} aktualisiert</Badge>
+                {syncResult.deleted > 0 && <Badge variant="wariiang" size="xs">{syncResult.deleted} entfernt</Badge>}
               </>
+            )}
+            {enrichAllDone && enrichEnqueued !== null && enrichEnqueued > 0 && (
+              <Badge variant="accent" size="xs">{enrichEnqueued} zur Anreicherung eingereiht (~{enrichMinutes} Min)</Badge>
+            )}
+            {enrichAllDone && enrichEnqueued === 0 && (
+              <Badge variant="success" size="xs">Alle Mitglieder bereits angereichert</Badge>
             )}
             {syncError && <Badge variant="danger" size="xs">Sync fehlgeschlagen</Badge>}
           </div>
@@ -239,11 +254,11 @@ export function MagiclinePage() {
       {/* Two analysis cards side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        {/* Left: ARNI Adoption */}
+        {/* Left: ARIIA Adoption */}
         <Card style={{ padding: 24 }}>
           <SectionHeader
-            title="ARNI-Adoption"
-            subtitle="Magicline-Mitglieder die ARNI je genutzt haben"
+            title="ARIIA-Adoption"
+            subtitle="Magicline-Mitglieder die ARIIA je genutzt haben"
           />
           <div style={{ marginTop: 12 }}>
             {/* Big numbers */}
@@ -319,10 +334,10 @@ export function MagiclinePage() {
                       <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>verifiziert</div>
                       <div style={{ fontSize: 11, color: T.success, fontWeight: 600 }}>{verifiedPct}%</div>
                     </div>
-                    <div style={{ flex: 1, padding: "12px 14px", borderRadius: 10, background: T.warningDim, border: `1px solid ${T.warning}30` }}>
-                      <div style={{ fontSize: 20, fontWeight: 800, color: T.warning }}>{unverified}</div>
+                    <div style={{ flex: 1, padding: "12px 14px", borderRadius: 10, background: T.wariiangDim, border: `1px solid ${T.wariiang}30` }}>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: T.wariiang }}>{unverified}</div>
                       <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>unverifiziert</div>
-                      <div style={{ fontSize: 11, color: T.warning, fontWeight: 600 }}>{100 - verifiedPct}%</div>
+                      <div style={{ fontSize: 11, color: T.wariiang, fontWeight: 600 }}>{100 - verifiedPct}%</div>
                     </div>
                   </div>
                 </div>
@@ -388,10 +403,10 @@ export function MagiclinePage() {
                       <div style={{ fontSize: 11, color: T.textMuted, marginTop: 3 }}>Aktiv</div>
                       <div style={{ fontSize: 11, color: T.success, fontWeight: 600, marginTop: 1 }}>{activePct}%</div>
                     </div>
-                    <div style={{ flex: 1, padding: "12px 14px", borderRadius: 10, background: T.warningDim, border: `1px solid ${T.warning}30` }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: T.warning, lineHeight: 1 }}>{paused.toLocaleString("de")}</div>
+                    <div style={{ flex: 1, padding: "12px 14px", borderRadius: 10, background: T.wariiangDim, border: `1px solid ${T.wariiang}30` }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: T.wariiang, lineHeight: 1 }}>{paused.toLocaleString("de")}</div>
                       <div style={{ fontSize: 11, color: T.textMuted, marginTop: 3 }}>Pausiert</div>
-                      <div style={{ fontSize: 11, color: T.warning, fontWeight: 600, marginTop: 1 }}>{pausedPct}%</div>
+                      <div style={{ fontSize: 11, color: T.wariiang, fontWeight: 600, marginTop: 1 }}>{pausedPct}%</div>
                     </div>
                   </div>
                   <ProgressBar value={activePct} max={100} color={T.success} height={5} />
