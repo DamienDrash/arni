@@ -1,0 +1,31 @@
+
+enabled: true
+block_response: "Entschuldigung, darauf kann ich nicht eingehen."
+
+# 1. Exact Phrase Blocking (Case-insensitive)
+blocked_phrases:
+  - "ignore previous instructions"
+  - "ignore all instructions"
+  - "system prompt"
+  - "you are not an ai"
+  - "dan mode"
+  - "developer mode"
+
+# 2. Regex Patterns (PII protection mostly)
+# These block input that looks like it contains sensitive data we don't want to process/log
+patterns:
+  # Credit Card (Simplified)
+  - "\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14})\\b"
+  # IBAN (German)
+  - "\\bDE\\d{2}\\s?(?:\\d{4}\\s?){4}\\d{2}\\b"
+
+# 3. Topic Safety (Keyword groups)
+topics:
+  violence:
+    - "bomb"
+    - "kill"
+    - "suicide"
+  competitors:
+    - "mcfit"
+    - "urban sports club"
+    - "fitness first"

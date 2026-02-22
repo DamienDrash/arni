@@ -1,0 +1,149 @@
+
+services:
+  # 1. Frontend (Next.js Admin Panel)
+  arni-frontend:
+    # Use Debian-based slim image for better stability than Alpine
+    image: node:20-slim
+    container_name: arni_frontend
+    restart: always
+    working_dir: /app
+    command: sh -c "npm install --production=false && npm run build && cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/ && node .next/standalone/server.js"
+    volumes:
+      - ./frontend:/app
+      - /app/.next # Anonymous volume for build artifacts (keep this!)
+      - /app/node_modules # Anonymous volume: isolates container's node_modules (Alpine musl) from host (glibc)
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_ENABLE_WS=true
+      - GATEWAY_INTERNAL_URL=http://arni-core:8000
+    depends_on:
+      - arni-core
+    networks:
+      - arni-network
+
+  # 2. ARNI Core Service
+  arni-core:
+    build: .
+    container_name: arni_core
+    restart: always
+    ports:
+      - "8000:8000"
+    command: uvicorn app.gateway.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://redis:6379/0
+      - QDRANT_URL=http://qdrant:6333
+      - LOG_LEVEL=INFO
+      # Secrets should be in .env file
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_ADMIN_CHAT_ID=${TELEGRAM_ADMIN_CHAT_ID}
+      - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET}
+      - META_APP_SECRET=${META_APP_SECRET}
+      - BRIDGE_AUTH_DIR=${BRIDGE_AUTH_DIR:-/app/data/whatsapp/auth_info_baileys}
+      - MAGICLINE_API_KEY=${MAGICLINE_API_KEY}
+      - MAGICLINE_BASE_URL=${MAGICLINE_BASE_URL}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_TRANSITION_MODE=${AUTH_TRANSITION_MODE}
+      - AUTH_ALLOW_HEADER_FALLBACK=${AUTH_ALLOW_HEADER_FALLBACK}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-https://cloud.langfuse.com}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/arni.db}
+    depends_on:
+      - redis
+      - qdrant
+      - postgres
+    volumes:
+      - arni_data:/app/data
+      - ./data/knowledge:/app/data/knowledge
+      # Hot Reload: Mount source code directly
+      - ./app:/app/app
+      - ./config:/app/config
+      - ./scripts:/app/scripts
+    networks:
+      - arni-network
+
+  # 3. Telegram Poller (Sidecar)
+  arni-telegram:
+    build: .
+    container_name: arni_telegram
+    restart: always
+    command: python scripts/telegram_polling_worker.py
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import pathlib,sys;
+          cmd=(pathlib.Path('/proc/1/cmdline').read_bytes() if pathlib.Path('/proc/1/cmdline').exists() else b'');
+          sys.exit(0 if b'telegram_polling_worker.py' in cmd else 1)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    environment:
+      - GATEWAY_INTERNAL_URL=http://arni-core:8000
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET}
+      - TELEGRAM_OFFSET_FILE=/app/data/telegram_offset.txt
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/arni.db}
+    depends_on:
+      - arni-core
+      - redis
+    volumes:
+      - arni_data:/app/data
+      - ./data/knowledge:/app/data/knowledge
+      # Hot Reload: Mount source code directly
+      - ./app:/app/app
+      - ./config:/app/config
+      - ./scripts:/app/scripts 
+    networks:
+      - arni-network
+  # 2. Vector Database (No Mocks)
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: arni_qdrant
+    restart: always
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - arni-network
+
+  # 3. Cache & PubSub
+  redis:
+    image: redis:alpine
+    container_name: arni_redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - arni-network
+
+  # 4. Primary relational DB (Postgres-first for multi-tenant SaaS)
+  postgres:
+    image: postgres:16-alpine
+    container_name: arni_postgres
+    restart: always
+    environment:
+      - POSTGRES_DB=arni
+      - POSTGRES_USER=arni
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-arni_dev_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - arni-network
+
+volumes:
+  qdrant_data:
+  redis_data:
+  arni_data:
+  postgres_data:
+
+networks:
+  arni-network:
+    driver: bridge

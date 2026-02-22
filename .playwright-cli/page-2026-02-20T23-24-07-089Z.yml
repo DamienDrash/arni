@@ -1,0 +1,277 @@
+- generic [ref=e1]:
+  - alert [ref=e12]
+  - generic [ref=e14]:
+    - generic [ref=e15]:
+      - heading "ARNI." [level=1] [ref=e17]
+      - paragraph [ref=e18]: Control Deck
+    - navigation [ref=e19]:
+      - generic [ref=e20]:
+        - paragraph [ref=e21]: Quick Actions
+        - generic [ref=e22]:
+          - link "Live Monitor" [ref=e23] [cursor=pointer]:
+            - /url: /arni/live
+          - link "Analytics" [ref=e24] [cursor=pointer]:
+            - /url: /arni/analytics
+          - link "Einstellungen" [ref=e25] [cursor=pointer]:
+            - /url: /arni/settings
+      - generic [ref=e26]:
+        - paragraph [ref=e27]: Operations
+        - link "Dashboard" [ref=e28] [cursor=pointer]:
+          - /url: /arni
+          - img [ref=e29]
+          - generic [ref=e34]: Dashboard
+        - link "Live Monitor" [ref=e35] [cursor=pointer]:
+          - /url: /arni/live
+          - img [ref=e36]
+          - generic [ref=e38]: Live Monitor
+        - link "Eskalationen" [ref=e39] [cursor=pointer]:
+          - /url: /arni/escalations
+          - img [ref=e40]
+          - generic [ref=e44]: Eskalationen
+        - link "Analytics" [ref=e45] [cursor=pointer]:
+          - /url: /arni/analytics
+          - img [ref=e46]
+          - generic [ref=e51]: Analytics
+      - generic [ref=e52]:
+        - paragraph [ref=e53]: Customers
+        - link "Mitglieder" [ref=e54] [cursor=pointer]:
+          - /url: /arni/members
+          - img [ref=e55]
+          - generic [ref=e60]: Mitglieder
+        - link "Benutzer" [active] [ref=e61] [cursor=pointer]:
+          - /url: /arni/users
+          - img [ref=e62]
+          - generic [ref=e67]: Benutzer
+        - link "Tenants" [ref=e68] [cursor=pointer]:
+          - /url: /arni/tenants
+          - img [ref=e69]
+          - generic [ref=e75]: Tenants
+      - generic [ref=e76]:
+        - paragraph [ref=e77]: Knowledge
+        - link "Wissensbasis" [ref=e78] [cursor=pointer]:
+          - /url: /arni/knowledge
+          - img [ref=e79]
+          - generic [ref=e82]: Wissensbasis
+        - link "Member Memory" [ref=e83] [cursor=pointer]:
+          - /url: /arni/member-memory
+          - img [ref=e84]
+          - generic [ref=e93]: Member Memory
+        - link "LLM Prompt" [ref=e94] [cursor=pointer]:
+          - /url: /arni/system-prompt
+          - img [ref=e95]
+          - generic [ref=e102]: LLM Prompt
+      - generic [ref=e103]:
+        - paragraph [ref=e104]: System
+        - link "Plans & Billing" [ref=e105] [cursor=pointer]:
+          - /url: /arni/plans
+          - img [ref=e106]
+          - generic [ref=e109]: Plans & Billing
+        - link "Magicline Sync" [ref=e110] [cursor=pointer]:
+          - /url: /arni/magicline
+          - img [ref=e111]
+          - generic [ref=e115]: Magicline Sync
+        - link "Audit Log" [ref=e116] [cursor=pointer]:
+          - /url: /arni/audit
+          - img [ref=e117]
+          - generic [ref=e122]: Audit Log
+        - link "Settings Center" [ref=e123] [cursor=pointer]:
+          - /url: /arni/settings
+          - img [ref=e124]
+          - generic [ref=e127]: Settings Center
+    - generic [ref=e129]:
+      - generic [ref=e130]: A
+      - generic [ref=e131]:
+        - paragraph [ref=e132]: admin@arni.local
+        - paragraph [ref=e133]: system_admin
+      - button [ref=e134] [cursor=pointer]:
+        - img [ref=e135]
+  - main [ref=e139]:
+    - generic [ref=e140]:
+      - heading "Benutzer" [level=1] [ref=e569]
+      - paragraph [ref=e142]: Rollen, Tenant-Zuordnung und Zugriffsverwaltung.
+    - generic [ref=e570]:
+      - generic [ref=e571]:
+        - generic [ref=e572]:
+          - generic [ref=e573]: Gesamt
+          - generic [ref=e574]: "5"
+        - generic [ref=e575]:
+          - generic [ref=e576]: Aktiv
+          - generic [ref=e577]: "5"
+        - generic [ref=e578]:
+          - generic [ref=e579]: Tenant Admins
+          - generic [ref=e580]: "4"
+        - generic [ref=e581]:
+          - generic [ref=e582]: System Admins
+          - generic [ref=e583]: "1"
+      - generic [ref=e584]:
+        - generic [ref=e585]:
+          - img [ref=e586]
+          - generic [ref=e591]: Neuen Benutzer anlegen
+        - generic [ref=e592]:
+          - textbox "E-Mail" [ref=e593]
+          - textbox "Passwort" [ref=e594]
+          - textbox "Name" [ref=e595]
+          - combobox [ref=e596]:
+            - option "tenant_user" [selected]
+            - option "tenant_admin"
+            - option "system_admin"
+          - combobox [ref=e597]:
+            - option "System (system)" [selected]
+            - option "Restore Tenant (restore-1771562201)"
+            - option "Restore Tenant (restore2-1771562602)"
+            - option "Restore Tenant (restore3-1771562666)"
+            - option "Tenant Check (tenantcheck-1771564332)"
+          - button "User anlegen" [ref=e598] [cursor=pointer]
+      - generic [ref=e599]:
+        - generic [ref=e600]:
+          - generic [ref=e601]:
+            - img [ref=e602]
+            - textbox "Suche nach E-Mail, Name oder Tenant" [ref=e605]
+          - combobox [ref=e606]:
+            - option "Alle Rollen" [selected]
+            - option "system_admin"
+            - option "tenant_admin"
+            - option "tenant_user"
+          - combobox [ref=e607]:
+            - option "Alle Tenants" [selected]
+            - option "restore-1771562201"
+            - option "restore2-1771562602"
+            - option "restore3-1771562666"
+            - option "system"
+            - option "tenantcheck-1771564332"
+        - generic [ref=e608]:
+          - generic [ref=e609]: 0 selektiert
+          - button "Bulk aktivieren" [disabled] [ref=e610] [cursor=pointer]
+          - button "Bulk deaktivieren" [disabled] [ref=e611] [cursor=pointer]
+      - table [ref=e613]:
+        - rowgroup [ref=e614]:
+          - row "Benutzer Rolle Tenant Status Erstellt Aktionen" [ref=e615]:
+            - columnheader [ref=e616]:
+              - checkbox [ref=e617]
+            - columnheader "Benutzer" [ref=e618]
+            - columnheader "Rolle" [ref=e619]
+            - columnheader "Tenant" [ref=e620]
+            - columnheader "Status" [ref=e621]
+            - columnheader "Erstellt" [ref=e622]
+            - columnheader "Aktionen" [ref=e623]
+        - rowgroup [ref=e624]:
+          - row "User tenantcheck.1771564332@example.com auswählen tenantcheck.1771564332@example.com - Tenant Admin Tenant Check active 20.2.2026, 05:12:12 Details Bearbeiten Ghost Mode" [ref=e625]:
+            - cell "User tenantcheck.1771564332@example.com auswählen" [ref=e626]:
+              - checkbox "User tenantcheck.1771564332@example.com auswählen" [ref=e627]
+            - cell "tenantcheck.1771564332@example.com -" [ref=e628]:
+              - generic [ref=e629]:
+                - img [ref=e630]
+                - generic [ref=e632]:
+                  - generic [ref=e633]: tenantcheck.1771564332@example.com
+                  - generic [ref=e634]: "-"
+            - cell "Tenant Admin" [ref=e635]:
+              - generic [ref=e636]: Tenant Admin
+            - cell "Tenant Check" [ref=e637]
+            - cell "active" [ref=e638]:
+              - generic [ref=e639]: active
+            - cell "20.2.2026, 05:12:12" [ref=e640]
+            - cell "Details Bearbeiten Ghost Mode" [ref=e641]:
+              - generic [ref=e642]:
+                - button "Details" [ref=e643] [cursor=pointer]:
+                  - img [ref=e644]
+                  - text: Details
+                - button "Bearbeiten" [ref=e647] [cursor=pointer]:
+                  - img [ref=e648]
+                  - text: Bearbeiten
+                - button "Ghost Mode" [ref=e651] [cursor=pointer]
+          - row "User restore3.1771562666@example.com auswählen restore3.1771562666@example.com Restore User Tenant Admin Restore Tenant active 20.2.2026, 04:44:26 Details Bearbeiten Ghost Mode" [ref=e652]:
+            - cell "User restore3.1771562666@example.com auswählen" [ref=e653]:
+              - checkbox "User restore3.1771562666@example.com auswählen" [ref=e654]
+            - cell "restore3.1771562666@example.com Restore User" [ref=e655]:
+              - generic [ref=e656]:
+                - img [ref=e657]
+                - generic [ref=e659]:
+                  - generic [ref=e660]: restore3.1771562666@example.com
+                  - generic [ref=e661]: Restore User
+            - cell "Tenant Admin" [ref=e662]:
+              - generic [ref=e663]: Tenant Admin
+            - cell "Restore Tenant" [ref=e664]
+            - cell "active" [ref=e665]:
+              - generic [ref=e666]: active
+            - cell "20.2.2026, 04:44:26" [ref=e667]
+            - cell "Details Bearbeiten Ghost Mode" [ref=e668]:
+              - generic [ref=e669]:
+                - button "Details" [ref=e670] [cursor=pointer]:
+                  - img [ref=e671]
+                  - text: Details
+                - button "Bearbeiten" [ref=e674] [cursor=pointer]:
+                  - img [ref=e675]
+                  - text: Bearbeiten
+                - button "Ghost Mode" [ref=e678] [cursor=pointer]
+          - row "User restore2.1771562602@example.com auswählen restore2.1771562602@example.com Restore User Tenant Admin Restore Tenant active 20.2.2026, 04:43:23 Details Bearbeiten Ghost Mode" [ref=e679]:
+            - cell "User restore2.1771562602@example.com auswählen" [ref=e680]:
+              - checkbox "User restore2.1771562602@example.com auswählen" [ref=e681]
+            - cell "restore2.1771562602@example.com Restore User" [ref=e682]:
+              - generic [ref=e683]:
+                - img [ref=e684]
+                - generic [ref=e686]:
+                  - generic [ref=e687]: restore2.1771562602@example.com
+                  - generic [ref=e688]: Restore User
+            - cell "Tenant Admin" [ref=e689]:
+              - generic [ref=e690]: Tenant Admin
+            - cell "Restore Tenant" [ref=e691]
+            - cell "active" [ref=e692]:
+              - generic [ref=e693]: active
+            - cell "20.2.2026, 04:43:23" [ref=e694]
+            - cell "Details Bearbeiten Ghost Mode" [ref=e695]:
+              - generic [ref=e696]:
+                - button "Details" [ref=e697] [cursor=pointer]:
+                  - img [ref=e698]
+                  - text: Details
+                - button "Bearbeiten" [ref=e701] [cursor=pointer]:
+                  - img [ref=e702]
+                  - text: Bearbeiten
+                - button "Ghost Mode" [ref=e705] [cursor=pointer]
+          - row "User restore.1771562201@example.com auswählen restore.1771562201@example.com Restore User Tenant Admin Restore Tenant active 20.2.2026, 04:36:41 Details Bearbeiten Ghost Mode" [ref=e706]:
+            - cell "User restore.1771562201@example.com auswählen" [ref=e707]:
+              - checkbox "User restore.1771562201@example.com auswählen" [ref=e708]
+            - cell "restore.1771562201@example.com Restore User" [ref=e709]:
+              - generic [ref=e710]:
+                - img [ref=e711]
+                - generic [ref=e713]:
+                  - generic [ref=e714]: restore.1771562201@example.com
+                  - generic [ref=e715]: Restore User
+            - cell "Tenant Admin" [ref=e716]:
+              - generic [ref=e717]: Tenant Admin
+            - cell "Restore Tenant" [ref=e718]
+            - cell "active" [ref=e719]:
+              - generic [ref=e720]: active
+            - cell "20.2.2026, 04:36:41" [ref=e721]
+            - cell "Details Bearbeiten Ghost Mode" [ref=e722]:
+              - generic [ref=e723]:
+                - button "Details" [ref=e724] [cursor=pointer]:
+                  - img [ref=e725]
+                  - text: Details
+                - button "Bearbeiten" [ref=e728] [cursor=pointer]:
+                  - img [ref=e729]
+                  - text: Bearbeiten
+                - button "Ghost Mode" [ref=e732] [cursor=pointer]
+          - row "User admin@arni.local auswählen admin@arni.local System Admin System Admin System active 20.2.2026, 04:35:27 Details Bearbeiten" [ref=e733]:
+            - cell "User admin@arni.local auswählen" [ref=e734]:
+              - checkbox "User admin@arni.local auswählen" [ref=e735]
+            - cell "admin@arni.local System Admin" [ref=e736]:
+              - generic [ref=e737]:
+                - img [ref=e738]
+                - generic [ref=e740]:
+                  - generic [ref=e741]: admin@arni.local
+                  - generic [ref=e742]: System Admin
+            - cell "System Admin" [ref=e743]:
+              - generic [ref=e744]: System Admin
+            - cell "System" [ref=e745]
+            - cell "active" [ref=e746]:
+              - generic [ref=e747]: active
+            - cell "20.2.2026, 04:35:27" [ref=e748]
+            - cell "Details Bearbeiten" [ref=e749]:
+              - generic [ref=e750]:
+                - button "Details" [ref=e751] [cursor=pointer]:
+                  - img [ref=e752]
+                  - text: Details
+                - button "Bearbeiten" [ref=e755] [cursor=pointer]:
+                  - img [ref=e756]
+                  - text: Bearbeiten
+  - generic [ref=e568]: "0"

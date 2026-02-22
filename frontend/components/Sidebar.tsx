@@ -1,0 +1,208 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  BookOpen,
+  Bot,
+  Brain,
+  Building2,
+  CreditCard,
+  Database,
+  LayoutDashboard,
+  LogOut,
+  ScrollText,
+  Settings,
+  Users,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import type { ElementType } from "react";
+
+import { apiFetch } from "@/lib/api";
+import { clearSession, getStoredUser } from "@/lib/auth";
+import { isPathAllowedForRole } from "@/lib/rbac";
+import styles from "./Sidebar.module.css";
+
+type NavItem = { name: string; href: string; icon: ElementType; badge?: string };
+
+const sections: Array<{ title: string; items: NavItem[] }> = [
+  {
+    title: "Operations",
+    items: [
+      { name: "Dashboard", href: "/", icon: LayoutDashboard },
+      { name: "Live Monitor", href: "/live", icon: Activity },
+      { name: "Eskalationen", href: "/escalations", icon: AlertTriangle },
+      { name: "Analytics", href: "/analytics", icon: BarChart3 },
+    ],
+  },
+  {
+    title: "Customers",
+    items: [
+      { name: "Mitglieder", href: "/members", icon: Users },
+      { name: "Benutzer", href: "/users", icon: Users },
+      { name: "Tenants", href: "/tenants", icon: Building2 },
+    ],
+  },
+  {
+    title: "Knowledge",
+    items: [
+      { name: "Wissensbasis", href: "/knowledge", icon: BookOpen },
+      { name: "Member Memory", href: "/member-memory", icon: Brain },
+      { name: "LLM Prompt", href: "/system-prompt", icon: Bot },
+    ],
+  },
+  {
+    title: "System",
+    items: [
+      { name: "Plans & Billing", href: "/plans", icon: CreditCard },
+      { name: "Magicline Sync", href: "/magicline", icon: Database },
+      { name: "Audit Log", href: "/audit", icon: ScrollText },
+      { name: "Settings Center", href: "/settings", icon: Settings },
+    ],
+  },
+];
+
+export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logoUrl?: string }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [handoffCount, setHandoffCount] = useState(0);
+  const user = getStoredUser();
+  const role = user?.role;
+  const isSystemAdmin = user?.role === "system_admin";
+
+  useEffect(() => {
+    if (!isSystemAdmin) return;
+    const run = async () => {
+      try {
+        const res = await apiFetch("/admin/stats");
+        if (!res.ok) return;
+        const data = await res.json();
+        setHandoffCount(Number(data.active_handoffs || 0));
+      } catch {
+        // best effort
+      }
+    };
+    run();
+    const timer = setInterval(run, 15000);
+    return () => clearInterval(timer);
+  }, [isSystemAdmin]);
+
+  const allSections = useMemo(() => {
+    return sections.map((section) => ({
+      ...section,
+      items: section.items
+        .filter((item) => isPathAllowedForRole(role, item.href))
+        .map((item) => ({
+          ...item,
+          badge: item.href === "/escalations" && handoffCount > 0 ? String(handoffCount) : undefined,
+        })),
+    })).filter((section) => section.items.length > 0);
+  }, [handoffCount, role]);
+
+  const renderItem = (item: NavItem) => {
+    const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+    const Icon = item.icon;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={`${styles.item} ${isActive ? styles.itemActive : ""}`}
+      >
+        <Icon size={16} className={`${styles.itemIcon} ${isActive ? styles.itemIconActive : ""}`} />
+        <span className={`${styles.itemText} ${isActive ? styles.itemTextActive : ""}`}>
+          {item.name}
+        </span>
+        {item.badge && (
+          <span className={styles.itemBadge}>{item.badge}</span>
+        )}
+      </Link>
+    );
+  };
+
+  return (
+    <div className={styles.root}>
+      <div className={styles.brandWrap}>
+        <div className={styles.brandRow}>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt={appTitle || "Logo"}
+              className={styles.brandLogo}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          ) : (
+            <h1 className={styles.brandTitle}>
+              {appTitle || "ARNI"}<span className={styles.brandDot}>.</span>
+            </h1>
+          )}
+        </div>
+        <p className={styles.brandSub}>Control Deck</p>
+      </div>
+
+      <nav className={styles.nav}>
+        <div className={styles.quickWrap}>
+          <p className={styles.quickTitle}>
+            Quick Actions
+          </p>
+          <div className={styles.quickGrid}>
+            {[
+              ...(isSystemAdmin
+                ? [
+                    { label: "Dashboard", href: "/" },
+                    { label: "Tenants", href: "/tenants" },
+                    { label: "Einstellungen", href: "/settings" },
+                  ]
+                : [
+                    { label: "Live Monitor", href: "/live" },
+                    { label: "Analytics", href: "/analytics" },
+                    { label: "Einstellungen", href: "/settings" },
+                  ]),
+            ]
+              .filter((q) => isPathAllowedForRole(role, q.href))
+              .map((q) => (
+              <Link
+                key={q.href}
+                href={q.href}
+                className={styles.quickLink}
+              >
+                {q.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {allSections.map((section) => (
+          <div key={section.title} className={styles.section}>
+            <p className={styles.sectionLabel}>{section.title}</p>
+            {section.items.map(renderItem)}
+          </div>
+        ))}
+      </nav>
+
+      <div className={styles.footer}>
+        <div className={styles.footerRow}>
+          <div className={styles.avatar}>A</div>
+          <div className={styles.footerMeta}>
+            <p className={styles.footerEmail}>
+              {user?.email || "Admin"}
+            </p>
+            <p className={styles.footerRole}>{user?.role || "online"}</p>
+          </div>
+          <button
+            onClick={() => {
+              clearSession();
+              router.replace("/login");
+            }}
+            className={styles.logout}
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

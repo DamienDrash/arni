@@ -1,0 +1,74 @@
+# @ARCH: pyproject.toml – ARNI v1.4 Project Definition
+
+[project]
+name = "arni"
+version = "1.4.0"
+description = "ARNI – Living System Agent for GetImpulse Berlin"
+requires-python = ">=3.12"
+license = {text = "Proprietary"}
+
+dependencies = [
+    "fastapi>=0.115.0,<1.0",
+    "uvicorn[standard]>=0.34.0,<1.0",
+    "redis[hiredis]>=5.2.0,<6.0",
+    "pydantic>=2.10.0,<3.0",
+    "pydantic-settings>=2.7.0,<3.0",
+    "structlog>=24.4.0",
+    "websockets>=14.0,<15.0",
+    "httpx>=0.28.0,<1.0",
+    "faster-whisper>=1.0.0",
+    "ffmpeg-python>=0.2.0",
+    "soundfile>=0.12.0",
+    "kokoro-onnx>=0.3.0",  # Local TTS (Kokoro-82M)
+    "scipy>=1.13.0",       # Audio processing
+    "jinja2>=3.1.0",       # Templating for Prompts
+    "langfuse>=2.0.0",     # Observability / Tracing
+    "PyYAML>=6.0.0",       # Config parsing
+    "qdrant-client>=1.7.0", # Vector DB (Real Data)
+    "chromadb>=0.5.0",     # Vector DB (Knowledge Store)
+    "prometheus-client>=0.19.0", # Metrics
+    "piper-tts>=1.2.0",    # German TTS
+    "sqlalchemy>=2.0.0",   # Database ORM
+    "psycopg[binary]>=3.2.0", # PostgreSQL driver (multi-tenant production)
+    "pillow>=10.0.0",      # Image processing (Vision Stub)
+    "aiosqlite>=0.19.0",   # Async SQLite Driver
+    "networkx>=3.2.0",     # Graph Knowledge Base
+    "numpy>=1.26.0",       # Math/Array operations
+    "python-multipart>=0.0.9", # FastAPI Form/File support
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.0",
+    "fakeredis[json]>=2.26.0",
+    "httpx>=0.28.0",
+    "ruff>=0.9.0",
+    "mypy>=1.14.0",
+]
+
+[build-system]
+requires = ["setuptools>=75.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*", "config*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--tb=short --cov=app --cov-report=term-missing"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "ANN", "S", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true

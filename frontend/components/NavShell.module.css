@@ -1,0 +1,156 @@
+.desktopSidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 50;
+  width: 16rem;
+}
+
+.mobileBackdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.6);
+  transition: opacity 0.3s ease;
+}
+
+.mobileDrawer {
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 50;
+  width: 16rem;
+  transition: transform 0.3s ease;
+}
+
+.mobileTopbar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  height: 3.5rem;
+  flex-shrink: 0;
+  background: var(--arni-surface);
+  border-bottom: 1px solid var(--arni-border);
+}
+
+.brand {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--arni-text);
+  letter-spacing: -0.5px;
+}
+
+.brandDot {
+  color: var(--arni-accent);
+}
+
+.menuButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--arni-text-muted);
+  display: flex;
+  padding: 6px;
+  border-radius: 8px;
+}
+
+.appMain {
+  margin-left: 16rem;
+  min-height: 100vh;
+  overflow-x: hidden;
+  padding: 1rem;
+}
+
+.pageHead {
+  margin-bottom: 18px;
+}
+
+.ghostBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklab, var(--arni-accent) 45%, var(--arni-border));
+  background: color-mix(in oklab, var(--arni-accent) 16%, var(--arni-surface));
+  border-radius: 12px;
+}
+
+.ghostBannerText {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--arni-text);
+}
+
+.ghostBannerExit {
+  border: none;
+  border-radius: 10px;
+  background: var(--arni-accent);
+  color: #061018;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.ghostBannerExit:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.pageTitle {
+  margin: 0;
+  color: var(--arni-text);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.pageSubtitle {
+  margin: 4px 0 0;
+  color: var(--arni-text-dim);
+  font-size: 12px;
+}
+
+@media (min-width: 768px) {
+  .appMain {
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .desktopSidebar {
+    display: none;
+  }
+
+  .mobileBackdrop {
+    display: block;
+  }
+
+  .mobileDrawer {
+    display: block;
+  }
+
+  .mobileTopbar {
+    display: flex;
+  }
+
+  .appMain {
+    margin-left: 0;
+  }
+
+  .ghostBanner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
