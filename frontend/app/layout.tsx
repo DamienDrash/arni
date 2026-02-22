@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import NavShell from "../components/NavShell";
+import { Providers } from "./providers";
 
 const headingFont = Space_Grotesk({
   subsets: ["latin"],
@@ -32,7 +33,9 @@ export default function RootLayout({
         suppressHydrationWarning={true}
         className={`${headingFont.variable} ${monoFont.variable} font-sans antialiased`}
       >
-        <NavShell>{children}</NavShell>
+        <Providers>
+          <NavShell>{children}</NavShell>
+        </Providers>
       </body>
     </html>
   );
