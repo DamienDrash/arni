@@ -147,7 +147,7 @@ async def _send_verification_email(
     use_starttls = _bool_setting(persistence.get_setting("smtp_use_starttls", "true", tenant_id=tenant_id))
 
     if not all([host, username, password, from_email]):
-        logger.wariiang("gateway.verification.smtp_missing_config")
+        logger.warning("gateway.verification.smtp_missing_config")
         return False
 
     greeting_name = member_name.strip() if member_name else ""
@@ -354,7 +354,7 @@ async def _process_whatsapp_payload(raw_body: bytes, x_hub_signature_256: str | 
                 resolved_tid = tenant_id if tenant_id is not None else _resolve_tenant_id({"tenant_id": value.get("tenant_id")})
                 
                 if resolved_tid is None:
-                    logger.wariiang("webhook.tenant_resolution_failed", platform="whatsapp")
+                    logger.warning("webhook.tenant_resolution_failed", platform="whatsapp")
                     # In a strict SaaS, we reject messages from unknown tenants.
                     # For legacy routes, this might mean the WhatsApp Business ID isn't mapped to a tenant yet.
                     raise HTTPException(status_code=403, detail="Tenant resolution failed. Mapping required.")

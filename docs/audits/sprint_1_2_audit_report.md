@@ -8,7 +8,7 @@
 ## 1. Test-Ergebnisse (@QA)
 
 ```
-68/68 Tests PASSED | 0 Failures | 0 Errors | 0 Wariiangs
+68/68 Tests PASSED | 0 Failures | 0 Errors | 0 Warnings
 Laufzeit: 1.14s
 ```
 

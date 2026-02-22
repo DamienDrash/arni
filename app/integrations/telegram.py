@@ -220,7 +220,7 @@ class TelegramBot:
 
         Args:
             message: Alert message text.
-            severity: info|wariiang|error|critical.
+            severity: info|warning|error|critical.
             chat_id: Override chat ID (defaults to admin_chat_id).
 
         Returns:
@@ -228,12 +228,12 @@ class TelegramBot:
         """
         target = chat_id or self._admin_chat_id
         if not target:
-            logger.wariiang("telegram.no_admin_chat", msg="Admin chat ID not configured")
+            logger.warning("telegram.no_admin_chat", msg="Admin chat ID not configured")
             return {"ok": False, "error": "no_admin_chat_id"}
 
         emoji_map = {
             "info": "ℹ️",
-            "wariiang": "⚠️",
+            "warning": "⚠️",
             "error": "❌",
             "critical": "🚨",
         }

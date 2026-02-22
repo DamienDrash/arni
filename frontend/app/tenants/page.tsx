@@ -293,7 +293,7 @@ export default function TenantsPage() {
                   <td style={{ padding: "10px 12px", fontSize: 13, color: T.text }}>{counts.users}</td>
                   <td style={{ padding: "10px 12px", fontSize: 13, color: T.text }}>{counts.admins}</td>
                   <td style={{ padding: "10px 12px", fontSize: 13, color: T.text }}>{counts.active}</td>
-                  <td style={{ padding: "10px 12px" }}><Badge variant={(t.is_active ?? true) ? "success" : "wariiang"} size="xs">{(t.is_active ?? true) ? "active" : "inactive"}</Badge></td>
+                  <td style={{ padding: "10px 12px" }}><Badge variant={(t.is_active ?? true) ? "success" : "warning"} size="xs">{(t.is_active ?? true) ? "active" : "inactive"}</Badge></td>
                   <td style={{ padding: "10px 12px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <button onClick={() => setDetailTenant(t)} style={{ borderRadius: 8, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 12, padding: "7px 10px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -349,7 +349,7 @@ export default function TenantsPage() {
                       <div style={{ fontSize: 12, color: T.textDim }}>{t.slug}</div>
                     </div>
                   </div>
-                  <div><Badge variant={(t.is_active ?? true) ? "success" : "wariiang"} size="xs">{(t.is_active ?? true) ? "active" : "inactive"}</Badge></div>
+                  <div><Badge variant={(t.is_active ?? true) ? "success" : "warning"} size="xs">{(t.is_active ?? true) ? "active" : "inactive"}</Badge></div>
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 4 }}>
@@ -410,7 +410,7 @@ export default function TenantsPage() {
         {detailTenant && (
           <div style={{ display: "grid", gap: 14 }}>
             <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}>
-              <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Status</div><div style={{ fontSize: 13, color: (detailTenant.is_active ?? true) ? T.success : T.wariiang }}>{(detailTenant.is_active ?? true) ? "active" : "inactive"}</div></Card>
+              <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Status</div><div style={{ fontSize: 13, color: (detailTenant.is_active ?? true) ? T.success : T.warning }}>{(detailTenant.is_active ?? true) ? "active" : "inactive"}</div></Card>
               <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Benutzer</div><div style={{ fontSize: 13, color: T.text }}>{detailUsers.length}</div></Card>
               <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Aktive Benutzer</div><div style={{ fontSize: 13, color: T.text }}>{detailUsers.filter((u) => u.is_active).length}</div></Card>
             </div>

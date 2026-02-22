@@ -321,7 +321,7 @@ export default function UsersPage() {
         <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>Gesamt</div><div style={{ fontSize: 26, color: T.text, fontWeight: 800 }}>{stats.total}</div></Card>
         <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>Aktiv</div><div style={{ fontSize: 26, color: T.success, fontWeight: 800 }}>{stats.active}</div></Card>
         <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>Tenant Admins</div><div style={{ fontSize: 26, color: T.accent, fontWeight: 800 }}>{stats.tenantAdmins}</div></Card>
-        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>System Admins</div><div style={{ fontSize: 26, color: T.wariiang, fontWeight: 800 }}>{stats.systemAdmins}</div></Card>
+        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>System Admins</div><div style={{ fontSize: 26, color: T.warning, fontWeight: 800 }}>{stats.systemAdmins}</div></Card>
       </div>
 
       <Card style={{ padding: 16 }}>
@@ -424,7 +424,7 @@ export default function UsersPage() {
                 </td>
                 <td style={{ padding: "10px 12px" }}>{roleBadge(r.role)}</td>
                 <td style={{ padding: "10px 12px", fontSize: 12, color: T.text }}>{r.tenant_name || r.tenant_slug || r.tenant_id}</td>
-                <td style={{ padding: "10px 12px" }}>{r.is_active ? <Badge variant="success" size="xs">active</Badge> : <Badge variant="wariiang" size="xs">inactive</Badge>}</td>
+                <td style={{ padding: "10px 12px" }}>{r.is_active ? <Badge variant="success" size="xs">active</Badge> : <Badge variant="warning" size="xs">inactive</Badge>}</td>
                 <td style={{ padding: "10px 12px", fontSize: 12, color: T.textDim }}>{r.created_at ? new Date(r.created_at).toLocaleString("de-DE") : "-"}</td>
                 <td style={{ padding: "10px 12px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -482,7 +482,7 @@ export default function UsersPage() {
                     <div style={{ fontSize: 12, color: T.textDim }}>{r.full_name || "-"}</div>
                   </div>
                 </div>
-                <div>{r.is_active ? <Badge variant="success" size="xs">active</Badge> : <Badge variant="wariiang" size="xs">inactive</Badge>}</div>
+                <div>{r.is_active ? <Badge variant="success" size="xs">active</Badge> : <Badge variant="warning" size="xs">inactive</Badge>}</div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -542,7 +542,7 @@ export default function UsersPage() {
           <div style={{ display: "grid", gap: 14 }}>
             <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}>
               <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Tenant</div><div style={{ fontSize: 13, color: T.text }}>{detailUser.tenant_name || detailUser.tenant_slug || detailUser.tenant_id}</div></Card>
-              <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Status</div><div style={{ fontSize: 13, color: detailUser.is_active ? T.success : T.wariiang }}>{detailUser.is_active ? "active" : "inactive"}</div></Card>
+              <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Status</div><div style={{ fontSize: 13, color: detailUser.is_active ? T.success : T.warning }}>{detailUser.is_active ? "active" : "inactive"}</div></Card>
               <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Erstellt</div><div style={{ fontSize: 13, color: T.text }}>{detailUser.created_at ? new Date(detailUser.created_at).toLocaleString("de-DE") : "-"}</div></Card>
             </div>
             <div style={{ border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>

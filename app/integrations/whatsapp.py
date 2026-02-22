@@ -153,7 +153,7 @@ class WhatsAppClient:
             True if signature is valid.
         """
         if not self._app_secret:
-            logger.wariiang("whatsapp.signature_misconfigured", reason="no_app_secret_configured")
+            logger.warning("whatsapp.signature_misconfigured", reason="no_app_secret_configured")
             return False
 
         if not signature_header or not signature_header.startswith("sha256="):

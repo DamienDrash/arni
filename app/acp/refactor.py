@@ -25,7 +25,7 @@ class CodeIssue:
     line_number: int
     issue_type: str
     message: str
-    severity: str = "wariiang"
+    severity: str = "warning"
 
 
 @dataclass

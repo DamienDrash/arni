@@ -29,7 +29,7 @@ def load_offset() -> int | None:
             if raw.isdigit():
                 return int(raw)
     except Exception as e:
-        logger.wariiang("polling.offset_load_failed", error=str(e))
+        logger.warning("polling.offset_load_failed", error=str(e))
     return None
 
 
@@ -40,7 +40,7 @@ def save_offset(offset: int | None) -> None:
         OFFSET_FILE.parent.mkdir(parents=True, exist_ok=True)
         OFFSET_FILE.write_text(str(offset), encoding="utf-8")
     except Exception as e:
-        logger.wariiang("polling.offset_save_failed", error=str(e))
+        logger.warning("polling.offset_save_failed", error=str(e))
 
 async def forward_update(update: dict, client: httpx.AsyncClient):
     """Post update to local gateway."""
@@ -91,14 +91,14 @@ async def run_polling():
             break
         except Exception as e:
             if "Conflict" in str(e):
-                logger.wariiang("polling.conflict_detected_retrying", error=str(e))
+                logger.warning("polling.conflict_detected_retrying", error=str(e))
                 continue
             elif "Timed out" in str(e) or "ReadTimeout" in str(e):
                 # Timeout means polling IS working (no conflict)
                 logger.info("polling.webhook_cleared_confirmed_via_timeout")
                 break
             else:
-                logger.wariiang("polling.webhook_clear_error", error=str(e))
+                logger.warning("polling.webhook_clear_error", error=str(e))
                 # Treat other errors as non-fatal to the loop?
                 pass
     else:

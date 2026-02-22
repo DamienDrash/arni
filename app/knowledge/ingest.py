@@ -40,7 +40,7 @@ def ingest_knowledge(knowledge_dir: str = KNOWLEDGE_DIR, collection_name: str = 
             with open(file_path, encoding="utf-8") as f:
                 content = f.read()
         except OSError as exc:
-            logger.wariiang("knowledge.ingest.read_failed", path=file_path, error=str(exc))
+            logger.warning("knowledge.ingest.read_failed", path=file_path, error=str(exc))
             continue
 
         filename = os.path.basename(file_path)

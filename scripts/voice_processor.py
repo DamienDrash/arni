@@ -57,7 +57,7 @@ async def voice_processor():
                 detected_lang = transcribed_data.get("language", "en")
                 
                 if not transcribed_text:
-                    logger.wariiang("worker.stt_failed", message_id=message.message_id)
+                    logger.warning("worker.stt_failed", message_id=message.message_id)
                     continue
 
                 # Update Message
@@ -84,7 +84,7 @@ async def voice_processor():
                     else:
                         # Fallback to text
                         await telegram_bot.send_message(chat_id, result.content)
-                        logger.wariiang("worker.reply_sent_text_fallback", to=chat_id)
+                        logger.warning("worker.reply_sent_text_fallback", to=chat_id)
 
             except Exception as e:
                 logger.error("worker.job_failed", error=str(e))

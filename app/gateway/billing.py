@@ -112,7 +112,7 @@ def _write_audit_event(actor: AuthContext, action: str, details: dict) -> None:
         ))
         db.commit()
     except Exception as exc:
-        logger.wariiang("billing.audit_write_failed", error=str(exc))
+        logger.warning("billing.audit_write_failed", error=str(exc))
         db.rollback()
     finally:
         db.close()
@@ -338,7 +338,7 @@ def _handle_checkout_completed(event_data: dict) -> None:
     stripe_customer_id     = session.get("customer")
 
     if not tenant_id or not plan_id:
-        logger.wariiang("billing.webhook.checkout_completed.missing_metadata", metadata=metadata)
+        logger.warning("billing.webhook.checkout_completed.missing_metadata", metadata=metadata)
         return
 
     db = SessionLocal()
@@ -391,12 +391,12 @@ def _handle_subscription_event(event_type: str, event_data: dict) -> None:
         elif tenant_id:
             sub = q.filter(Subscription.tenant_id == int(tenant_id)).first()
         else:
-            logger.wariiang("billing.webhook.subscription_event.no_identifier",
+            logger.warning("billing.webhook.subscription_event.no_identifier",
                            event_type=event_type, sub_id=stripe_sub_id)
             return
 
         if not sub:
-            logger.wariiang("billing.webhook.subscription_event.not_found",
+            logger.warning("billing.webhook.subscription_event.not_found",
                            stripe_sub_id=stripe_sub_id, tenant_id=tenant_id)
             return
 
@@ -469,7 +469,7 @@ async def stripe_webhook(request: Request) -> Response:
 
     webhook_secret = (persistence.get_setting("billing_stripe_webhook_secret", "") or "").strip()
     if not webhook_secret:
-        logger.wariiang("billing.webhook.received_without_secret")
+        logger.warning("billing.webhook.received_without_secret")
         return Response(content="webhook_secret not configured", status_code=400)
 
     secret_key = (persistence.get_setting("billing_stripe_secret_key", "") or "").strip()
@@ -482,11 +482,11 @@ async def stripe_webhook(request: Request) -> Response:
             secret=webhook_secret,
         )
     except ValueError:
-        logger.wariiang("billing.webhook.invalid_payload")
+        logger.warning("billing.webhook.invalid_payload")
         return Response(content="invalid payload", status_code=400)
     except Exception as exc:
         # stripe.error.SignatureVerificationError
-        logger.wariiang("billing.webhook.signature_invalid", error=str(exc))
+        logger.warning("billing.webhook.signature_invalid", error=str(exc))
         return Response(content="invalid signature", status_code=400)
 
     event_type = event.get("type", "")

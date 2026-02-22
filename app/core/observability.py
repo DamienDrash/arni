@@ -72,7 +72,7 @@ class ObservabilityService:
         self.client: Any = None
 
         if not HAS_LANGFUSE:
-            logger.wariiang("observability.disabled", reason="langfuse_library_not_installed")
+            logger.warning("observability.disabled", reason="langfuse_library_not_installed")
             return
 
         pk   = os.getenv("LANGFUSE_PUBLIC_KEY", "").strip()
@@ -80,7 +80,7 @@ class ObservabilityService:
         host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com").strip()
 
         if not (pk and sk):
-            logger.wariiang("observability.disabled", reason="missing_langfuse_keys")
+            logger.warning("observability.disabled", reason="missing_langfuse_keys")
             return
 
         try:
@@ -122,7 +122,7 @@ class ObservabilityService:
                 input=input,
             )
         except Exception as exc:
-            logger.wariiang("observability.trace_create_failed", name=name, error=str(exc))
+            logger.warning("observability.trace_create_failed", name=name, error=str(exc))
             return None
 
     def create_span(
@@ -139,7 +139,7 @@ class ObservabilityService:
         try:
             return effective_trace.span(name=name, input=input, metadata=metadata or {})
         except Exception as exc:
-            logger.wariiang("observability.span_create_failed", name=name, error=str(exc))
+            logger.warning("observability.span_create_failed", name=name, error=str(exc))
             return None
 
     def end_span(
@@ -160,7 +160,7 @@ class ObservabilityService:
             else:
                 span.end(output=output)
         except Exception as exc:
-            logger.wariiang("observability.span_end_failed", error=str(exc))
+            logger.warning("observability.span_end_failed", error=str(exc))
 
     def log_llm_generation(
         self,
@@ -186,7 +186,7 @@ class ObservabilityService:
                 metadata=metadata or {},
             )
         except Exception as exc:
-            logger.wariiang("observability.generation_failed", name=name, error=str(exc))
+            logger.warning("observability.generation_failed", name=name, error=str(exc))
 
     def flush(self) -> None:
         """Flush all pending traces to Langfuse. Call before process exit."""
@@ -194,7 +194,7 @@ class ObservabilityService:
             try:
                 self.client.flush()
             except Exception as exc:
-                logger.wariiang("observability.flush_failed", error=str(exc))
+                logger.warning("observability.flush_failed", error=str(exc))
 
     def trace(self, **kwargs: Any) -> Any:
         """Backward-compat alias for start_trace (used by older callers)."""

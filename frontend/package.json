@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "lint:strict": "eslint . --max-wariiangs=0",
+    "lint:strict": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test:rbac": "node --import tsx --test tests/rbac.contract.test.ts",
     "test:e2e": "playwright test",

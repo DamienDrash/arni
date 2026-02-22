@@ -32,10 +32,10 @@ def test_legacy_headers_rejected_by_default():
         assert exc_info.value.status_code == 401
 
 
-# ── S1.2: Wariiang function prints loud box to stderr ──────────────────────────
+# ── S1.2: Warning function prints loud box to stderr ──────────────────────────
 
 def test_warn_legacy_auth_active_prints_to_stderr(capsys):
-    """_warn_legacy_auth_active must write a visible wariiang to stderr."""
+    """_warn_legacy_auth_active must write a visible warning to stderr."""
     _warn_legacy_auth_active()
     captured = capsys.readouterr()
     assert "SECURITY WARIIANG" in captured.err
@@ -43,10 +43,10 @@ def test_warn_legacy_auth_active_prints_to_stderr(capsys):
     assert "AUTH_ALLOW_HEADER_FALLBACK" in captured.err
 
 
-# ── S1.3: ensure_default_tenant_and_admin calls wariiang when both flags active ─
+# ── S1.3: ensure_default_tenant_and_admin calls warning when both flags active ─
 
 def test_startup_calls_warn_when_legacy_mode_active():
-    """ensure_default_tenant_and_admin triggers wariiang only when both flags are True."""
+    """ensure_default_tenant_and_admin triggers warning only when both flags are True."""
     mock_settings = MagicMock()
     mock_settings.auth_transition_mode = True
     mock_settings.auth_allow_header_fallback = True
@@ -68,7 +68,7 @@ def test_startup_calls_warn_when_legacy_mode_active():
 
 
 def test_startup_no_warn_when_legacy_mode_disabled():
-    """No wariiang is emitted when transition_mode=False."""
+    """No warning is emitted when transition_mode=False."""
     mock_settings = MagicMock()
     mock_settings.auth_transition_mode = False
     mock_settings.auth_allow_header_fallback = False

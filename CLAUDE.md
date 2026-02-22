@@ -39,7 +39,7 @@ cd frontend
 npm install
 npm run dev                   # dev server on :3000
 npm run qa:gate               # full quality gate: lint + typecheck + build
-npm run lint:strict           # ESLint with zero wariiangs
+npm run lint:strict           # ESLint with zero warnings
 npm run typecheck             # tsc --noEmit
 npm run test:rbac             # RBAC contract tests
 npm run build                 # production build

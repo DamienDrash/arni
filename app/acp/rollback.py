@@ -78,7 +78,7 @@ class RollbackManager:
         Args:
             tag_name: Checkpoint tag to revert to.
         """
-        logger.wariiang("rollback.reverting", tag=tag_name)
+        logger.warning("rollback.reverting", tag=tag_name)
         
         # 1. Hard reset to tag
         self._git(["reset", "--hard", tag_name])

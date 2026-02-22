@@ -96,7 +96,7 @@ class VisionProcessor:
                 self._model = YOLO(model_path)
                 logger.info("vision.model_loaded", model=model_path)
             except Exception as e:
-                logger.wariiang("vision.model_load_failed", error=str(e))
+                logger.warning("vision.model_load_failed", error=str(e))
                 self._stub_mode = True
 
     @property

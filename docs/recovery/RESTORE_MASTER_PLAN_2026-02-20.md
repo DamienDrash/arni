@@ -200,7 +200,7 @@ Rekonstruktion des Stands unmittelbar vor dem Löschvorfall inklusive Multi-Tena
   - Ergebnis: `ariia-telegram` läuft jetzt `healthy` statt permanent `unhealthy`.
 - **Verifikation**
   - Frontend: `npx tsc --noEmit` ✅
-  - Frontend: `npx eslint components/TiptapEditor.tsx --max-wariiangs=0` ✅
+  - Frontend: `npx eslint components/TiptapEditor.tsx --max-warnings=0` ✅
   - Backend-Regression: `.venv/bin/pytest -q tests/test_auth_restore.py tests/test_security_hardening.py` => `4 passed` ✅
 
 ## Update 2026-02-20 (R7 Deepening: Tenant/Role Guardrails)

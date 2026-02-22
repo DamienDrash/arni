@@ -51,14 +51,14 @@ async def lifespan(app: FastAPI):
         from app.core.feature_gates import seed_plans
         seed_plans()
     except Exception as _e:
-        logger.wariiang("ariia.gateway.billing_seed_skipped", error=str(_e))
+        logger.warning("ariia.gateway.billing_seed_skipped", error=str(_e))
         
     logger.info("ariia.gateway.startup", version="1.4.0", env=settings.environment)
     
     try:
         await redis_bus.connect()
     except Exception:
-        logger.wariiang("ariia.gateway.redis_unavailable", msg="Starting without Redis")
+        logger.warning("ariia.gateway.redis_unavailable", msg="Starting without Redis")
 
     # Initial member sync
     async def _run_members_sync() -> None:
@@ -66,7 +66,7 @@ async def lifespan(app: FastAPI):
             from app.integrations.magicline.members_sync import sync_members_from_magicline
             await asyncio.to_thread(sync_members_from_magicline)
         except Exception as e:
-            logger.wariiang("ariia.gateway.members_sync_skipped", error=str(e))
+            logger.warning("ariia.gateway.members_sync_skipped", error=str(e))
 
     background_tasks.append(asyncio.create_task(_run_members_sync()))
     
@@ -74,13 +74,13 @@ async def lifespan(app: FastAPI):
         from app.memory.member_memory_analyzer import scheduler_loop
         background_tasks.append(asyncio.create_task(scheduler_loop()))
     except Exception as e:
-        logger.wariiang("ariia.gateway.member_memory_scheduler_skipped", error=str(e))
+        logger.warning("ariia.gateway.member_memory_scheduler_skipped", error=str(e))
         
     try:
         from app.integrations.magicline.scheduler import magicline_sync_scheduler_loop
         background_tasks.append(asyncio.create_task(magicline_sync_scheduler_loop()))
     except Exception as e:
-        logger.wariiang("ariia.gateway.magicline_scheduler_skipped", error=str(e))
+        logger.warning("ariia.gateway.magicline_scheduler_skipped", error=str(e))
 
     yield
     

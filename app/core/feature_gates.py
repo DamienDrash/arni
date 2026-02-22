@@ -66,7 +66,7 @@ class FeatureGate:
             finally:
                 db.close()
         except Exception as exc:
-            logger.wariiang("feature_gate.plan_load_failed", tenant_id=self._tenant_id, error=str(exc))
+            logger.warning("feature_gate.plan_load_failed", tenant_id=self._tenant_id, error=str(exc))
         return dict(_STARTER_DEFAULTS)
 
     # ── Channel Gates ─────────────────────────────────────────────────────────
@@ -145,7 +145,7 @@ class FeatureGate:
             finally:
                 db.close()
         except Exception as exc:
-            logger.wariiang("feature_gate.usage_load_failed", tenant_id=self._tenant_id, error=str(exc))
+            logger.warning("feature_gate.usage_load_failed", tenant_id=self._tenant_id, error=str(exc))
         return {"messages_inbound": 0, "messages_outbound": 0, "active_members": 0, "llm_tokens_used": 0}
 
     # ── Usage Tracking ────────────────────────────────────────────────────────
@@ -202,7 +202,7 @@ class FeatureGate:
             finally:
                 db.close()
         except Exception as exc:
-            logger.wariiang("feature_gate.usage_increment_failed", field=field, tenant_id=self._tenant_id, error=str(exc))
+            logger.warning("feature_gate.usage_increment_failed", field=field, tenant_id=self._tenant_id, error=str(exc))
 
 
 def seed_plans() -> None:
@@ -281,6 +281,6 @@ def seed_plans() -> None:
                 logger.info("feature_gate.subscriptions_seeded", count=seeded_count)
     except Exception as exc:
         db.rollback()
-        logger.wariiang("feature_gate.plans_seed_failed", error=str(exc))
+        logger.warning("feature_gate.plans_seed_failed", error=str(exc))
     finally:
         db.close()

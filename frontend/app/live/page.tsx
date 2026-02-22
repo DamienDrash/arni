@@ -424,7 +424,7 @@ export default function LiveGhostPage() {
                   <Phone size={12} /> Link Member
                 </MiniButton>
               )}
-              <Badge variant={wsStatus === "connected" ? "success" : "wariiang"}>
+              <Badge variant={wsStatus === "connected" ? "success" : "warning"}>
                 {wsStatus === "connected" ? "Realtime aktiv" : wsStatus === "connecting" ? "Verbinde…" : wsStatus === "stale" ? "Reconnect…" : "Fallback Polling"}
               </Badge>
             </div>

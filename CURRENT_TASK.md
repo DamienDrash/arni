@@ -25,7 +25,7 @@
 ### Metriken
 - **Tests:** 68/68 passed ✅ (34 Sprint 1 + 34 Sprint 2)
 - **Coverage:** 77% global | Router 91% | Agents 79–93%
-- **Wariiangs:** 0
+- **Warnings:** 0
 
 ### Nächster Schritt
 🚀 **Sprint 3:** Communication Layer (WhatsApp, Telegram, Message Normalization)

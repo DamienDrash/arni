@@ -183,7 +183,7 @@ export function MagiclinePage() {
               <>
                 <Badge variant="success" size="xs">{syncResult.fetched} geladen</Badge>
                 <Badge variant="accent" size="xs">{syncResult.upserted} aktualisiert</Badge>
-                {syncResult.deleted > 0 && <Badge variant="wariiang" size="xs">{syncResult.deleted} entfernt</Badge>}
+                {syncResult.deleted > 0 && <Badge variant="warning" size="xs">{syncResult.deleted} entfernt</Badge>}
               </>
             )}
             {enrichAllDone && enrichEnqueued !== null && enrichEnqueued > 0 && (
@@ -334,10 +334,10 @@ export function MagiclinePage() {
                       <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>verifiziert</div>
                       <div style={{ fontSize: 11, color: T.success, fontWeight: 600 }}>{verifiedPct}%</div>
                     </div>
-                    <div style={{ flex: 1, padding: "12px 14px", borderRadius: 10, background: T.wariiangDim, border: `1px solid ${T.wariiang}30` }}>
-                      <div style={{ fontSize: 20, fontWeight: 800, color: T.wariiang }}>{unverified}</div>
+                    <div style={{ flex: 1, padding: "12px 14px", borderRadius: 10, background: T.warningDim, border: `1px solid ${T.warning}30` }}>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: T.warning }}>{unverified}</div>
                       <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>unverifiziert</div>
-                      <div style={{ fontSize: 11, color: T.wariiang, fontWeight: 600 }}>{100 - verifiedPct}%</div>
+                      <div style={{ fontSize: 11, color: T.warning, fontWeight: 600 }}>{100 - verifiedPct}%</div>
                     </div>
                   </div>
                 </div>
@@ -403,10 +403,10 @@ export function MagiclinePage() {
                       <div style={{ fontSize: 11, color: T.textMuted, marginTop: 3 }}>Aktiv</div>
                       <div style={{ fontSize: 11, color: T.success, fontWeight: 600, marginTop: 1 }}>{activePct}%</div>
                     </div>
-                    <div style={{ flex: 1, padding: "12px 14px", borderRadius: 10, background: T.wariiangDim, border: `1px solid ${T.wariiang}30` }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: T.wariiang, lineHeight: 1 }}>{paused.toLocaleString("de")}</div>
+                    <div style={{ flex: 1, padding: "12px 14px", borderRadius: 10, background: T.warningDim, border: `1px solid ${T.warning}30` }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: T.warning, lineHeight: 1 }}>{paused.toLocaleString("de")}</div>
                       <div style={{ fontSize: 11, color: T.textMuted, marginTop: 3 }}>Pausiert</div>
-                      <div style={{ fontSize: 11, color: T.wariiang, fontWeight: 600, marginTop: 1 }}>{pausedPct}%</div>
+                      <div style={{ fontSize: 11, color: T.warning, fontWeight: 600, marginTop: 1 }}>{pausedPct}%</div>
                     </div>
                   </div>
                   <ProgressBar value={activePct} max={100} color={T.success} height={5} />

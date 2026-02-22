@@ -72,7 +72,7 @@ async def websocket_control(ws: WebSocket) -> None:
                      try:
                          platform = Platform(platform_str)
                      except ValueError:
-                         logger.wariiang("ws.invalid_platform", platform=platform_str, default="whatsapp")
+                         logger.warning("ws.invalid_platform", platform=platform_str, default="whatsapp")
                          platform = Platform.WHATSAPP
 
                      if user_id:

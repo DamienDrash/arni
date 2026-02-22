@@ -36,7 +36,7 @@ def _load_magicline_skill_prompt() -> str:
         if candidate.exists():
             return candidate.read_text(encoding="utf-8")
     except Exception as e:
-        logger.wariiang("agent.ops.skill_prompt_load_failed", error=str(e))
+        logger.warning("agent.ops.skill_prompt_load_failed", error=str(e))
     return ""
 
 
@@ -159,7 +159,7 @@ class AgentOps(BaseAgent):
                 finally:
                     db.close()
             except Exception as e:
-                logger.wariiang("agent.ops.member_profile_failed", error=str(e))
+                logger.warning("agent.ops.member_profile_failed", error=str(e))
 
         engine = get_engine()
         context = {
@@ -185,7 +185,7 @@ class AgentOps(BaseAgent):
                 tenant_prompt_raw = tenant_prompt_path.read_text(encoding="utf-8")
                 ops_system_prompt = engine.env.from_string(tenant_prompt_raw).render(**context)
             except Exception as e:
-                logger.wariiang("agent.ops.tenant_prompt_render_failed", error=str(e), tenant=tenant_slug)
+                logger.warning("agent.ops.tenant_prompt_render_failed", error=str(e), tenant=tenant_slug)
                 ops_system_prompt = engine.render("ops/system.j2", **context)
         else:
             ops_system_prompt = engine.render("ops/system.j2", **context)
@@ -231,7 +231,7 @@ class AgentOps(BaseAgent):
 
         # Safety: never expose raw TOOL commands to users.
         if "TOOL:" in response_1:
-            logger.wariiang("agent.ops.unparsed_tool_response", response=response_1)
+            logger.warning("agent.ops.unparsed_tool_response", response=response_1)
             return AgentResponse(
                 content="Ich habe den Terminbefehl erkannt, aber die Ausführung war unklar. Sag kurz: 'Welche Termine habe ich heute?'",
                 confidence=0.6,

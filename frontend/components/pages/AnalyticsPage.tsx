@@ -100,7 +100,7 @@ export function AnalyticsPage() {
               <YAxis stroke={T.textDim} tick={{ fontSize: 10 }} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="resolved" stackId="a" fill={T.success} name="KI gelöst" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="escalated" stackId="a" fill={T.wariiang} name="Eskaliert" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="escalated" stackId="a" fill={T.warning} name="Eskaliert" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -161,10 +161,10 @@ export function AnalyticsPage() {
                   </td>
                   <td style={{ padding: "14px 16px", fontSize: 13, fontWeight: 700, color: T.text }}>{r.tickets}</td>
                   <td style={{ padding: "14px 16px" }}>
-                    <Badge variant={r.aiRate >= 80 ? "success" : r.aiRate >= 70 ? "info" : "wariiang"}>{r.aiRate}%</Badge>
+                    <Badge variant={r.aiRate >= 80 ? "success" : r.aiRate >= 70 ? "info" : "warning"}>{r.aiRate}%</Badge>
                   </td>
                   <td style={{ padding: "14px 16px" }}>
-                    <Badge variant={parseInt(r.esc) <= 18 ? "success" : parseInt(r.esc) <= 25 ? "wariiang" : "danger"}>{r.esc}</Badge>
+                    <Badge variant={parseInt(r.esc) <= 18 ? "success" : parseInt(r.esc) <= 25 ? "warning" : "danger"}>{r.esc}</Badge>
                   </td>
                 </tr>
               ))}

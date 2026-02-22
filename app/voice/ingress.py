@@ -38,7 +38,7 @@ class AudioIngress:
     def __init__(self) -> None:
         self._ffmpeg_available = FFMPEG_AVAILABLE
         if not self._ffmpeg_available:
-            logger.wariiang("voice.ffmpeg_unavailable", msg="ffmpeg not found, conversion disabled")
+            logger.warning("voice.ffmpeg_unavailable", msg="ffmpeg not found, conversion disabled")
 
     @property
     def has_ffmpeg(self) -> bool:
@@ -58,7 +58,7 @@ class AudioIngress:
             return audio_data
 
         if not self._ffmpeg_available:
-            logger.wariiang("voice.conversion_skipped", reason="no ffmpeg")
+            logger.warning("voice.conversion_skipped", reason="no ffmpeg")
             return audio_data
 
         return self._ffmpeg_convert(audio_data, source_format)

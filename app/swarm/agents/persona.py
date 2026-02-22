@@ -38,7 +38,7 @@ class AgentPersona(BaseAgent):
             with open("docs/personas/SOUL.md", "r", encoding="utf-8") as f:
                 return f.read()
         except Exception:
-            logger.wariiang("agent.persona.soul_missing")
+            logger.warning("agent.persona.soul_missing")
             return ""
 
     async def _trigger_handoff(self, user_id: str, tenant_id: int | None = None) -> None:
@@ -70,7 +70,7 @@ class AgentPersona(BaseAgent):
                 try:
                     await bus.disconnect()
                 except Exception as disc_err:
-                    logger.wariiang(
+                    logger.warning(
                         "agent.persona.handoff_disconnect_failed",
                         error=str(disc_err),
                     )

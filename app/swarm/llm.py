@@ -63,7 +63,7 @@ class LLMClient:
             try:
                 return await self._call_openai(messages, model, temperature, max_tokens, effective_key)
             except Exception as e:
-                logger.wariiang(
+                logger.warning(
                     "llm.openai_failed",
                     error=str(e),
                     action="switching_to_ollama",

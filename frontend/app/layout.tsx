@@ -30,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="inntegrate-hybrid">
       <body
-        suppressHydrationWariiang={true}
+        suppressHydrationWarning={true}
         className={`${headingFont.variable} ${monoFont.variable} font-sans antialiased`}
       >
         <Providers>

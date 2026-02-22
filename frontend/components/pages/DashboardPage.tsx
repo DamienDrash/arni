@@ -48,14 +48,14 @@ const CHANNEL_META: Record<string, { name: string; color: string; icon: string; 
   whatsapp: { name: "WhatsApp", color: T.whatsapp, icon: "WA", ch: "whatsapp" },
   telegram: { name: "Telegram", color: T.telegram, icon: "TG", ch: "telegram" },
   email:    { name: "E-Mail",   color: T.email,    icon: "EM", ch: "email" },
-  sms:      { name: "SMS",      color: T.wariiang,  icon: "SM", ch: "phone" },
+  sms:      { name: "SMS",      color: T.warning,  icon: "SM", ch: "phone" },
   phone:    { name: "Telefon",  color: T.phone,    icon: "PH", ch: "phone" },
 };
 
 const CONF_COLORS: Record<string, string> = {
   "90–100%": T.success,
   "75–89%":  T.info,
-  "50–74%":  T.wariiang,
+  "50–74%":  T.warning,
   "<50%":    T.danger,
 };
 
@@ -114,7 +114,7 @@ export function DashboardPage() {
     {
       label: "Ø Confidence", value: confAvg.toFixed(0), unit: "%",
       trend: confAvg >= 80 ? "High" : "Mid", trendDir: "up" as const,
-      icon: <Clock size={18} />, color: T.wariiang,
+      icon: <Clock size={18} />, color: T.warning,
     },
     {
       label: "Tickets (30d)", value: overview ? String(overview.tickets_30d) : "–", unit: undefined,
@@ -230,7 +230,7 @@ export function DashboardPage() {
               <YAxis stroke={T.textDim} tick={{ fontSize: 10 }} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="aiResolved" fill="url(#aiGrad)" stroke={T.success} strokeWidth={2} name="KI gelöst" />
-              <Bar dataKey="escalated" fill={T.wariiang} opacity={0.7} name="Eskaliert" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="escalated" fill={T.warning} opacity={0.7} name="Eskaliert" radius={[3, 3, 0, 0]} />
             </ComposedChart>
           </ResponsiveContainer>
         </Card>
@@ -249,7 +249,7 @@ export function DashboardPage() {
                   <p style={{ fontSize: 12, fontWeight: 600, color: T.text, margin: 0 }}>{item.label}</p>
                   <p style={{ fontSize: 11, color: T.textMuted, margin: "2px 0 0" }}>{item.count} Tickets</p>
                 </div>
-                <Badge variant={item.aiRate >= 90 ? "success" : item.aiRate >= 70 ? "info" : item.aiRate >= 50 ? "wariiang" : "danger"}>
+                <Badge variant={item.aiRate >= 90 ? "success" : item.aiRate >= 70 ? "info" : item.aiRate >= 50 ? "warning" : "danger"}>
                   {item.aiRate}% KI
                 </Badge>
               </div>
@@ -321,10 +321,10 @@ export function DashboardPage() {
                   </td>
                   <td style={{ padding: "12px", fontSize: 12, color: T.textMuted, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.issue}</td>
                   <td style={{ padding: "12px" }}>
-                    <Badge variant={t.confidence >= 90 ? "success" : t.confidence >= 70 ? "info" : t.confidence >= 50 ? "wariiang" : "danger"}>{t.confidence}%</Badge>
+                    <Badge variant={t.confidence >= 90 ? "success" : t.confidence >= 70 ? "info" : t.confidence >= 50 ? "warning" : "danger"}>{t.confidence}%</Badge>
                   </td>
                   <td style={{ padding: "12px" }}>
-                    <Badge variant={t.status === "resolved" ? "success" : t.status === "escalated" ? "danger" : "wariiang"}>
+                    <Badge variant={t.status === "resolved" ? "success" : t.status === "escalated" ? "danger" : "warning"}>
                       {t.status === "resolved" ? "Gelöst" : t.status === "escalated" ? "Eskaliert" : "Ausstehend"}
                     </Badge>
                   </td>

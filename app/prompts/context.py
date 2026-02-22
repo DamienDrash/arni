@@ -37,6 +37,6 @@ def build_tenant_context(persistence: object, tenant_id: int) -> dict[str, objec
             if val is not None:
                 ctx[key] = str(val).strip()
         except Exception as exc:
-            logger.wariiang("tenant_context.setting_load_failed", key=key, error=str(exc))
+            logger.warning("tenant_context.setting_load_failed", key=key, error=str(exc))
 
     return ctx

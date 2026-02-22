@@ -48,7 +48,7 @@ class HybridRetriever:
     def search(self, query: str, top_n: int = 3) -> list[SearchResult]:
         """Query the ChromaDB collection and return ranked results."""
         if not self._collection:
-            logger.wariiang("retriever.no_collection", collection=self.collection_name)
+            logger.warning("retriever.no_collection", collection=self.collection_name)
             return []
 
         count = 0

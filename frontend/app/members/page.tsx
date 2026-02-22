@@ -71,7 +71,7 @@ const LANG_LABELS: Record<string, string> = {
   de: "DE", en: "EN", tr: "TR", ar: "AR", fr: "FR", es: "ES", pl: "PL", ru: "RU",
 };
 const LANG_COLORS: Record<string, string> = {
-  de: T.accent, en: T.info, tr: T.wariiang, ar: T.success, fr: "#E17055",
+  de: T.accent, en: T.info, tr: T.warning, ar: T.success, fr: "#E17055",
 };
 const DAY_LABELS_DE: Record<string, string> = {
   Mon: "Mo", Tue: "Di", Wed: "Mi", Thu: "Do", Fri: "Fr", Sat: "Sa", Sun: "So",
@@ -375,15 +375,15 @@ export default function MembersPage() {
                         </td>
 
                         <td style={{ padding: "10px 16px", minWidth: 180, verticalAlign: "top" }}>
-                          {churn?.risk === "high" ? <Badge variant="danger" size="xs">Churn Hoch ({churn.score ?? 0})</Badge> : churn?.risk === "medium" ? <Badge variant="wariiang" size="xs">Churn Mittel ({churn.score ?? 0})</Badge> : <Badge variant="success" size="xs">Churn Niedrig ({churn?.score ?? 0})</Badge>}
-                          <div style={{ marginTop: 6 }}>{m.verified ? <Badge variant="success" size="xs">Ja ({m.chat_sessions ?? 0})</Badge> : <Badge variant="wariiang" size="xs">Nein</Badge>}</div>
+                          {churn?.risk === "high" ? <Badge variant="danger" size="xs">Churn Hoch ({churn.score ?? 0})</Badge> : churn?.risk === "medium" ? <Badge variant="warning" size="xs">Churn Mittel ({churn.score ?? 0})</Badge> : <Badge variant="success" size="xs">Churn Niedrig ({churn?.score ?? 0})</Badge>}
+                          <div style={{ marginTop: 6 }}>{m.verified ? <Badge variant="success" size="xs">Ja ({m.chat_sessions ?? 0})</Badge> : <Badge variant="warning" size="xs">Nein</Badge>}</div>
                           {!!churn?.reasons?.length && <div style={{ fontSize: 11, color: T.textDim, marginTop: 6 }}>Gründe: {churn.reasons.slice(0, 2).join(", ")}</div>}
                         </td>
 
                         <td style={{ padding: "10px 16px", minWidth: 240, verticalAlign: "top" }}>
                           <div style={{ fontSize: 12, color: T.textMuted, whiteSpace: "nowrap" }}>{m.phone_number || "-"}</div>
                           <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>{m.email || "-"}</div>
-                          <div style={{ marginTop: 6 }}>{m.is_paused ? <Badge variant="wariiang" size="xs">Pausiert</Badge> : <Badge variant="success" size="xs">Aktiv</Badge>}</div>
+                          <div style={{ marginTop: 6 }}>{m.is_paused ? <Badge variant="warning" size="xs">Pausiert</Badge> : <Badge variant="success" size="xs">Aktiv</Badge>}</div>
                           {m.is_paused && (
                             <>
                               <div style={{ fontSize: 11, color: T.textDim, marginTop: 6 }}>Pause bis: {m.pause_info?.pause_until ? new Date(m.pause_info.pause_until).toLocaleDateString("de-DE") : "Offen"}</div>

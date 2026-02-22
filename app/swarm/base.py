@@ -104,7 +104,7 @@ class BaseAgent(ABC):
             from app.core.guardrails import get_guardrails
             block_msg = get_guardrails().check(user_message)
             if block_msg:
-                logger.wariiang("agent.guardrail_blocked", agent=self.name, user_id=user_id)
+                logger.warning("agent.guardrail_blocked", agent=self.name, user_id=user_id)
                 return block_msg
         except ImportError:
             pass # Fallback if guardrails module broken/missing
@@ -167,7 +167,7 @@ class BaseAgent(ABC):
             return response.strip()
             
         except Exception as e:
-            logger.wariiang("agent.llm_fallback", agent=self.name, error=str(e))
+            logger.warning("agent.llm_fallback", agent=self.name, error=str(e))
             if span:
                 span.update(status_message=str(e), level="ERROR")
             return None

@@ -1285,7 +1285,7 @@ def _parse_json_setting(key: str, default: Any, tenant_id: int | None = None) ->
     try:
         return _json.loads(raw)
     except Exception:
-        logger.wariiang("admin.settings.json_parse_failed", key=key)
+        logger.warning("admin.settings.json_parse_failed", key=key)
         return default
 
 

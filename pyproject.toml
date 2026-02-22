@@ -29,6 +29,7 @@ dependencies = [
     "prometheus-client>=0.19.0", # Metrics
     "piper-tts>=1.2.0",    # German TTS
     "sqlalchemy>=2.0.0",   # Database ORM
+    "alembic>=1.13.0",     # Database migrations
     "psycopg[binary]>=3.2.0", # PostgreSQL driver (multi-tenant production)
     "pillow>=10.0.0",      # Image processing (Vision Stub)
     "aiosqlite>=0.19.0",   # Async SQLite Driver

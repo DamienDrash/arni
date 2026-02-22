@@ -98,7 +98,7 @@ class PromptBuilder:
         try:
             return template.format_map(_SafeDict(replacements))
         except Exception as exc:
-            logger.wariiang("prompt_builder.format_failed", error=str(exc))
+            logger.warning("prompt_builder.format_failed", error=str(exc))
             return template
 
     # Convenience accessors
@@ -137,4 +137,4 @@ def seed_prompt_settings(persistence: object, tenant_id: int) -> None:
             if existing is None:
                 persistence.set_setting(key, default, tenant_id=tenant_id)  # type: ignore[attr-defined]
         except Exception as exc:
-            logger.wariiang("prompt_builder.seed_failed", key=key, error=str(exc))
+            logger.warning("prompt_builder.seed_failed", key=key, error=str(exc))

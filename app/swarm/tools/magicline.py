@@ -112,7 +112,7 @@ def _resolve_member_context(user_identifier: str, tenant_id: int | None = None) 
                     source="member_id",
                 ), None
         except Exception as e:
-            logger.wariiang("magicline.resolve.member_id_failed", member_id=member_id, error=str(e))
+            logger.warning("magicline.resolve.member_id_failed", member_id=member_id, error=str(e))
 
     # 2) Email fallback
     for email in dict.fromkeys(email_candidates):
@@ -128,7 +128,7 @@ def _resolve_member_context(user_identifier: str, tenant_id: int | None = None) 
                     source="email",
                 ), None
         except Exception as e:
-            logger.wariiang("magicline.resolve.email_failed", email=email, error=str(e))
+            logger.warning("magicline.resolve.email_failed", email=email, error=str(e))
 
     return (
         None,
@@ -176,7 +176,7 @@ def _member_bookings_for_date(client, customer_id: int, target_date: str | None 
         for item in _extract_items(apt_payload):
             bookings.append(_normalize_booking(item, "appointment"))
     except Exception as e:
-        logger.wariiang("magicline.bookings.appointment_failed", customer_id=customer_id, error=str(e))
+        logger.warning("magicline.bookings.appointment_failed", customer_id=customer_id, error=str(e))
 
     # Class bookings
     try:
@@ -193,7 +193,7 @@ def _member_bookings_for_date(client, customer_id: int, target_date: str | None 
                     pass
             bookings.append(normalized)
     except Exception as e:
-        logger.wariiang("magicline.bookings.class_failed", customer_id=customer_id, error=str(e))
+        logger.warning("magicline.bookings.class_failed", customer_id=customer_id, error=str(e))
 
     filtered: list[dict] = []
     for b in bookings:
@@ -343,7 +343,7 @@ def get_appointment_slots(category: str = "all", days: int = 3) -> str:
                 else:
                     slots = client.appointment_get_slots_range(int(b_id), days_total=days)
             except Exception as e:
-                logger.wariiang(
+                logger.warning(
                     "magicline.get_appointment_slots.bookable_failed",
                     bookable_id=b_id,
                     name=b_name,

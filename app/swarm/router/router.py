@@ -192,7 +192,7 @@ class SwarmRouter:
             try:
                 intent = Intent(intent_str)
             except ValueError:
-                logger.wariiang("router.unknown_intent", raw=intent_str)
+                logger.warning("router.unknown_intent", raw=intent_str)
                 return Intent.UNKNOWN, 0.0
 
             return intent, confidence

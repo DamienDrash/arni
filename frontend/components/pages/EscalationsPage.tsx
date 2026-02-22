@@ -29,7 +29,7 @@ type Stats = {
 };
 
 const priorityColor: Record<string, string> = {
-  high: T.wariiang,
+  high: T.warning,
   medium: T.info,
   low: T.textDim,
 };
@@ -124,7 +124,7 @@ export function EscalationsPage() {
 
   const stats = [
     { label: "Offene Eskalationen", value: String(openCount),    color: T.danger,  icon: <AlertTriangle size={18} /> },
-    { label: "Ø Bearbeitungszeit",  value: "–",                  unit: "min", color: T.wariiang, icon: <Clock size={18} /> },
+    { label: "Ø Bearbeitungszeit",  value: "–",                  unit: "min", color: T.warning, icon: <Clock size={18} /> },
     { label: "Heute gelöst",        value: "–",                  color: T.success, icon: <CheckCircle2 size={18} /> },
     { label: "Eskalationsrate",     value: "–",                  unit: "%", color: T.info,    icon: <TrendingDown size={18} /> },
   ];
@@ -215,7 +215,7 @@ export function EscalationsPage() {
                       <span style={{ fontSize: 11, color: T.textDim, fontFamily: "monospace" }}>
                         {h.member_id ? h.member_id : h.user_id}
                       </span>
-                      <Badge variant={priority === "high" ? "wariiang" : "info"} size="xs">
+                      <Badge variant={priority === "high" ? "warning" : "info"} size="xs">
                         {priorityLabel[priority]}
                       </Badge>
                     </div>

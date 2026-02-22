@@ -51,13 +51,13 @@ class GuardrailsService:
         # 1. Check Blocked Phrases
         for phrase in self.phrases:
             if phrase in lowered:
-                logger.wariiang("guardrails.violation", type="phrase", match=phrase)
+                logger.warning("guardrails.violation", type="phrase", match=phrase)
                 return self.block_msg
                 
         # 2. Check Regex Patterns (PII)
         for pattern in self.patterns:
             if pattern.search(text):
-                logger.wariiang("guardrails.violation", type="pattern_pii")
+                logger.warning("guardrails.violation", type="pattern_pii")
                 return "Entschuldigung, bitte sende keine sensiblen Daten wie IBAN oder Kreditkartennummern."
                 
         return None

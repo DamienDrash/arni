@@ -291,7 +291,7 @@ def analyze_member(member_id: str, tenant_id: int | None) -> None:
             )
         )
     except Exception as exc:
-        logger.wariiang("member_memory.llm_extract_failed", member_id=member_id, tenant_id=tenant_id, error=str(exc))
+        logger.warning("member_memory.llm_extract_failed", member_id=member_id, tenant_id=tenant_id, error=str(exc))
     if not profile_summary:
         profile_summary = _heuristic_profile_summary(chat)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")

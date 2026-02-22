@@ -76,7 +76,7 @@ export function ConversationsPage() {
                 <Avatar
                   initials={conv.avatar}
                   size={36}
-                  color={conv.status === "escalated" ? T.danger : conv.status === "pending" ? T.wariiang : T.accent}
+                  color={conv.status === "escalated" ? T.danger : conv.status === "pending" ? T.warning : T.accent}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -86,7 +86,7 @@ export function ConversationsPage() {
                   <p style={{ fontSize: 11, color: T.textMuted, margin: "3px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.issue}</p>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                     <ChannelIcon channel={conv.channel as "whatsapp" | "telegram" | "email" | "phone"} size={10} />
-                    <Badge variant={conv.status === "resolved" ? "success" : conv.status === "escalated" ? "danger" : "wariiang"} size="xs">
+                    <Badge variant={conv.status === "resolved" ? "success" : conv.status === "escalated" ? "danger" : "warning"} size="xs">
                       {conv.status === "resolved" ? "Gelöst" : conv.status === "escalated" ? "Eskaliert" : "Offen"}
                     </Badge>
                     <Badge size="xs">{conv.confidence}%</Badge>

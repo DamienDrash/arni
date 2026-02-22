@@ -104,7 +104,7 @@ def _audit(actor: AuthContext, action: str, details: dict) -> None:
         ))
         db.commit()
     except Exception as exc:
-        logger.wariiang("billing.audit_write_failed", error=str(exc))
+        logger.warning("billing.audit_write_failed", error=str(exc))
         db.rollback()
     finally:
         db.close()
@@ -408,7 +408,7 @@ async def stripe_webhook(request: Request) -> Response:
     secret_key     = (persistence.get_setting("billing_stripe_secret_key", "")     or "").strip()
 
     if not webhook_secret:
-        logger.wariiang("billing.webhook.no_secret_configured")
+        logger.warning("billing.webhook.no_secret_configured")
         return Response(content="webhook_secret not configured", status_code=400)
 
     _stripe.api_key = secret_key
@@ -419,7 +419,7 @@ async def stripe_webhook(request: Request) -> Response:
     except ValueError:
         return Response(content="invalid payload", status_code=400)
     except Exception as exc:
-        logger.wariiang("billing.webhook.sig_invalid", error=str(exc))
+        logger.warning("billing.webhook.sig_invalid", error=str(exc))
         return Response(content="invalid signature", status_code=400)
 
     event_type = event.get("type", "")

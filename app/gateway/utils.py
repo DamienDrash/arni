@@ -100,7 +100,7 @@ async def send_to_user(user_id: str, platform: Platform, content: str, metadata:
             logger.info("voice.reply_buffered", to=user_id, note="Outbound voice synthesis not yet wired")
         
         else:
-            logger.wariiang("gateway.unknown_platform", platform=platform, user_id=user_id)
+            logger.warning("gateway.unknown_platform", platform=platform, user_id=user_id)
              
     except Exception as e:
         logger.error("gateway.send_failed", error=str(e), user_id=user_id, platform=platform)

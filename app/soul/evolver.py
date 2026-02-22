@@ -36,7 +36,7 @@ class PersonaEvolver:
         try:
             current_soul = self._sandbox.read_file(self._soul_path)
         except Exception:
-            logger.wariiang("evolver.soul_not_found")
+            logger.warning("evolver.soul_not_found")
             return None
 
         prompt = (
