@@ -1,0 +1,115 @@
+# Ghost Mode UX Flow (Sprint 1, Task 1.17)
+
+> **Designer:** @UX | **Datum:** 2026-02-14 | **Endpoint:** `WS /ws/control`
+
+---
+
+## Konzept
+
+Ghost Mode erlaubt Trainern/Admins, Live-Konversationen von Arni mitzulesen, ohne dass der User (Member) davon weiß. Der Admin kann bei Bedarf eingreifen und die Antwort überschreiben.
+
+---
+
+## Flow-Diagramm
+
+```mermaid
+sequenceDiagram
+    participant M as Member (WhatsApp)
+    participant G as Gateway
+    participant R as Redis Bus
+    participant S as Swarm Router
+    participant A as Admin (Ghost Mode)
+
+    Note over A: WebSocket /ws/control verbinden
+
+    M->>G: "Hey, ich will einen Kurs buchen"
+    G->>R: publish(arni:inbound, message)
+    R->>S: Swarm Router empfängt
+    R-->>A: 🔔 Ghost Mode: Nachricht sichtbar
+
+    S->>R: publish(arni:outbound, response)
+    R-->>G: Gateway empfängt Antwort
+    R-->>A: 🔔 Ghost Mode: Arni-Antwort sichtbar
+
+    alt Admin greift NICHT ein
+        G->>M: Arni antwortet automatisch
+    else Admin greift ein (Override)
+        A->>G: Override-Nachricht via WebSocket
+        G->>M: Admin-Antwort statt Arni-Antwort
+        Note over G: Event: admin.override geloggt
+    end
+```
+
+---
+
+## Screens & Zustände
+
+### 1. Verbindung
+
+```
+┌──────────────────────────────────┐
+│ 🟢 Ghost Mode – Verbunden       │
+│ ─────────────────────────────── │
+│ Aktive Konversationen: 3         │
+│ Letzte Nachricht: vor 2s         │
+└──────────────────────────────────┘
+```
+
+### 2. Live-Chat Ansicht
+
+```
+┌──────────────────────────────────┐
+│ 👤 Max M. (+49 170 123...)       │
+│ ─────────────────────────────── │
+│ [14:23] Max: "Ist es gerade     │
+│          voll?"                   │
+│                                   │
+│ [14:23] 🤖 Arni: "📊 Aktuelle   │
+│          Auslastung: mittel"      │
+│                                   │
+│ ─────────────────────────────── │
+│ [Override eingeben...]    [Send] │
+└──────────────────────────────────┘
+```
+
+### 3. Override-Modus
+
+```
+┌──────────────────────────────────┐
+│ ⚠️ OVERRIDE AKTIV               │
+│ ─────────────────────────────── │
+│ Arni's Entwurf:                  │
+│ "📊 Auslastung: mittel (~25)"   │
+│                                   │
+│ Ihre Nachricht:                  │
+│ ┌──────────────────────────────┐ │
+│ │ Heute sogar besonders ruhig,│ │
+│ │ komm vorbei! 💪              │ │
+│ └──────────────────────────────┘ │
+│                                   │
+│ [Arni senden] [Override senden] │
+└──────────────────────────────────┘
+```
+
+---
+
+## WebSocket Message Types
+
+| Type | Richtung | Beschreibung |
+|------|----------|-------------|
+| `ghost.message_in` | Server → Admin | Neue User-Nachricht |
+| `ghost.message_out` | Server → Admin | Arni's Antwort-Entwurf |
+| `ghost.override` | Admin → Server | Admin überschreibt Arni |
+| `ghost.approve` | Admin → Server | Admin bestätigt Arni's Antwort |
+| `admin.connected` | Server → Redis | Admin hat sich verbunden |
+| `admin.disconnected` | Server → Redis | Admin hat sich getrennt |
+
+---
+
+## Sicherheitsregeln
+
+1. **Authentifizierung:** WebSocket-Verbindung braucht Auth-Token (Sprint 3)
+2. **Logging:** Jeder Override wird geloggt (`event_type: admin.override`)
+3. **PII:** Admin sieht nur Vorname + letzte 3 Ziffern der Nummer
+4. **Timeout:** Arni antwortet automatisch nach 30s ohne Admin-Override
+5. **One-Way-Door:** Override bei Medic-Themen erfordert Bestätigung

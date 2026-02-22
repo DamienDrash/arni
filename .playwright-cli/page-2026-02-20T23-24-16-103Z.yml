@@ -1,0 +1,344 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - heading "ARNI." [level=1] [ref=e7]
+      - paragraph [ref=e8]: Control Deck
+    - navigation [ref=e9]:
+      - generic [ref=e10]:
+        - paragraph [ref=e11]: Quick Actions
+        - generic [ref=e12]:
+          - link "Live Monitor" [ref=e13] [cursor=pointer]:
+            - /url: /arni/live
+          - link "Analytics" [ref=e14] [cursor=pointer]:
+            - /url: /arni/analytics
+          - link "Benutzer" [ref=e15] [cursor=pointer]:
+            - /url: /arni/users
+      - generic [ref=e16]:
+        - paragraph [ref=e17]: Operations
+        - link "Dashboard" [ref=e18] [cursor=pointer]:
+          - /url: /arni
+          - img [ref=e19]
+          - generic [ref=e24]: Dashboard
+        - link "Live Monitor" [ref=e25] [cursor=pointer]:
+          - /url: /arni/live
+          - img [ref=e26]
+          - generic [ref=e28]: Live Monitor
+        - link "Eskalationen" [ref=e29] [cursor=pointer]:
+          - /url: /arni/escalations
+          - img [ref=e30]
+          - generic [ref=e34]: Eskalationen
+        - link "Analytics" [ref=e35] [cursor=pointer]:
+          - /url: /arni/analytics
+          - img [ref=e36]
+          - generic [ref=e41]: Analytics
+      - generic [ref=e42]:
+        - paragraph [ref=e43]: Customers
+        - link "Benutzer" [ref=e44] [cursor=pointer]:
+          - /url: /arni/users
+          - img [ref=e45]
+          - generic [ref=e50]: Benutzer
+    - generic [ref=e52]:
+      - generic [ref=e53]: A
+      - generic [ref=e54]:
+        - paragraph [ref=e55]: tenantcheck.1771564332@example.com
+        - paragraph [ref=e56]: tenant_admin
+      - button [ref=e57] [cursor=pointer]:
+        - img [ref=e58]
+  - main [ref=e62]:
+    - generic [ref=e63]:
+      - generic [ref=e64]:
+        - strong [ref=e65]: Ghost Mode aktiv
+        - generic [ref=e66]: Du agierst als tenantcheck.1771564332@example.com (tenant_admin) im Tenant tenantcheck-1771564332.
+      - button "Ghost Mode beenden" [ref=e67] [cursor=pointer]
+    - generic [ref=e68]:
+      - heading "Dashboard" [level=1] [ref=e69]
+      - paragraph [ref=e70]: Überblick über Systemstatus, KPIs und Aktivität.
+    - generic [ref=e71]:
+      - generic [ref=e72]:
+        - generic [ref=e74]: Alle Systeme onlineMagicline Sync OK (2 Min) · 2.847 Mitglieder · Keine Fehler
+        - generic [ref=e75]: LIVE
+      - generic [ref=e76]:
+        - generic [ref=e77]:
+          - generic [ref=e78]:
+            - img [ref=e80]
+            - generic [ref=e82]:
+              - img [ref=e83]
+              - generic [ref=e86]: +12.5%
+          - paragraph [ref=e87]: Tickets (24h)
+          - generic [ref=e89]: "734"
+        - generic [ref=e90]:
+          - generic [ref=e91]:
+            - img [ref=e93]
+            - generic [ref=e108]:
+              - img [ref=e109]
+              - generic [ref=e112]: +5.3%
+          - paragraph [ref=e113]: AI Resolution
+          - generic [ref=e114]:
+            - generic [ref=e115]: "81.2"
+            - generic [ref=e116]: "%"
+        - generic [ref=e117]:
+          - generic [ref=e118]:
+            - img [ref=e120]
+            - generic [ref=e123]:
+              - img [ref=e124]
+              - generic [ref=e127]: "-15.2%"
+          - paragraph [ref=e128]: Ø Antwortzeit
+          - generic [ref=e129]:
+            - generic [ref=e130]: "1.2"
+            - generic [ref=e131]: min
+        - generic [ref=e132]:
+          - generic [ref=e133]:
+            - img [ref=e135]
+            - generic [ref=e137]:
+              - img [ref=e138]
+              - generic [ref=e141]: +2.1%
+          - paragraph [ref=e142]: Zufriedenheit
+          - generic [ref=e143]:
+            - generic [ref=e144]: "4.6"
+            - generic [ref=e145]: /5
+      - generic [ref=e146]:
+        - generic [ref=e147]:
+          - generic [ref=e149]:
+            - heading "Kanäle" [level=2] [ref=e150]
+            - paragraph [ref=e151]: Ticket-Verteilung (24h)
+          - generic [ref=e152]:
+            - generic [ref=e153]:
+              - generic [ref=e154]: WA
+              - generic [ref=e156]:
+                - generic [ref=e157]: WhatsApp
+                - generic [ref=e158]:
+                  - text: "312"
+                  - generic [ref=e159]: (43%)
+            - generic [ref=e162]:
+              - generic [ref=e163]: TG
+              - generic [ref=e165]:
+                - generic [ref=e166]: Telegram
+                - generic [ref=e167]:
+                  - text: "198"
+                  - generic [ref=e168]: (27%)
+            - generic [ref=e171]:
+              - generic [ref=e172]: EM
+              - generic [ref=e174]:
+                - generic [ref=e175]: E-Mail
+                - generic [ref=e176]:
+                  - text: "156"
+                  - generic [ref=e177]: (21%)
+            - generic [ref=e180]:
+              - generic [ref=e181]: PH
+              - generic [ref=e183]:
+                - generic [ref=e184]: Telefon
+                - generic [ref=e185]:
+                  - text: "68"
+                  - generic [ref=e186]: (9%)
+        - generic [ref=e189]:
+          - generic [ref=e191]:
+            - heading "AI-Lösung vs Eskalation" [level=2] [ref=e192]
+            - paragraph [ref=e193]: Stündlicher Verlauf
+          - img [ref=e196]:
+            - generic [ref=e206]:
+              - generic [ref=e209]: 00:00
+              - generic [ref=e212]: 02:00
+              - generic [ref=e215]: 04:00
+              - generic [ref=e218]: 06:00
+              - generic [ref=e221]: 08:00
+              - generic [ref=e224]: 10:00
+              - generic [ref=e227]: 12:00
+              - generic [ref=e230]: 14:00
+              - generic [ref=e233]: 16:00
+              - generic [ref=e236]: 18:00
+              - generic [ref=e239]: 20:00
+              - generic [ref=e242]: 22:00
+            - generic [ref=e245]:
+              - generic [ref=e248]: "0"
+              - generic [ref=e251]: "15"
+              - generic [ref=e254]: "30"
+              - generic [ref=e257]: "45"
+              - generic [ref=e260]: "60"
+      - generic [ref=e294]:
+        - generic [ref=e295]:
+          - generic [ref=e297]:
+            - heading "Top Support-Themen" [level=2] [ref=e298]
+            - paragraph [ref=e299]: Häufigkeit & AI-Performance
+          - generic [ref=e300]:
+            - generic [ref=e301]:
+              - generic [ref=e302]: "#1"
+              - generic [ref=e303]:
+                - paragraph [ref=e304]: Terminbuchung & Änderungen
+                - paragraph [ref=e305]: 157 Tickets
+              - generic [ref=e306]: 90% KI
+            - generic [ref=e307]:
+              - generic [ref=e308]: "#2"
+              - generic [ref=e309]:
+                - paragraph [ref=e310]: Mitgliedschaftsfragen
+                - paragraph [ref=e311]: 134 Tickets
+              - generic [ref=e312]: 73% KI
+            - generic [ref=e313]:
+              - generic [ref=e314]: "#3"
+              - generic [ref=e315]:
+                - paragraph [ref=e316]: Kursinfos & Trainer
+                - paragraph [ref=e317]: 89 Tickets
+              - generic [ref=e318]: 91% KI
+            - generic [ref=e319]:
+              - generic [ref=e320]: "#4"
+              - generic [ref=e321]:
+                - paragraph [ref=e322]: Technische Probleme (App)
+                - paragraph [ref=e323]: 67 Tickets
+              - generic [ref=e324]: 63% KI
+            - generic [ref=e325]:
+              - generic [ref=e326]: "#5"
+              - generic [ref=e327]:
+                - paragraph [ref=e328]: Zahlungs- & Abo-Fragen
+                - paragraph [ref=e329]: 61 Tickets
+              - generic [ref=e330]: 57% KI
+            - generic [ref=e331]:
+              - generic [ref=e332]: "#6"
+              - generic [ref=e333]:
+                - paragraph [ref=e334]: Öffnungszeiten & Location
+                - paragraph [ref=e335]: 45 Tickets
+              - generic [ref=e336]: 98% KI
+        - generic [ref=e337]:
+          - generic [ref=e339]:
+            - heading "Confidence Score" [level=2] [ref=e340]
+            - paragraph [ref=e341]: Verteilung der Lösungssicherheit
+          - generic [ref=e342]:
+            - generic [ref=e344]:
+              - generic [ref=e345]: 90–100%
+              - generic [ref=e346]:
+                - text: "342"
+                - generic [ref=e347]: (57%)
+            - generic [ref=e351]:
+              - generic [ref=e352]: 75–89%
+              - generic [ref=e353]:
+                - text: "156"
+                - generic [ref=e354]: (26%)
+            - generic [ref=e358]:
+              - generic [ref=e359]: 50–74%
+              - generic [ref=e360]:
+                - text: "78"
+                - generic [ref=e361]: (13%)
+            - generic [ref=e365]:
+              - generic [ref=e366]: <50%
+              - generic [ref=e367]:
+                - text: "22"
+                - generic [ref=e368]: (4%)
+          - generic [ref=e371]:
+            - generic [ref=e372]:
+              - paragraph [ref=e373]: Ø Score
+              - generic [ref=e374]:
+                - generic [ref=e375]: "86"
+                - generic [ref=e376]: "%"
+            - generic [ref=e378]:
+              - paragraph [ref=e379]: High Conf.
+              - generic [ref=e380]:
+                - generic [ref=e381]: "57"
+                - generic [ref=e382]: "%"
+            - generic [ref=e384]:
+              - paragraph [ref=e385]: Low Conf.
+              - generic [ref=e386]:
+                - generic [ref=e387]: "4"
+                - generic [ref=e388]: "%"
+      - generic [ref=e389]:
+        - generic [ref=e390]:
+          - generic [ref=e391]:
+            - heading "Letzte Support-Tickets" [level=2] [ref=e392]
+            - paragraph [ref=e393]: Echtzeit-Monitoring
+          - button "Live" [ref=e394] [cursor=pointer]:
+            - img [ref=e395]
+            - text: Live
+        - table [ref=e401]:
+          - rowgroup [ref=e402]:
+            - row "Ticket Kanal Mitglied Anfrage Confidence Status Zeit" [ref=e403]:
+              - columnheader "Ticket" [ref=e404]
+              - columnheader "Kanal" [ref=e405]
+              - columnheader "Mitglied" [ref=e406]
+              - columnheader "Anfrage" [ref=e407]
+              - columnheader "Confidence" [ref=e408]
+              - columnheader "Status" [ref=e409]
+              - columnheader "Zeit" [ref=e410]
+          - rowgroup [ref=e411]:
+            - row "T-4821 WA JM Julia Meier Kann ich mein Abo für 2 Wochen pausieren? Bin im Urlaub. 94% Gelöst vor 3 Min" [ref=e412]:
+              - cell "T-4821" [ref=e413]
+              - cell "WA" [ref=e414]:
+                - generic [ref=e415]: WA
+              - cell "JM Julia Meier" [ref=e416]:
+                - generic [ref=e417]:
+                  - generic [ref=e418]: JM
+                  - generic [ref=e419]: Julia Meier
+              - cell "Kann ich mein Abo für 2 Wochen pausieren? Bin im Urlaub." [ref=e420]
+              - cell "94%" [ref=e421]:
+                - generic [ref=e422]: 94%
+              - cell "Gelöst" [ref=e423]:
+                - generic [ref=e424]: Gelöst
+              - cell "vor 3 Min" [ref=e425]
+            - row "T-4820 TG MK Marco Klein Termin für Kraft-Training am Montag 18 Uhr bitte. 97% Gelöst vor 7 Min" [ref=e426]:
+              - cell "T-4820" [ref=e427]
+              - cell "TG" [ref=e428]:
+                - generic [ref=e429]: TG
+              - cell "MK Marco Klein" [ref=e430]:
+                - generic [ref=e431]:
+                  - generic [ref=e432]: MK
+                  - generic [ref=e433]: Marco Klein
+              - cell "Termin für Kraft-Training am Montag 18 Uhr bitte." [ref=e434]
+              - cell "97%" [ref=e435]:
+                - generic [ref=e436]: 97%
+              - cell "Gelöst" [ref=e437]:
+                - generic [ref=e438]: Gelöst
+              - cell "vor 7 Min" [ref=e439]
+            - row "T-4819 EM SR Sandra Richter Die Magicline App stürzt seit gestern ständig ab. Kann mich nicht einloggen. 42% Eskaliert vor 12 Min" [ref=e440]:
+              - cell "T-4819" [ref=e441]
+              - cell "EM" [ref=e442]:
+                - generic [ref=e443]: EM
+              - cell "SR Sandra Richter" [ref=e444]:
+                - generic [ref=e445]:
+                  - generic [ref=e446]: SR
+                  - generic [ref=e447]: Sandra Richter
+              - cell "Die Magicline App stürzt seit gestern ständig ab. Kann mich nicht einloggen." [ref=e448]
+              - cell "42%" [ref=e449]:
+                - generic [ref=e450]: 42%
+              - cell "Eskaliert" [ref=e451]:
+                - generic [ref=e452]: Eskaliert
+              - cell "vor 12 Min" [ref=e453]
+            - row "T-4818 WA TB Thomas Berg Welche Kurse gibt es am Freitag Nachmittag? 99% Gelöst vor 15 Min" [ref=e454]:
+              - cell "T-4818" [ref=e455]
+              - cell "WA" [ref=e456]:
+                - generic [ref=e457]: WA
+              - cell "TB Thomas Berg" [ref=e458]:
+                - generic [ref=e459]:
+                  - generic [ref=e460]: TB
+                  - generic [ref=e461]: Thomas Berg
+              - cell "Welche Kurse gibt es am Freitag Nachmittag?" [ref=e462]
+              - cell "99%" [ref=e463]:
+                - generic [ref=e464]: 99%
+              - cell "Gelöst" [ref=e465]:
+                - generic [ref=e466]: Gelöst
+              - cell "vor 15 Min" [ref=e467]
+            - row "T-4817 PH AL Anna Lang Möchte den Trainer wechseln für Personal Training. 62% Ausstehend vor 18 Min" [ref=e468]:
+              - cell "T-4817" [ref=e469]
+              - cell "PH" [ref=e470]:
+                - generic [ref=e471]: PH
+              - cell "AL Anna Lang" [ref=e472]:
+                - generic [ref=e473]:
+                  - generic [ref=e474]: AL
+                  - generic [ref=e475]: Anna Lang
+              - cell "Möchte den Trainer wechseln für Personal Training." [ref=e476]
+              - cell "62%" [ref=e477]:
+                - generic [ref=e478]: 62%
+              - cell "Ausstehend" [ref=e479]:
+                - generic [ref=e480]: Ausstehend
+              - cell "vor 18 Min" [ref=e481]
+            - row "T-4816 WA LF Lukas Fischer Wie kann ich meine Mitgliedschaft upgraden auf Premium? 88% Gelöst vor 22 Min" [ref=e482]:
+              - cell "T-4816" [ref=e483]
+              - cell "WA" [ref=e484]:
+                - generic [ref=e485]: WA
+              - cell "LF Lukas Fischer" [ref=e486]:
+                - generic [ref=e487]:
+                  - generic [ref=e488]: LF
+                  - generic [ref=e489]: Lukas Fischer
+              - cell "Wie kann ich meine Mitgliedschaft upgraden auf Premium?" [ref=e490]
+              - cell "88%" [ref=e491]:
+                - generic [ref=e492]: 88%
+              - cell "Gelöst" [ref=e493]:
+                - generic [ref=e494]: Gelöst
+              - cell "vor 22 Min" [ref=e495]
+  - generic [ref=e496]: "0"

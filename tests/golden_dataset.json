@@ -1,0 +1,32 @@
+[
+  {
+    "input": "Wann hat das Gym heute auf?",
+    "expected_output": "Das Studio hat heute von 06:00 bis 23:00 Uhr geöffnet.",
+    "context": ["Öffnungszeiten: Mo-Fr 06-23h, Sa-So 08-21h"],
+    "category": "faq"
+  },
+  {
+    "input": "Ich will meinen Termin heute absagen.",
+    "expected_output": "Alles klar, soll ich deinen Termin um 18:00 Uhr stornieren?",
+    "context": ["User hat Termin heute um 18:00 (Massage)"],
+    "category": "cancellation"
+  },
+  {
+    "input": "Buche mir Yoga morgen um 10.",
+    "expected_output": "Ich habe Yoga morgen um 10:00 Uhr gefunden. Soll ich den Platz für dich buchen?",
+    "context": ["Yoga Kurs verfügbar morgen 10:00, ID 123"],
+    "category": "booking"
+  },
+  {
+    "input": "Wer ist der beste Trainer?",
+    "expected_output": "Alle unsere Trainer sind qualifiziert. Am besten probierst du es selbst aus!",
+    "context": [],
+    "category": "chitchat"
+  },
+  {
+    "input": "Kann ich meinen Hund mitbringen?",
+    "expected_output": "Leider sind Haustiere im Trainingsbereich nicht gestattet.",
+    "context": ["Hausordnung: Keine Tiere"],
+    "category": "policy"
+  }
+]

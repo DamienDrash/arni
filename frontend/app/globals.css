@@ -1,0 +1,133 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@plugin "daisyui" {
+  themes: inntegrate-hybrid --default;
+}
+
+[data-theme=inntegrate-hybrid] {
+  color-scheme: light;
+  --color-primary: #6C5DD3;
+  --color-primary-content: #FFFFFF;
+  --color-secondary: #A0D7E7;
+  --color-secondary-content: #11142D;
+  --color-accent: #FF754C;
+  --color-accent-content: #FFFFFF;
+  --color-neutral: #11142D;
+  --color-neutral-content: #FFFFFF;
+  --color-base-100: #F7F7F7;
+  --color-base-200: #FFFFFF;
+  --color-base-300: #E4E4E4;
+  --color-base-content: #1B1D21;
+  --color-info: #6C5DD3;
+  --color-success: #3DD598;
+  --color-warning: #FFC542;
+  --color-error: #FC5A5A;
+  --rounded-box: 1.5rem;
+  --rounded-btn: 0.75rem;
+  --border-btn: 0px;
+  --tab-border: 0px;
+}
+
+/* DaisyUI handles themes automatically based on data-theme attribute */
+:root {
+  color-scheme: dark;
+  --arni-bg: #0a0b0f;
+  --arni-surface: #12131a;
+  --arni-surface-alt: #1a1b24;
+  --arni-border: #252630;
+  --arni-text: #e8e9ed;
+  --arni-text-dim: #5a5c6b;
+  --arni-text-muted: #8b8d9a;
+  --arni-accent: #6c5ce7;
+  --arni-accent-dim: rgba(108, 92, 231, 0.15);
+  --arni-danger: #ff6b6b;
+}
+
+/* Inntegrate Hybrid Utilities */
+@layer components {
+
+  body {
+    background:
+      radial-gradient(1200px 500px at 20% -10%, rgba(108, 92, 231, 0.18), transparent 60%),
+      radial-gradient(900px 360px at 85% -5%, rgba(79, 195, 247, 0.12), transparent 60%),
+      #0A0B0F;
+    color: #E8E9ED;
+    min-height: 100vh;
+  }
+
+  /* The "Card" Look - Pure White, Soft Shadow */
+  .card-inntegrate {
+    background-color: #FFFFFF;
+    border-radius: 1.25rem;
+    /* 20px */
+    border: none;
+    box-shadow:
+      0 2px 10px rgba(0, 0, 0, 0.03),
+      0 10px 25px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  /* The "Dark Card" Look (Top Row in Reference) */
+  .card-inntegrate-dark {
+    background-color: #11142D !important;
+    /* Match Sidebar/Navy */
+    color: #FFFFFF;
+    border-radius: 1.25rem;
+    border: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card-inntegrate:hover,
+  .card-inntegrate-dark:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 5px 15px rgba(0, 0, 0, 0.05),
+      0 15px 35px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Primary Button - Purple */
+  .btn-inntegrate-primary {
+    background-color: #6C5DD3;
+    color: #ffffff;
+    border-radius: 1rem;
+    border: none;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(108, 93, 211, 0.4);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .btn-inntegrate-primary:hover {
+    background-color: #5b4eb5;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(108, 93, 211, 0.6);
+  }
+
+  /* Status Badges */
+  .badge-soft {
+    border: none;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  /* Editor readability on bright surfaces inside dark app shell */
+  .arni-editor,
+  .arni-editor.ProseMirror {
+    color: #11142d;
+  }
+
+  .arni-editor h1,
+  .arni-editor h2,
+  .arni-editor h3,
+  .arni-editor h4,
+  .arni-editor h5,
+  .arni-editor h6,
+  .arni-editor p,
+  .arni-editor li,
+  .arni-editor blockquote,
+  .arni-editor code,
+  .arni-editor strong,
+  .arni-editor em {
+    color: #11142d;
+  }
+}
