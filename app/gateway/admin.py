@@ -2249,8 +2249,17 @@ async def get_billing_subscription(user: AuthContext = Depends(get_current_user)
                     "sms_enabled": False,
                     "email_channel_enabled": False,
                     "voice_enabled": False,
+                    "instagram_enabled": False,
+                    "facebook_enabled": False,
+                    "google_business_enabled": False,
                     "memory_analyzer_enabled": False,
                     "custom_prompts_enabled": False,
+                    "advanced_analytics_enabled": False,
+                    "branding_enabled": False,
+                    "audit_log_enabled": False,
+                    "automation_enabled": False,
+                    "api_access_enabled": False,
+                    "multi_source_members_enabled": False,
                 },
             }
 
@@ -3232,3 +3241,16 @@ async def reset_whatsapp_session(user: AuthContext = Depends(get_current_user)):
         logger.error("admin.whatsapp.reset_failed", error=str(e))
         # We return OK even if bridge call fails, as long as the dir is gone
         return {"status": "ok", "message": "Lokale Daten bereinigt."}
+
+
+# ── Permissions & Feature Gates ──────────────────────────────────────────────
+
+@router.get("/permissions")
+async def get_user_permissions(user: AuthContext = Depends(get_current_user)) -> dict[str, Any]:
+    """Return the complete permission map for the current user.
+
+    Combines role-based access control with plan-based feature gating.
+    Used by the frontend to control page visibility, feature access, and upgrade prompts.
+    """
+    from app.core.feature_gates import get_permissions
+    return get_permissions(tenant_id=user.tenant_id, role=user.role)

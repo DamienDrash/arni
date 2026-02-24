@@ -188,9 +188,20 @@ class Plan(Base):
     email_channel_enabled = Column(Boolean, nullable=False, default=False)
     voice_enabled = Column(Boolean, nullable=False, default=False)
 
+    # Channel toggles (new channels)
+    instagram_enabled = Column(Boolean, nullable=False, default=False)
+    facebook_enabled = Column(Boolean, nullable=False, default=False)
+    google_business_enabled = Column(Boolean, nullable=False, default=False)
+
     # Feature toggles
     memory_analyzer_enabled = Column(Boolean, nullable=False, default=False)
     custom_prompts_enabled = Column(Boolean, nullable=False, default=False)
+    advanced_analytics_enabled = Column(Boolean, nullable=False, default=False)
+    branding_enabled = Column(Boolean, nullable=False, default=False)
+    audit_log_enabled = Column(Boolean, nullable=False, default=False)
+    automation_enabled = Column(Boolean, nullable=False, default=False)
+    api_access_enabled = Column(Boolean, nullable=False, default=False)
+    multi_source_members_enabled = Column(Boolean, nullable=False, default=False)
 
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
