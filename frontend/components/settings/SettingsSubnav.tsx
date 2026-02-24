@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SlidersHorizontal, PlugZap, Bot, UserCircle2, MessageSquare, CreditCard, Palette } from "lucide-react";
+import { SlidersHorizontal, PlugZap, Bot, UserCircle2, MessageSquare, CreditCard, Palette, ShieldCheck, Cpu } from "lucide-react";
 
 import { getStoredUser } from "@/lib/auth";
 import { T } from "@/lib/tokens";
@@ -10,7 +10,8 @@ import { T } from "@/lib/tokens";
 const tabs = [
   { href: "/settings", label: "Overview", icon: SlidersHorizontal },
   { href: "/settings/account", label: "Account", icon: UserCircle2 },
-  { href: "/settings/general", label: "General", icon: SlidersHorizontal },
+  { href: "/settings/ai", label: "AI Engine", icon: Cpu },
+  { href: "/settings/general", label: "Platform Core", icon: ShieldCheck },
   { href: "/settings/integrations", label: "Integrationen", icon: PlugZap },
   { href: "/settings/prompts", label: "Agent-Config", icon: MessageSquare },
   { href: "/settings/billing", label: "Abonnement", icon: CreditCard },
@@ -21,9 +22,10 @@ const tabs = [
 export default function SettingsSubnav() {
   const pathname = usePathname() || "";
   const role = getStoredUser()?.role;
+  
   const visibleTabs =
     role === "system_admin"
-      ? tabs
+      ? tabs.filter((tab) => ["/settings", "/settings/account", "/settings/ai", "/settings/general"].includes(tab.href))
       : role === "tenant_admin"
         ? tabs.filter((tab) =>
             ["/settings", "/settings/integrations", "/settings/account", "/settings/prompts", "/settings/billing", "/settings/branding"].includes(tab.href)

@@ -17,6 +17,9 @@ import {
   ScrollText,
   Settings,
   Users,
+  ShieldCheck,
+  Server,
+  Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
@@ -28,7 +31,7 @@ import styles from "./Sidebar.module.css";
 
 type NavItem = { name: string; href: string; icon: ElementType; badge?: string };
 
-const sections: Array<{ title: string; items: NavItem[] }> = [
+const tenantSections: Array<{ title: string; items: NavItem[] }> = [
   {
     title: "Operations",
     items: [
@@ -39,11 +42,10 @@ const sections: Array<{ title: string; items: NavItem[] }> = [
     ],
   },
   {
-    title: "Customers",
+    title: "Kunden & Team",
     items: [
       { name: "Mitglieder", href: "/members", icon: Users },
       { name: "Benutzer", href: "/users", icon: Users },
-      { name: "Tenants", href: "/tenants", icon: Building2 },
     ],
   },
   {
@@ -51,16 +53,35 @@ const sections: Array<{ title: string; items: NavItem[] }> = [
     items: [
       { name: "Wissensbasis", href: "/knowledge", icon: BookOpen },
       { name: "Member Memory", href: "/member-memory", icon: Brain },
-      { name: "LLM Prompt", href: "/system-prompt", icon: Bot },
+      { name: "Studio-Prompt", href: "/system-prompt", icon: Bot },
     ],
   },
   {
-    title: "System",
+    title: "Studio",
     items: [
-      { name: "Plans & Billing", href: "/plans", icon: CreditCard },
       { name: "Magicline Sync", href: "/magicline", icon: Database },
+      { name: "Abonnement", href: "/settings/billing", icon: CreditCard },
+      { name: "Settings", href: "/settings", icon: Settings },
+    ],
+  },
+];
+
+const systemSections: Array<{ title: string; items: NavItem[] }> = [
+  {
+    title: "Platform Governance",
+    items: [
+      { name: "SaaS Dashboard", href: "/", icon: LayoutDashboard },
+      { name: "Tenants", href: "/tenants", icon: Building2 },
+      { name: "User Management", href: "/users", icon: Users },
+    ],
+  },
+  {
+    title: "System & Core",
+    items: [
+      { name: "Billing Plans", href: "/plans", icon: CreditCard },
       { name: "Audit Log", href: "/audit", icon: ScrollText },
-      { name: "Settings Center", href: "/settings", icon: Settings },
+      { name: "Platform Settings", href: "/settings", icon: ShieldCheck },
+      { name: "Engine Stats", href: "/health", icon: Server },
     ],
   },
 ];
@@ -71,10 +92,10 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
   const [handoffCount, setHandoffCount] = useState(0);
   const user = getStoredUser();
   const role = user?.role;
-  const isSystemAdmin = user?.role === "system_admin";
+  const isSystemAdmin = role === "system_admin";
 
   useEffect(() => {
-    if (!isSystemAdmin) return;
+    if (isSystemAdmin) return; // System admins don't care about single-tenant escalations here
     const run = async () => {
       try {
         const res = await apiFetch("/admin/stats");
@@ -91,7 +112,8 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
   }, [isSystemAdmin]);
 
   const allSections = useMemo(() => {
-    return sections.map((section) => ({
+    const baseSections = isSystemAdmin ? systemSections : tenantSections;
+    return baseSections.map((section) => ({
       ...section,
       items: section.items
         .filter((item) => isPathAllowedForRole(role, item.href))
@@ -100,7 +122,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
           badge: item.href === "/escalations" && handoffCount > 0 ? String(handoffCount) : undefined,
         })),
     })).filter((section) => section.items.length > 0);
-  }, [handoffCount, role]);
+  }, [handoffCount, role, isSystemAdmin]);
 
   const renderItem = (item: NavItem) => {
     const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
@@ -140,7 +162,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
             </h1>
           )}
         </div>
-        <p className={styles.brandSub}>Control Deck</p>
+        <p className={styles.brandSub}>{isSystemAdmin ? "Platform Control" : "Studio Deck"}</p>
       </div>
 
       <nav className={styles.nav}>
@@ -152,14 +174,14 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
             {[
               ...(isSystemAdmin
                 ? [
-                    { label: "Dashboard", href: "/" },
                     { label: "Tenants", href: "/tenants" },
-                    { label: "Einstellungen", href: "/settings" },
+                    { label: "Plans", href: "/plans" },
+                    { label: "Settings", href: "/settings" },
                   ]
                 : [
-                    { label: "Live Monitor", href: "/live" },
+                    { label: "Live", href: "/live" },
                     { label: "Analytics", href: "/analytics" },
-                    { label: "Einstellungen", href: "/settings" },
+                    { label: "Settings", href: "/settings" },
                   ]),
             ]
               .filter((q) => isPathAllowedForRole(role, q.href))
@@ -185,12 +207,14 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
 
       <div className={styles.footer}>
         <div className={styles.footerRow}>
-          <div className={styles.avatar}>A</div>
+          <div className={styles.avatar} style={{ background: isSystemAdmin ? T.dangerDim : T.accentDim, color: isSystemAdmin ? T.danger : T.accent }}>
+            {isSystemAdmin ? <ShieldCheck size={14} /> : "A"}
+          </div>
           <div className={styles.footerMeta}>
             <p className={styles.footerEmail}>
               {user?.email || "Admin"}
             </p>
-            <p className={styles.footerRole}>{user?.role || "online"}</p>
+            <p className={styles.footerRole}>{isSystemAdmin ? "SYSTEM ADMIN" : (role || "online")}</p>
           </div>
           <button
             onClick={() => {
@@ -206,3 +230,11 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
     </div>
   );
 }
+
+// Minimal colors for avatar style hack
+const T = {
+  accent: "#6C5CE7",
+  accentDim: "rgba(108,92,231,0.15)",
+  danger: "#FF6B6B",
+  dangerDim: "rgba(255,107,107,0.12)",
+};

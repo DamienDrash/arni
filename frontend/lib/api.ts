@@ -32,16 +32,14 @@ export async function apiFetch(path: string, init?: RequestInit) {
   const method = (init?.method || "GET").toUpperCase();
   const isRetryableRead = isRetryableMethod(method);
   
-  // Internal API routes should go through our Next.js proxy
-  // /admin/... -> /arni/proxy/admin/...
-  // /auth/... -> /arni/proxy/auth/...
-  
+  // Internal API routes MUST go through our Next.js proxy at /proxy/...
+  // withBasePath ensures the /arni prefix is added correctly
   const candidates = [
     withBasePath(`/proxy${normalizedPath}`)
   ];
 
   const uniqueCandidates = [...new Set(candidates)];
-  let lastError: unknown;
+  let lastError: any;
 
   for (let index = 0; index < uniqueCandidates.length; index += 1) {
     const url = uniqueCandidates[index];
@@ -61,7 +59,7 @@ export async function apiFetch(path: string, init?: RequestInit) {
     const requestInitBase: RequestInit = {
       ...init,
       headers,
-      credentials: "same-origin",
+      credentials: "same-origin", // Keep same-origin for strict security
     };
     
     const requestInit = isRetryableRead
@@ -70,31 +68,36 @@ export async function apiFetch(path: string, init?: RequestInit) {
       
     try {
       const response = await fetch(requestUrl, requestInit);
+      
       if (response.ok) return response;
 
-      const shouldRetry =
-        isRetryableRead && RETRYABLE_STATUSES.has(response.status) &&
-        index < uniqueCandidates.length - 1;
-
-      if (!shouldRetry) {
+      if (!isRetryableRead || !RETRYABLE_STATUSES.has(response.status)) {
         if (typeof window !== "undefined" && response.status === 401) {
-          window.sessionStorage.removeItem("ariia_user");
-          window.localStorage.removeItem("ariia_user");
-          const loginPath = withBasePath("/login/");
-          if (window.location.pathname !== loginPath) {
-            window.location.href = loginPath;
+          if (normalizedPath === "/auth/me") {
+            window.sessionStorage.removeItem("ariia_user");
+            window.localStorage.removeItem("ariia_user");
+            const loginPath = withBasePath("/login");
+            if (window.location.pathname !== loginPath) {
+              window.location.href = loginPath;
+            }
           }
         }
         return response;
       }
-    } catch (error) {
+    } catch (error: any) {
       lastError = error;
-      if (!isRetryableRead || index === uniqueCandidates.length - 1) {
-        break;
+      if (index < uniqueCandidates.length - 1) {
+        continue;
       }
+      break;
     }
   }
 
-  console.warn("API network request failed", { path: normalizedPath, method, tried: uniqueCandidates });
+  console.error("API network request failed permanently", { 
+    path: normalizedPath, 
+    method, 
+    tried: uniqueCandidates,
+    lastError: lastError?.message || lastError
+  });
   throw lastError ?? new Error(`API request failed for ${normalizedPath}`);
 }

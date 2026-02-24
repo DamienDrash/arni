@@ -17,7 +17,9 @@ import structlog
 from app.gateway.schemas import InboundMessage
 from app.gateway.persistence import persistence
 from app.swarm.base import AgentResponse, BaseAgent
-from app.swarm.tools import magicline
+from app.swarm.tools import magicline, member_memory
+from app.swarm.tools.knowledge_base import search_knowledge_base
+from app.knowledge.ingest import collection_name_for_slug
 
 logger = structlog.get_logger()
 
@@ -85,11 +87,11 @@ def _build_profile_block(profile: dict) -> str:
     # Recent bookings: handle both dict (new) and list (legacy) format
     raw_bookings = profile.get("recent_bookings") or {}
     if isinstance(raw_bookings, dict):
-        upcoming = (raw_bookings.get("upcoming") or [])[:3]
-        past = (raw_bookings.get("past") or [])[:3]
+        upcoming = (raw_bookings.get("upcoming") or [])[:10]
+        past = (raw_bookings.get("past") or [])[:10]
     else:
         today_iso = date.today().isoformat()
-        upcoming = [b for b in raw_bookings if (b.get("start") or "") >= today_iso][:3]
+        upcoming = [b for b in raw_bookings if (b.get("start") or "") >= today_iso][:10]
         past = []
 
     if upcoming:
@@ -192,55 +194,57 @@ class AgentOps(BaseAgent):
 
         logger.info("agent.ops.handle", message_id=message.message_id)
 
-        # 1. First Pass: Ask LLM (it might decide to use a TOOL)
-        response_1 = await self._chat(
-            ops_system_prompt,
-            message.content,
-            user_id=message.user_id,
-            tenant_id=message.tenant_id,
-        )
-        if not response_1:
-            return self._fallback_response()
+        # 1. Start Tool Loop (ReAct Pattern)
+        # Load history for context (slots offered etc.)
+        history_msgs = []
+        try:
+            raw_history = persistence.get_chat_history(str(message.user_id), limit=10, tenant_id=message.tenant_id)
+            for item in raw_history:
+                if item.role in {"user", "assistant"}:
+                    history_msgs.append({"role": item.role, "content": item.content})
+        except Exception:
+            pass
 
-        # 2. Check for TOOL usage
-        tool_call = self._extract_tool_call(response_1)
-        if tool_call:
+        messages = [{"role": "system", "content": ops_system_prompt}]
+        messages.extend(history_msgs)
+        messages.append({"role": "user", "content": message.content})
+        
+        max_turns = 5
+        previous_tool_calls = set()
+        
+        for turn in range(max_turns):
+            response = await self._chat_with_messages(messages, tenant_id=message.tenant_id)
+            
+            if not response:
+                return self._fallback_response()
+            
+            # Check for TOOL usage
+            tool_call = self._extract_tool_call(response)
+            if not tool_call:
+                # Final answer reached
+                return AgentResponse(content=response, confidence=0.9)
+            
             tool_name, args_str = tool_call
-            logger.info("agent.ops.tool_use", tool=tool_name, args=args_str)
+            call_id = f"{tool_name}({args_str})"
+            
+            # Prevent infinite repetition
+            if call_id in previous_tool_calls:
+                logger.warning("agent.ops.loop_detected", call=call_id)
+                messages.append({"role": "assistant", "content": response})
+                messages.append({"role": "user", "content": "Du wiederholst dich. Nutze die bereits erhaltenen Daten für eine finale Antwort!"})
+                continue
 
+            previous_tool_calls.add(call_id)
+            logger.info("agent.ops.tool_use", tool=tool_name, args=args_str, turn=turn+1)
+            
             # Execute tool
             tool_result = self._execute_tool(tool_name, args_str, message.user_id, message.tenant_id)
             
-            # 3. Second Pass: Feed result back and get final answer
-            # We append the tool result to the conversation context
-            final_prompt = (
-                f"{ops_system_prompt}\n\n"
-                f"SYSTEM TOOL OUTPUT:\n{tool_result}\n\n"
-                "Antworte dem User jetzt basierend auf diesen Daten. Sei hilfreich und präzise."
-            )
-            response_2 = await self._chat(
-                final_prompt,
-                message.content,
-                user_id=message.user_id,
-                tenant_id=message.tenant_id,
-            )
-            
-            cancel_kw = ["stornieren", "absagen", "cancel", "löschen"]
-            req_conf = any(kw in message.content.lower() for kw in cancel_kw) and "bestätig" in (response_2 or "").lower()
-            return AgentResponse(content=response_2 or "Entschuldige, ich konnte die Daten nicht verarbeiten.", confidence=0.95, requires_confirmation=req_conf)
+            # Add to conversation
+            messages.append({"role": "assistant", "content": response})
+            messages.append({"role": "user", "content": f"OBSERVATION: {tool_result}"})
 
-        # Safety: never expose raw TOOL commands to users.
-        if "TOOL:" in response_1:
-            logger.warning("agent.ops.unparsed_tool_response", response=response_1)
-            return AgentResponse(
-                content="Ich habe den Terminbefehl erkannt, aber die Ausführung war unklar. Sag kurz: 'Welche Termine habe ich heute?'",
-                confidence=0.6,
-            )
-
-        # No tool used, return direct response
-        cancel_kw = ["stornieren", "absagen", "cancel", "löschen"]
-        req_conf = any(kw in message.content.lower() for kw in cancel_kw) and "bestätig" in (response_1 or "").lower()
-        return AgentResponse(content=response_1, confidence=0.85, requires_confirmation=req_conf)
+        return AgentResponse(content="Ich konnte die passende Info gerade nicht abrufen. Bitte versuche es später noch einmal.", confidence=0.5)
 
     def _parse_args(self, args_str: str) -> list[str]:
         if not args_str.strip():
@@ -249,13 +253,18 @@ class AgentOps(BaseAgent):
         return [a.strip().strip("'").strip('"') for a in parsed]
 
     def _extract_tool_call(self, response: str) -> tuple[str, str] | None:
-        cleaned = response.strip().strip("`")
+        cleaned = response.strip().strip("`").strip()
+        # Look for TOOL: name(...) or just TOOL:name(...)
         match = re.search(
             r"TOOL\s*:\s*([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)",
             cleaned,
             flags=re.IGNORECASE | re.DOTALL,
         )
         if not match:
+            # Fallback for LLMs that just return the tool call line
+            match = re.search(r"(\w+)\((.*)\)", cleaned)
+            if match and match.group(1) in ("get_class_schedule", "get_appointment_slots", "get_member_bookings", "cancel_member_booking", "reschedule_member_booking_to_latest", "get_checkin_history", "class_book", "search_knowledge_base", "search_member_memory"):
+                return match.group(1), match.group(2).strip()
             return None
         return match.group(1), match.group(2).strip()
 
@@ -263,16 +272,17 @@ class AgentOps(BaseAgent):
         """Execute the requested tool safely."""
         try:
             args = self._parse_args(args_str)
+            logger.info("agent.ops.executing", tool=name, args=args)
             
             if name == "get_class_schedule":
                 # Default to today if date parsing fails or empty
                 d = args[0] if args else date.today().isoformat()
-                return magicline.get_class_schedule(d)
+                return magicline.get_class_schedule(d, tenant_id=tenant_id)
                 
             elif name == "get_appointment_slots":
                 cat = args[0] if len(args) > 0 else "all"
                 days = int(args[1]) if len(args) > 1 else 3
-                return magicline.get_appointment_slots(cat, days)
+                return magicline.get_appointment_slots(cat, days, tenant_id=tenant_id)
                 
             elif name == "get_checkin_history":
                 days = int(args[0]) if args else 7
@@ -282,20 +292,63 @@ class AgentOps(BaseAgent):
                 slot_id = int(args[0])
                 return magicline.class_book(slot_id, user_identifier=user_id, tenant_id=tenant_id)
 
+            elif name == "search_member_memory":
+                q = args[0] if args else ""
+                return member_memory.search_member_memory(user_id, q, tenant_id=tenant_id)
+
+            elif name == "search_knowledge_base":
+                q = args[0] if args else ""
+                slug = persistence.get_tenant_slug(tenant_id)
+                coll = collection_name_for_slug(slug)
+                return search_knowledge_base(q, collection_name=coll)
+
             elif name == "get_member_bookings":
-                date_str = args[0] if args else date.today().isoformat()
+                raw_date = args[0] if args else date.today().isoformat()
+                # Handle LLM sending "None" or "null" as string
+                d_val = None if str(raw_date).lower() in ("none", "null", "") else raw_date
                 query = args[1] if len(args) > 1 and args[1] else None
-                return magicline.get_member_bookings(user_id, date_str, query, tenant_id=tenant_id)
+                return magicline.get_member_bookings(user_id, d_val, query, tenant_id=tenant_id)
+
+            elif name == "book_appointment_by_time":
+                # args expected from LLM: category, date, time
+                if len(args) < 3:
+                    return "Error: Missing arguments for booking (category, date, time needed)."
+                return magicline.book_appointment_by_time(
+                    user_identifier=user_id,
+                    time_str=args[2],
+                    date_str=args[1],
+                    category=args[0],
+                    tenant_id=tenant_id
+                )
 
             elif name == "cancel_member_booking":
-                date_str = args[0] if args else date.today().isoformat()
-                query = args[1] if len(args) > 1 and args[1] else None
-                return magicline.cancel_member_booking(user_id, date_str, query, tenant_id=tenant_id)
+                # args expected: date, query
+                raw_arg1 = args[0] if args else date.today().isoformat()
+                raw_arg2 = args[1] if len(args) > 1 else None
+                
+                # Robustness: if arg1 looks like a time or search query (not YYYY-MM-DD), 
+                # it's likely the query and user meant today.
+                if raw_arg1 and not re.match(r"^\d{4}-\d{2}-\d{2}$", str(raw_arg1)):
+                    date_val = date.today().isoformat()
+                    query_val = raw_arg1
+                else:
+                    date_val = raw_arg1
+                    query_val = raw_arg2
+                    
+                return magicline.cancel_member_booking(user_id, date_val, query_val, tenant_id=tenant_id)
 
             elif name == "reschedule_member_booking_to_latest":
-                date_str = args[0] if args else date.today().isoformat()
-                query = args[1] if len(args) > 1 and args[1] else None
-                return magicline.reschedule_member_booking_to_latest(user_id, date_str, query, tenant_id=tenant_id)
+                raw_arg1 = args[0] if args else date.today().isoformat()
+                raw_arg2 = args[1] if len(args) > 1 else None
+                
+                if raw_arg1 and not re.match(r"^\d{4}-\d{2}-\d{2}$", str(raw_arg1)):
+                    date_val = date.today().isoformat()
+                    query_val = raw_arg1
+                else:
+                    date_val = raw_arg1
+                    query_val = raw_arg2
+                    
+                return magicline.reschedule_member_booking_to_latest(user_id, date_val, query_val, tenant_id=tenant_id)
                 
             return f"Error: Tool '{name}' unknown."
             

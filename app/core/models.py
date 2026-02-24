@@ -137,6 +137,7 @@ class StudioMember(Base):
     member_since = Column(DateTime, nullable=True)       # createdDateTime
     is_paused = Column(Boolean, nullable=True, default=False)
     pause_info = Column(Text, nullable=True)             # JSON: {"is_currently_paused": bool, "pause_until": "YYYY-MM-DD"|null, ...}
+    contract_info = Column(Text, nullable=True)          # JSON: {"plan_name": "Premium", "status": "ACTIVE", "end_date": ...}
     additional_info = Column(Text, nullable=True)        # JSON: {"Trainingsziel": "Muskelaufbau", …}
 
     # --- Lazy enrichment (per-member API, cached with TTL) ---

@@ -37,6 +37,15 @@ type PauseInfo = {
   last_pause_reason?: string | null;
 };
 
+type ContractInfo = {
+  plan_name: string;
+  status: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  is_canceled?: boolean;
+  cancellation_date?: string | null;
+};
+
 type Member = {
   customer_id: number;
   member_number?: string | null;
@@ -50,6 +59,7 @@ type Member = {
   member_since?: string | null;
   is_paused?: boolean | null;
   pause_info?: PauseInfo | null;
+  contract_info?: ContractInfo | null;
   enriched_at?: string | null;
   additional_info?: Record<string, string> | null;
   checkin_stats?: CheckinStats | null;
@@ -64,6 +74,8 @@ type ExtendedInfo = {
   health: string[];
   limitations: string[];
   motivation: string[];
+  address?: string;
+  commPrefs?: string;
   other: string[];
 };
 
@@ -170,6 +182,15 @@ function extractExtendedInfo(additionalInfo?: Record<string, string> | null): Ex
     const value = String(rawValue || "").trim();
     if (!value) continue;
     const valueLc = value.toLowerCase();
+
+    if (key === "adresse") {
+      result.address = value;
+      continue;
+    }
+    if (key === "kontakt_erlaubnis") {
+      result.commPrefs = value;
+      continue;
+    }
 
     const keySuggestsGoal = key.includes("ziel") || key.includes("goal") || key.includes("objective") || key.includes("trainingsziele");
     const keySuggestsHealth = key.includes("gesund") || key.includes("health") || key.includes("medizin") || key.includes("medical") || key.includes("anamnese");
@@ -383,6 +404,18 @@ export default function MembersPage() {
                         <td style={{ padding: "10px 16px", minWidth: 240, verticalAlign: "top" }}>
                           <div style={{ fontSize: 12, color: T.textMuted, whiteSpace: "nowrap" }}>{m.phone_number || "-"}</div>
                           <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>{m.email || "-"}</div>
+                          
+                          {/* Contract Info */}
+                          {m.contract_info && (
+                            <div style={{ marginTop: 8, padding: "6px 8px", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 6 }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase" }}>Vertrag</div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: T.accent }}>{m.contract_info.plan_name}</div>
+                              {m.contract_info.end_date && (
+                                <div style={{ fontSize: 10, color: T.textMuted }}>Ende: {new Date(m.contract_info.end_date).toLocaleDateString("de-DE")}</div>
+                              )}
+                            </div>
+                          )}
+
                           <div style={{ marginTop: 6 }}>{m.is_paused ? <Badge variant="warning" size="xs">Pausiert</Badge> : <Badge variant="success" size="xs">Aktiv</Badge>}</div>
                           {m.is_paused && (
                             <>
@@ -409,6 +442,8 @@ export default function MembersPage() {
                                   {m.pause_info?.last_pause_reason ? ` · Grund: ${m.pause_info.last_pause_reason}` : ""}
                                 </div>
                               </div>
+                              <div><div style={{ fontSize: 11, color: T.textDim }}>Adresse</div><div style={{ fontSize: 12, color: T.text, marginTop: 4 }}>{extended.address || "-"}</div></div>
+                              <div><div style={{ fontSize: 11, color: T.textDim }}>Kontakt-Erlaubnis</div><div style={{ fontSize: 12, color: T.text, marginTop: 4 }}>{extended.commPrefs || "-"}</div></div>
                               <div><div style={{ fontSize: 11, color: T.textDim }}>Weitere Infos</div><div style={{ fontSize: 12, color: T.text, marginTop: 4 }}>{extended.other.join(" · ") || "-"}</div></div>
                             </div>
                           </td>

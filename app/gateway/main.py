@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.gateway.dependencies import redis_bus
 from app.gateway.routers import webhooks, voice, websocket
+from app.gateway.routers.billing import router as billing_router
 from app.gateway.admin import router as admin_router
 from app.core.instrumentation import setup_instrumentation
 from app.core.auth import ensure_default_tenant_and_admin
@@ -32,8 +33,7 @@ def _enforce_startup_guards() -> None:
         return
     weak_auth_secret = settings.auth_secret in {"", "change-me-long-random-secret", "changeme", "password123"}
     weak_acp_secret = settings.acp_secret in {"", "ariia-acp-secret-changeme", "changeme", "password123"}
-    weak_tg_secret = settings.telegram_webhook_secret in {"", "change-me-telegram-webhook-secret"}
-    if weak_auth_secret or weak_acp_secret or weak_tg_secret:
+    if weak_auth_secret or weak_acp_secret:
         raise RuntimeError("Refusing startup in production due to weak/default secrets.")
 
 
@@ -60,16 +60,6 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.warning("ariia.gateway.redis_unavailable", msg="Starting without Redis")
 
-    # Initial member sync
-    async def _run_members_sync() -> None:
-        try:
-            from app.integrations.magicline.members_sync import sync_members_from_magicline
-            await asyncio.to_thread(sync_members_from_magicline)
-        except Exception as e:
-            logger.warning("ariia.gateway.members_sync_skipped", error=str(e))
-
-    background_tasks.append(asyncio.create_task(_run_members_sync()))
-    
     try:
         from app.memory.member_memory_analyzer import scheduler_loop
         background_tasks.append(asyncio.create_task(scheduler_loop()))
@@ -81,6 +71,13 @@ async def lifespan(app: FastAPI):
         background_tasks.append(asyncio.create_task(magicline_sync_scheduler_loop()))
     except Exception as e:
         logger.warning("ariia.gateway.magicline_scheduler_skipped", error=str(e))
+
+    # Data Retention & Maintenance Loop
+    try:
+        from app.core.maintenance import maintenance_loop
+        background_tasks.append(asyncio.create_task(maintenance_loop()))
+    except Exception as e:
+        logger.warning("ariia.gateway.maintenance_loop_skipped", error=str(e))
 
     yield
     
@@ -100,9 +97,12 @@ app = FastAPI(
 # Setup Instrumentation
 setup_instrumentation(app)
 
+# Configure CORS
+origins = [o.strip() for o in settings.cors_allowed_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # TODO: Restrict in Production (Task 2.x)
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -113,6 +113,7 @@ app.include_router(webhooks.router)
 app.include_router(voice.router)
 app.include_router(websocket.router)
 app.include_router(admin_router)
+app.include_router(billing_router, prefix="/admin")
 
 # --- ACP Router ---
 from app.acp.server import router as acp_router

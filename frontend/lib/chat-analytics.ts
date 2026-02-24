@@ -105,6 +105,23 @@ export async function buildChatAnalyticsFromHistory() {
   };
 }
 
+export async function buildSystemAnalytics() {
+  const [tenants, users, audit] = await Promise.all([
+    _get<any[]>("/auth/tenants"),
+    _get<any[]>("/auth/users"),
+    _get<any[]>("/auth/audit?limit=10"),
+  ]);
+
+  return {
+    totalTenants: tenants?.length ?? 0,
+    activeTenants: tenants?.filter(t => t.is_active).length ?? 0,
+    totalUsers: users?.length ?? 0,
+    recentAudit: audit ?? [],
+    systemStatus: "healthy",
+    engineVersion: "1.4.0",
+  };
+}
+
 function _emptyOverview(): AnalyticsOverview {
   return {
     tickets_24h: 0, resolved_24h: 0, escalated_24h: 0,

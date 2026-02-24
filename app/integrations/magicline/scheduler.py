@@ -30,7 +30,7 @@ def _enrich_tenant_members(tenant_id: int) -> None:
         return
         
     import redis as _redis
-    from app.config.settings import get_settings
+    from config.settings import get_settings
     
     try:
         r = _redis.from_url(get_settings().redis_url, decode_responses=True)

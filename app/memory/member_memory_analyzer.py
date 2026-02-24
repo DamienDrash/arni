@@ -12,6 +12,8 @@ from app.core.models import ChatMessage, ChatSession, StudioMember, Tenant
 from app.swarm.llm import LLMClient
 from config.settings import get_settings
 from app.gateway.persistence import persistence
+from app.knowledge.store import KnowledgeStore
+from app.knowledge.ingest import collection_name_for_slug as get_kb_coll_name
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -20,18 +22,49 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 LEGACY_MEMORY_DIR = os.path.join(BASE_DIR, "data", "knowledge", "members")
 TENANT_MEMORY_ROOT = os.path.join(BASE_DIR, "data", "knowledge", "tenants")
 GLOBAL_INSTRUCTIONS_PATH = os.path.join(BASE_DIR, "data", "knowledge", "member-memory-instructions.md")
-DEFAULT_INSTRUCTIONS: Final[str] = """# Member Memory Extraction Instructions
 
-Ziel:
-- Extrahiere nur langlebige, relevante Informationen pro Mitglied.
-- Nutze Chat-Signale + Magicline-Daten.
-- Schreibe kompakt und faktisch auf Deutsch.
+def member_collection_name_for_slug(tenant_slug: str) -> str:
+    """Return the ChromaDB collection name for member memory."""
+    safe = re.sub(r"[^a-z0-9_-]", "_", (tenant_slug or "system").lower())
+    return f"ariia_member_memory_{safe}"
 
-Regeln:
-- Keine sensiblen Daten erfinden.
-- Bei Unsicherheit als Hypothese kennzeichnen.
-- Redundanzen vermeiden.
-- Fokus: Ziele, Präferenzen, Risiken, Motivation, Constraints, Terminmuster.
+async def _index_member_memory(member_id: str, tenant_id: int | None, profile_summary: str):
+    """Upsert the member's analytical summary into the vector DB."""
+    try:
+        db = SessionLocal()
+        t = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+        slug = t.slug if t else "system"
+        db.close()
+        
+        collection_name = member_collection_name_for_slug(slug)
+        store = KnowledgeStore(collection_name=collection_name)
+        
+        # We index the summary as a single document per member
+        doc_id = f"member_{member_id}"
+        store.upsert_documents(
+            documents=[profile_summary],
+            metadatas=[{"member_id": member_id, "type": "memory", "updated_at": datetime.now(timezone.utc).isoformat()}],
+            ids=[doc_id]
+        )
+    except Exception as e:
+        logger.error("member_memory.indexing_failed", member_id=member_id, error=str(e))
+
+DEFAULT_INSTRUCTIONS: Final[str] = """# Member Memory Extraction Instructions (Gold Standard)
+
+ZIEL:
+Extrahiere langlebige, faktische und emotionale Informationen über das Mitglied. Diese Daten dienen als Langzeitgedächtnis für personalisierte Assistenz und Retention.
+
+STRUKTUR-VORGABEN:
+- Fokus auf: Trainingsziele, körperliche Einschränkungen, Präferenzen, Motivation, zeitliche Constraints.
+- Motivations-Anker: Warum trainiert die Person wirklich? (z.B. "Will für Enkel fit bleiben", "Marathon-Traum").
+- Sentiment-Muster: Ist die Person oft unzufrieden? Was sind die Haupt-Frustratoren (z.B. "Duschen", "Sauberkeit")?
+- Sprache: Kompaktes, faktisches Deutsch.
+- Kennzeichnung: Hypothesen (bei Unsicherheit) klar als solche markieren.
+
+VERBOTE:
+- Keine sensiblen PII (Passwörter, Bankdaten).
+- Keine flüchtigen Smalltalk-Infos ohne Nutzwert.
+- Keine Redundanz zu bereits vorhandenen Fakten.
 """
 
 
@@ -224,23 +257,28 @@ async def _extract_profile_with_llm_async(
 
     llm = LLMClient(openai_api_key=settings.openai_api_key)
     system = (
-        "Du extrahierst langlebigen Member-Kontext für ein Fitnessstudio.\n"
-        "Antworte AUSSCHLIESSLICH als JSON-Objekt mit Feldern:\n"
-        "summary (string), goals (string[]), preferences (string[]), constraints (string[]), "
-        "risks (string[]), motivation (string), next_actions (string[]), confidence (number 0..1).\n"
-        "Keine zusätzlichen Felder, kein Markdown."
+        "Du bist der 'Memory Analyzer' von ARIIA. Deine Aufgabe ist es, aus Chat-Verläufen und CRM-Daten "
+        "langlebige, faktische Informationen über ein Mitglied zu extrahieren.\n\n"
+        "FOKUS:\n"
+        "- Trainingsziele (z.B. Abnehmen, Marathon-Vorbereitung)\n"
+        "- Körperliche Einschränkungen/Risiken (z.B. Knieprobleme, Blutdruck)\n"
+        "- Präferenzen (z.B. trainiert am liebsten morgens, mag keine Kurse)\n"
+        "- Persönlichkeit (z.B. braucht viel Motivation, ist sehr sachlich)\n\n"
+        "ANTWORTE AUSSCHLIESSLICH als JSON-Objekt mit diesen Feldern:\n"
+        "summary (1-2 Sätze), goals (string[]), preferences (string[]), constraints (string[]), "
+        "risks (string[]), motivation (string), next_actions (string[]), confidence (0..1)."
     )
     user = (
         f"Mitglied: {member_id}\n\n"
         f"Anweisung:\n{instructions.strip()}\n\n"
-        f"Magicline-Kontext:\n{magic_summary or '- keine Daten -'}\n\n"
-        f"Chat-Kontext:\n{chat_summary or '- keine Chat-Historie -'}\n"
+        f"CRM-Daten:\n{magic_summary or '- keine Daten -'}\n\n"
+        f"Letzte Chats:\n{chat_summary or '- keine Chat-Historie -'}\n"
     )
     response = await llm.chat(
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
         model=model,
-        temperature=0.2,
-        max_tokens=500,
+        temperature=0.1,
+        max_tokens=600,
     )
     payload = _extract_first_json_object(response)
     if not payload:
@@ -251,23 +289,36 @@ async def _extract_profile_with_llm_async(
 def _magicline_summary(member_id: str, tenant_id: int | None) -> str:
     db = SessionLocal()
     try:
-        q = db.query(StudioMember).filter(StudioMember.member_number == member_id)
-        if member_id.isdigit():
-            q = db.query(StudioMember).filter(
-                (StudioMember.member_number == member_id) | (StudioMember.customer_id == int(member_id))
-            )
-        if tenant_id is not None:
-            q = q.filter(StudioMember.tenant_id == tenant_id)
+        m_id = str(member_id).strip()
+        q = db.query(StudioMember).filter(StudioMember.tenant_id == tenant_id)
+        
+        if m_id.isdigit():
+            cid = int(m_id)
+            q = q.filter((StudioMember.member_number == m_id) | (StudioMember.customer_id == cid))
+        else:
+            q = q.filter(StudioMember.member_number == m_id)
+            
         row = q.first()
         if not row:
             return ""
-        return (
-            f"- Name: {row.first_name} {row.last_name}\n"
-            f"- E-Mail: {row.email or '-'}\n"
-            f"- Telefon: {row.phone_number or '-'}\n"
-            f"- Sprache: {row.preferred_language or '-'}\n"
-            f"- Pausiert: {'ja' if row.is_paused else 'nein'}\n"
-        )
+        
+        info_lines = [
+            f"- Name: {row.first_name} {row.last_name}",
+            f"- E-Mail: {row.email or '-'}",
+            f"- Telefon: {row.phone_number or '-'}",
+            f"- Sprache: {row.preferred_language or '-'}",
+            f"- Pausiert: {'ja' if row.is_paused else 'nein'}",
+        ]
+        
+        if row.additional_info:
+            try:
+                extra = json.loads(row.additional_info)
+                for k, v in extra.items():
+                    info_lines.append(f"- {k}: {v}")
+            except Exception:
+                pass
+                
+        return "\n".join(info_lines)
     except Exception:
         return ""
     finally:
@@ -290,20 +341,38 @@ def analyze_member(member_id: str, tenant_id: int | None) -> None:
                 chat_summary=chat,
             )
         )
+        if profile_summary:
+            # GOLD STANDARD: Index into Vector DB
+            asyncio.run(_index_member_memory(member_id, tenant_id, profile_summary))
+            
     except Exception as exc:
         logger.warning("member_memory.llm_extract_failed", member_id=member_id, tenant_id=tenant_id, error=str(exc))
+    
     if not profile_summary:
         profile_summary = _heuristic_profile_summary(chat)
+    
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    content = (
-        f"# Member Memory {member_id}\n\n"
-        f"_Letzte Analyse: {now}_\n\n"
-        f"## Analytische Zusammenfassung\n{profile_summary}\n\n"
-        f"## Magicline Kontext\n{magic or '- keine Daten -'}\n\n"
-        f"## Extraktions-Anweisung\n{instructions.strip()}\n\n"
-        f"## Relevante Chat-Informationen\n{chat or '- keine Chat-Historie -'}\n"
-    )
-    _write_text_safe(os.path.join(memory_dir, f"{member_id}.md"), content)
+    
+    # Gold Standard Markdown Structure
+    content = [
+        f"# Member Memory: {member_id}",
+        "",
+        f"> SCOPE: Member / {member_id}",
+        f"> DOMAIN: Personal Context",
+        f"> LAST_ANALYZE: {now}",
+        f"> VERSION: 1.4",
+        "",
+        "## Analytische Zusammenfassung",
+        profile_summary,
+        "",
+        "## Magicline Kontext",
+        magic or "- keine Daten -",
+        "",
+        "## Relevante Chat-Informationen",
+        chat or "- keine Chat-Historie -",
+    ]
+    
+    _write_text_safe(os.path.join(memory_dir, f"{member_id}.md"), "\n".join(content))
 
 
 def analyze_all_members(tenant_id: int | None = None) -> dict[str, int]:

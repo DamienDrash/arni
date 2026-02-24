@@ -499,11 +499,11 @@ export default function LiveGhostPage() {
                     border: `1px solid ${isUser ? T.border : "rgba(108,92,231,0.3)"}`,
                   }}>
                     <p style={{ fontSize: 13, color: T.text, margin: 0, lineHeight: 1.5 }}>{msg.content}</p>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, marginTop: 6 }}>
-                      <span style={{ fontSize: 10, color: T.textDim }}>
-                        {new Date(msg.timestamp).toLocaleTimeString()}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, marginTop: 6, opacity: 0.7 }}>
+                      <span style={{ fontSize: 9, color: T.textDim, fontWeight: 500 }}>
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                      {!isUser && <Badge variant="accent" size="xs">ARIIA</Badge>}
+                      {!isUser && <span style={{ fontSize: 9, color: T.accent, fontWeight: 800, letterSpacing: "0.05em" }}>ARIIA AI</span>}
                     </div>
                   </div>
                 </div>

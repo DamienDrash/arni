@@ -22,15 +22,16 @@ Dieser Skill steuert:
 - Loeschung (Storno)
 - Umbuchung auf spaeten Slot
 - Kursplan und Kursbuchung
+- Trainer-Auskunft (Wer ist heute da?)
 
 ## Verfuegbare Tools
 
-- `get_member_bookings(date, query)`
+- `get_member_bookings(date, query)`: Nutze `date=None` um alle zukuenftigen Buchungen zu durchsuchen.
 - `get_appointment_slots(category, days)`
 - `book_appointment_by_time` (intern ueber Tool-Wrapper)
 - `cancel_member_booking(date, query)`
 - `reschedule_member_booking_to_latest(date, query)`
-- `get_class_schedule(date)`
+- `get_class_schedule(date)`: Primaerquelle fuer Trainer-Infos.
 - `class_book(slot_id)`
 - `get_checkin_history(days)`
 
@@ -47,6 +48,8 @@ Dieser Skill steuert:
 ## Intent -> Aktion
 
 - Intent "Meine Termine heute/morgen" -> `get_member_bookings`
+- Intent "Wann ist mein naechster [Art] Termin" -> `get_member_bookings(None, "art")`
+- Intent "Wer ist heute da?" / "Welche Trainer?" -> `get_class_schedule(heute)`
 - Intent "Freie Termine" -> `get_appointment_slots`
 - Intent "Buche [Zeit]" oder bestaetigtes Booking-Follow-up -> `book_appointment_by_time`
 - Intent "Loesche/Storniere [Zeit/Termin]" oder bestaetigtes Delete-Follow-up -> `cancel_member_booking`

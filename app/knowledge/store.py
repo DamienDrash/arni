@@ -66,6 +66,22 @@ class KnowledgeStore:
         """Return number of documents in store."""
         return self.collection.count()
 
+    def delete_documents(self, ids: list[str]) -> None:
+        """Remove specific documents from the store by ID."""
+        try:
+            self.collection.delete(ids=ids)
+            logger.info("knowledge.store.deleted", count=len(ids))
+        except Exception as e:
+            logger.error("knowledge.store.delete_failed", error=str(e))
+
+    def delete_by_metadata(self, where_filter: dict) -> None:
+        """Remove documents matching metadata filters."""
+        try:
+            self.collection.delete(where=where_filter)
+            logger.info("knowledge.store.deleted_by_filter", filter=where_filter)
+        except Exception as e:
+            logger.error("knowledge.store.delete_by_filter_failed", error=str(e))
+
     def reset(self):
         """Delete and recreate collection (Use with caution)."""
         try:

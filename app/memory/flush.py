@@ -1,38 +1,40 @@
-"""ARIIA v1.4 – Silent Flush (Context Compaction).
+"""ARIIA v1.4 – Silent Flush (Intelligent Context Compaction).
 
-@BACKEND: Sprint 4, Task 4.4
-Extracts facts from conversation context when nearing capacity.
+@BACKEND: Gold Standard Upgrade
+Replaces Regex with LLM extraction to capture semantic meaning and emotional anchors.
 """
 
-import re
-
+import asyncio
+import json
 import structlog
-
 from app.memory.context import ConversationContext, Turn
 from app.memory.knowledge import KnowledgeStore
+from app.swarm.llm import LLMClient
+from config.settings import get_settings
 
 logger = structlog.get_logger()
 
-# Patterns that indicate extractable facts
-FACT_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"(?:ich habe|ich hab|mein)\s+(.+?)(?:verletzt|schmerz|problem)", re.IGNORECASE),
-    re.compile(r"(?:ich bin|name ist|heiße)\s+(\w+)", re.IGNORECASE),
-    re.compile(r"(?:trainiere|training)\s+(.+?)(?:\.|$)", re.IGNORECASE),
-    re.compile(r"(?:allergi|unverträglich)\w*\s+(?:gegen\s+)?(.+?)(?:\.|,|$)", re.IGNORECASE),
-    re.compile(r"(?:ziel|goal|möchte)\s+(.+?)(?:\.|$)", re.IGNORECASE),
-    re.compile(r"(?:termin|buche|buchung)\s+(.+?)(?:\.|$)", re.IGNORECASE),
-    re.compile(r"(?:mitglied(?:schaft)?|abo|vertrag)\s+(.+?)(?:\.|$)", re.IGNORECASE),
-]
+FLUSH_PROMPT = """
+ANALYSE-MODUS: Silent Flush (Gedächtnis-Extraktion)
 
+Deine Aufgabe:
+Extrahiere alle relevanten, langlebigen Fakten aus dem folgenden Chat-Verlauf.
+Ignoriere Smalltalk. Fokus auf:
+1. Ziele (z.B. Marathon, Abnehmen)
+2. Einschränkungen (z.B. Knieprobleme, Zeitmangel)
+3. Präferenzen (z.B. mag kein Cardio, trainiert morgens)
+4. Motivations-Anker (z.B. "will für Hochzeit fit sein")
+
+FORMAT:
+Gib eine JSON-Liste von Strings zurück. Beispiel:
+["Ziel: Marathon 2026", "Einschränkung: Linkes Knie schmerzt", "Präferenz: Sauna nach Training"]
+
+CHAT-VERLAUF:
+{chat_text}
+"""
 
 class SilentFlush:
-    """Context compaction engine.
-
-    When context nears capacity (>80%):
-    1. Extract facts from user messages
-    2. Store facts in KnowledgeStore
-    3. Replace context with summary + last 3 turns
-    """
+    """Intelligent context compaction engine using LLM."""
 
     def __init__(
         self,
@@ -41,73 +43,42 @@ class SilentFlush:
     ) -> None:
         self._context = context
         self._knowledge = knowledge
+        self._llm = LLMClient(get_settings().openai_api_key)
 
-    def extract_facts(self, turns: list[Turn]) -> list[str]:
-        """Extract factual statements from conversation turns.
-
-        Args:
-            turns: List of conversation turns.
-
-        Returns:
-            List of extracted fact strings.
-        """
-        facts: list[str] = []
-
-        for turn in turns:
-            if turn.role != "user":
-                continue
-
-            content = turn.content.strip()
-
-            # Pattern-based extraction
-            for pattern in FACT_PATTERNS:
-                matches = pattern.findall(content)
-                for match in matches:
-                    fact = match.strip()
-                    if len(fact) > 3 and fact not in facts:
-                        facts.append(fact)
-
-            # Long messages likely contain useful info
-            if len(content) > 50 and not content.startswith("["):
-                # Store first sentence as a fact
-                first_sentence = content.split(".")[0].strip()
-                if first_sentence and first_sentence not in facts:
-                    facts.append(first_sentence)
-
-        return facts
+    async def extract_facts_llm(self, turns: list[Turn]) -> list[str]:
+        """Extract facts using GPT-4o-mini."""
+        chat_text = "\n".join([f"{t.role}: {t.content}" for t in turns])
+        
+        try:
+            response = await self._llm.chat(
+                messages=[{"role": "system", "content": FLUSH_PROMPT.format(chat_text=chat_text)}],
+                model="gpt-4o-mini",
+                temperature=0.1,
+                max_tokens=500
+            )
+            
+            # Clean up response to ensure valid JSON
+            cleaned = response.strip()
+            if cleaned.startswith("```json"):
+                cleaned = cleaned[7:-3]
+            
+            facts = json.loads(cleaned)
+            if isinstance(facts, list):
+                return [str(f) for f in facts if isinstance(f, (str, int, float))]
+            return []
+            
+        except Exception as e:
+            logger.warning("flush.llm_extraction_failed", error=str(e))
+            return []
 
     def create_summary(self, turns: list[Turn]) -> str:
-        """Create a brief summary of the conversation for context preservation.
-
-        Args:
-            turns: Full conversation turns.
-
-        Returns:
-            Summary string.
-        """
-        topics: list[str] = []
-        for turn in turns:
-            if turn.role == "user" and len(turn.content) > 10:
-                # Extract first meaningful phrase
-                phrase = turn.content.split(".")[0][:80].strip()
-                if phrase and phrase not in topics:
-                    topics.append(phrase)
-
-        if not topics:
-            return "Konversation ohne spezifische Themen."
-
-        topic_str = "; ".join(topics[:5])
-        return f"Bisherige Themen: {topic_str}"
+        """Create a mechanical summary (fallback/header)."""
+        # We keep this simple to save tokens, the real value is in the extracted facts
+        user_msgs = [t.content[:50] for t in turns if t.role == "user"]
+        return f"Kontext: {len(turns)} Nachrichten. Themen: {'; '.join(user_msgs[:3])}..."
 
     async def flush_if_needed(self, user_id: str) -> bool:
-        """Check and perform flush if context is near limit.
-
-        Args:
-            user_id: User identifier.
-
-        Returns:
-            True if flush was performed.
-        """
+        """Check and perform flush if context is near limit."""
         if not self._context.is_near_limit(user_id):
             return False
 
@@ -115,15 +86,22 @@ class SilentFlush:
         if not turns:
             return False
 
-        # Extract facts
-        facts = self.extract_facts(turns)
+        logger.info("flush.started", user_id=user_id, turns=len(turns))
+
+        # 1. Extract facts via LLM (Async)
+        facts = await self.extract_facts_llm(turns)
+        
+        # 2. Store facts
         if facts:
+            # We append to the markdown file. 
+            # Ideally, we would trigger the full MemberMemoryAnalyzer here, 
+            # but append_facts is a safe, fast write operation.
             self._knowledge.append_facts(user_id, facts)
-            logger.info("flush.facts_extracted", user_id=user_id, count=len(facts))
+            logger.info("flush.facts_persisted", user_id=user_id, count=len(facts))
 
-        # Create summary and compact context
+        # 3. Compact Context
         summary = self.create_summary(turns)
-        self._context.replace_with_summary(user_id, summary, keep_last=3)
+        self._context.replace_with_summary(user_id, summary, keep_last=5) # Keep a bit more context for flow
 
-        logger.info("flush.completed", user_id=user_id, facts=len(facts))
+        logger.info("flush.completed", user_id=user_id)
         return True

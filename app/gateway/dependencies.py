@@ -21,21 +21,9 @@ settings = get_settings()
 redis_bus = RedisBus(redis_url=settings.redis_url)
 
 # Swarm Components
-# TODO (Phase 3): Make LLMClient/Router per-request/tenant-aware
+# LLMClient can still be a global fallback if configured, but agents should use tenant keys.
 llm_client = LLMClient(openai_api_key=settings.openai_api_key)
 swarm_router = SwarmRouter(llm=llm_client)
-
-# Integration Clients
-telegram_bot = TelegramBot(
-    bot_token=settings.telegram_bot_token,
-    admin_chat_id=settings.telegram_admin_chat_id,
-)
-
-whatsapp_verifier = WhatsAppClient(
-    access_token=settings.meta_access_token,
-    phone_number_id=settings.meta_phone_number_id,
-    app_secret=settings.meta_app_secret,
-)
 
 # Active WebSockets (Ghost Mode)
 active_websockets = []
@@ -46,8 +34,34 @@ def get_redis_bus() -> RedisBus:
 def get_swarm_router() -> SwarmRouter:
     return swarm_router
 
-def get_telegram_bot() -> TelegramBot:
-    return telegram_bot
+def get_telegram_bot(tenant_id: int | None = None) -> TelegramBot:
+    """Returns a tenant-aware TelegramBot instance."""
+    token = ""
+    admin_id = ""
+    if tenant_id is not None:
+        token = persistence.get_setting("telegram_bot_token", tenant_id=tenant_id) or ""
+        admin_id = persistence.get_setting("telegram_admin_chat_id", tenant_id=tenant_id) or ""
+    
+    if not token:
+        logger.warning("gateway.telegram_bot.missing_token", tenant_id=tenant_id)
+        
+    return TelegramBot(
+        bot_token=token,
+        admin_chat_id=admin_id,
+    )
 
-def get_whatsapp_client() -> WhatsAppClient:
-    return whatsapp_verifier
+def get_whatsapp_client(tenant_id: int | None = None) -> WhatsAppClient:
+    """Returns a tenant-aware WhatsAppClient instance."""
+    token = ""
+    phone_id = ""
+    secret = ""
+    if tenant_id is not None:
+        token = persistence.get_setting("meta_access_token", tenant_id=tenant_id) or ""
+        phone_id = persistence.get_setting("meta_phone_number_id", tenant_id=tenant_id) or ""
+        secret = persistence.get_setting("meta_app_secret", tenant_id=tenant_id) or ""
+
+    return WhatsAppClient(
+        access_token=token,
+        phone_number_id=phone_id,
+        app_secret=secret,
+    )

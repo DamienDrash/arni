@@ -17,6 +17,7 @@ import structlog
 
 from app.gateway.persistence import persistence
 from app.integrations.magicline import get_client
+from app.integrations.magicline.member_enrichment import enrich_member
 
 logger = structlog.get_logger()
 
@@ -76,7 +77,7 @@ def _safe_datetime(value: str | None) -> datetime | None:
 
 
 def _resolve_member_context(user_identifier: str, tenant_id: int | None = None) -> tuple[MemberContext | None, str | None]:
-    client = get_client()
+    client = get_client(tenant_id=tenant_id)
     if not client:
         return None, "Magicline Integration ist nicht konfiguriert."
 
@@ -196,7 +197,16 @@ def _member_bookings_for_date(client, customer_id: int, target_date: str | None 
         logger.warning("magicline.bookings.class_failed", customer_id=customer_id, error=str(e))
 
     filtered: list[dict] = []
+    # Statuses that mean the booking is essentially "gone" or "past" in a way we shouldn't act on it
+    invalid_statuses = {"CANCELED", "ABSENT", "NO_SHOW", "REJECTED", "DELETED"}
+    
     for b in bookings:
+        # Check status in the raw payload
+        raw = b.get("raw") or {}
+        status = str(raw.get("appointmentStatus") or raw.get("bookingStatus") or raw.get("classSlotStatus") or "").upper()
+        if status in invalid_statuses:
+            continue
+
         dt = _safe_datetime(b["start"])
         if date_filter and dt and dt.date() != date_filter:
             continue
@@ -269,9 +279,9 @@ def _pick_latest_slot(slots: list[dict], target_date: date, now_dt: datetime | N
     return candidates[-1][1]
 
 
-def get_class_schedule(date_str: str) -> str:
+def get_class_schedule(date_str: str, tenant_id: int | None = None) -> str:
     """Fetch class schedule for a specific date (YYYY-MM-DD)."""
-    client = get_client()
+    client = get_client(tenant_id=tenant_id)
     if not client:
         return "Error: Magicline Integration nicht konfiguriert."
 
@@ -286,7 +296,7 @@ def get_class_schedule(date_str: str) -> str:
         if not slots:
             return f"Keine Kurse für {target_date.isoformat()} gefunden."
 
-        output = [f"Kursplan für {target_date.isoformat()}:"]
+        output = [f"Kursplan & Trainer für {target_date.isoformat()}:"]
         for slot in slots:
             start_dt = _safe_datetime(slot.get("startDateTime"))
             time_label = start_dt.strftime("%H:%M") if start_dt else "??:??"
@@ -295,14 +305,13 @@ def get_class_schedule(date_str: str) -> str:
                 if isinstance(slot.get("classDetails"), dict)
                 else None
             ) or slot.get("className") or slot.get("title") or "Kurs"
-            trainer = (
-                (slot.get("instructor") or {}).get("firstName")
-                if isinstance(slot.get("instructor"), dict)
-                else None
-            ) or "Trainer"
+            instructor = slot.get("instructor")
+            trainer_name = "Ein Trainer"
+            if isinstance(instructor, dict):
+                trainer_name = f"{instructor.get('firstName', '')} {instructor.get('lastName', '')}".strip() or "Ein Trainer"
+            
             free = slot.get("availableSlots", slot.get("freeCapacity", "?"))
-            slot_id = slot.get("id") or slot.get("classSlotId")
-            output.append(f"- {time_label} Uhr: {title} (Trainer: {trainer}) | Frei: {free} | Slot-ID: {slot_id}")
+            output.append(f"- {time_label} Uhr: {title} | Trainer: {trainer_name} | Frei: {free}")
 
         return "\n".join(output)
     except Exception as e:
@@ -310,9 +319,9 @@ def get_class_schedule(date_str: str) -> str:
         return f"Fehler beim Abrufen des Kursplans: {e}"
 
 
-def get_appointment_slots(category: str = "all", days: int = 3) -> str:
+def get_appointment_slots(category: str = "all", days: int = 3, tenant_id: int | None = None) -> str:
     """Fetch available appointment slots for bookable appointment types."""
-    client = get_client()
+    client = get_client(tenant_id=tenant_id)
     if not client:
         return "Error: Magicline Integration nicht konfiguriert."
 
@@ -321,15 +330,22 @@ def get_appointment_slots(category: str = "all", days: int = 3) -> str:
         bookables_payload = client.appointment_list_bookable(slice_size=100)
         bookables = _extract_items(bookables_payload)
 
-        output = [f"Verfügbare Termine (naechste {days} Tage):"]
+        output = [f"Verfügbare Termine (nächste {days} Tage):"]
         found_any = False
         processed = 0
+        
+        # Clean category for matching
+        q = category.lower().strip() if category else "all"
+        if q in ("all", "*", ""): q = "all"
+
         for b in bookables:
             b_name = str(b.get("name") or b.get("title") or "Termin")
             b_id = b.get("id") or b.get("bookableAppointmentId")
             if b_id is None:
                 continue
-            if category != "all" and category.lower() not in b_name.lower():
+            
+            # Fuzzy match: "cardio" matches "CARDIO TRAINING"
+            if q != "all" and q not in b_name.lower():
                 continue
 
             try:
@@ -356,13 +372,14 @@ def get_appointment_slots(category: str = "all", days: int = 3) -> str:
             processed += 1
             found_any = True
             output.append(f"\n- {b_name} (ID: {b_id})")
-            for slot in slots[:6]:
+            # Show up to 10 slots per category for better selection
+            for slot in slots[:10]:
                 start = slot.get("startDateTime", "")
                 output.append(f"  • {start[:10]} {start[11:16]}")
-            if len(slots) > 6:
-                output.append(f"  • ... und {len(slots) - 6} weitere")
-            if processed >= 5:
-                output.append("  • ... weitere Terminarten verfuegbar")
+            if len(slots) > 10:
+                output.append(f"  • ... und {len(slots) - 10} weitere")
+            if processed >= 10:
+                output.append("\n  • ... weitere Terminarten verfügbar")
                 break
 
         if not found_any:
@@ -380,7 +397,7 @@ def get_member_bookings(
     tenant_id: int | None = None,
 ) -> str:
     """List current member bookings (class + appointment), optionally filtered by date/query."""
-    client = get_client()
+    client = get_client(tenant_id=tenant_id)
     if not client:
         return "Error: Magicline Integration nicht konfiguriert."
 
@@ -411,7 +428,7 @@ def cancel_member_booking(
     tenant_id: int | None = None,
 ) -> str:
     """Cancel exactly one booking for a member on a given date."""
-    client = get_client()
+    client = get_client(tenant_id=tenant_id)
     if not client:
         return "Error: Magicline Integration nicht konfiguriert."
 
@@ -427,12 +444,15 @@ def cancel_member_booking(
     if not candidates:
         return f"Keinen passenden Termin am {target_date.isoformat()} gefunden."
     if len(candidates) > 1:
-        choices = "\n".join(
-            f"- {c['title']} (ID: {c['booking_id']}, Typ: {c['type']})" for c in candidates[:5]
-        )
+        choices = []
+        for c in candidates[:5]:
+            start = _safe_datetime(c.get("start"))
+            time_str = start.strftime("%H:%M") if start else "unbekannt"
+            choices.append(f"- {c['title']} um {time_str} Uhr (ID: {c['booking_id']})")
+        
         return (
-            "Ich habe mehrere passende Termine gefunden. Bitte genauer benennen, welcher gelöscht werden soll:\n"
-            f"{choices}"
+            "Ich habe mehrere passende Termine gefunden. Welchen meinst du?\n"
+            + "\n".join(choices)
         )
 
     target = candidates[0]
@@ -444,6 +464,13 @@ def cancel_member_booking(
             client.appointment_cancel(int(target["booking_id"]))
         else:
             client.class_cancel_booking(int(target["booking_id"]))
+        
+        # Invalidate cache so assistant sees updated list
+        try:
+            enrich_member(member.customer_id, force=True, tenant_id=tenant_id)
+        except Exception:
+            pass
+
         return (
             f"Termin gelöscht: {target['title']} am "
             f"{(_safe_datetime(target.get('start')) or datetime.min).strftime('%Y-%m-%d %H:%M')}."
@@ -451,6 +478,8 @@ def cancel_member_booking(
     except Exception as e:
         err_text = str(e)
         err_lower = err_text.lower()
+        if "already canceled" in err_lower or "already_canceled" in err_lower:
+            return "Der Termin wurde bereits storniert."
         if "404" in err_lower or "not found" in err_lower:
             return "Der Termin wurde im CRM nicht gefunden. Er wurde evtl. schon gelöscht."
         if "409" in err_lower or "conflict" in err_lower:
@@ -466,7 +495,7 @@ def reschedule_member_booking_to_latest(
     tenant_id: int | None = None,
 ) -> str:
     """Move one booking on the given date to the latest possible slot on that date."""
-    client = get_client()
+    client = get_client(tenant_id=tenant_id)
     if not client:
         return "Error: Magicline Integration nicht konfiguriert."
 
@@ -535,6 +564,12 @@ def reschedule_member_booking_to_latest(
             if target.get("booking_id"):
                 client.appointment_cancel(int(target["booking_id"]))
 
+            # Invalidate cache
+            try:
+                enrich_member(member.customer_id, force=True, tenant_id=tenant_id)
+            except Exception:
+                pass
+
             new_id = (_first_item(new_booking) or new_booking).get("id") if isinstance(new_booking, dict) else None
             return (
                 f"Termin geändert: {target['title']} von {old_start.strftime('%H:%M') if old_start else 'unbekannt'} "
@@ -577,7 +612,7 @@ def reschedule_member_booking_to_latest(
 
 def get_checkin_history(days: int = 7, user_identifier: str | None = None, tenant_id: int | None = None) -> str:
     """Get check-ins for the resolved member."""
-    client = get_client()
+    client = get_client(tenant_id=tenant_id)
     if not client:
         return "Error: Magicline Integration nicht konfiguriert."
 
@@ -606,7 +641,7 @@ def get_checkin_history(days: int = 7, user_identifier: str | None = None, tenan
 
 def get_member_status(user_identifier: str, tenant_id: int | None = None) -> str:
     """Check membership status and active contracts."""
-    client = get_client()
+    client = get_client(tenant_id=tenant_id)
     if not client:
         return "Error: Magicline Integration nicht konfiguriert."
 
@@ -629,7 +664,7 @@ def get_member_status(user_identifier: str, tenant_id: int | None = None) -> str
 
 def class_book(slot_id: int, user_identifier: str | None = None, tenant_id: int | None = None) -> str:
     """Book a class slot for the resolved member."""
-    client = get_client()
+    client = get_client(tenant_id=tenant_id)
     if not client:
         return "Error: Magicline Integration nicht konfiguriert."
 
@@ -642,6 +677,13 @@ def class_book(slot_id: int, user_identifier: str | None = None, tenant_id: int 
         result = client.class_book(slot_id=int(slot_id), customer_id=member.customer_id)
         booking = _first_item(result) or (result if isinstance(result, dict) else {})
         booking_id = booking.get("id", "unknown")
+
+        # Invalidate cache
+        try:
+            enrich_member(member.customer_id, force=True, tenant_id=tenant_id)
+        except Exception:
+            pass
+
         return f"Buchung erfolgreich für {member.display_name}. Buchung-ID: {booking_id}"
     except Exception as e:
         logger.error("magicline.class_book.failed", error=str(e), slot_id=slot_id)
@@ -656,7 +698,7 @@ def book_appointment_by_time(
     tenant_id: int | None = None,
 ) -> str:
     """Book an appointment slot by local time (HH:MM) for the resolved member."""
-    client = get_client()
+    client = get_client(tenant_id=tenant_id)
     if not client:
         return "Error: Magicline Integration nicht konfiguriert."
 
@@ -746,6 +788,13 @@ def book_appointment_by_time(
         )
         booking = _first_item(result) or (result if isinstance(result, dict) else {})
         booking_id = booking.get("id", "unknown")
+
+        # Invalidate cache
+        try:
+            enrich_member(member.customer_id, force=True, tenant_id=tenant_id)
+        except Exception:
+            pass
+
         return (
             f"Termin gebucht: {title} am {target_date.isoformat()} um {normalized_time}. "
             f"Buchung-ID: {booking_id}"
@@ -788,7 +837,7 @@ def book_appointment_by_time(
 
 def get_checkin_stats(days: int = 90, user_identifier: str | None = None, tenant_id: int | None = None) -> str:
     """Get check-in statistics for retention flows."""
-    client = get_client()
+    client = get_client(tenant_id=tenant_id)
     if not client:
         return "Error: Magicline Integration nicht konfiguriert."
 

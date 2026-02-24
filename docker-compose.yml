@@ -22,10 +22,13 @@ services:
     build: .
     container_name: ariia_core
     restart: always
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     ports:
       - "8000:8000"
     command: >
-      sh -c "python -m alembic stamp head &&
+      sh -c "python -m alembic upgrade head &&
              uvicorn app.gateway.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips ${FORWARDED_ALLOW_IPS:-127.0.0.1}"
     environment:
       - PYTHONPATH=/app
@@ -33,14 +36,9 @@ services:
       - QDRANT_URL=http://ariia_qdrant:6333
       - LOG_LEVEL=INFO
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_ADMIN_CHAT_ID=${TELEGRAM_ADMIN_CHAT_ID}
-      - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET}
-      - META_APP_SECRET=${META_APP_SECRET}
-      - BRIDGE_AUTH_DIR=${BRIDGE_AUTH_DIR:-/app/data/whatsapp/auth_info_baileys}
-      - MAGICLINE_API_KEY=${MAGICLINE_API_KEY}
-      - MAGICLINE_BASE_URL=${MAGICLINE_BASE_URL}
       - AUTH_SECRET=${AUTH_SECRET}
+      - SYSTEM_ADMIN_EMAIL=${SYSTEM_ADMIN_EMAIL:-admin@ariia.io}
+      - SYSTEM_ADMIN_PASSWORD=${SYSTEM_ADMIN_PASSWORD:-Admin!Password2026}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia_postgres:5432/ariia
     depends_on:
@@ -53,35 +51,6 @@ services:
       - ./app:/app/app
       - ./config:/app/config
       - ./scripts:/app/scripts
-    networks:
-      - ariia-network
-
-  # 3. Telegram Poller
-  ariia-telegram:
-    build: .
-    container_name: ariia_telegram
-    restart: always
-    command: python scripts/telegram_polling_worker.py
-    healthcheck:
-      test: ["CMD", "python", "-c", "import pathlib,sys; cmd=(pathlib.Path('/proc/1/cmdline').read_bytes() if pathlib.Path('/proc/1/cmdline').exists() else b''); sys.exit(0 if b'telegram_polling_worker.py' in cmd else 1)"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    environment:
-      - GATEWAY_INTERNAL_URL=http://ariia-core:8000
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET}
-      - TELEGRAM_OFFSET_FILE=/app/data/telegram_offset.txt
-      - LOG_LEVEL=INFO
-      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia_postgres:5432/ariia
-    depends_on:
-      - ariia-core
-      - ariia_redis
-    volumes:
-      - ariia_data:/app/data
-      - ./app:/app/app
-      - ./config:/app/config
-      - ./scripts:/app/scripts 
     networks:
       - ariia-network
 
@@ -113,6 +82,68 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ariia_dev_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ariia-network
+
+  # 4. WhatsApp QR-Bridge Service (Using existing Frontend Image for Node.js)
+  ariia-whatsapp-bridge:
+    image: arni-ariia-frontend:latest
+    container_name: ariia_whatsapp_bridge
+    restart: always
+    command: sh -c "cd /app/app/integrations/whatsapp_web && npm install && PORT=3001 node index.js"
+    environment:
+      - PORT=3001
+    volumes:
+      - ariia_data:/app/data
+      - ./app:/app/app
+    networks:
+      - ariia-network
+
+  # 5. Background Enrichment Worker
+  ariia-worker:
+    build: .
+    container_name: ariia_worker
+    restart: always
+    command: python scripts/bulk_enrich_worker.py
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://ariia_redis:6379/0
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia_postgres:5432/ariia
+      - AUTH_SECRET=${AUTH_SECRET}
+    depends_on:
+      - ariia_redis
+      - ariia_postgres
+    volumes:
+      - ariia_data:/app/data
+      - ./app:/app/app
+      - ./config:/app/config
+      - ./scripts:/app/scripts
+    networks:
+      - ariia-network
+
+  # 6. Telegram Multi-Tenant Polling Worker
+  ariia-telegram-polling:
+    build: .
+    container_name: ariia_telegram_polling
+    restart: always
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    command: python scripts/telegram_polling_worker.py
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://ariia_redis:6379/0
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia_postgres:5432/ariia
+      - AUTH_SECRET=${AUTH_SECRET}
+    depends_on:
+      - ariia-core
+      - ariia_redis
+      - ariia_postgres
+    volumes:
+      - ariia_data:/app/data
+      - ./app:/app/app
+      - ./config:/app/config
+      - ./scripts:/app/scripts
     networks:
       - ariia-network
 

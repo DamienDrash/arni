@@ -47,25 +47,25 @@ def main():
             tenants = get_active_tenants()
             processed_any = False
             for tid in tenants:
+                # 1. Check if we should auto-populate the queue (Requires auto-sync enabled)
                 enabled = persistence.get_setting("magicline_auto_sync_enabled", "false", tenant_id=tid).lower() in ("true", "1")
-                if not enabled:
-                    continue
-                
-                # Check if we should auto-populate
                 now = datetime.now(timezone.utc)
-                if tid not in last_auto_check or (now - last_auto_check[tid]).total_seconds() > 3600 * 6:
-                    if r.scard(queue_key(tid)) == 0:
-                        _populate_due_enrichments(r, tid)
-                        last_auto_check[tid] = now
+                
+                if enabled:
+                    if tid not in last_auto_check or (now - last_auto_check[tid]).total_seconds() > 3600 * 6:
+                        if r.scard(queue_key(tid)) == 0:
+                            _populate_due_enrichments(r, tid)
+                            last_auto_check[tid] = now
                         
-                # Process one member
+                # 2. Process the queue (Always process if items exist, e.g. from manual sync)
                 cid = r.spop(queue_key(tid))
                 if cid:
                     try:
                         enrich_member(int(cid), force=False, tenant_id=tid)
+                        logger.info("bulk_enrich.processed", tenant_id=tid, customer_id=cid)
                     except Exception as e:
                         logger.error("bulk_enrich.enrich_failed", tenant_id=tid, customer_id=cid, error=str(e))
-                    time.sleep(6) # 10 req/minute per tenant
+                    time.sleep(5) # 10 req/minute per tenant to be safe
                     processed_any = True
 
             if not processed_any:

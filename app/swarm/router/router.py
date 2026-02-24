@@ -17,7 +17,7 @@ from app.swarm.agents.ops import AgentOps
 from app.swarm.agents.persona import AgentPersona
 from app.swarm.agents.sales import AgentSales
 from app.swarm.agents.vision import AgentVision
-from app.swarm.base import AgentResponse, BaseAgent
+from app.swarm.base import AgentResponse, BaseAgent, AgentHandoff
 from app.swarm.llm import LLMClient
 from app.swarm.router.intents import Intent
 from app.prompts.engine import get_engine
@@ -99,21 +99,24 @@ class SwarmRouter:
         if self._looks_like_booking_action(content_lower):
             intent, confidence = Intent.BOOKING, 0.99
             logger.info("router.context_override", intent=intent.value, reason="booking_action_keywords")
+        elif any(kw in content_lower for kw in ["weißt du noch", "weist du noch", "erinnerst du", "was weißt du über mich", "meine ziele"]):
+            intent, confidence = Intent.SMALLTALK, 0.99
+            logger.info("router.context_override", intent=intent.value, reason="memory_keywords")
         else:
             # Context override: explicit dialog context has priority over keyword guessing.
             dialog_ctx = self._extract_dialog_context(message)
             pending_action = str(dialog_ctx.get("pending_action") or "").strip().lower()
-            has_time_only = bool(re.search(r"\b([01]?\d|2[0-3]):([0-5]\d)\b", message.content or ""))
-            if has_time_only and pending_action.startswith("book_appointment"):
+            
+            # Improved Time Regex: matches "14:00", "14 Uhr", "14:30 Uhr"
+            time_pattern = r"\b([01]?\d|2[0-3])(:[0-5]\d)?(\s*uhr)?\b"
+            has_time_only = bool(re.search(time_pattern, content_lower))
+            
+            if has_time_only and (pending_action.startswith("book_appointment") or self._has_recent_booking_context(message.user_id, message.tenant_id)):
                 intent, confidence = Intent.BOOKING, 0.99
                 logger.info("router.context_override", intent=intent.value, reason="dialog_context_time")
-            elif self._is_affirmative(message.content) and pending_action.startswith("book_appointment"):
+            elif self._is_affirmative(content_lower) and (pending_action.startswith("book_appointment") or self._has_recent_booking_context(message.user_id, message.tenant_id)):
                 intent, confidence = Intent.BOOKING, 0.99
-                logger.info("router.context_override", intent=intent.value, reason="dialog_context")
-            # Backward-compatible fallback: infer from recent assistant answers.
-            elif self._is_affirmative(message.content) and self._has_recent_booking_context(message.user_id, message.tenant_id):
-                intent, confidence = Intent.BOOKING, 0.99
-                logger.info("router.context_override", intent=intent.value, reason="affirmative_followup")
+                logger.info("router.context_override", intent=intent.value, reason="dialog_context_affirmative")
             else:
                 intent, confidence = await self._classify(
                     message.content,
@@ -143,7 +146,22 @@ class SwarmRouter:
             message_id=message.message_id,
         )
 
-        return await agent.handle(message)
+        try:
+            return await agent.handle(message)
+        except AgentHandoff as handoff:
+            logger.info(
+                "router.handoff",
+                from_agent=agent.name,
+                to_agent=handoff.target_agent,
+                reason=handoff.reason,
+            )
+            # Find target agent by name
+            target = next((a for a in self._agents.values() if a.name == handoff.target_agent), None)
+            if target:
+                return await target.handle(message)
+            else:
+                logger.error("router.handoff_failed", target=handoff.target_agent, error="Agent not found")
+                return AgentResponse(content="Entschuldigung, ich konnte dich nicht weiterleiten. Bitte versuche es noch einmal.", confidence=0.0)
 
     async def _classify(
         self,
@@ -210,6 +228,7 @@ class SwarmRouter:
             Intent.BOOKING: [
                 "buchen", "kurs", "reservieren", "termin", "check-in",
                 "anmelden", "öffnungszeit", "wann", "book", "schedule",
+                "trainer", "wer ist", "personal training",
             ],
             Intent.SALES: [
                 "kündigen", "vertrag", "preis", "kosten", "mitgliedschaft",
@@ -226,6 +245,9 @@ class SwarmRouter:
             Intent.SMALLTALK: [
                 "hey", "hallo", "hi", "danke", "servus", "moin",
                 "wetter", "wie geht", "lust", "bock",
+                "profil", "ziele", "über mich", "erinnere",
+                "weißt du noch", "weist du noch", "erinnerst du",
+                "worauf muss ich achten", "meine pläne",
             ],
         }
 

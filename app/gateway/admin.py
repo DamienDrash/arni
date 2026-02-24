@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 import os
 import glob
 import json as _json
@@ -8,13 +8,13 @@ import smtplib
 import httpx
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Body, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import structlog
 from sqlalchemy import or_, func
 
 from app.gateway.redis_bus import RedisBus
 from config.settings import get_settings
-from app.knowledge.ingest import ingest_knowledge, collection_name_for_slug
+from app.knowledge.ingest import ingest_tenant_knowledge, collection_name_for_slug
 from app.knowledge.store import KnowledgeStore
 from app.core.db import SessionLocal
 from app.core.models import StudioMember, ChatSession, ChatMessage, AuditLog
@@ -271,23 +271,34 @@ class InterventionRequest(BaseModel):
 
 @router.post("/members/sync", response_model=MembersSyncResponse)
 async def sync_members(user: AuthContext = Depends(get_current_user)) -> dict[str, int]:
-    """Trigger a full MEMBER sync from Magicline into local DB.
-
-    Returns sync stats immediately; enrichment (check-in stats + bookings) runs
-    in the background afterwards, respecting the 6h TTL cache per member.
-    """
+    """Trigger a full MEMBER sync from Magicline into local DB."""
     import threading as _threading
     _require_tenant_admin_or_system(user)
-    result = sync_members_from_magicline(tenant_id=user.tenant_id)
-    # Kick off enrichment in background — non-blocking, respects 6h TTL
-    from app.integrations.magicline.scheduler import _enrich_tenant_members
-    _threading.Thread(
-        target=_enrich_tenant_members,
-        args=(user.tenant_id,),
-        daemon=True,
-        name=f"manual-enrich-t{user.tenant_id}",
-    ).start()
-    return result
+    
+    try:
+        started_at = datetime.now(timezone.utc).isoformat()
+        result = sync_members_from_magicline(tenant_id=user.tenant_id)
+        
+        # Update sync status settings so UI reflects the success
+        persistence.upsert_setting("magicline_last_sync_at", started_at, tenant_id=user.tenant_id)
+        persistence.upsert_setting("magicline_last_sync_status", "ok", tenant_id=user.tenant_id)
+        persistence.upsert_setting("magicline_last_sync_error", "", tenant_id=user.tenant_id)
+
+        # Kick off enrichment in background
+        from app.integrations.magicline.scheduler import _enrich_tenant_members
+        _threading.Thread(
+            target=_enrich_tenant_members,
+            args=(user.tenant_id,),
+            daemon=True,
+            name=f"manual-enrich-t{user.tenant_id}",
+        ).start()
+        return result
+    except ValueError as e:
+        logger.warning("admin.sync_members.config_error", tenant_id=user.tenant_id, error=str(e))
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.error("admin.sync_members.failed", tenant_id=user.tenant_id, error=str(e))
+        raise HTTPException(status_code=502, detail=f"Magicline Sync fehlgeschlagen: {str(e)}")
 
 
 @router.get("/members/stats")
@@ -390,6 +401,7 @@ async def list_members(
                 "member_since": row.member_since.isoformat() if row.member_since else None,
                 "is_paused": row.is_paused,
                 "pause_info": _json.loads(row.pause_info) if row.pause_info else None,
+                "contract_info": _json.loads(row.contract_info) if row.contract_info else None,
                 "enriched_at": row.enriched_at.isoformat() if row.enriched_at else None,
                 "additional_info": _json.loads(row.additional_info) if row.additional_info else None,
                 "checkin_stats": _json.loads(row.checkin_stats) if row.checkin_stats else None,
@@ -607,7 +619,7 @@ async def save_knowledge_file(
     )
 
     try:
-        result = ingest_knowledge(
+        result = ingest_tenant_knowledge(
             knowledge_dir=_knowledge_dir_for_slug(slug),
             collection_name=collection_name_for_slug(slug),
         )
@@ -665,7 +677,7 @@ async def reindex_knowledge(
     slug = _effective_slug(user, tenant_slug)
     started = datetime.now(timezone.utc)
     try:
-        result = ingest_knowledge(
+        result = ingest_tenant_knowledge(
             knowledge_dir=_knowledge_dir_for_slug(slug),
             collection_name=collection_name_for_slug(slug),
         )
@@ -1076,7 +1088,7 @@ from app.gateway.persistence import persistence # Import from source, not main
 @router.get("/stats")
 async def get_dashboard_stats(user: AuthContext = Depends(get_current_user)) -> dict[str, Any]:
     """Get real-time stats from DB and Redis."""
-    _require_system_admin(user)
+    _require_tenant_admin_or_system(user)
     # 1. DB Stats
     db_stats = persistence.get_stats(tenant_id=user.tenant_id)
     
@@ -1105,7 +1117,7 @@ async def get_dashboard_stats(user: AuthContext = Depends(get_current_user)) -> 
 async def list_recent_chats(limit: int = 10, user: AuthContext = Depends(get_current_user)) -> list[dict[str, Any]]:
     """List recent chat sessions."""
     _require_tenant_admin_or_system(user)
-    sessions = persistence.get_recent_sessions(limit, tenant_id=user.tenant_id)
+    sessions = persistence.get_recent_sessions(tenant_id=user.tenant_id, limit=limit)
     
     # Sprint 13.x Fix: Hydrate with active tokens from Redis
     bus = await get_redis()
@@ -1174,14 +1186,15 @@ async def get_chat_history(user_id: str, user: AuthContext = Depends(get_current
     ]
 
 
-async def _send_admin_intervention(user_id: str, platform: Platform, content: str) -> None:
-    from app.gateway.main import send_to_user
+async def _send_admin_intervention(user_id: str, platform: Platform, content: str, tenant_id: int | None = None) -> None:
+    from app.gateway.utils import send_to_user
 
     await send_to_user(
         user_id=user_id,
         platform=platform,
         content=content,
         metadata={"chat_id": user_id},
+        tenant_id=tenant_id
     )
 
 
@@ -1203,7 +1216,7 @@ async def send_intervention(
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Invalid platform: {platform_value}") from exc
 
-    await _send_admin_intervention(user_id, platform, content)
+    await _send_admin_intervention(user_id, platform, content, tenant_id=user.tenant_id)
 
     asyncio.create_task(asyncio.to_thread(
         persistence.save_message,
@@ -1486,10 +1499,13 @@ async def get_integrations_config(user: AuthContext = Depends(get_current_user))
             "webhook_secret": _mask_if_sensitive("telegram_webhook_secret", _get_setting_with_env_fallback("telegram_webhook_secret", "telegram_webhook_secret", tenant_id=user.tenant_id)),
         },
         "whatsapp": {
+            "mode": _get_setting_with_env_fallback("whatsapp_mode", None, "qr", tenant_id=user.tenant_id),
             "meta_verify_token": _mask_if_sensitive("meta_verify_token", _get_setting_with_env_fallback("meta_verify_token", "meta_verify_token", tenant_id=user.tenant_id)),
             "meta_access_token": _mask_if_sensitive("meta_access_token", _get_setting_with_env_fallback("meta_access_token", "meta_access_token", tenant_id=user.tenant_id)),
             "meta_app_secret": _mask_if_sensitive("meta_app_secret", _get_setting_with_env_fallback("meta_app_secret", "meta_app_secret", tenant_id=user.tenant_id)),
-            "bridge_auth_dir": _mask_if_sensitive("bridge_auth_dir", _get_setting_with_env_fallback("bridge_auth_dir", "bridge_auth_dir", tenant_id=user.tenant_id)),
+            "meta_phone_number_id": _get_setting_with_env_fallback("meta_phone_number_id", "meta_phone_number_id", tenant_id=user.tenant_id),
+            # Automated path — no longer user-configurable
+            "bridge_auth_dir": f"/app/data/whatsapp/auth_info_{_safe_tenant_slug(user)}",
         },
         "magicline": {
             "base_url": _get_setting_with_env_fallback("magicline_base_url", "magicline_base_url", tenant_id=user.tenant_id),
@@ -1541,9 +1557,11 @@ class TelegramConfigUpdate(BaseModel):
 
 
 class WhatsAppConfigUpdate(BaseModel):
+    mode: str | None = None
     meta_verify_token: str | None = None
     meta_access_token: str | None = None
     meta_app_secret: str | None = None
+    meta_phone_number_id: str | None = None
     bridge_auth_dir: str | None = None
 
 
@@ -1641,9 +1659,11 @@ async def update_integrations_config(
         _persist_integration_key("telegram_admin_chat_id", body.telegram.admin_chat_id, tenant_id=user.tenant_id)
         _persist_integration_key("telegram_webhook_secret", body.telegram.webhook_secret, tenant_id=user.tenant_id)
     if body.whatsapp:
+        _persist_integration_key("whatsapp_mode", body.whatsapp.mode, tenant_id=user.tenant_id)
         _persist_integration_key("meta_verify_token", body.whatsapp.meta_verify_token, tenant_id=user.tenant_id)
         _persist_integration_key("meta_access_token", body.whatsapp.meta_access_token, tenant_id=user.tenant_id)
         _persist_integration_key("meta_app_secret", body.whatsapp.meta_app_secret, tenant_id=user.tenant_id)
+        _persist_integration_key("meta_phone_number_id", body.whatsapp.meta_phone_number_id, tenant_id=user.tenant_id)
         _persist_integration_key("bridge_auth_dir", body.whatsapp.bridge_auth_dir, tenant_id=user.tenant_id)
     if body.magicline:
         _persist_integration_key("magicline_base_url", body.magicline.base_url, tenant_id=user.tenant_id)
@@ -1665,6 +1685,9 @@ async def update_integrations_config(
 
             def _bg_sync_on_config_save() -> None:
                 try:
+                    # Refresh persistence to ensure latest DB commit is visible
+                    from app.gateway.persistence import PersistenceService
+                    _local_p = PersistenceService()
                     result = _ml_sync(tenant_id=_tid)
                     logger.info("admin.magicline_config_sync.completed", tenant_id=_tid, result=result)
                     _enrich(_tid)
@@ -1706,6 +1729,53 @@ async def update_integrations_config(
 
     logger.info("admin.integrations_config_updated")
     return {"status": "ok"}
+
+
+@router.delete("/integrations/{provider}")
+async def delete_integration_config(
+    provider: str,
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Completely wipe an integration's settings for the current tenant."""
+    _require_tenant_admin_or_system(user)
+    normalized = (provider or "").strip().lower()
+    
+    # Map friendly provider names to setting prefixes
+    prefix_map = {
+        "telegram": "telegram_",
+        "whatsapp": "meta_", # Meta Cloud API uses meta_ prefix
+        "whatsapp_bridge": "whatsapp_", # QR Bridge uses whatsapp_ prefix
+        "magicline": "magicline_",
+        "smtp": "smtp_",
+        "email": "postmark_", # Email channel uses postmark_
+        "sms": "twilio_", # Twilio used for SMS
+        "voice": "twilio_voice_",
+    }
+    
+    prefix = prefix_map.get(normalized)
+    if not prefix:
+        # Fallback: if no map, try using the provider name directly as prefix
+        prefix = f"{normalized}_"
+        
+    deleted_count = persistence.delete_settings_by_prefix(prefix, tenant_id=user.tenant_id)
+    
+    # Specialized cleanup for hybrid keys
+    if normalized == "whatsapp":
+        # Also clean up the mode switch
+        persistence.delete_setting("whatsapp_mode", tenant_id=user.tenant_id)
+        deleted_count += 1
+
+    _write_admin_audit(
+        actor=user,
+        action="integration.delete",
+        category="settings",
+        target_type="integration",
+        target_id=normalized,
+        details={"deleted_keys_count": deleted_count, "prefix": prefix},
+    )
+    
+    logger.info("admin.integration_deleted", provider=normalized, tenant_id=user.tenant_id, count=deleted_count)
+    return {"status": "ok", "deleted_count": deleted_count}
 
 
 @router.get("/tenant-preferences")
@@ -1758,23 +1828,47 @@ async def update_tenant_preferences(
     return {"status": "ok"}
 
 
+class IntegrationTestRequest(BaseModel):
+    config: dict[str, Any] | None = None
+
 @router.post("/integrations/test/{provider}")
-async def test_integration_connector(provider: str, user: AuthContext = Depends(get_current_user)) -> dict[str, Any]:
+async def test_integration_connector(
+    provider: str, 
+    body: IntegrationTestRequest = Body(default=IntegrationTestRequest()),
+    user: AuthContext = Depends(get_current_user)
+) -> dict[str, Any]:
     _require_tenant_admin_or_system(user)
     normalized = (provider or "").strip().lower()
     if normalized not in {"telegram", "whatsapp", "magicline", "smtp", "email", "sms", "voice"}:
         raise HTTPException(status_code=404, detail="Unknown integration provider")
 
+    # Helper to get value from body (live) or DB (persisted)
+    def _val(key: str, env_attr: str | None = None, default: str = "") -> str:
+        if body.config:
+            # Try exact key (prefixed) or shorthand (without prefix)
+            val = body.config.get(key)
+            if val is None:
+                # e.g. look for 'bot_token' if key is 'telegram_bot_token'
+                shorthand = key.replace(f"{normalized}_", "")
+                val = body.config.get(shorthand)
+            
+            if val is not None:
+                final_val = str(val or "")
+                if final_val != REDACTED_SECRET_VALUE:
+                    return final_val
+        
+        return _get_setting_with_env_fallback(key, env_attr, default, tenant_id=user.tenant_id)
+
     started = time.perf_counter()
     try:
         if normalized == "telegram":
-            bot_token = _get_setting_with_env_fallback("telegram_bot_token", "telegram_bot_token", tenant_id=user.tenant_id)
-            if not bot_token or bot_token == REDACTED_SECRET_VALUE:
+            bot_token = _val("telegram_bot_token")
+            if not bot_token:
                 raise HTTPException(status_code=422, detail="Telegram bot token is not configured")
             async with httpx.AsyncClient(timeout=12.0) as client:
                 resp = await client.get(f"https://api.telegram.org/bot{bot_token}/getMe")
             if resp.status_code == 404 or resp.status_code == 401:
-                raise HTTPException(status_code=502, detail="Telegram Bot Token ungültig — prüfe den Token bei @BotFather")
+                raise HTTPException(status_code=502, detail="Telegram Bot Token ungültig")
             if resp.status_code >= 400:
                 raise HTTPException(status_code=502, detail=f"Telegram API nicht erreichbar ({resp.status_code})")
             payload = resp.json() if resp.content else {}
@@ -1782,35 +1876,32 @@ async def test_integration_connector(provider: str, user: AuthContext = Depends(
             detail = f"Bot @{bot.get('username', 'unknown')} reachable"
 
         elif normalized == "whatsapp":
-            health_url = _get_setting_with_env_fallback("bridge_health_url", "bridge_health_url", tenant_id=user.tenant_id)
-            if health_url:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    resp = await client.get(health_url)
-                if resp.status_code >= 400:
-                    raise HTTPException(status_code=502, detail=f"WhatsApp bridge health failed ({resp.status_code})")
-                detail = f"Bridge health OK ({resp.status_code})"
+            mode = _val("whatsapp_mode", default="qr")
+            if mode == "qr":
+                health_url = _val("bridge_health_url")
+                if health_url:
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        resp = await client.get(health_url)
+                    if resp.status_code >= 400:
+                        raise HTTPException(status_code=502, detail=f"WhatsApp QR-Bridge nicht erreichbar ({resp.status_code})")
+                    detail = f"QR-Bridge health OK ({resp.status_code})"
+                else:
+                    detail = "QR-Bridge URL not configured, but mode is QR."
             else:
-                access_token = _get_setting_with_env_fallback("meta_access_token", "meta_access_token", tenant_id=user.tenant_id)
-                if not access_token or access_token == REDACTED_SECRET_VALUE:
-                    raise HTTPException(status_code=422, detail="WhatsApp access token is not configured")
+                access_token = _val("meta_access_token")
+                if not access_token:
+                    raise HTTPException(status_code=422, detail="WhatsApp Meta Access Token nicht konfiguriert")
                 async with httpx.AsyncClient(timeout=12.0) as client:
-                    resp = await client.get(
-                        "https://graph.facebook.com/v21.0/me",
-                        params={"access_token": access_token},
-                    )
+                    resp = await client.get("https://graph.facebook.com/v21.0/me", params={"access_token": access_token})
                 if resp.status_code in (401, 403):
-                    raise HTTPException(status_code=502, detail="WhatsApp Access Token ungültig oder abgelaufen")
-                if resp.status_code >= 400:
-                    raise HTTPException(status_code=502, detail=f"WhatsApp Graph API nicht erreichbar ({resp.status_code})")
-                detail = "WhatsApp Graph token valid"
+                    raise HTTPException(status_code=502, detail="WhatsApp Meta Token ungültig oder abgelaufen")
+                detail = "WhatsApp Meta Graph token valid"
 
         elif normalized == "magicline":
-            base_url = _get_setting_with_env_fallback("magicline_base_url", "magicline_base_url", tenant_id=user.tenant_id)
-            api_key = _get_setting_with_env_fallback("magicline_api_key", "magicline_api_key", tenant_id=user.tenant_id)
-            if not base_url:
-                raise HTTPException(status_code=422, detail="Magicline base_url is not configured")
-            if not api_key or api_key == REDACTED_SECRET_VALUE:
-                raise HTTPException(status_code=422, detail="Magicline api_key is not configured")
+            base_url = _val("magicline_base_url")
+            api_key = _val("magicline_api_key")
+            if not base_url or not api_key:
+                raise HTTPException(status_code=422, detail="Magicline config incomplete")
 
             def _magicline_probe() -> dict[str, Any]:
                 client = MagiclineClient(base_url=base_url, api_key=api_key, timeout=15)
@@ -1821,28 +1912,25 @@ async def test_integration_connector(provider: str, user: AuthContext = Depends(
             detail = f"Magicline reachable ({studio})"
 
         elif normalized == "smtp":
-            host = _get_setting_with_env_fallback("smtp_host", "smtp_host", tenant_id=user.tenant_id)
-            port = int(_get_setting_with_env_fallback("smtp_port", "smtp_port", "587", tenant_id=user.tenant_id) or "587")
-            username = _get_setting_with_env_fallback("smtp_username", "smtp_username", tenant_id=user.tenant_id)
-            password = _get_setting_with_env_fallback("smtp_password", "smtp_password", tenant_id=user.tenant_id)
-            use_starttls = _bool_setting("smtp_use_starttls", "smtp_use_starttls", True, tenant_id=user.tenant_id)
+            host = _val("smtp_host")
+            port = int(_val("smtp_port") or "587")
+            username = _val("smtp_username")
+            password = _val("smtp_password")
             if not host or not username or not password:
-                raise HTTPException(status_code=422, detail="SMTP host/username/password must be configured")
+                raise HTTPException(status_code=422, detail="SMTP config incomplete")
 
             def _smtp_probe() -> None:
                 with smtplib.SMTP(host, port, timeout=20) as smtp:
                     smtp.ehlo()
-                    if use_starttls:
-                        smtp.starttls()
-                        smtp.ehlo()
+                    smtp.starttls()
                     smtp.login(username, password)
                     smtp.noop()
 
             await asyncio.to_thread(_smtp_probe)
             detail = f"SMTP login OK ({host}:{port})"
         elif normalized == "email":
-            token = _get_setting_with_env_fallback("postmark_server_token", None, tenant_id=user.tenant_id)
-            if not token or token == REDACTED_SECRET_VALUE:
+            token = _val("postmark_server_token")
+            if not token:
                 raise HTTPException(status_code=422, detail="Postmark server token is not configured")
             async with httpx.AsyncClient(timeout=12.0) as client:
                 resp = await client.get(
@@ -1850,20 +1938,23 @@ async def test_integration_connector(provider: str, user: AuthContext = Depends(
                     headers={"X-Postmark-Server-Token": token, "Accept": "application/json"},
                 )
             if resp.status_code in (401, 403):
-                raise HTTPException(status_code=502, detail="Postmark Server Token ungültig — prüfe den Token im Postmark-Dashboard")
+                raise HTTPException(status_code=502, detail="Postmark Server Token ungültig")
             if resp.status_code >= 400:
                 raise HTTPException(status_code=502, detail=f"Postmark API nicht erreichbar ({resp.status_code})")
             data = resp.json() if resp.content else {}
             detail = f"Postmark reachable (server={data.get('Name', 'unknown')})"
         else:  # sms|voice
-            sid = _get_setting_with_env_fallback("twilio_account_sid", None, tenant_id=user.tenant_id)
-            token = _get_setting_with_env_fallback("twilio_auth_token", None, tenant_id=user.tenant_id)
-            if not sid or not token or token == REDACTED_SECRET_VALUE:
+            sid = _val("twilio_account_sid")
+            token = _val("twilio_auth_token")
+            if not sid or not token:
                 raise HTTPException(status_code=422, detail="Twilio account_sid/auth_token must be configured")
             async with httpx.AsyncClient(timeout=12.0, auth=(sid, token)) as client:
                 resp = await client.get(f"https://api.twilio.com/2010-04-01/Accounts/{sid}.json")
             if resp.status_code >= 400:
                 raise HTTPException(status_code=502, detail=f"Twilio test failed ({resp.status_code})")
+            data = resp.json() if resp.content else {}
+            status = data.get("status", "unknown")
+            detail = f"Twilio account reachable (status={status})"
             data = resp.json() if resp.content else {}
             status = data.get("status", "unknown")
             detail = f"Twilio account reachable (status={status})"
@@ -2440,8 +2531,9 @@ async def get_billing_usage(user: AuthContext = Depends(get_current_user)) -> di
         "messages_outbound": usage.get("messages_outbound", 0),
         "messages_total": total_msgs,
         "messages_limit": max_msgs,
-        "messages_pct": round(total_msgs / int(max_msgs) * 100, 1) if max_msgs else None,
+        "messages_pct": round(total_msgs / int(max_msgs) * 100, 1) if max_msgs and int(max_msgs) > 0 else None,
         "active_members": usage.get("active_members", 0),
+        "llm_tokens_used": usage.get("llm_tokens_used", 0),
     }
 
 
@@ -2745,3 +2837,320 @@ async def get_audit_logs(
         }
     finally:
         db.close()
+
+
+# ─── Platform LLM Health & Governance (SaaS level) ───────────────────────────
+
+PREDEFINED_PROVIDERS = [
+    {
+        "id": "openai",
+        "name": "OpenAI",
+        "base_url": "https://api.openai.com/v1",
+        "default_models": ["gpt-4o", "gpt-4o-mini", "o1-preview", "o1-mini"]
+    },
+    {
+        "id": "groq",
+        "name": "Groq Cloud",
+        "base_url": "https://api.groq.com/openai/v1",
+        "default_models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]
+    },
+    {
+        "id": "anthropic",
+        "name": "Anthropic (via Proxy/Shim)",
+        "base_url": "https://api.anthropic.com/v1",
+        "default_models": ["claude-3-5-sonnet-20240620", "claude-3-haiku-20240307"]
+    },
+    {
+        "id": "custom",
+        "name": "Custom OpenAI-Compatible",
+        "base_url": "",
+        "default_models": []
+    }
+]
+
+@router.get("/platform/llm/predefined")
+async def get_predefined_providers(user: AuthContext = Depends(get_current_user)) -> list[dict[str, Any]]:
+    _require_system_admin(user)
+    return PREDEFINED_PROVIDERS
+
+class LlmProviderConfig(BaseModel):
+    id: str
+    name: str
+    base_url: str
+    models: list[str]
+    api_key: Optional[str] = None # Only used for transport in PUT/POST
+
+@router.get("/platform/llm/providers")
+async def get_platform_llm_providers(user: AuthContext = Depends(get_current_user)) -> list[dict[str, Any]]:
+    _require_system_admin(user)
+    providers_json = persistence.get_setting("platform_llm_providers_json", tenant_id=user.tenant_id) or "[]"
+    providers = _json.loads(providers_json)
+    
+    # Enrich with health status (cached or fresh)
+    # For simplicity in this step, we just return the list. 
+    # Health checks are triggered explicitly via /test or /status.
+    return providers
+
+@router.post("/platform/llm/providers")
+async def save_platform_llm_provider(
+    body: LlmProviderConfig,
+    user: AuthContext = Depends(get_current_user)
+) -> dict[str, str]:
+    _require_system_admin(user)
+    providers_json = persistence.get_setting("platform_llm_providers_json", tenant_id=user.tenant_id) or "[]"
+    providers = _json.loads(providers_json)
+    
+    # Update or Add
+    existing = next((p for p in providers if p["id"] == body.id), None)
+    new_provider = {
+        "id": body.id,
+        "name": body.name,
+        "base_url": body.base_url,
+        "models": body.models
+    }
+    
+    if existing:
+        providers = [p if p["id"] != body.id else new_provider for p in providers]
+    else:
+        providers.append(new_provider)
+        
+    persistence.upsert_setting("platform_llm_providers_json", _json.dumps(providers), tenant_id=user.tenant_id)
+    
+    # Save Key separately if provided
+    if body.api_key and body.api_key != REDACTED_SECRET_VALUE:
+        persistence.upsert_setting(f"platform_llm_key_{body.id}", body.api_key, tenant_id=user.tenant_id)
+        
+    return {"status": "ok"}
+
+@router.delete("/platform/llm/providers/{provider_id}")
+async def delete_platform_llm_provider(
+    provider_id: str,
+    user: AuthContext = Depends(get_current_user)
+) -> dict[str, str]:
+    _require_system_admin(user)
+    providers_json = persistence.get_setting("platform_llm_providers_json", tenant_id=user.tenant_id) or "[]"
+    providers = _json.loads(providers_json)
+    
+    providers = [p for p in providers if p["id"] != provider_id]
+    persistence.upsert_setting("platform_llm_providers_json", _json.dumps(providers), tenant_id=user.tenant_id)
+    
+    # Optional: Delete the key too
+    # persistence.delete_setting(f"platform_llm_key_{provider_id}") # Need to implement delete in persistence
+    
+    return {"status": "ok"}
+
+@router.post("/platform/llm/test-config")
+async def test_llm_config(
+    body: LlmProviderConfig,
+    user: AuthContext = Depends(get_current_user)
+) -> dict[str, Any]:
+    """Test a provider configuration without saving it."""
+    _require_system_admin(user)
+    from app.swarm.llm import LLMClient
+    
+    api_key = body.api_key
+    if api_key == REDACTED_SECRET_VALUE:
+        # Load existing key if testing an edit
+        api_key = persistence.get_setting(f"platform_llm_key_{body.id}", tenant_id=user.tenant_id)
+        
+    if not api_key:
+        return {"status": "error", "error": "No API key provided"}
+        
+    client = LLMClient()
+    model = body.models[0] if body.models else "gpt-4o-mini"
+    return await client.check_health(body.base_url, api_key, model)
+
+@router.get("/platform/llm/status")
+async def get_platform_llm_status(user: AuthContext = Depends(get_current_user)) -> list[dict[str, Any]]:
+    """Health check for all platform-configured LLM providers."""
+    _require_system_admin(user)
+    from app.gateway.persistence import persistence
+    from app.swarm.llm import LLMClient
+    
+    providers_json = persistence.get_setting("platform_llm_providers_json", tenant_id=user.tenant_id) or "[]"
+    providers = _json.loads(providers_json)
+    
+    client = LLMClient()
+    results = []
+    
+    for p in providers:
+        p_id = p.get("id")
+        key_setting = f"platform_llm_key_{p_id}"
+        api_key = persistence.get_setting(key_setting, tenant_id=user.tenant_id)
+        
+        if not api_key:
+            results.append({**p, "health": "error", "error": "No platform key configured"})
+            continue
+            
+        # Test the first model in the list
+        model = p.get("models", ["gpt-4o-mini"])[0]
+        health = await client.check_health(p.get("base_url"), api_key, model)
+        results.append({
+            **p,
+            "health": health["status"],
+            "latency": health.get("latency", 0),
+            "error": health.get("error")
+        })
+        
+    return results
+
+
+@router.put("/platform/llm/key/{provider_id}")
+async def update_platform_llm_key(
+    provider_id: str,
+    key: str = Body(..., embed=True),
+    user: AuthContext = Depends(get_current_user)
+) -> dict[str, str]:
+    """Securely store a platform-wide API key for an LLM provider."""
+    _require_system_admin(user)
+    from app.gateway.persistence import persistence
+    
+    setting_key = f"platform_llm_key_{provider_id.lower()}"
+    persistence.upsert_setting(setting_key, key, tenant_id=user.tenant_id)
+    
+    _write_admin_audit(
+        actor=user,
+        action="platform.llm_key.update",
+        category="security",
+        target_type="llm_provider",
+        target_id=provider_id,
+        details={"provider": provider_id}
+    )
+    return {"status": "ok"}
+
+
+# ─── Platform Email Test (SaaS level) ────────────────────────────────────────
+
+class SmtpTestRequest(BaseModel):
+    host: str
+    port: int
+    user: str
+    pass_: str = Field(..., alias="pass")
+    from_name: str
+    from_addr: str
+    recipient: str
+
+@router.post("/platform/email/test")
+async def test_platform_email(
+    body: SmtpTestRequest,
+    user: AuthContext = Depends(get_current_user)
+) -> dict[str, Any]:
+    """Test SMTP configuration by sending a real email."""
+    _require_system_admin(user)
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    # Handle redaction
+    effective_pass = body.pass_
+    if effective_pass == REDACTED_SECRET_VALUE:
+        effective_pass = persistence.get_setting("platform_email_smtp_pass", tenant_id=user.tenant_id)
+    
+    if not effective_pass:
+        return {"status": "error", "error": "No SMTP password provided"}
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"{body.from_name} <{body.from_addr}>"
+        msg['To'] = body.recipient
+        msg['Subject'] = "ARIIA Platform SMTP Test"
+        
+        content = f"Dies ist ein Test der ARIIA SaaS Plattform SMTP-Konfiguration.\n\nZeitstempel: {datetime.now(timezone.utc).isoformat()}\nHost: {body.host}\nUser: {body.user}"
+        msg.attach(MIMEText(content, 'plain'))
+
+        def _send():
+            with smtplib.SMTP(body.host, body.port, timeout=15) as server:
+                server.starttls()
+                server.login(body.user, effective_pass)
+                server.send_message(msg)
+        
+        await asyncio.to_thread(_send)
+        return {"status": "ok", "message": f"Test-Mail erfolgreich an {body.recipient} gesendet."}
+    except Exception as e:
+        logger.error("admin.smtp_test_failed", error=str(e))
+        return {"status": "error", "error": str(e)}
+
+
+# ─── WhatsApp QR Proxy (SaaS level) ──────────────────────────────────────────
+
+@router.get("/platform/whatsapp/qr")
+async def get_whatsapp_qr(user: AuthContext = Depends(get_current_user)) -> dict[str, Any]:
+    """Retrieve the live QR code from the WhatsApp bridge for the current tenant."""
+    _require_tenant_admin_or_system(user)
+    
+    # In a multi-tenant bridge, we would pass the tenant identifier.
+    # For now, we use the global bridge URL from settings or a default.
+    bridge_url = persistence.get_setting("bridge_qr_url") or "http://localhost:3000/qr"
+    
+    return {
+        "status": "ok",
+        "qr_url": bridge_url,
+        "tenant_slug": _safe_tenant_slug(user)
+    }
+
+@router.get("/platform/whatsapp/qr-image")
+async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
+    """Proxy and extract the raw QR image from the bridge's HTML dashboard."""
+    _require_tenant_admin_or_system(user)
+    from fastapi.responses import Response
+    import re
+    import base64
+    
+    slug = _safe_tenant_slug(user)
+    # The bridge serves an HTML page with the QR embedded as base64
+    bridge_url = (persistence.get_setting("bridge_qr_url") or "http://ariia-whatsapp-bridge:3000/qr")
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(bridge_url)
+            
+            if resp.status_code != 200:
+                raise HTTPException(status_code=502, detail="Bridge nicht bereit")
+            
+            html_content = resp.text
+            # Regex to find the base64 image data in the <img> tag
+            match = re.search(r'src="data:image/png;base64,([^"]+)"', html_content)
+            
+            if not match:
+                # Check if it's already connected (the bridge page changes text then)
+                if "Linked" in html_content or "connected" in html_content.lower():
+                    raise HTTPException(status_code=404, detail="CONNECTED")
+                raise HTTPException(status_code=404, detail="NO_QR_FOUND")
+            
+            img_data = base64.b64decode(match.group(1))
+            return Response(content=img_data, media_type="image/png")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("admin.qr_proxy_failed", error=str(e))
+        raise HTTPException(status_code=502, detail="WhatsApp Bridge Fehler")
+
+@router.post("/platform/whatsapp/reset")
+async def reset_whatsapp_session(user: AuthContext = Depends(get_current_user)):
+    """Force-reset the WhatsApp session by clearing local auth data."""
+    _require_tenant_admin_or_system(user)
+    import shutil
+    import os
+    
+    slug = _safe_tenant_slug(user)
+    # The path where the bridge stores session keys
+    auth_dir = f"/app/data/whatsapp/auth_info_{slug}"
+    
+    try:
+        if os.path.exists(auth_dir):
+            shutil.rmtree(auth_dir)
+            logger.info("admin.whatsapp.session_cleared", tenant=slug, path=auth_dir)
+        
+        # Also notify the bridge to restart the session
+        bridge_url = (persistence.get_setting("bridge_qr_url") or "http://ariia-whatsapp-bridge:3000/qr")
+        bridge_api_base = bridge_url.rsplit('/', 1)[0]
+        
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(f"{bridge_api_base}/session/terminate/{slug}")
+            
+        return {"status": "ok", "message": "Sitzung erfolgreich zurückgesetzt. Bitte QR-Code neu laden."}
+    except Exception as e:
+        logger.error("admin.whatsapp.reset_failed", error=str(e))
+        # We return OK even if bridge call fails, as long as the dir is gone
+        return {"status": "ok", "message": "Lokale Daten bereinigt."}

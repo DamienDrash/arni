@@ -13,8 +13,7 @@ from app.swarm.base import AgentResponse, BaseAgent
 logger = structlog.get_logger()
 
 from app.swarm.tools.knowledge_base import search_knowledge_base
-
-
+from app.swarm.tools import member_memory
 
 
 class AgentPersona(BaseAgent):
@@ -76,13 +75,11 @@ class AgentPersona(BaseAgent):
                     )
 
     async def handle(self, message: InboundMessage) -> AgentResponse:
-        """Handle smalltalk with Ariia persona via GPT-4o-mini."""
+        """Handle smalltalk with Ariia persona via GPT-4o-mini with Tool Loop."""
         logger.info("agent.persona.handle", message_id=message.message_id)
 
-        # Reload soul for live evolution
+        # 1. Prepare Tenant Prompt (Gold Standard)
         self._soul_content = self._load_soul()
-
-        # Build tenant-aware Jinja2 prompt (S2.5): per-tenant template with soul content
         from app.prompts.engine import get_engine
         from app.prompts.context import build_tenant_context
         from app.gateway.persistence import persistence as _ps
@@ -92,55 +89,44 @@ class AgentPersona(BaseAgent):
             "persona/system.j2", _tenant_slug, soul_content=self._soul_content, **_ctx
         )
         
-        # 1. First Pass
-        response_1 = await self._chat(
-            system_prompt,
-            message.content,
-            user_id=message.user_id,
-            tenant_id=message.tenant_id,
-        )
-        if not response_1:
-             return AgentResponse(content="Sorry, bin kurz AFK. 🏋️‍♂️", confidence=0.5)
+        # 2. Start Tool Loop (ReAct Pattern)
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": message.content}
+        ]
+        
+        max_turns = 3
+        for turn in range(max_turns):
+            response = await self._chat_with_messages(messages, tenant_id=message.tenant_id)
+            if not response:
+                return AgentResponse(content="Sorry, bin kurz AFK. 🏋️‍♂️", confidence=0.5)
 
-        # 2. Check for Tool Use
-        tool_call = self._parse_tool_call(response_1)
-        if tool_call:
+            # Check for Tool Use
+            tool_call = self._parse_tool_call(response)
+            if not tool_call:
+                return AgentResponse(content=response, confidence=0.9)
+            
             tool_name, tool_args = tool_call
-            logger.info("agent.persona.tool_use", tool=tool_name, args=tool_args)
+            logger.info("agent.persona.tool_use", tool=tool_name, args=tool_args, turn=turn+1)
             
             if tool_name == "query_knowledge_base":
-                # Remove quotes if present
                 query = tool_args.strip('"\'')
-                # Use tenant-scoped ChromaDB collection
                 from app.knowledge.ingest import collection_name_for_slug
                 kb_collection = collection_name_for_slug(_tenant_slug)
-                context = search_knowledge_base(query, collection_name=kb_collection)
+                tool_result = search_knowledge_base(query, collection_name=kb_collection)
                 
-                # Second Pass with Context
-                final_prompt = (
-                    f"{system_prompt}\n\n"
-                    f"CONTEXT FROM KNOWLEDGE BASE:\n{context}\n\n"
-                    "WICHTIG: DU HAST DIE INFOS JETZT. NUTZE KEIN TOOL MEHR! "
-                    "ANTWORTE DEM USER DIREKT UND FREUNDLICH BASIEREND AUF DEM KONTEXT."
-                )
-                response_2 = await self._chat(
-                    final_prompt,
-                    message.content,
-                    user_id=message.user_id,
-                    tenant_id=message.tenant_id,
-                )
-                if response_2:
-                    return AgentResponse(content=response_2, confidence=0.95)
+            elif tool_name == "search_member_memory":
+                tool_result = member_memory.search_member_memory(message.user_id, tool_args.strip('"\''), tenant_id=message.tenant_id)
 
             elif tool_name == "request_handoff":
-                try:
-                    await self._trigger_handoff(message.user_id, tenant_id=message.tenant_id)
-                except Exception:
-                    import traceback
-                    logger.error(
-                        "agent.persona.handoff_unhandled",
-                        traceback=traceback.format_exc(),
-                    )
+                await self._trigger_handoff(message.user_id, tenant_id=message.tenant_id)
                 return AgentResponse(content="Alles klar, ich hole einen Kollegen dazu. Moment! 👤", confidence=1.0)
+            
+            else:
+                tool_result = f"Error: Tool '{tool_name}' unknown."
 
-        return AgentResponse(content=response_1, confidence=0.9)
+            # Add to conversation
+            messages.append({"role": "assistant", "content": response})
+            messages.append({"role": "user", "content": f"OBSERVATION: {tool_result}"})
+
+        return AgentResponse(content="Ich konnte die passende Info gerade nicht finden. Frag mich gerne nochmal anders.", confidence=0.5)

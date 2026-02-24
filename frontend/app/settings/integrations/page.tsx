@@ -1,17 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { CheckCircle2, Loader2, MinusCircle, PlugZap, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Loader2, MinusCircle, PlugZap, TriangleAlert, QrCode, Globe, X } from "lucide-react";
 
 import SettingsSubnav from "@/components/settings/SettingsSubnav";
 import { Card } from "@/components/ui/Card";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { Modal } from "@/components/ui/Modal";
 import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/tokens";
 
 type IntegrationsConfig = {
   telegram: { bot_token: string; admin_chat_id: string; webhook_secret: string };
-  whatsapp: { meta_verify_token: string; meta_access_token: string; meta_app_secret: string; bridge_auth_dir: string };
+  whatsapp: { 
+    mode: string;
+    meta_verify_token: string; 
+    meta_access_token: string; 
+    meta_app_secret: string; 
+    meta_phone_number_id: string;
+    bridge_auth_dir: string 
+  };
   magicline: {
     base_url: string;
     api_key: string;
@@ -101,6 +109,12 @@ export default function SettingsIntegrationsPage() {
   const [error, setError] = useState("");
   const [syncingMagicline, setSyncingMagicline] = useState(false);
   const [magiclineSyncMsg, setMagiclineSyncMsg] = useState("");
+  
+  // QR State
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrUrl, setQrUrl] = useState("");
+  const [qrLoading, setQrLoading] = useState(false);
+  const [resetingWa, setResetingWa] = useState(false);
 
   async function fetchIntegrations() {
     setError("");
@@ -127,13 +141,32 @@ export default function SettingsIntegrationsPage() {
     }
   }
 
+  async function fetchHealthOnly() {
+    const res = await apiFetch("/admin/settings");
+    if (res.ok) {
+      const rows = (await res.json()) as Setting[];
+      setHealth({
+        telegram: readHealth(rows, "telegram"),
+        whatsapp: readHealth(rows, "whatsapp"),
+        magicline: readHealth(rows, "magicline"),
+        smtp: readHealth(rows, "smtp"),
+        email: readHealth(rows, "email"),
+        sms: readHealth(rows, "sms"),
+        voice: readHealth(rows, "voice"),
+      });
+    }
+  }
+
   function updateField(path: string, value: string) {
     setIntegrations((prev) => {
       if (!prev) return prev;
       const next = structuredClone(prev);
-      const [section, key] = path.split(".");
-      // @ts-expect-error dynamic mapping for typed integration config
-      next[section][key] = value;
+      const parts = path.split(".");
+      let target: any = next;
+      for (let i = 0; i < parts.length - 1; i++) {
+        target = target[parts[i]];
+      }
+      target[parts[parts.length - 1]] = value;
       return next;
     });
   }
@@ -184,20 +217,73 @@ export default function SettingsIntegrationsPage() {
   }
 
   async function testConnector(provider: Provider) {
+    if (!integrations) return;
     setTesting(provider);
     setError("");
     try {
-      const res = await apiFetch(`/admin/integrations/test/${provider}`, { method: "POST" });
+      const sectionMap: Record<Provider, keyof IntegrationsConfig> = {
+        telegram: "telegram",
+        whatsapp: "whatsapp",
+        magicline: "magicline",
+        smtp: "smtp",
+        email: "email_channel",
+        sms: "sms_channel",
+        voice: "voice_channel"
+      };
+      const config = integrations[sectionMap[provider]];
+      const res = await apiFetch(`/admin/integrations/test/${provider}`, { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config })
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.detail || `Test fehlgeschlagen (${res.status}).`);
       }
-      await fetchIntegrations();
+      await fetchHealthOnly();
     } catch (e) {
       setError(String(e));
-      await fetchIntegrations();
+      await fetchHealthOnly();
     } finally {
       setTesting(null);
+    }
+  }
+
+  async function showWhatsAppQr() {
+    setQrLoading(true);
+    setQrOpen(true);
+    
+    // We use a timestamp to bypass browser caching for the QR image
+    const timestamp = Date.now();
+    const secureQrUrl = `/arni/proxy/admin/platform/whatsapp/qr-image?t=${timestamp}`;
+    setQrUrl(secureQrUrl);
+    
+    // Check if the image exists/bridge is reachable via a quick metadata call
+    try {
+      const res = await apiFetch("/admin/platform/whatsapp/qr");
+      if (!res.ok) {
+        setError("QR-Code konnte nicht geladen werden.");
+      }
+    } catch (e) {
+      setError("Verbindung zur Bridge fehlgeschlagen.");
+    } finally {
+      setQrLoading(false);
+    }
+  }
+
+  async function resetWhatsApp() {
+    if (!confirm("Möchtest du die WhatsApp-Sitzung wirklich zurücksetzen? Alle bisherigen Verbindungsversuche werden gelöscht.")) return;
+    setResetingWa(true);
+    try {
+      const res = await apiFetch("/admin/platform/whatsapp/reset", { method: "POST" });
+      if (res.ok) {
+        alert("Sitzung zurückgesetzt. Das Fenster wird nun geschlossen.");
+        setQrOpen(false);
+      }
+    } catch (e) {
+      alert("Fehler beim Zurücksetzen.");
+    } finally {
+      setResetingWa(false);
     }
   }
 
@@ -259,13 +345,13 @@ export default function SettingsIntegrationsPage() {
               testing={testing === "telegram"}
               onTest={() => void testConnector("telegram")}
             >
-              <Field label="Bot Token" hint="Der Token deines Telegram-Bots (erhalten via @BotFather)">
+              <Field label="Bot Token" hint="Erhalten via @BotFather">
                 <input type="password" style={inputStyle} value={integrations.telegram.bot_token} onChange={(e) => updateField("telegram.bot_token", e.target.value)} placeholder="1234567890:ABC-..." />
               </Field>
-              <Field label="Admin Chat ID" hint="Numerische Chat-ID für Bot-Adminbenachrichtigungen">
+              <Field label="Admin Chat ID">
                 <input style={inputStyle} value={integrations.telegram.admin_chat_id} onChange={(e) => updateField("telegram.admin_chat_id", e.target.value)} placeholder="-100123456789" />
               </Field>
-              <Field label="Webhook Secret" hint="Geheimnis zur Validierung eingehender Telegram-Webhooks">
+              <Field label="Webhook Secret">
                 <input type="password" style={inputStyle} value={integrations.telegram.webhook_secret} onChange={(e) => updateField("telegram.webhook_secret", e.target.value)} placeholder="my-webhook-secret" />
               </Field>
             </IntegrationCard>
@@ -276,18 +362,46 @@ export default function SettingsIntegrationsPage() {
               testing={testing === "whatsapp"}
               onTest={() => void testConnector("whatsapp")}
             >
-              <Field label="Meta Verify Token" hint="Token zur Webhook-Verifikation im Meta Developer Portal">
-                <input type="password" style={inputStyle} value={integrations.whatsapp.meta_verify_token} onChange={(e) => updateField("whatsapp.meta_verify_token", e.target.value)} placeholder="my-verify-token" />
+              <Field label="Anschluss-Modus">
+                <select 
+                  style={{ ...inputStyle, cursor: "pointer" }} 
+                  value={integrations.whatsapp.mode} 
+                  onChange={(e) => updateField("whatsapp.mode", e.target.value)}
+                >
+                  <option value="qr">QR-Code / WhatsApp Web (Bridge)</option>
+                  <option value="meta">Meta Business API (Cloud)</option>
+                </select>
               </Field>
-              <Field label="Meta Access Token" hint="Permanenter Access Token der WhatsApp Business API">
-                <input type="password" style={inputStyle} value={integrations.whatsapp.meta_access_token} onChange={(e) => updateField("whatsapp.meta_access_token", e.target.value)} placeholder="EAAxxxxxxx..." />
-              </Field>
-              <Field label="Meta App Secret" hint="App-Secret zur HMAC-Signaturprüfung eingehender Events">
-                <input type="password" style={inputStyle} value={integrations.whatsapp.meta_app_secret} onChange={(e) => updateField("whatsapp.meta_app_secret", e.target.value)} placeholder="App Secret" />
-              </Field>
-              <Field label="Bridge Auth Dir" hint="Pfad zum WhatsApp-Bridge Auth-Verzeichnis (optional)">
-                <input style={inputStyle} value={integrations.whatsapp.bridge_auth_dir} onChange={(e) => updateField("whatsapp.bridge_auth_dir", e.target.value)} placeholder="/data/wa-bridge" />
-              </Field>
+
+              {integrations.whatsapp.mode === "qr" ? (
+                <div style={{ padding: "12px", borderRadius: 10, background: T.surface, border: `1px solid ${T.border}`, display: "flex", flexDirection: "column", gap: 8 }}>
+                   <div style={{ display: "flex", alignItems: "center", gap: 8, color: T.success }}>
+                      <QrCode size={16} />
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>QR-Modus aktiv</span>
+                   </div>
+                   <p style={{ fontSize: 11, color: T.textMuted, margin: 0 }}>
+                     Der Bot verbindet sich als 'WhatsApp Web' Client. 
+                   </p>
+                   <button onClick={() => void showWhatsAppQr()} className="btn btn-xs btn-outline mt-2 gap-2">
+                     <QrCode size={12} /> QR-Code anzeigen
+                   </button>
+                </div>
+              ) : (
+                <>
+                  <Field label="Phone Number ID">
+                    <input style={inputStyle} value={integrations.whatsapp.meta_phone_number_id} onChange={(e) => updateField("whatsapp.meta_phone_number_id", e.target.value)} placeholder="123456789012345" />
+                  </Field>
+                  <Field label="Meta Verify Token">
+                    <input type="password" style={inputStyle} value={integrations.whatsapp.meta_verify_token} onChange={(e) => updateField("whatsapp.meta_verify_token", e.target.value)} placeholder="my-verify-token" />
+                  </Field>
+                  <Field label="Meta Access Token">
+                    <input type="password" style={inputStyle} value={integrations.whatsapp.meta_access_token} onChange={(e) => updateField("whatsapp.meta_access_token", e.target.value)} placeholder="EAAxxxxxxx..." />
+                  </Field>
+                  <Field label="Meta App Secret">
+                    <input type="password" style={inputStyle} value={integrations.whatsapp.meta_app_secret} onChange={(e) => updateField("whatsapp.meta_app_secret", e.target.value)} placeholder="App Secret" />
+                  </Field>
+                </>
+              )}
             </IntegrationCard>
 
             <IntegrationCard
@@ -296,55 +410,27 @@ export default function SettingsIntegrationsPage() {
               testing={testing === "magicline"}
               onTest={() => void testConnector("magicline")}
             >
-              <Field label="API-Basis-URL" hint="Deine studio-spezifische Magicline Open-API-URL">
+              <Field label="API-Basis-URL">
                 <input style={inputStyle} value={integrations.magicline.base_url} onChange={(e) => updateField("magicline.base_url", e.target.value)} placeholder="https://mein-studio.open-api.magicline.com" />
               </Field>
-              <Field label="API Key" hint="Magicline Open-API Schlüssel (aus dem Studio-Backend)">
+              <Field label="API Key">
                 <input type="password" style={inputStyle} value={integrations.magicline.api_key} onChange={(e) => updateField("magicline.api_key", e.target.value)} placeholder="••••••••••••••••" />
               </Field>
-              <Field label="Magicline Tenant-ID" hint="Numerische ID deines Studios in Magicline">
+              <Field label="Magicline Tenant-ID">
                 <input style={inputStyle} value={integrations.magicline.tenant_id} onChange={(e) => updateField("magicline.tenant_id", e.target.value)} placeholder="123456" />
-              </Field>
-              <Field label="Auto-Sync aktiviert" hint="Mitglieder automatisch per Cron synchronisieren (true / false)">
-                <select
-                  style={{ ...inputStyle, cursor: "pointer" }}
-                  value={integrations.magicline.auto_sync_enabled}
-                  onChange={(e) => updateField("magicline.auto_sync_enabled", e.target.value)}
-                >
-                  <option value="true">true – automatisch synchronisieren</option>
-                  <option value="false">false – nur manueller Sync</option>
-                </select>
-              </Field>
-              <Field label="Sync-Cron (UTC)" hint="Cron-Ausdruck für automatische Synchronisierung, z. B. alle 6 Stunden">
-                <input style={inputStyle} value={integrations.magicline.auto_sync_cron} onChange={(e) => updateField("magicline.auto_sync_cron", e.target.value)} placeholder="0 */6 * * *" />
               </Field>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 <SyncStatus label="Letzter Sync" value={integrations.magicline.last_sync_at ? new Date(integrations.magicline.last_sync_at).toLocaleString("de-DE") : "—"} />
                 <SyncStatus label="Status" value={integrations.magicline.last_sync_status || "—"} color={integrations.magicline.last_sync_status === "ok" ? T.success : integrations.magicline.last_sync_status === "error" ? T.danger : undefined} />
               </div>
-              {integrations.magicline.last_sync_error && (
-                <div style={{ fontSize: 11, color: T.danger, lineHeight: 1.45, padding: "6px 8px", background: "#1a0505", borderRadius: 6 }}>
-                  <strong>Sync-Fehler:</strong> {integrations.magicline.last_sync_error}
-                </div>
-              )}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => void triggerMagiclineSync()}
-                  disabled={syncingMagicline}
-                  style={{ ...testButtonStyle, background: T.accentDim, borderColor: T.accent, color: T.text }}
-                >
-                  {syncingMagicline ? "Sync läuft…" : "↻ Jetzt synchronisieren"}
-                </button>
-              </div>
-              {magiclineSyncMsg && (
-                <div style={{ fontSize: 11, color: magiclineSyncMsg.startsWith("✓") ? T.success : T.danger, lineHeight: 1.4 }}>
-                  {magiclineSyncMsg}
-                </div>
-              )}
-              <div style={{ fontSize: 11, color: T.textDim, lineHeight: 1.5 }}>
-                Beim Speichern startet automatisch ein initialer Sync. Auto-Sync läuft per Cron (UTC) und reichert Trainingsdaten (Check-ins, Buchungen) im Hintergrund an.
-              </div>
+              <button
+                type="button"
+                onClick={() => void triggerMagiclineSync()}
+                disabled={syncingMagicline}
+                style={{ ...testButtonStyle, background: T.accentDim, borderColor: T.accent, color: T.text }}
+              >
+                {syncingMagicline ? "Sync läuft…" : "↻ Jetzt synchronisieren"}
+              </button>
             </IntegrationCard>
 
             <IntegrationCard
@@ -353,32 +439,20 @@ export default function SettingsIntegrationsPage() {
               testing={testing === "smtp"}
               onTest={() => void testConnector("smtp")}
             >
-              <Field label="SMTP Host" hint="Hostname deines Mailservers">
+              <Field label="SMTP Host">
                 <input style={inputStyle} value={integrations.smtp.host} onChange={(e) => updateField("smtp.host", e.target.value)} placeholder="smtp.gmail.com" />
               </Field>
-              <Field label="SMTP Port" hint="Port: 587 (STARTTLS) oder 465 (SSL)">
+              <Field label="SMTP Port">
                 <input style={inputStyle} value={integrations.smtp.port} onChange={(e) => updateField("smtp.port", e.target.value)} placeholder="587" />
               </Field>
-              <Field label="Benutzername" hint="Meist deine vollständige E-Mail-Adresse">
+              <Field label="Benutzername">
                 <input style={inputStyle} value={integrations.smtp.username} onChange={(e) => updateField("smtp.username", e.target.value)} placeholder="noreply@mein-studio.de" />
               </Field>
-              <Field label="Passwort / App-Passwort" hint="SMTP-Passwort oder App-spezifisches Passwort (z. B. Google)">
+              <Field label="Passwort">
                 <input type="password" style={inputStyle} value={integrations.smtp.password} onChange={(e) => updateField("smtp.password", e.target.value)} placeholder="••••••••" />
               </Field>
-              <Field label="Absender-E-Mail" hint="Adresse die als Absender erscheint">
+              <Field label="Absender-E-Mail">
                 <input style={inputStyle} value={integrations.smtp.from_email} onChange={(e) => updateField("smtp.from_email", e.target.value)} placeholder="noreply@mein-studio.de" />
-              </Field>
-              <Field label="Absender-Name" hint="Anzeigename des Absenders">
-                <input style={inputStyle} value={integrations.smtp.from_name} onChange={(e) => updateField("smtp.from_name", e.target.value)} placeholder="Mein Studio" />
-              </Field>
-              <Field label="STARTTLS verwenden" hint="STARTTLS aktivieren (empfohlen für Port 587)">
-                <select style={{ ...inputStyle, cursor: "pointer" }} value={integrations.smtp.use_starttls} onChange={(e) => updateField("smtp.use_starttls", e.target.value)}>
-                  <option value="true">true – STARTTLS aktiv</option>
-                  <option value="false">false – kein STARTTLS</option>
-                </select>
-              </Field>
-              <Field label="Betreff Verifizierungsmail" hint="Betreffzeile der automatischen Bestätigungsmail">
-                <input style={inputStyle} value={integrations.smtp.verification_subject} onChange={(e) => updateField("smtp.verification_subject", e.target.value)} placeholder="Dein Verifizierungscode" />
               </Field>
             </IntegrationCard>
 
@@ -388,22 +462,16 @@ export default function SettingsIntegrationsPage() {
               testing={testing === "email"}
               onTest={() => void testConnector("email")}
             >
-              <Field label="Kanal aktiviert" hint="Eingehende E-Mails als Konversationskanal aktivieren">
+              <Field label="Kanal aktiviert">
                 <select style={{ ...inputStyle, cursor: "pointer" }} value={integrations.email_channel.enabled} onChange={(e) => updateField("email_channel.enabled", e.target.value)}>
                   <option value="true">true – aktiviert</option>
                   <option value="false">false – deaktiviert</option>
                 </select>
               </Field>
-              <Field label="Postmark Server Token" hint="Server-Token für ausgehende E-Mails via Postmark">
+              <Field label="Postmark Server Token">
                 <input type="password" style={inputStyle} value={integrations.email_channel.postmark_server_token} onChange={(e) => updateField("email_channel.postmark_server_token", e.target.value)} placeholder="••••••••••••••••" />
               </Field>
-              <Field label="Postmark Inbound Token" hint="Token für eingehende E-Mails (Inbound-Webhook)">
-                <input type="password" style={inputStyle} value={integrations.email_channel.postmark_inbound_token} onChange={(e) => updateField("email_channel.postmark_inbound_token", e.target.value)} placeholder="••••••••••••••••" />
-              </Field>
-              <Field label="Message Stream" hint="Postmark Message Stream ID (z. B. outbound)">
-                <input style={inputStyle} value={integrations.email_channel.message_stream} onChange={(e) => updateField("email_channel.message_stream", e.target.value)} placeholder="outbound" />
-              </Field>
-              <Field label="Absender-E-Mail" hint="Von-Adresse für ausgehende Kanal-E-Mails">
+              <Field label="Absender-E-Mail">
                 <input style={inputStyle} value={integrations.email_channel.from_email} onChange={(e) => updateField("email_channel.from_email", e.target.value)} placeholder="ariia@mein-studio.de" />
               </Field>
             </IntegrationCard>
@@ -414,19 +482,19 @@ export default function SettingsIntegrationsPage() {
               testing={testing === "sms"}
               onTest={() => void testConnector("sms")}
             >
-              <Field label="Kanal aktiviert" hint="SMS als Konversationskanal aktivieren">
+              <Field label="Kanal aktiviert">
                 <select style={{ ...inputStyle, cursor: "pointer" }} value={integrations.sms_channel.enabled} onChange={(e) => updateField("sms_channel.enabled", e.target.value)}>
                   <option value="true">true – aktiviert</option>
                   <option value="false">false – deaktiviert</option>
                 </select>
               </Field>
-              <Field label="Twilio Account SID" hint="Account SID aus dem Twilio-Dashboard">
-                <input style={inputStyle} value={integrations.sms_channel.twilio_account_sid} onChange={(e) => updateField("sms_channel.twilio_account_sid", e.target.value)} placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+              <Field label="Twilio Account SID">
+                <input style={inputStyle} value={integrations.sms_channel.twilio_account_sid} onChange={(e) => updateField("sms_channel.twilio_account_sid", e.target.value)} placeholder="ACxxxxxxxxxx..." />
               </Field>
-              <Field label="Twilio Auth Token" hint="Auth Token aus dem Twilio-Dashboard">
+              <Field label="Twilio Auth Token">
                 <input type="password" style={inputStyle} value={integrations.sms_channel.twilio_auth_token} onChange={(e) => updateField("sms_channel.twilio_auth_token", e.target.value)} placeholder="••••••••••••••••" />
               </Field>
-              <Field label="Twilio SMS-Nummer" hint="Gekaufte Twilio-Nummer im E.164-Format">
+              <Field label="Twilio SMS-Nummer">
                 <input style={inputStyle} value={integrations.sms_channel.twilio_sms_number} onChange={(e) => updateField("sms_channel.twilio_sms_number", e.target.value)} placeholder="+4915123456789" />
               </Field>
             </IntegrationCard>
@@ -437,28 +505,88 @@ export default function SettingsIntegrationsPage() {
               testing={testing === "voice"}
               onTest={() => void testConnector("voice")}
             >
-              <Field label="Kanal aktiviert" hint="Voice-Calls als Konversationskanal aktivieren">
+              <Field label="Kanal aktiviert">
                 <select style={{ ...inputStyle, cursor: "pointer" }} value={integrations.voice_channel.enabled} onChange={(e) => updateField("voice_channel.enabled", e.target.value)}>
                   <option value="true">true – aktiviert</option>
                   <option value="false">false – deaktiviert</option>
                 </select>
               </Field>
-              <Field label="Twilio Account SID" hint="Account SID aus dem Twilio-Dashboard">
-                <input style={inputStyle} value={integrations.voice_channel.twilio_account_sid} onChange={(e) => updateField("voice_channel.twilio_account_sid", e.target.value)} placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+              <Field label="Twilio Voice-Nummer">
+                <input style={inputStyle} value={integrations.voice_channel.twilio_voice_number} onChange={(e) => updateField("voice_channel.twilio_voice_number", e.target.value)} placeholder="+49301234567" />
               </Field>
-              <Field label="Twilio Auth Token" hint="Auth Token aus dem Twilio-Dashboard">
-                <input type="password" style={inputStyle} value={integrations.voice_channel.twilio_auth_token} onChange={(e) => updateField("voice_channel.twilio_auth_token", e.target.value)} placeholder="••••••••••••••••" />
-              </Field>
-              <Field label="Voice-Nummer" hint="Twilio-Nummer für eingehende Anrufe (E.164-Format)">
-                <input style={inputStyle} value={integrations.voice_channel.twilio_voice_number} onChange={(e) => updateField("voice_channel.twilio_voice_number", e.target.value)} placeholder="+4915123456789" />
-              </Field>
-              <Field label="Voice Stream URL" hint="WebSocket-Endpunkt für Live-Audio-Streaming (wss://...)">
-                <input style={inputStyle} value={integrations.voice_channel.twilio_voice_stream_url} onChange={(e) => updateField("voice_channel.twilio_voice_stream_url", e.target.value)} placeholder="wss://mein-server.de/voice/stream" />
+              <Field label="Stream-URL (Websocket)">
+                <input style={inputStyle} value={integrations.voice_channel.twilio_voice_stream_url} onChange={(e) => updateField("voice_channel.twilio_voice_stream_url", e.target.value)} placeholder="wss://deine-domain.de/voice" />
               </Field>
             </IntegrationCard>
           </div>
         )}
       </Card>
+
+      {/* WhatsApp QR Modal */}
+      <Modal
+        open={qrOpen}
+        onClose={() => setQrOpen(false)}
+        title="WhatsApp Verbindung herstellen"
+        subtitle="Scanne diesen Code mit deinem Smartphone"
+        width="min(440px, 100%)"
+      >
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: "10px 0" }}>
+          {qrLoading ? (
+            <div style={{ height: 260, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
+              <Loader2 size={40} className="animate-spin text-accent" />
+              <span style={{ fontSize: 13, color: T.textMuted }}>QR-Code wird generiert...</span>
+            </div>
+          ) : qrUrl ? (
+            <>
+              <div style={{ padding: 12, background: "white", borderRadius: 16, border: `1px solid ${T.border}`, boxShadow: "0 10px 25px rgba(0,0,0,0.1)", position: "relative", minHeight: 240, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src={qrUrl} 
+                  alt="WhatsApp QR Code" 
+                  style={{ width: 240, height: 240 }} 
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                    const p = (e.target as HTMLImageElement).parentElement;
+                    if (p) {
+                      p.innerHTML = `<div style="text-align:center; padding:20px; color:#64748B; font-size:13px;">
+                        <p style="font-weight:700; margin-bottom:10px; color:#EF4444;">Infrastruktur-Fehler</p>
+                        <p style="font-size:11px; margin-bottom:15px; line-height:1.5;">Die WhatsApp-Bridge liefert kein Bild.<br/>
+                        Grund: Port-Konflikt oder Sitzung noch nicht bereit.</p>
+                        <div style="background:#F1F5F9; padding:8px; border-radius:6px; font-family:monospace; font-size:10px; margin-bottom:15px; text-align:left;">
+                          Target: 185.209.228.251:3001<br/>
+                          Status: Waiting for QR
+                        </div>
+                        <button onclick="window.location.reload()" style="background:#6C5CE7; color:white; border:none; padding:8px 16px; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer;">
+                          Status aktualisieren
+                        </button>
+                      </div>`;
+                    }
+                  }}
+                />
+              </div>
+              <p style={{ fontSize: 12, color: T.textMuted, textAlign: "center", lineHeight: 1.6 }}>
+                Öffne WhatsApp auf deinem Telefon → Menü oder Einstellungen → Verknüpfte Geräte → Gerät hinzufügen.
+              </p>
+            </>
+          ) : (
+            <div style={{ color: T.danger, textAlign: "center", fontSize: 13 }}>
+              Fehler beim Laden des QR-Codes. Bitte stelle sicher, dass die Bridge online ist.
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 10, width: "100%", marginTop: 16 }}>
+            <button onClick={() => void showWhatsAppQr()} className="btn btn-sm btn-outline flex-1">QR-Code erneuern</button>
+            <button onClick={() => setQrOpen(false)} className="btn btn-sm flex-1">Schließen</button>
+          </div>
+          
+          <button 
+            onClick={() => void resetWhatsApp()} 
+            disabled={resetingWa}
+            style={{ border: "none", background: "none", color: T.danger, fontSize: 11, cursor: "pointer", textDecoration: "underline", marginTop: 10 }}
+          >
+            {resetingWa ? "Setze zurück..." : "Sitzung hart zurücksetzen (bei Problemen)"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

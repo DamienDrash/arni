@@ -378,7 +378,62 @@ def enrich_member(customer_id: int, force: bool = False, tenant_id: int | None =
         from app.gateway.persistence import persistence as _persistence
         checkin_enabled = _persistence.get_setting("checkin_enabled", "true", tenant_id=tenant_id) == "true"
 
-        # Fetch check-ins (only when enabled)
+        # 1. Fetch Full Profile (Best Effort)
+        try:
+            full_profile = client.customer_get(customer_id)
+            if full_profile:
+                # Merge relevant fields into additional_info
+                current_info = json.loads(member.additional_info) if member.additional_info else {}
+                
+                # Extract address if present
+                addr = full_profile.get("address")
+                if isinstance(addr, dict):
+                    addr_str = f"{addr.get('street', '')} {addr.get('houseNumber', '')}, {addr.get('zipCode', '')} {addr.get('city', '')}".strip()
+                    if addr_str.strip(", "):
+                        current_info["Adresse"] = addr_str
+                
+                # Extract other CRM fields
+                if full_profile.get("customerNumber"):
+                    member.member_number = str(full_profile.get("customerNumber"))
+                
+                # GOLD STANDARD: Map additional info fields (Goals, Health)
+                # Since ADDITIONAL_INFORMATION_READ might be restricted, we use a known map for this studio
+                field_map = {
+                    1229489651: "Trainingsziele",
+                    1229489650: "Anamnese_Hinweise",
+                }
+                assignments = full_profile.get("additionalInformationFieldAssignments")
+                if isinstance(assignments, list):
+                    for ass in assignments:
+                        fid = ass.get("additionalInformationFieldId")
+                        val = ass.get("value")
+                        if fid in field_map and val:
+                            current_info[field_map[fid]] = val
+                        elif val:
+                            # Fallback: generic label if unknown but has value
+                            # current_info[f"Info_{fid}"] = val
+                            pass
+
+                member.additional_info = json.dumps(current_info, ensure_ascii=False)
+        except Exception as e:
+            logger.warning("member_enrichment.full_profile_failed", customer_id=customer_id, error=str(e))
+
+        # 1b. Fetch Comm Prefs (Best Effort)
+        try:
+            prefs = client.customer_comm_prefs(customer_id)
+            if prefs:
+                current_info = json.loads(member.additional_info) if member.additional_info else {}
+                pref_labels = []
+                for p in prefs:
+                    if p.get("allowed"):
+                        pref_labels.append(p.get("type", "Unknown"))
+                if pref_labels:
+                    current_info["Kontakt_Erlaubnis"] = ", ".join(pref_labels)
+                member.additional_info = json.dumps(current_info, ensure_ascii=False)
+        except Exception as e:
+            logger.warning("member_enrichment.comm_prefs_failed", customer_id=customer_id, error=str(e))
+
+        # 2. Fetch check-ins (only when enabled)
         checkins_90: list[dict] = []
         checkins_30: list[dict] = []
         if checkin_enabled:

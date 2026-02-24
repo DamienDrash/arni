@@ -6,14 +6,15 @@ Handles outbound message dispatch (WhatsApp, Telegram, SMS, Email) and Admin Bro
 import asyncio
 import httpx
 import structlog
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from app.gateway.schemas import Platform
 from app.gateway.persistence import persistence
 from app.gateway.dependencies import (
     active_websockets,
-    telegram_bot,
-    whatsapp_verifier,
+    get_telegram_bot,
+    get_whatsapp_client,
 )
 
 logger = structlog.get_logger()
@@ -61,49 +62,103 @@ async def _send_email_via_postmark(*, to_email: str, subject: str, content: str,
         raise RuntimeError(f"Postmark email failed ({resp.status_code})")
 
 
-async def send_to_user(user_id: str, platform: Platform, content: str, metadata: dict[str, Any] = None) -> None:
+async def send_to_user(
+    user_id: str, 
+    platform: Platform, 
+    content: str, 
+    metadata: dict[str, Any] = None,
+    tenant_id: int | None = None
+) -> None:
     """Send a message to a user via the appropriate channel."""
     if not content:
         return
 
     metadata = metadata or {}
+    resolved_tid = tenant_id or metadata.get("tenant_id")
+    
+    # Gold Standard Fix: If tid is still missing, recover it from the active session
+    if resolved_tid is None:
+        try:
+            # We look up the session globally to identify the tenant owner of this conversation
+            session = persistence.get_session_global(user_id) 
+            if session:
+                resolved_tid = session.tenant_id
+                logger.info("gateway.tenant_resolved_from_session", user_id=user_id, tenant_id=resolved_tid)
+        except Exception as e:
+            logger.warning("gateway.tenant_resolution_failed", user_id=user_id, error=str(e))
+            pass
+            
+    # Final fallback if it's a global system notification
+    if resolved_tid is None:
+        resolved_tid = persistence.get_system_tenant_id()
 
     try:
         if platform == Platform.WHATSAPP:
-            await whatsapp_verifier.send_text(user_id, content)
-            logger.info("bridge.reply_sent", to=user_id)
+            wa_client = get_whatsapp_client(resolved_tid)
+            await wa_client.send_text(user_id, content)
+            logger.info("bridge.reply_sent", to=user_id, tenant_id=resolved_tid)
 
         elif platform == Platform.TELEGRAM:
              # Send via Telegram API
-             # Meta: use chat_id from metadata if available, else user_id
              chat_id = metadata.get("chat_id", user_id)
-             # Use parse_mode=None to avoid Markdown errors with raw user input
-             await telegram_bot.send_message(chat_id, content, parse_mode=None)
-             logger.info("telegram.reply_sent", to=chat_id)
+             tg_bot = get_telegram_bot(resolved_tid)
+             await tg_bot.send_message(chat_id, content, parse_mode=None)
+             logger.info("telegram.reply_sent", to=chat_id, tenant_id=resolved_tid)
+             
         elif platform == Platform.SMS:
             await _send_sms_via_twilio(
                 to=user_id,
                 content=content[:1550],
-                tenant_id=metadata.get("tenant_id"),
+                tenant_id=resolved_tid,
             )
-            logger.info("sms.reply_sent", to=user_id)
+            logger.info("sms.reply_sent", to=user_id, tenant_id=resolved_tid)
+            
         elif platform == Platform.EMAIL:
             subject = (metadata.get("subject") or "Re: Deine Nachricht an ARIIA").strip()[:150]
             await _send_email_via_postmark(
                 to_email=user_id,
                 subject=subject,
                 content=content,
-                tenant_id=metadata.get("tenant_id"),
+                tenant_id=resolved_tid,
             )
-            logger.info("email.reply_sent", to=user_id)
+            logger.info("email.reply_sent", to=user_id, tenant_id=resolved_tid)
+            
         elif platform in {Platform.PHONE, Platform.VOICE}:
             logger.info("voice.reply_buffered", to=user_id, note="Outbound voice synthesis not yet wired")
         
         else:
             logger.warning("gateway.unknown_platform", platform=platform, user_id=user_id)
+        
+        # Gold Standard: Save to DB so it appears in history
+        try:
+            import asyncio
+            # We run this in a thread to avoid blocking the reply flow, 
+            # but we do it BEFORE the broadcast to ensure data exists when frontend refreshes.
+            persistence.save_message(
+                user_id=user_id,
+                role="assistant",
+                content=content,
+                platform=platform,
+                metadata=metadata,
+                tenant_id=resolved_tid
+            )
+        except Exception as db_err:
+            logger.error("gateway.outbound_save_failed", error=str(db_err))
+
+        # Gold Standard: Always broadcast outbound messages to Ghost Mode (Admin Dashboard)
+        # We ensure tenant_id is included so the dashboard can filter correctly.
+        await broadcast_to_admins({
+            "type": "ghost.message_out",
+            "user_id": user_id,
+            "tenant_id": resolved_tid,
+            "platform": platform.value if hasattr(platform, 'value') else str(platform),
+            "response": content,
+            "message_id": f"out-{datetime.now(timezone.utc).timestamp()}",
+            "metadata": metadata
+        })
              
     except Exception as e:
-        logger.error("gateway.send_failed", error=str(e), user_id=user_id, platform=platform)
+        logger.error("gateway.send_failed", error=str(e), user_id=user_id, platform=platform, tenant_id=resolved_tid)
         raise e
 
 

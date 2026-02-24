@@ -3,7 +3,6 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   basePath: "/arni",
-  trailingSlash: true,
   async rewrites() {
     return [
       {

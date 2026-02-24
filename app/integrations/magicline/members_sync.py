@@ -21,7 +21,7 @@ logger = structlog.get_logger()
 _SYNC_FIELDS = (
     "member_number", "first_name", "last_name", "date_of_birth",
     "phone_number", "email",
-    "gender", "preferred_language", "member_since", "is_paused", "pause_info", "additional_info",
+    "gender", "preferred_language", "member_since", "is_paused", "pause_info", "contract_info", "additional_info",
 )
 
 # Fallback mapping observed in production data when field-def endpoint is not permitted.
@@ -167,9 +167,32 @@ def _resolve_additional_info(
     return json.dumps(result, ensure_ascii=False) if result else None
 
 
+def _build_contract_info(client: MagiclineClient, customer_id: int) -> str | None:
+    """Fetch active contracts for a member and return summarized JSON."""
+    try:
+        contracts = client.customer_contracts(customer_id, status="ACTIVE")
+        if not contracts:
+            return None
+        
+        # We take the most relevant active contract
+        c = contracts[0]
+        payload = {
+            "plan_name": c.get("rateName") or c.get("name") or "Unbekannt",
+            "status": "ACTIVE",
+            "start_date": c.get("startDate"),
+            "end_date": c.get("endDate"),
+            "is_canceled": bool(c.get("cancellationDate")),
+            "cancellation_date": c.get("cancellationDate"),
+        }
+        return json.dumps(payload, ensure_ascii=False)
+    except Exception:
+        return None
+
+
 def _normalize_member(
     raw: dict[str, Any],
     field_defs: dict[int, str],
+    client: MagiclineClient | None = None,
 ) -> dict[str, Any] | None:
     customer_id = raw.get("id")
     if customer_id is None:
@@ -203,6 +226,7 @@ def _normalize_member(
         "member_since": _safe_datetime(raw.get("createdDateTime")),
         "is_paused": _is_paused(raw),
         "pause_info": _build_pause_info(raw),
+        "contract_info": _build_contract_info(client, customer_id) if client else None,
         "additional_info": _resolve_additional_info(raw, field_defs),
     }
 
@@ -249,12 +273,23 @@ def sync_members_from_magicline(tenant_id: int | None = None) -> dict[str, int]:
     except Exception as e:
         logger.warning("magicline.members_sync.field_defs_failed", error=str(e))
 
-    rows = MagiclineClient.iter_pages(
-        client.customer_list,
-        customer_status="MEMBER",
-        slice_size=200,
-    )
-    normalized = [m for m in (_normalize_member(row, field_defs) for row in rows) if m]
+    try:
+        rows = MagiclineClient.iter_pages(
+            client.customer_list,
+            customer_status="MEMBER",
+            slice_size=200,
+        )
+    except Exception as e:
+        msg = str(e)
+        if "403" in msg or "permission" in msg.lower():
+            logger.error("magicline.members_sync.permission_denied", error=msg)
+            raise ValueError("Magicline API-Zugriff verweigert (403). Bitte sicherstellen, dass der API-Key die Berechtigung 'CUSTOMER_READ' besitzt.")
+        if "401" in msg:
+            logger.error("magicline.members_sync.auth_failed", error=msg)
+            raise ValueError("Magicline Authentifizierung fehlgeschlagen (401). API-Key ungültig.")
+        raise
+
+    normalized = [m for m in (_normalize_member(row, field_defs, client=client) for row in rows) if m]
     incoming_ids = {m["customer_id"] for m in normalized}
 
     upserted = 0
