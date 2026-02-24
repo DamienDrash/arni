@@ -404,6 +404,11 @@ async def list_members(
                 "contract_info": _json.loads(row.contract_info) if row.contract_info else None,
                 "enriched_at": row.enriched_at.isoformat() if row.enriched_at else None,
                 "additional_info": _json.loads(row.additional_info) if row.additional_info else None,
+                "source": getattr(row, "source", None) or "magicline",
+                "source_id": getattr(row, "source_id", None),
+                "tags": _json.loads(row.tags) if getattr(row, "tags", None) else [],
+                "custom_fields": _json.loads(row.custom_fields) if getattr(row, "custom_fields", None) else {},
+                "notes": getattr(row, "notes", None),
                 "checkin_stats": _json.loads(row.checkin_stats) if row.checkin_stats else None,
                 "recent_bookings": _json.loads(row.recent_bookings) if row.recent_bookings else None,
                 "verified": (
