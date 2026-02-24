@@ -162,7 +162,9 @@ export default function PricingClient() {
             {addons.map((addon, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: i * 0.06 }} className="p-5 rounded-xl group hover:scale-[1.03] transition-all duration-300" style={{ background: "oklch(0.12 0.04 270)", border: "1px solid oklch(0.22 0.04 270)" }}>
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: `${addon.color}12` }}><addon.icon size={18} style={{ color: addon.color }} /></div>
-                <div className="text-xl font-bold mb-1" style={{ color: addon.color }}>+{addon.price}{!addon.price.includes("€") && "€"}<span className="text-xs font-normal" style={{ color: "oklch(0.6 0.015 270)" }}>/Monat</span></div>
+                                <div className="text-xl font-bold mb-1" style={{ color: addon.color }}>
+                                  +{addon.price}{!addon.price.includes("€") && "€"}<span className="text-xs font-normal" style={{ color: "oklch(0.6 0.015 270)" }}>/{t("pricing.monthly").toLowerCase()}</span>
+                                </div>
                 <h3 className="text-sm font-semibold mb-2" style={{ color: "oklch(0.92 0.005 270)" }}>{addon.name}</h3>
                 <p className="text-xs leading-relaxed" style={{ color: "oklch(0.6 0.015 270)" }}>{addon.desc}</p>
               </motion.div>

@@ -1,0 +1,309 @@
+{
+  "common": {
+    "login": "Entrar",
+    "register": "Registrar",
+    "getStarted": "Começar grátis",
+    "features": "Funcionalidades",
+    "pricing": "Preços",
+    "dashboard": "Painel",
+    "logout": "Sair",
+    "settings": "Configurações",
+    "allSystemsOnline": "Todos os sistemas online",
+    "welcome": "Bem-vindo ao Living System inteligente.",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "loading": "Carregando...",
+    "featuresTitle": "Descobrir funções",
+    "membersSynced": "180 membros sincronizados",
+    "dsgvo": "Conforme RGPD",
+    "madeInGermany": "Made in Germany",
+    "enterpriseReady": "Enterprise-Ready"
+  },
+  "navbar": {
+    "login": "Entrar",
+    "register": "Teste grátis"
+  },
+  "footer": {
+    "brandDesc": "Comunicação com o cliente assistida por IA para ginásios, treinadores e PMEs. Made in Germany.",
+    "product": "Produto",
+    "company": "Empresa",
+    "contact": "Contacto",
+    "rights": "Todos os direitos reservados.",
+    "links": {
+      "features": "Funcionalidades",
+      "pricing": "Preços",
+      "test": "Teste grátis",
+      "impressum": "Aviso legal",
+      "datenschutz": "Privacidade",
+      "agb": "Termos",
+      "enterprise": "Consultas Enterprise"
+    }
+  },
+  "hero": {
+    "versionBadge": "Living System Agent v2.0",
+    "title": "O seu assistente de IA para uma",
+    "words": ["inteligente", "pessoal", "automatizada", "escalável"],
+    "subtitle": "comunicação com o cliente",
+    "description": "ARIIA responde às solicitações dos clientes via WhatsApp, Telegram e voz, 24 horas por dia, de forma pessoal e inteligente. Para ginásios e PMEs.",
+    "cta": "Teste grátis por 14 dias"
+  },
+  "stats": {
+    "aiResolution": "Taxa de resolução IA",
+    "responseTime": "Tempo de resposta",
+    "agentsInSwarm": "Agentes IA no Swarm",
+    "availability": "Disponibilidade"
+  },
+  "features": {
+    "badge": "Funções da plataforma",
+    "title": "Tudo o que o seu negócio",
+    "titleAccent": "precisa",
+    "description": "ARIIA combina tecnologia de IA de ponta com uma plataforma intuitiva, projetada para empresas que desejam transformar a sua comunicação com o cliente.",
+    "swarm": {
+      "title": "Enxame de agentes IA",
+      "desc": "5 agentes especializados (Ops, Sales, Medic, Vision, Persona) trabalham em equipa, orquestrados pelo Project Titan."
+    },
+    "omnichannel": {
+      "title": "Omnicanal",
+      "desc": "WhatsApp, Telegram, voz, chat web: uma única IA, respostas coerentes em todos os canais."
+    },
+    "churn": {
+      "title": "Previsão de cancelamento",
+      "desc": "A previsão baseada em ML deteta clientes em risco e sugere medidas proativas."
+    },
+    "memory": {
+      "title": "Memória de 3 níveis",
+      "desc": "Memória de sessão, semântica e episódica: ARIIA lembra-se de cada cliente e cada interação."
+    },
+    "security": {
+      "title": "Segurança Enterprise",
+      "desc": "Conforme o RGPD com Row-Level Security, filtros PII, logs de auditoria e comunicação encriptada."
+    },
+    "connectors": {
+      "title": "Conectores abertos",
+      "desc": "Magicline, Shopify, WooCommerce, API: conecte qualquer sistema empresarial em minutos."
+    },
+    "page": {
+      "title": "Funcionalidades que transformam o seu",
+      "titleAccent": "negócio",
+      "description": "ARIIA é mais do que um chatbot. É um Living System Agent com 5 agentes IA especializados e segurança de classe empresarial.",
+      "techTitle": "Tecnologia IA Core",
+      "techSubtitle": "O que diferencia a ARIIA dos",
+      "techSubtitleAccent": "chatbots",
+      "securityTitle": "Segurança Enterprise",
+      "securitySubtitle": "Segurança de nível",
+      "securitySubtitleAccent": "Enterprise",
+      "securityDesc": "Desenvolvido de raiz para o mercado europeu. Cada linha de dados é isolada por Row-Level Security.",
+      "deckTitle": "Studio Deck",
+      "deckSubtitle": "O seu",
+      "deckSubtitleAccent": "Centro de Comando",
+      "deckDesc": "O painel Studio Deck oferece controlo total sobre os seus agentes IA, membros e comunicação.",
+      "details": {
+        "intent": "Deteção de intenção",
+        "routing": "Roteamento dinâmico",
+        "fallback": "Backup e escalonamento",
+        "confidence": "Análise de confiança",
+        "wa": "WhatsApp Business API",
+        "tg": "Telegram Polling",
+        "voice": "Pipeline de voz",
+        "chat": "Web-Chat",
+        "ml": "Previsões baseadas em ML",
+        "proactive": "Medidas proativas",
+        "scoring": "Pontuação de risco",
+        "behavior": "Análise comportamental",
+        "session": "Memória de sessão",
+        "semantic": "Memória semântica",
+        "episodic": "Memória episódica",
+        "auto": "Extração automática",
+        "dsgvo": "Conforme RGPD",
+        "rls": "Segurança ao nível da linha",
+        "pii": "Filtro PII",
+        "audit": "Logs de auditoria",
+        "magicline": "Magicline",
+        "shopify": "Shopify",
+        "woo": "WooCommerce",
+        "api": "API REST"
+      },
+      "securityLabels": {
+        "dsgvo": "RGPD",
+        "rls": "RLS",
+        "pii": "PII",
+        "audit": "Auditoria",
+        "rbac": "RBAC",
+        "encryption": "Encriptação"
+      },
+      "platform": {
+        "live": { "title": "Monitor ao vivo", "desc": "Visão em tempo real de todas as sessões." },
+        "churn": { "title": "Cancelamento", "desc": "Previsão ML para clientes em risco." },
+        "members": { "title": "Gestão de membros", "desc": "Base de dados com pontuação de risco." },
+        "knowledge": { "title": "Base de conhecimento", "desc": "Editor WYSIWYG para os seus conteúdos." },
+        "multi": { "title": "Multi-Tenant", "desc": "Vários locais, um único painel." },
+        "prompts": { "title": "Prompts personalizados", "desc": "Defina o tom e a persona." }
+      }
+    }
+  },
+  "cta": {
+    "title": "Pronto para transformar a sua comunicação com o",
+    "titleAccent": "cliente",
+    "subtitle": "Comece agora o seu teste grátis de 14 dias. Sem riscos, sem cartão de crédito.",
+    "button": "Começar grátis agora",
+    "compare": "Comparar planos"
+  },
+  "pricing": {
+    "title": "Preços",
+    "titleAccent": "transparentes",
+    "description": "Escolha o plano que melhor se adapta ao seu negócio. Todos os planos incluem um teste grátis de 14 dias.",
+    "monthly": "Mensal",
+    "yearly": "Anual",
+    "discount": "-20%",
+    "billedYearly": "faturado anualmente",
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "desc": "Para personal trainers e micro-estúdios.",
+        "cta": "Escolher Starter",
+        "features": [
+          "1 canal de comunicação",
+          "500 conversas IA / mês",
+          "Agente ARIIA Core",
+          "Conector básico (1 sistema)",
+          "1 utilizador",
+          "Suporte por e-mail",
+          "Painel Studio Deck"
+        ]
+      },
+      "professional": {
+        "name": "Professional",
+        "desc": "Para estúdios estabelecidos e PMEs.",
+        "cta": "Escolher Professional",
+        "badge": "O mais popular",
+        "features": [
+          "3 canais de comunicação",
+          "2.000 conversas IA / mês",
+          "Enxame completo (5 agentes)",
+          "3 conectores incluídos",
+          "5 utilizadores",
+          "Prompts personalizados",
+          "Relatórios e análises",
+          "Suporte prioritário"
+        ]
+      },
+      "business": {
+        "name": "Business",
+        "desc": "Para cadeias de estúdios e empresas de alto volume.",
+        "cta": "Escolher Business",
+        "features": [
+          "Todos os canais",
+          "10.000 conversas IA / mês",
+          "Enxame completo + roteamento prioritário",
+          "Conectores ilimitados",
+          "15 utilizadores",
+          "Churn Prediction incluída",
+          "Acesso API (REST + Webhooks)",
+          "Audit Logs e RBAC",
+          "Suporte dedicado"
+        ]
+      }
+    },
+    "enterpriseTitle": "Enterprise",
+    "enterpriseDesc": "Garantia SLA, On-Premise, integrações personalizadas, gestor de conta dedicado.",
+    "enterpriseCta": "Contacte-nos",
+    "addonsTitle": "Módulos adicionais",
+    "addonsSubtitle": "Módulos",
+    "addonsSubtitleAccent": "opcionais",
+    "addonsDesc": "Amplie o seu plano de forma flexível com módulos adicionais.",
+    "addons": {
+      "churn": { "name": "Previsão cancelamento", "desc": "Previsão baseada em ML." },
+      "voice": { "name": "Pipeline de voz", "desc": "Whisper STT + ElevenLabs TTS." },
+      "vision": { "name": "Vision AI", "desc": "Análise de imagens YOLOv8." },
+      "channel": { "name": "Canal extra", "desc": "Canal suplementar." }
+    },
+    "faqTitle": "Perguntas frequentes",
+    "faqs": [
+      { "q": "Existe um período de teste grátis?", "a": "Sim, todos os planos incluem 14 dias de teste grátis sem cartão de crédito." },
+      { "q": "Posso alterar o meu plano a qualquer momento?", "a": "Sim, pode fazer upgrade ou downgrade quando desejar." },
+      { "q": "O que acontece se atingir o meu limite?", "a": "Será notificado e poderá fazer upgrade ou comprar um boost." },
+      { "q": "A ARIIA está em conformidade com o RGPD?", "a": "Sim, a ARIIA foi desenvolvida de raiz para o mercado europeu." }
+    ],
+    "finalCta": "Ainda tem dúvidas?",
+    "finalCtaAccent": "Teste simplesmente.",
+    "finalCtaDesc": "14 dias grátis, todas as funções, sem cartão de crédito. Veja por si mesmo."
+  },
+  "legal": {
+    "impressum": {
+      "title": "Aviso legal",
+      "tmg5": "Informações de acordo com § 5 TMG",
+      "representedBy": "Representado por",
+      "managingDirector": "Gerente",
+      "contact": "Contacto",
+      "phone": "Telefone",
+      "email": "E-mail",
+      "website": "Site web",
+      "registerEntry": "Registo",
+      "registerCourt": "Tribunal",
+      "registerNumber": "Número de registo",
+      "vatId": "NIF",
+      "responsibleContent": "Responsável pelo conteúdo",
+      "dispute": "Resolução de litígios",
+      "liabilityContent": "Responsabilidade pelo conteúdo",
+      "liabilityLinks": "Responsabilidade pelos links"
+    },
+    "agb": {
+      "title": "Termos e Condições",
+      "s1_title": "§ 1 Âmbito de aplicação",
+      "s1_text": "Estes Termos e Condições aplicam-se a todos os contratos entre a ARIIA GmbH e o cliente.",
+      "s2_title": "§ 2 Objeto do contrato",
+      "s2_text": "O fornecedor disponibiliza a plataforma ARIIA para comunicação automatizada.",
+      "s3_title": "§ 3 Conclusão do contrato",
+      "s3_text": "O contrato é concluído no registo. Existe uma fase de teste de 14 dias.",
+      "s4_title": "§ 4 Preços",
+      "s4_text": "Os preços atuais constam do site do fornecedor.",
+      "s5_title": "§ 5 Duração",
+      "s5_text": "A duração mínima é de um mês para faturação mensal.",
+      "s6_title": "§ 6 Disponibilidade",
+      "s6_text": "O fornecedor esforça-se por garantir 99,9% de disponibilidade.",
+      "s7_title": "§ 7 Privacidade",
+      "s7_text": "Tratamos os dados pessoais de acordo com o RGPD.",
+      "s8_title": "§ 8 Responsabilidade",
+      "s8_text": "O fornecedor é responsável em caso de dolo ou negligência grave.",
+      "s9_title": "§ 9 Disposições finais",
+      "s9_text": "Aplica-se a lei da República Federal da Alemanha.",
+      "status": "Estado: fevereiro de 2026"
+    },
+    "privacy": {
+      "title": "Política de privacidade",
+      "s1_title": "1. Responsável",
+      "s1_text": "O responsável pelo tratamento de dados é a ARIIA GmbH.",
+      "s2_title": "2. Recolha de dados",
+      "s2_text": "Ao visitar o site, são enviadas informações técnicas automaticamente.",
+      "s3_title": "3. Transmissão",
+      "s3_text": "Os seus dados não são transmitidos a terceiros sem base legal.",
+      "s4_title": "4. Cookies",
+      "s4_text": "Utilizamos cookies para melhorar a sua experiência.",
+      "s5_title": "5. Análise",
+      "s5_text": "Utilizamos Umami Analytics para análise anónima.",
+      "s6_title": "6. Direitos",
+      "s6_text": "Tem direito a informação, retificação e eliminação.",
+      "s7_title": "7. Segurança",
+      "s7_text": "Utilizamos encriptação SSL.",
+      "s8_title": "8. Atualidade",
+      "s8_text": "Esta política é válida a partir de fevereiro de 2026."
+    }
+  },
+  "dashboard": {
+    "overview": "Visão geral do sistema, KPIs e atividade.",
+    "tickets24h": "Tickets (24h)",
+    "aiResolution": "Taxa resolução IA",
+    "confidence": "Ø Confiança",
+    "tickets30d": "Tickets (30d)",
+    "latestTickets": "Últimos tickets",
+    "recentConversations": "Conversas recentes"
+  },
+  "settings": {
+    "account": "Conta",
+    "general": "Geral",
+    "integrations": "Integrações",
+    "automation": "Automação",
+    "language": "Idioma",
+    "selectLanguage": "Escolha o seu idioma preferido"
+  }
+}

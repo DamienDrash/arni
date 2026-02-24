@@ -1,0 +1,309 @@
+{
+  "common": {
+    "login": "Inloggen",
+    "register": "Registreren",
+    "getStarted": "Gratis beginnen",
+    "features": "Functionaliteiten",
+    "pricing": "Tarieven",
+    "dashboard": "Dashboard",
+    "logout": "Uitloggen",
+    "settings": "Instellingen",
+    "allSystemsOnline": "Alle systemen online",
+    "welcome": "Welkom bij het intelligente Living System.",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "loading": "Laden...",
+    "featuresTitle": "Functies ontdekken",
+    "membersSynced": "180 leden gesynchroniseerd",
+    "dsgvo": "AVG-conform",
+    "madeInGermany": "Made in Germany",
+    "enterpriseReady": "Enterprise-Ready"
+  },
+  "navbar": {
+    "login": "Inloggen",
+    "register": "Gratis proberen"
+  },
+  "footer": {
+    "brandDesc": "AI-gestuurde klantcommunicatie voor sportscholen, personal trainers en het mkb. Made in Germany.",
+    "product": "Product",
+    "company": "Bedrijf",
+    "contact": "Contact",
+    "rights": "Alle rechten voorbehouden.",
+    "links": {
+      "features": "Functionaliteiten",
+      "pricing": "Tarieven",
+      "test": "Gratis proberen",
+      "impressum": "Colofon",
+      "datenschutz": "Privacy",
+      "agb": "Voorwaarden",
+      "enterprise": "Enterprise aanvragen"
+    }
+  },
+  "hero": {
+    "versionBadge": "Living System Agent v2.0",
+    "title": "Je AI-assistent voor een",
+    "words": ["intelligente", "persoonlijke", "geautomatiseerde", "schaalbare"],
+    "subtitle": "klantcommunicatie",
+    "description": "ARIIA beantwoordt klantvragen via WhatsApp, Telegram en spraak, 24 uur per dag, persoonlijk en intelligent. Voor sportscholen en het mkb.",
+    "cta": "14 dagen gratis proberen"
+  },
+  "stats": {
+    "aiResolution": "AI-oplossingspercentage",
+    "responseTime": "Responstijd",
+    "agentsInSwarm": "AI-agents in de Swarm",
+    "availability": "Beschikbaarheid"
+  },
+  "features": {
+    "badge": "Platformfuncties",
+    "title": "Alles wat je business",
+    "titleAccent": "nodig heeft",
+    "description": "ARIIA combineert de nieuwste AI-technologie met een intuïtief platform, gebouwd voor bedrijven die hun klantcommunicatie willen transformeren.",
+    "swarm": {
+      "title": "AI Agent Swarm",
+      "desc": "5 gespecialiseerde agents (Ops, Sales, Medic, Vision, Persona) werken als een team, georkestreerd door Project Titan."
+    },
+    "omnichannel": {
+      "title": "Omnichannel",
+      "desc": "WhatsApp, Telegram, spraak, webchat: één AI, consistente antwoorden op alle kanalen."
+    },
+    "churn": {
+      "title": "Churn Prediction",
+      "desc": "Op ML gebaseerde voorspellingen detecteren klanten die dreigen te vertrekken en stellen maatregelen voor."
+    },
+    "memory": {
+      "title": "3-Tier Memory",
+      "desc": "Session, Semantic en Episodic Memory: ARIIA onthoudt elke klant en elke interactie."
+    },
+    "security": {
+      "title": "Enterprise Security",
+      "desc": "AVG-conform met Row-Level Security, PII-filters, audit logs en versleutelde communicatie."
+    },
+    "connectors": {
+      "title": "Open Connectors",
+      "desc": "Magicline, Shopify, WooCommerce, API: verbind elk bedrijfssysteem binnen enkele minuten."
+    },
+    "page": {
+      "title": "Functies die je business",
+      "titleAccent": "transformeren",
+      "description": "ARIIA is meer dan een chatbot. Het is een Living System Agent met 5 gespecialiseerde AI-agents en enterprise-grade beveiliging.",
+      "techTitle": "AI Core Technologie",
+      "techSubtitle": "Wat ARIIA onderscheidt van",
+      "techSubtitleAccent": "chatbots",
+      "securityTitle": "Enterprise Security",
+      "securitySubtitle": "Beveiliging op",
+      "securitySubtitleAccent": "Enterprise-niveau",
+      "securityDesc": "Vanaf de basis ontwikkeld voor de Europese markt. Elke gegevensrij is geïsoleerd door Row-Level Security.",
+      "deckTitle": "Studio Deck",
+      "deckSubtitle": "Je",
+      "deckSubtitleAccent": "Command Center",
+      "deckDesc": "Het Studio Deck dashboard geeft je volledige controle over je AI-agents, leden en communicatie.",
+      "details": {
+        "intent": "Intentiedetectie",
+        "routing": "Dynamische routering",
+        "fallback": "Fallback & escalatie",
+        "confidence": "Betrouwbaarheidsanalyse",
+        "wa": "WhatsApp Business API",
+        "tg": "Telegram Polling",
+        "voice": "Voice Pipeline",
+        "chat": "Web-Chat",
+        "ml": "ML-voorspellingen",
+        "proactive": "Proactieve maatregelen",
+        "scoring": "Risicoscore",
+        "behavior": "Gedragsanalyse",
+        "session": "Sessiegeheugen",
+        "semantic": "Semantisch geheugen",
+        "episodic": "Episodisch geheugen",
+        "auto": "Automatische extractie",
+        "dsgvo": "AVG-conform",
+        "rls": "Row-Level Security",
+        "pii": "PII-filter",
+        "audit": "Audit Logs",
+        "magicline": "Magicline",
+        "shopify": "Shopify",
+        "woo": "WooCommerce",
+        "api": "REST API"
+      },
+      "securityLabels": {
+        "dsgvo": "AVG",
+        "rls": "RLS",
+        "pii": "PII",
+        "audit": "Audit",
+        "rbac": "RBAC",
+        "encryption": "Versleuteling"
+      },
+      "platform": {
+        "live": { "title": "Live Monitor", "desc": "Real-time overzicht van alle actieve sessies." },
+        "churn": { "title": "Churn Prediction", "desc": "ML-voorspelling voor risicoklanten." },
+        "members": { "title": "Ledenbeheer", "desc": "Klantendatabase met risicoscore en contracten." },
+        "knowledge": { "title": "Kennisbank", "desc": "WYSIWYG-editor voor je trainingsinhoud." },
+        "multi": { "title": "Multi-Tenant", "desc": "Meerdere locaties, één dashboard." },
+        "prompts": { "title": "Custom Prompts", "desc": "Definieer toon en persona per tenant." }
+      }
+    }
+  },
+  "cta": {
+    "title": "Klaar om je klantcommunicatie te",
+    "titleAccent": "transformeren",
+    "subtitle": "Begin nu met je gratis proefperiode van 14 dagen. Geen risico, geen creditcard nodig.",
+    "button": "Nu gratis beginnen",
+    "compare": "Plannen vergelijken"
+  },
+  "pricing": {
+    "title": "Transparante",
+    "titleAccent": "prijzen",
+    "description": "Kies het plan dat bij je business past. Alle plannen bevatten een gratis proefperiode van 14 dagen.",
+    "monthly": "Maandelijks",
+    "yearly": "Jaarlijks",
+    "discount": "-20%",
+    "billedYearly": "jaarlijks gefactureerd",
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "desc": "Voor personal trainers en micro-studio's.",
+        "cta": "Kies Starter",
+        "features": [
+          "1 communicatiekanaal",
+          "500 AI-gesprekken / maand",
+          "ARIIA Core Agent",
+          "Basisconnector (1 systeem)",
+          "1 gebruiker",
+          "E-mail support",
+          "Studio Deck Dashboard"
+        ]
+      },
+      "professional": {
+        "name": "Professional",
+        "desc": "Voor gevestigde studio's en het mkb.",
+        "cta": "Kies Professional",
+        "badge": "Meest populair",
+        "features": [
+          "3 communicatiekanalen",
+          "2.000 AI-gesprekken / maand",
+          "Volledige Swarm (5 agents)",
+          "3 connectors inbegrepen",
+          "5 gebruikers",
+          "Custom Prompts",
+          "Rapportage & analytics",
+          "Prioriteitssteun"
+        ]
+      },
+      "business": {
+        "name": "Business",
+        "desc": "Voor sportschoolketens en groeiende bedrijven.",
+        "cta": "Kies Business",
+        "features": [
+          "Alle kanalen",
+          "10.000 AI-gesprekken / maand",
+          "Volledige Swarm + Priority Routing",
+          "Onbeperkte connectors",
+          "15 gebruikers",
+          "Churn Prediction inbegrepen",
+          "API-toegang (REST + Webhooks)",
+          "Audit Logs & RBAC",
+          "Dedicated support"
+        ]
+      }
+    },
+    "enterpriseTitle": "Enterprise",
+    "enterpriseDesc": "SLA-garantie, On-Premise, maatwerk integraties, eigen accountmanager.",
+    "enterpriseCta": "Contact opnemen",
+    "addonsTitle": "Modulaire uitbreidingen",
+    "addonsSubtitle": "Optionele",
+    "addonsSubtitleAccent": "add-ons",
+    "addonsDesc": "Breid je plan flexibel uit met extra modules – betaal alleen voor wat je nodig hebt.",
+    "addons": {
+      "churn": { "name": "Churn Prediction", "desc": "Voorspelling gebaseerd op ML." },
+      "voice": { "name": "Voice Pipeline", "desc": "Whisper STT + ElevenLabs TTS." },
+      "vision": { "name": "Vision AI", "desc": "YOLOv8-beeldanalyse." },
+      "channel": { "name": "Extra kanaal", "desc": "Extra communicatiekanaal." }
+    },
+    "faqTitle": "Veelgestelde vragen",
+    "faqs": [
+      { "q": "Is er een gratis proefperiode?", "a": "Ja, alle plannen bevatten een proefperiode van 14 dagen zonder creditcard." },
+      { "q": "Kan ik op elk moment van plan wisselen?", "a": "Ja, je kunt op elk moment upgraden of downgraden." },
+      { "q": "Wat gebeurt er als ik mijn limiet bereik?", "a": "Je ontvangt een melding en kunt upgraden of een boost boeken." },
+      { "q": "Is ARIIA AVG-conform?", "a": "Ja, ARIIA is vanaf de basis ontwikkeld voor de Europese markt." }
+    ],
+    "finalCta": "Nog twijfels?",
+    "finalCtaAccent": "Probeer het gewoon.",
+    "finalCtaDesc": "14 dagen gratis, alle functies, geen creditcard. Overtuig jezelf."
+  },
+  "legal": {
+    "impressum": {
+      "title": "Colofon",
+      "tmg5": "Informatie volgens § 5 TMG",
+      "representedBy": "Vertegenwoordigd door",
+      "managingDirector": "Directeur",
+      "contact": "Contact",
+      "phone": "Telefoon",
+      "email": "E-mail",
+      "website": "Website",
+      "registerEntry": "Register",
+      "registerCourt": "Rechtbank",
+      "registerNumber": "Registernummer",
+      "vatId": "BTW-ID",
+      "responsibleContent": "Verantwoordelijk voor de inhoud",
+      "dispute": "Geschillenbeslechting",
+      "liabilityContent": "Aansprakelijkheid voor inhoud",
+      "liabilityLinks": "Aansprakelijkheid voor links"
+    },
+    "agb": {
+      "title": "Algemene voorwaarden",
+      "s1_title": "§ 1 Toepasselijkheid",
+      "s1_text": "Deze Algemene Voorwaarden zijn van toepassing op alle overeenkomsten tussen ARIIA GmbH en de klant.",
+      "s2_title": "§ 2 Onderwerp van de overeenkomst",
+      "s2_text": "De aanbieder stelt het ARIIA-platform ter beschikking voor geautomatiseerde communicatie.",
+      "s3_title": "§ 3 Totstandkoming overeenkomst",
+      "s3_text": "De overeenkomst komt tot stand bij registratie. Er is een proeffase van 14 dagen.",
+      "s4_title": "§ 4 Prijzen",
+      "s4_text": "De actuele prijzen staan op de website van de aanbieder.",
+      "s5_title": "§ 5 Looptijd",
+      "s5_text": "De minimale looptijd is één maand bij maandelijkse facturatie.",
+      "s6_title": "§ 6 Beschikbaarheid",
+      "s6_text": "De aanbieder streeft naar een beschikbaarheid van 99,9%.",
+      "s7_title": "§ 7 Privacy",
+      "s7_text": "Wij verwerken persoonsgegevens in overeenstemming met de AVG.",
+      "s8_title": "§ 8 Aansprakelijkheid",
+      "s8_text": "De aanbieder is aansprakelijk in geval van opzet of grove nalatigheid.",
+      "s9_title": "§ 9 Slotbepalingen",
+      "s9_text": "Het recht van de Bondsrepubliek Duitsland is van toepassing.",
+      "status": "Status: februari 2026"
+    },
+    "privacy": {
+      "title": "Privacybeleid",
+      "s1_title": "1. Verantwoordelijke",
+      "s1_text": "Verantwoordelijk voor de gegevensverwerking is ARIIA GmbH.",
+      "s2_title": "2. Gegevensverzameling",
+      "s2_text": "Bij bezoek aan de site wordt automatisch technische informatie verzonden.",
+      "s3_title": "3. Doorgifte",
+      "s3_text": "Uw gegevens worden niet zonder wettelijke basis aan derden doorgegeven.",
+      "s4_title": "4. Cookies",
+      "s4_text": "Wij gebruiken cookies om uw ervaring te verbeteren.",
+      "s5_title": "5. Analyse",
+      "s5_text": "Wij gebruiken Umami Analytics voor anonieme analyse.",
+      "s6_title": "6. Rechten",
+      "s6_text": "U heeft recht op informatie, correctie en verwijdering.",
+      "s7_title": "7. Beveiliging",
+      "s7_text": "Wij maken gebruik van SSL-versleuteling.",
+      "s8_title": "8. Actualiteit",
+      "s8_text": "Dit beleid is geldig vanaf februari 2026."
+    }
+  },
+  "dashboard": {
+    "overview": "Overzicht van systeemstatus, KPI's en activiteit.",
+    "tickets24h": "Tickets (24u)",
+    "aiResolution": "AI-oplossing",
+    "confidence": "Ø Confidentie",
+    "tickets30d": "Tickets (30d)",
+    "latestTickets": "Laatste tickets",
+    "recentConversations": "Recente gesprekken"
+  },
+  "settings": {
+    "account": "Account",
+    "general": "Algemeen",
+    "integrations": "Integraties",
+    "automation": "Automatisierung",
+    "language": "Taal",
+    "selectLanguage": "Kies je voorkeurstaal"
+  }
+}

@@ -7,10 +7,15 @@ import de from "../../locales/de.json";
 import en from "../../locales/en.json";
 import bg from "../../locales/bg.json";
 import fr from "../../locales/fr.json";
+import es from "../../locales/es.json";
+import it from "../../locales/it.json";
+import pt from "../../locales/pt.json";
+import nl from "../../locales/nl.json";
+import ru from "../../locales/ru.json";
 
-const dictionaries: Record<string, any> = { de, en, bg, fr };
+const dictionaries: Record<string, any> = { de, en, bg, fr, es, it, pt, nl, ru };
 
-type Language = "de" | "en" | "bg" | "fr";
+type Language = "de" | "en" | "bg" | "fr" | "es" | "it" | "pt" | "nl" | "ru";
 
 interface i18nContextType {
   language: Language;
