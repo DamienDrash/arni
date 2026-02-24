@@ -193,11 +193,12 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
     if (isSystemAdmin) return null;
 
     const planColors: Record<string, string> = {
-      starter: "#8B8D9A",
-      pro: "#6C5CE7",
-      enterprise: "#FFAA00",
+      starter: "#6B7280",
+      professional: "#3B82F6",
+      business: "#8B5CF6",
+      enterprise: "#F59E0B",
     };
-    const planColor = planColors[plan.slug] || "#8B8D9A";
+    const planColor = planColors[plan.slug] || "#6B7280";
 
     // Usage bar for message limits
     const maxMsgs = plan.limits.max_monthly_messages;
@@ -334,7 +335,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
 
       <div className={styles.footer}>
         {/* Upgrade CTA for Starter plan */}
-        {!isSystemAdmin && plan.slug === "starter" && (
+        {!isSystemAdmin && (plan.slug === "starter" || plan.slug === "professional") && (
           <Link
             href="/settings/billing"
             style={{
@@ -345,9 +346,13 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
               margin: "0 12px 8px",
               padding: "8px 12px",
               borderRadius: 8,
-              background: "linear-gradient(135deg, rgba(108,92,231,0.15), rgba(139,92,246,0.15))",
-              border: "1px solid rgba(108,92,231,0.3)",
-              color: "#A29BFE",
+              background: plan.slug === "starter"
+                ? "linear-gradient(135deg, rgba(59,130,246,0.15), rgba(99,102,241,0.15))"
+                : "linear-gradient(135deg, rgba(139,92,246,0.15), rgba(168,85,247,0.15))",
+              border: plan.slug === "starter"
+                ? "1px solid rgba(59,130,246,0.3)"
+                : "1px solid rgba(139,92,246,0.3)",
+              color: plan.slug === "starter" ? "#60A5FA" : "#A78BFA",
               fontSize: 12,
               fontWeight: 600,
               textDecoration: "none",
@@ -355,7 +360,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
             }}
           >
             <Zap size={12} />
-            Auf Pro upgraden
+            {plan.slug === "starter" ? "Auf Professional upgraden" : "Auf Business upgraden"}
           </Link>
         )}
         <div className={styles.footerRow}>
@@ -393,10 +398,12 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
 }
 
 // Helper: get required plan name for a feature
-function getRequiredPlan(feature: keyof PlanFeatures): string {
-  const enterpriseFeatures: (keyof PlanFeatures)[] = ["voice", "google_business", "automation"];
-  if (enterpriseFeatures.includes(feature)) return "Enterprise";
-  return "Pro";
+function getRequiredPlan(feat: keyof PlanFeatures): string {
+  const enterpriseFeatures: (keyof PlanFeatures)[] = ["white_label", "dedicated_support", "sla", "on_premise_option", "custom_llm_keys"];
+  const businessFeatures: (keyof PlanFeatures)[] = ["voice", "google_business", "automation", "churn_prediction", "vision_ai", "priority_support"];
+  if (enterpriseFeatures.includes(feat)) return "Enterprise";
+  if (businessFeatures.includes(feat)) return "Business";
+  return "Professional";
 }
 
 // Minimal colors for avatar style
