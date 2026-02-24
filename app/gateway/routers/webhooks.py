@@ -1,6 +1,7 @@
-"""ARIIA v1.4 – Webhook Router.
+"""ARIIA v2.0 – Webhook Router.
 
-Handles inbound messages from WhatsApp, Telegram, SMS, and Email.
+Handles inbound messages from WhatsApp, Telegram, Instagram, Facebook Messenger,
+Google Business Messages, SMS, and Email.
 """
 
 import asyncio
@@ -482,3 +483,181 @@ async def webhook_telegram_tenant(
     asyncio.create_task(save_inbound_to_db(inbound))
     asyncio.create_task(process_and_reply(inbound))
     return {"status": "ok"}
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Instagram DM Webhooks (Meta Graph API)
+# ─────────────────────────────────────────────────────────────────────
+
+@router.get("/webhook/instagram/{tenant_slug}")
+async def webhook_instagram_verify(
+    tenant_slug: str,
+    hub_mode: str = Query(default="", alias="hub.mode"),
+    hub_verify_token: str = Query(default="", alias="hub.verify_token"),
+    hub_challenge: str = Query(default="", alias="hub.challenge"),
+) -> Any:
+    """Verify Instagram webhook subscription for a tenant."""
+    tenant_id = _resolve_tenant_id_by_slug(tenant_slug)
+    if tenant_id is None:
+        raise HTTPException(status_code=404, detail="Unknown tenant")
+
+    expected_token = persistence.get_setting("instagram_verify_token", tenant_id=tenant_id)
+    if not expected_token:
+        expected_token = persistence.get_setting("meta_verify_token", tenant_id=tenant_id)
+
+    if hub_mode == "subscribe" and hub_verify_token == expected_token:
+        return int(hub_challenge)
+    return {"error": "Verification failed"}
+
+
+@router.post("/webhook/instagram/{tenant_slug}")
+async def webhook_instagram_inbound(
+    tenant_slug: str,
+    request: Request,
+    x_hub_signature_256: str | None = Header(default=None, alias="x-hub-signature-256"),
+) -> dict[str, str]:
+    """Handle inbound Instagram DM messages for a tenant."""
+    tenant_id = _resolve_tenant_id_by_slug(tenant_slug)
+    if tenant_id is None:
+        raise HTTPException(status_code=404, detail="Unknown tenant")
+
+    raw_body = await request.body()
+
+    # Signature verification
+    app_secret = persistence.get_setting("instagram_app_secret", tenant_id=tenant_id)
+    if not app_secret:
+        app_secret = persistence.get_setting("meta_app_secret", tenant_id=tenant_id)
+    if app_secret:
+        from app.integrations.instagram.client import InstagramClient
+        temp_client = InstagramClient(page_id="", access_token="", app_secret=app_secret)
+        if not temp_client.verify_webhook_signature(raw_body, x_hub_signature_256 or ""):
+            raise HTTPException(status_code=403, detail="Invalid webhook signature")
+
+    try:
+        payload = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=422, detail="Invalid JSON")
+
+    from app.integrations.normalizer import MessageNormalizer
+    normalizer = MessageNormalizer()
+    messages = normalizer.normalize_instagram(payload)
+    messages_processed = 0
+
+    for msg in messages:
+        msg.tenant_id = tenant_id
+        channel = redis_bus.get_tenant_channel(RedisBus.CHANNEL_INBOUND, tenant_id)
+        await redis_bus.publish(channel, msg.model_dump_json())
+        asyncio.create_task(save_inbound_to_db(msg))
+        asyncio.create_task(process_and_reply(msg))
+        messages_processed += 1
+
+    return {"status": "ok", "processed": str(messages_processed)}
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Facebook Messenger Webhooks (Meta Send/Receive API)
+# ─────────────────────────────────────────────────────────────────────
+
+@router.get("/webhook/facebook/{tenant_slug}")
+async def webhook_facebook_verify(
+    tenant_slug: str,
+    hub_mode: str = Query(default="", alias="hub.mode"),
+    hub_verify_token: str = Query(default="", alias="hub.verify_token"),
+    hub_challenge: str = Query(default="", alias="hub.challenge"),
+) -> Any:
+    """Verify Facebook Messenger webhook subscription for a tenant."""
+    tenant_id = _resolve_tenant_id_by_slug(tenant_slug)
+    if tenant_id is None:
+        raise HTTPException(status_code=404, detail="Unknown tenant")
+
+    expected_token = persistence.get_setting("facebook_verify_token", tenant_id=tenant_id)
+    if not expected_token:
+        expected_token = persistence.get_setting("meta_verify_token", tenant_id=tenant_id)
+
+    if hub_mode == "subscribe" and hub_verify_token == expected_token:
+        return int(hub_challenge)
+    return {"error": "Verification failed"}
+
+
+@router.post("/webhook/facebook/{tenant_slug}")
+async def webhook_facebook_inbound(
+    tenant_slug: str,
+    request: Request,
+    x_hub_signature_256: str | None = Header(default=None, alias="x-hub-signature-256"),
+) -> dict[str, str]:
+    """Handle inbound Facebook Messenger messages for a tenant."""
+    tenant_id = _resolve_tenant_id_by_slug(tenant_slug)
+    if tenant_id is None:
+        raise HTTPException(status_code=404, detail="Unknown tenant")
+
+    raw_body = await request.body()
+
+    # Signature verification
+    app_secret = persistence.get_setting("facebook_app_secret", tenant_id=tenant_id)
+    if not app_secret:
+        app_secret = persistence.get_setting("meta_app_secret", tenant_id=tenant_id)
+    if app_secret:
+        from app.integrations.facebook.client import FacebookMessengerClient
+        temp_client = FacebookMessengerClient(page_id="", page_access_token="", app_secret=app_secret)
+        if not temp_client.verify_webhook_signature(raw_body, x_hub_signature_256 or ""):
+            raise HTTPException(status_code=403, detail="Invalid webhook signature")
+
+    try:
+        payload = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=422, detail="Invalid JSON")
+
+    from app.integrations.normalizer import MessageNormalizer
+    normalizer = MessageNormalizer()
+    messages = normalizer.normalize_facebook(payload)
+    messages_processed = 0
+
+    for msg in messages:
+        msg.tenant_id = tenant_id
+        channel = redis_bus.get_tenant_channel(RedisBus.CHANNEL_INBOUND, tenant_id)
+        await redis_bus.publish(channel, msg.model_dump_json())
+        asyncio.create_task(save_inbound_to_db(msg))
+        asyncio.create_task(process_and_reply(msg))
+        messages_processed += 1
+
+    return {"status": "ok", "processed": str(messages_processed)}
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Google Business Messages Webhooks
+# ─────────────────────────────────────────────────────────────────────
+
+@router.post("/webhook/google-business/{tenant_slug}")
+async def webhook_google_business_inbound(
+    tenant_slug: str,
+    request: Request,
+) -> dict[str, str]:
+    """Handle inbound Google Business Messages for a tenant.
+
+    Google Business Messages does not use a verify-token flow like Meta.
+    Instead, the webhook URL is registered in the Business Communications console.
+    """
+    tenant_id = _resolve_tenant_id_by_slug(tenant_slug)
+    if tenant_id is None:
+        raise HTTPException(status_code=404, detail="Unknown tenant")
+
+    raw_body = await request.body()
+    try:
+        payload = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=422, detail="Invalid JSON")
+
+    from app.integrations.normalizer import MessageNormalizer
+    normalizer = MessageNormalizer()
+    msg = normalizer.normalize_google_business(payload)
+
+    if not msg:
+        return {"status": "ignored"}
+
+    msg.tenant_id = tenant_id
+    channel = redis_bus.get_tenant_channel(RedisBus.CHANNEL_INBOUND, tenant_id)
+    await redis_bus.publish(channel, msg.model_dump_json())
+    asyncio.create_task(save_inbound_to_db(msg))
+    asyncio.create_task(process_and_reply(msg))
+
+    return {"status": "ok", "processed": "1"}

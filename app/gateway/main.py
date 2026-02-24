@@ -123,6 +123,10 @@ app.include_router(members_crud_router)
 from app.gateway.routers.integrations_sync import router as integrations_sync_router
 app.include_router(integrations_sync_router)
 
+# --- Connector Hub Router (Unified Integration Config) ---
+from app.gateway.routers.connector_hub import router as connector_hub_router
+app.include_router(connector_hub_router, prefix="/admin")
+
 # --- ACP Router ---
 from app.acp.server import router as acp_router
 app.include_router(acp_router)
