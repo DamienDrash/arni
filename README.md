@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 # ARIIA – Multi-Tenant AI Agent Platform for Fitness Studios
 
 **ARIIA** (formerly ARNI) is a sophisticated, multi-tenant SaaS platform designed to automate and enhance member interactions for fitness studios. It acts as a digital front-desk assistant, leveraging a powerful AI agent swarm to manage communications, bookings, and member support across multiple channels like WhatsApp, Telegram, and Voice.
