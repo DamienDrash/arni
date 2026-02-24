@@ -18,6 +18,7 @@ from app.swarm.agents.persona import AgentPersona
 from app.swarm.agents.sales import AgentSales
 from app.swarm.agents.vision import AgentVision
 from app.swarm.base import AgentResponse, BaseAgent, AgentHandoff
+from app.swarm.master.orchestrator import MasterAgent
 from app.swarm.llm import LLMClient
 from app.swarm.router.intents import Intent
 from app.prompts.engine import get_engine
@@ -50,6 +51,7 @@ class SwarmRouter:
     def __init__(self, llm: LLMClient) -> None:
         self._llm = llm
         BaseAgent.set_llm(llm)  # Share LLM with all agents
+        self._master = MasterAgent(llm)
         self._agents: dict[Intent, BaseAgent] = {
             Intent.BOOKING: AgentOps(),
             Intent.SALES: AgentSales(),
@@ -72,18 +74,7 @@ class SwarmRouter:
     async def route(self, message: InboundMessage) -> AgentResponse:
         """Classify intent and dispatch to appropriate agent.
 
-        Flow:
-        0. Emergency keyword check → hard-route to Medic (safety first)
-        1. Try LLM classification (GPT-4o-mini → Ollama fallback)
-        2. If confidence < threshold → try keyword classification
-        3. Dispatch to matched agent
-        4. Return agent response
-
-        Args:
-            message: Normalized inbound message.
-
-        Returns:
-            AgentResponse from the dispatched agent.
+        TITAN UPGRADE: Emergency goes to Medic, EVERYTHING ELSE goes to Master.
         """
         content_lower = message.content.lower()
 
@@ -95,73 +86,9 @@ class SwarmRouter:
             )
             return await self._agents[Intent.HEALTH].handle(message)
 
-        # Deterministic override for booking actions (delete/reschedule etc.).
-        if self._looks_like_booking_action(content_lower):
-            intent, confidence = Intent.BOOKING, 0.99
-            logger.info("router.context_override", intent=intent.value, reason="booking_action_keywords")
-        elif any(kw in content_lower for kw in ["weißt du noch", "weist du noch", "erinnerst du", "was weißt du über mich", "meine ziele"]):
-            intent, confidence = Intent.SMALLTALK, 0.99
-            logger.info("router.context_override", intent=intent.value, reason="memory_keywords")
-        else:
-            # Context override: explicit dialog context has priority over keyword guessing.
-            dialog_ctx = self._extract_dialog_context(message)
-            pending_action = str(dialog_ctx.get("pending_action") or "").strip().lower()
-            
-            # Improved Time Regex: matches "14:00", "14 Uhr", "14:30 Uhr"
-            time_pattern = r"\b([01]?\d|2[0-3])(:[0-5]\d)?(\s*uhr)?\b"
-            has_time_only = bool(re.search(time_pattern, content_lower))
-            
-            if has_time_only and (pending_action.startswith("book_appointment") or self._has_recent_booking_context(message.user_id, message.tenant_id)):
-                intent, confidence = Intent.BOOKING, 0.99
-                logger.info("router.context_override", intent=intent.value, reason="dialog_context_time")
-            elif self._is_affirmative(content_lower) and (pending_action.startswith("book_appointment") or self._has_recent_booking_context(message.user_id, message.tenant_id)):
-                intent, confidence = Intent.BOOKING, 0.99
-                logger.info("router.context_override", intent=intent.value, reason="dialog_context_affirmative")
-            else:
-                intent, confidence = await self._classify(
-                    message.content,
-                    user_id=message.user_id,
-                    tenant_id=message.tenant_id,
-                )
-
-        # If LLM result is unreliable, try keywords
-        if intent == Intent.UNKNOWN or confidence < CONFIDENCE_THRESHOLD:
-            keyword_intent = self._keyword_classify(message.content)
-            if keyword_intent != Intent.UNKNOWN:
-                intent = keyword_intent
-                confidence = 0.7
-                logger.info("router.keyword_fallback", intent=intent.value)
-
-        # Final fallback: persona (smalltalk)
-        if intent == Intent.UNKNOWN:
-            intent = Intent.SMALLTALK
-            confidence = 0.4
-
-        agent = self._agents[intent]
-        logger.info(
-            "router.dispatch",
-            intent=intent.value,
-            confidence=round(confidence, 2),
-            agent=agent.name,
-            message_id=message.message_id,
-        )
-
-        try:
-            return await agent.handle(message)
-        except AgentHandoff as handoff:
-            logger.info(
-                "router.handoff",
-                from_agent=agent.name,
-                to_agent=handoff.target_agent,
-                reason=handoff.reason,
-            )
-            # Find target agent by name
-            target = next((a for a in self._agents.values() if a.name == handoff.target_agent), None)
-            if target:
-                return await target.handle(message)
-            else:
-                logger.error("router.handoff_failed", target=handoff.target_agent, error="Agent not found")
-                return AgentResponse(content="Entschuldigung, ich konnte dich nicht weiterleiten. Bitte versuche es noch einmal.", confidence=0.0)
+        # TITAN ORCHESTRATION: Arnold Prime takes over
+        logger.info("router.titan_dispatch", agent="master", message_id=message.message_id)
+        return await self._master.handle(message)
 
     async def _classify(
         self,

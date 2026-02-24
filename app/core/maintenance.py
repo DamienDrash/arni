@@ -4,6 +4,7 @@ Handles periodic cleanup of old messages and audit logs based on
 platform-wide retention policies.
 """
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import text
 import structlog
@@ -11,6 +12,7 @@ import structlog
 from app.core.db import SessionLocal
 from app.core.models import ChatMessage, AuditLog
 from app.gateway.persistence import persistence
+from app.memory.librarian import Librarian
 
 logger = structlog.get_logger()
 
@@ -20,7 +22,11 @@ async def run_data_retention_cleanup() -> dict:
     results = {"messages_deleted": 0, "audit_deleted": 0}
     
     try:
-        # 1. Load retention settings from system tenant
+        # 1. Archive old sessions via Librarian (Titan Upgrade)
+        librarian = Librarian()
+        await librarian.run_archival_cycle()
+        
+        # 2. Load retention settings from system tenant
         # Default to 90 days for messages and 365 for audit if not set
         msg_days = int(persistence.get_setting("platform_data_retention_days", "90") or 90)
         audit_days = int(persistence.get_setting("platform_audit_retention_days", "365") or 365)
@@ -29,11 +35,11 @@ async def run_data_retention_cleanup() -> dict:
         msg_cutoff = now - timedelta(days=msg_days)
         audit_cutoff = now - timedelta(days=audit_days)
         
-        # 2. Cleanup Chat Messages
+        # 3. Cleanup Chat Messages
         msg_q = db.query(ChatMessage).filter(ChatMessage.timestamp < msg_cutoff)
         results["messages_deleted"] = msg_q.delete(synchronize_session=False)
         
-        # 3. Cleanup Audit Logs
+        # 4. Cleanup Audit Logs
         audit_q = db.query(AuditLog).filter(AuditLog.created_at < audit_cutoff)
         results["audit_deleted"] = audit_q.delete(synchronize_session=False)
         
@@ -62,5 +68,3 @@ async def maintenance_loop():
         await run_data_retention_cleanup()
         # Sleep for 24 hours
         await asyncio.sleep(86400)
-
-import asyncio
