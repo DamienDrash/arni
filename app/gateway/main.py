@@ -115,6 +115,14 @@ app.include_router(websocket.router)
 app.include_router(admin_router)
 app.include_router(billing_router, prefix="/admin")
 
+# --- Members CRUD Router ---
+from app.gateway.routers.members_crud import router as members_crud_router
+app.include_router(members_crud_router)
+
+# --- Integrations Sync Router ---
+from app.gateway.routers.integrations_sync import router as integrations_sync_router
+app.include_router(integrations_sync_router)
+
 # --- ACP Router ---
 from app.acp.server import router as acp_router
 app.include_router(acp_router)

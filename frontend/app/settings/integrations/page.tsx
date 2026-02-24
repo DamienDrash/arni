@@ -62,8 +62,18 @@ type IntegrationsConfig = {
   };
 };
 
+type MemberConnector = {
+  id: string;
+  name: string;
+  description: string;
+  is_configured: boolean;
+  last_sync: string | null;
+  last_sync_status: string | null;
+};
+
 type Setting = { key: string; value: string };
 type Provider = "telegram" | "whatsapp" | "magicline" | "smtp" | "email" | "sms" | "voice";
+type MemberSourceProvider = "shopify" | "woocommerce" | "hubspot";
 type HealthState = {
   lastAt: string;
   lastStatus: "ok" | "error" | "never";
@@ -109,6 +119,17 @@ export default function SettingsIntegrationsPage() {
   const [error, setError] = useState("");
   const [syncingMagicline, setSyncingMagicline] = useState(false);
   const [magiclineSyncMsg, setMagiclineSyncMsg] = useState("");
+
+  // Member Source Connectors (Shopify, WooCommerce, HubSpot)
+  const [memberConnectors, setMemberConnectors] = useState<MemberConnector[]>([]);
+  const [syncingSource, setSyncingSource] = useState<string | null>(null);
+  const [sourceSyncMsg, setSourceSyncMsg] = useState<Record<string, string>>({});
+  const [shopifySettings, setShopifySettings] = useState({ shop_domain: "", access_token: "" });
+  const [wooSettings, setWooSettings] = useState({ store_url: "", consumer_key: "", consumer_secret: "" });
+  const [hubspotSettings, setHubspotSettings] = useState({ access_token: "" });
+  const [savingConnector, setSavingConnector] = useState<string | null>(null);
+  const [testingSource, setTestingSource] = useState<string | null>(null);
+  const [sourceTestResult, setSourceTestResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
   
   // QR State
   const [qrOpen, setQrOpen] = useState(false);
@@ -287,8 +308,65 @@ export default function SettingsIntegrationsPage() {
     }
   }
 
+  async function fetchMemberConnectors() {
+    try {
+      const res = await apiFetch("/admin/integrations/connectors");
+      if (res.ok) setMemberConnectors(await res.json());
+    } catch { /* ignore */ }
+  }
+
+  async function saveSourceConnector(source: MemberSourceProvider) {
+    setSavingConnector(source);
+    try {
+      let body: any;
+      if (source === "shopify") body = shopifySettings;
+      else if (source === "woocommerce") body = wooSettings;
+      else body = hubspotSettings;
+      const res = await apiFetch(`/admin/integrations/connectors/${source}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) await fetchMemberConnectors();
+    } catch { /* ignore */ }
+    setSavingConnector(null);
+  }
+
+  async function testSourceConnector(source: MemberSourceProvider) {
+    setTestingSource(source);
+    try {
+      const res = await apiFetch(`/admin/integrations/connectors/${source}/test`, { method: "POST" });
+      const data = await res.json();
+      setSourceTestResult((prev) => ({ ...prev, [source]: { ok: data.ok, msg: data.ok ? "Verbindung erfolgreich" : (data.error || "Fehler") } }));
+    } catch (e) {
+      setSourceTestResult((prev) => ({ ...prev, [source]: { ok: false, msg: String(e) } }));
+    }
+    setTestingSource(null);
+  }
+
+  async function syncSourceConnector(source: MemberSourceProvider) {
+    setSyncingSource(source);
+    setSourceSyncMsg((prev) => ({ ...prev, [source]: "Synchronisierung läuft…" }));
+    try {
+      const res = await apiFetch(`/admin/integrations/connectors/${source}/sync`, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setSourceSyncMsg((prev) => ({ ...prev, [source]: `Fehler: ${(body as any).detail || res.status}` }));
+        return;
+      }
+      const data = await res.json();
+      setSourceSyncMsg((prev) => ({ ...prev, [source]: `Sync abgeschlossen — ${data.created} neu, ${data.updated} aktualisiert, ${data.errors} Fehler` }));
+      await fetchMemberConnectors();
+    } catch (e) {
+      setSourceSyncMsg((prev) => ({ ...prev, [source]: `Fehler: ${String(e)}` }));
+    } finally {
+      setSyncingSource(null);
+    }
+  }
+
   useEffect(() => {
     void fetchIntegrations();
+    void fetchMemberConnectors();
   }, []);
 
   const healthSummary = useMemo(() => {
@@ -518,6 +596,123 @@ export default function SettingsIntegrationsPage() {
                 <input style={inputStyle} value={integrations.voice_channel.twilio_voice_stream_url} onChange={(e) => updateField("voice_channel.twilio_voice_stream_url", e.target.value)} placeholder="wss://deine-domain.de/voice" />
               </Field>
             </IntegrationCard>
+          </div>
+
+          {/* ── Member Source Connectors ── */}
+          <div style={{ marginTop: 24 }}>
+            <SectionHeader
+              title="Mitglieder-Quellen"
+              subtitle="Verbinde externe Plattformen, um Kunden automatisch als Mitglieder zu synchronisieren."
+            />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 12, marginTop: 12 }}>
+              {/* Shopify */}
+              <Card style={{ padding: 14, background: T.surfaceAlt }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <span style={{ fontSize: 16 }}>🛍</span>
+                    <span style={{ fontSize: 12, color: T.textMuted, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Shopify</span>
+                  </div>
+                  {memberConnectors.find((c) => c.id === "shopify")?.is_configured && (
+                    <span style={{ fontSize: 10, color: T.success, fontWeight: 600 }}>Konfiguriert</span>
+                  )}
+                </div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  <Field label="Shop Domain" hint="z.B. my-store.myshopify.com">
+                    <input style={inputStyle} value={shopifySettings.shop_domain} onChange={(e) => setShopifySettings((s) => ({ ...s, shop_domain: e.target.value }))} placeholder="my-store.myshopify.com" />
+                  </Field>
+                  <Field label="Admin API Access Token">
+                    <input type="password" style={inputStyle} value={shopifySettings.access_token} onChange={(e) => setShopifySettings((s) => ({ ...s, access_token: e.target.value }))} placeholder="shpat_xxxxx" />
+                  </Field>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button type="button" onClick={() => void saveSourceConnector("shopify")} disabled={savingConnector === "shopify"} style={{ ...testButtonStyle, flex: 1 }}>
+                      {savingConnector === "shopify" ? "Speichern…" : "Speichern"}
+                    </button>
+                    <button type="button" onClick={() => void testSourceConnector("shopify")} disabled={testingSource === "shopify"} style={testButtonStyle}>
+                      {testingSource === "shopify" ? "Teste…" : "Testen"}
+                    </button>
+                    <button type="button" onClick={() => void syncSourceConnector("shopify")} disabled={syncingSource === "shopify"} style={{ ...testButtonStyle, background: T.accentDim, borderColor: T.accent }}>
+                      {syncingSource === "shopify" ? "Sync…" : "↻ Sync"}
+                    </button>
+                  </div>
+                  {sourceTestResult.shopify && (
+                    <div style={{ fontSize: 11, color: sourceTestResult.shopify.ok ? T.success : T.danger }}>{sourceTestResult.shopify.msg}</div>
+                  )}
+                  {sourceSyncMsg.shopify && <div style={{ fontSize: 11, color: T.textMuted }}>{sourceSyncMsg.shopify}</div>}
+                </div>
+              </Card>
+
+              {/* WooCommerce */}
+              <Card style={{ padding: 14, background: T.surfaceAlt }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <span style={{ fontSize: 16 }}>🛒</span>
+                    <span style={{ fontSize: 12, color: T.textMuted, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>WooCommerce</span>
+                  </div>
+                  {memberConnectors.find((c) => c.id === "woocommerce")?.is_configured && (
+                    <span style={{ fontSize: 10, color: T.success, fontWeight: 600 }}>Konfiguriert</span>
+                  )}
+                </div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  <Field label="Store URL" hint="z.B. https://mein-shop.de">
+                    <input style={inputStyle} value={wooSettings.store_url} onChange={(e) => setWooSettings((s) => ({ ...s, store_url: e.target.value }))} placeholder="https://mein-shop.de" />
+                  </Field>
+                  <Field label="Consumer Key">
+                    <input type="password" style={inputStyle} value={wooSettings.consumer_key} onChange={(e) => setWooSettings((s) => ({ ...s, consumer_key: e.target.value }))} placeholder="ck_xxxxx" />
+                  </Field>
+                  <Field label="Consumer Secret">
+                    <input type="password" style={inputStyle} value={wooSettings.consumer_secret} onChange={(e) => setWooSettings((s) => ({ ...s, consumer_secret: e.target.value }))} placeholder="cs_xxxxx" />
+                  </Field>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button type="button" onClick={() => void saveSourceConnector("woocommerce")} disabled={savingConnector === "woocommerce"} style={{ ...testButtonStyle, flex: 1 }}>
+                      {savingConnector === "woocommerce" ? "Speichern…" : "Speichern"}
+                    </button>
+                    <button type="button" onClick={() => void testSourceConnector("woocommerce")} disabled={testingSource === "woocommerce"} style={testButtonStyle}>
+                      {testingSource === "woocommerce" ? "Teste…" : "Testen"}
+                    </button>
+                    <button type="button" onClick={() => void syncSourceConnector("woocommerce")} disabled={syncingSource === "woocommerce"} style={{ ...testButtonStyle, background: T.accentDim, borderColor: T.accent }}>
+                      {syncingSource === "woocommerce" ? "Sync…" : "↻ Sync"}
+                    </button>
+                  </div>
+                  {sourceTestResult.woocommerce && (
+                    <div style={{ fontSize: 11, color: sourceTestResult.woocommerce.ok ? T.success : T.danger }}>{sourceTestResult.woocommerce.msg}</div>
+                  )}
+                  {sourceSyncMsg.woocommerce && <div style={{ fontSize: 11, color: T.textMuted }}>{sourceSyncMsg.woocommerce}</div>}
+                </div>
+              </Card>
+
+              {/* HubSpot */}
+              <Card style={{ padding: 14, background: T.surfaceAlt }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <span style={{ fontSize: 16 }}>🔶</span>
+                    <span style={{ fontSize: 12, color: T.textMuted, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>HubSpot</span>
+                  </div>
+                  {memberConnectors.find((c) => c.id === "hubspot")?.is_configured && (
+                    <span style={{ fontSize: 10, color: T.success, fontWeight: 600 }}>Konfiguriert</span>
+                  )}
+                </div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  <Field label="Private App Access Token" hint="Erstelle eine Private App in HubSpot unter Settings → Integrations → API">
+                    <input type="password" style={inputStyle} value={hubspotSettings.access_token} onChange={(e) => setHubspotSettings((s) => ({ ...s, access_token: e.target.value }))} placeholder="pat-xxxxx" />
+                  </Field>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button type="button" onClick={() => void saveSourceConnector("hubspot")} disabled={savingConnector === "hubspot"} style={{ ...testButtonStyle, flex: 1 }}>
+                      {savingConnector === "hubspot" ? "Speichern…" : "Speichern"}
+                    </button>
+                    <button type="button" onClick={() => void testSourceConnector("hubspot")} disabled={testingSource === "hubspot"} style={testButtonStyle}>
+                      {testingSource === "hubspot" ? "Teste…" : "Testen"}
+                    </button>
+                    <button type="button" onClick={() => void syncSourceConnector("hubspot")} disabled={syncingSource === "hubspot"} style={{ ...testButtonStyle, background: T.accentDim, borderColor: T.accent }}>
+                      {syncingSource === "hubspot" ? "Sync…" : "↻ Sync"}
+                    </button>
+                  </div>
+                  {sourceTestResult.hubspot && (
+                    <div style={{ fontSize: 11, color: sourceTestResult.hubspot.ok ? T.success : T.danger }}>{sourceTestResult.hubspot.msg}</div>
+                  )}
+                  {sourceSyncMsg.hubspot && <div style={{ fontSize: 11, color: T.textMuted }}>{sourceSyncMsg.hubspot}</div>}
+                </div>
+              </Card>
+            </div>
           </div>
         )}
       </Card>
