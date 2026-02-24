@@ -78,6 +78,180 @@ class MessageNormalizer:
 
         return messages
 
+    def normalize_instagram(self, raw_payload: dict[str, Any]) -> list[InboundMessage]:
+        """Normalize Instagram Messaging webhook payload.
+
+        The Instagram Messaging API uses a similar structure to WhatsApp
+        via the Meta Graph API.
+        """
+        messages: list[InboundMessage] = []
+
+        for entry in raw_payload.get("entry", []):
+            for messaging in entry.get("messaging", []):
+                sender_id = messaging.get("sender", {}).get("id", "unknown")
+                msg = messaging.get("message", {})
+                if not msg:
+                    continue
+
+                content = msg.get("text", "")
+                content_type = "text"
+                media_url = None
+
+                attachments = msg.get("attachments", [])
+                if attachments:
+                    att = attachments[0]
+                    att_type = att.get("type", "")
+                    if att_type == "image":
+                        content_type = "image"
+                        media_url = att.get("payload", {}).get("url", "")
+                        content = content or "[Bild]"
+                    elif att_type == "audio":
+                        content_type = "audio"
+                        media_url = att.get("payload", {}).get("url", "")
+                        content = "[Sprachnachricht]"
+                    elif att_type == "video":
+                        content_type = "video"
+                        media_url = att.get("payload", {}).get("url", "")
+                        content = "[Video]"
+                    elif att_type == "story_mention":
+                        content = "[Story-Erwähnung]"
+
+                inbound = InboundMessage(
+                    message_id=msg.get("mid", str(uuid4())),
+                    platform=Platform.INSTAGRAM,
+                    user_id=sender_id,
+                    content=content,
+                    content_type=content_type,
+                    media_url=media_url,
+                    metadata={
+                        "recipient_id": messaging.get("recipient", {}).get("id", ""),
+                        "timestamp": messaging.get("timestamp", ""),
+                    },
+                )
+                messages.append(inbound)
+                logger.info(
+                    "normalizer.instagram",
+                    message_id=inbound.message_id,
+                    content_type=content_type,
+                )
+
+        return messages
+
+    def normalize_facebook(self, raw_payload: dict[str, Any]) -> list[InboundMessage]:
+        """Normalize Facebook Messenger webhook payload.
+
+        Uses the Meta Send/Receive API format.
+        """
+        messages: list[InboundMessage] = []
+
+        for entry in raw_payload.get("entry", []):
+            for messaging in entry.get("messaging", []):
+                sender_id = messaging.get("sender", {}).get("id", "unknown")
+                msg = messaging.get("message", {})
+
+                # Handle postbacks (button clicks)
+                postback = messaging.get("postback")
+                if postback and not msg:
+                    inbound = InboundMessage(
+                        message_id=str(uuid4()),
+                        platform=Platform.FACEBOOK,
+                        user_id=sender_id,
+                        content=postback.get("title", postback.get("payload", "")),
+                        content_type="postback",
+                        metadata={
+                            "postback_payload": postback.get("payload", ""),
+                            "recipient_id": messaging.get("recipient", {}).get("id", ""),
+                        },
+                    )
+                    messages.append(inbound)
+                    continue
+
+                if not msg:
+                    continue
+
+                content = msg.get("text", "")
+                content_type = "text"
+                media_url = None
+
+                attachments = msg.get("attachments", [])
+                if attachments:
+                    att = attachments[0]
+                    att_type = att.get("type", "")
+                    if att_type == "image":
+                        content_type = "image"
+                        media_url = att.get("payload", {}).get("url", "")
+                        content = content or "[Bild]"
+                    elif att_type == "audio":
+                        content_type = "audio"
+                        media_url = att.get("payload", {}).get("url", "")
+                        content = "[Sprachnachricht]"
+                    elif att_type == "video":
+                        content_type = "video"
+                        media_url = att.get("payload", {}).get("url", "")
+                        content = "[Video]"
+                    elif att_type == "location":
+                        coords = att.get("payload", {}).get("coordinates", {})
+                        content = f"📍 {coords.get('lat', 0)},{coords.get('long', 0)}"
+                        content_type = "location"
+
+                inbound = InboundMessage(
+                    message_id=msg.get("mid", str(uuid4())),
+                    platform=Platform.FACEBOOK,
+                    user_id=sender_id,
+                    content=content,
+                    content_type=content_type,
+                    media_url=media_url,
+                    metadata={
+                        "recipient_id": messaging.get("recipient", {}).get("id", ""),
+                        "timestamp": messaging.get("timestamp", ""),
+                    },
+                )
+                messages.append(inbound)
+                logger.info(
+                    "normalizer.facebook",
+                    message_id=inbound.message_id,
+                    content_type=content_type,
+                )
+
+        return messages
+
+    def normalize_google_business(self, raw_payload: dict[str, Any]) -> InboundMessage | None:
+        """Normalize Google Business Messages webhook payload."""
+        message = raw_payload.get("message", {})
+        if not message:
+            return None
+
+        conversation_id = raw_payload.get("conversationId", "")
+        sender = message.get("sender", "")
+        content = message.get("text", "")
+        content_type = "text"
+        media_url = None
+
+        # Handle rich content
+        if "image" in message:
+            content_type = "image"
+            media_url = message["image"].get("contentInfo", {}).get("fileUrl", "")
+            content = content or "[Bild]"
+
+        inbound = InboundMessage(
+            message_id=message.get("messageId", str(uuid4())),
+            platform=Platform.GOOGLE_BUSINESS,
+            user_id=sender or conversation_id,
+            content=content,
+            content_type=content_type,
+            media_url=media_url,
+            metadata={
+                "conversation_id": conversation_id,
+                "agent_id": raw_payload.get("agent", ""),
+            },
+        )
+        logger.info(
+            "normalizer.google_business",
+            message_id=inbound.message_id,
+            content_type=content_type,
+        )
+        return inbound
+
     def normalize_telegram(self, update: dict[str, Any]) -> InboundMessage | None:
         """Normalize Telegram update to InboundMessage.
 

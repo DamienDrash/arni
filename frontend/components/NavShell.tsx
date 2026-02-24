@@ -6,7 +6,10 @@ import { Menu, X } from "lucide-react";
 import Sidebar from "./Sidebar";
 import { getStoredUser, setStoredUser, type AuthUser } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
-import { isPathAllowedForRole } from "@/lib/rbac";
+import { isPathAllowedForRole, PAGE_FEATURE_REQUIREMENTS } from "@/lib/rbac";
+import { usePermissions } from "@/lib/permissions";
+import { UpgradePrompt } from "@/components/FeatureGate";
+import type { PlanFeatures } from "@/lib/permissions";
 import { applyBrandingCSS, type BrandingPrefs } from "@/lib/branding";
 import { useI18n } from "@/lib/i18n/LanguageContext";
 import styles from "./NavShell.module.css";
@@ -123,6 +126,8 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
         return () => window.removeEventListener("ariia:session-updated", onSessionUpdated);
     }, []);
 
+    const { feature, canPage, loading: permsLoading, plan } = usePermissions();
+
     useEffect(() => {
         if (isPublicRoute) return;
         if (!user) return;
@@ -130,6 +135,10 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
             router.replace("/");
         }
     }, [isPublicRoute, pathname, router, user]);
+
+    // Check if current page requires a plan feature
+    const requiredFeature = PAGE_FEATURE_REQUIREMENTS[pathname || ""] as keyof PlanFeatures | undefined;
+    const isFeatureBlocked = requiredFeature && !permsLoading && !feature(requiredFeature);
 
     if (isRoot || isPublicLanding) {
         return <main className="min-h-screen overflow-x-hidden">{children}</main>;
@@ -236,7 +245,10 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
                     <h1 className={styles.pageTitle}>{currentMeta.title}</h1>
                     <p className={styles.pageSubtitle}>{currentMeta.subtitle}</p>
                 </div>
-                {children}
+                {isFeatureBlocked
+                    ? <UpgradePrompt feature={requiredFeature!} currentPlan={plan.name} />
+                    : children
+                }
             </main>
         </>
     );

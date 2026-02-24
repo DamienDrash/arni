@@ -316,7 +316,7 @@ def sync_members_from_magicline(tenant_id: int | None = None) -> dict[str, int]:
             for item in normalized:
                 current = existing.get(item["customer_id"])
                 if current is None:
-                    db.add(StudioMember(tenant_id=tenant_id, **item))
+                    db.add(StudioMember(tenant_id=tenant_id, source="magicline", source_id=str(item["customer_id"]), **item))
                     upserted += 1
                     continue
 
