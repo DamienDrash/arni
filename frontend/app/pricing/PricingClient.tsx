@@ -35,77 +35,45 @@ export default function PricingClient() {
 
   const plans = [
     {
-      name: "Starter",
-      desc: "Für Personal Trainer und Mikro-Studios, die KI-Kommunikation testen wollen.",
+      name: t("pricing.plans.starter.name"),
+      desc: t("pricing.plans.starter.desc"),
       priceMonthly: 79,
       priceYearly: 63,
-      features: [
-        "1 Kommunikationskanal",
-        "500 KI-Konversationen / Monat",
-        "ARIIA Core Agent",
-        "Basis-Connector (1 System)",
-        "1 Benutzer",
-        "E-Mail Support",
-        "Studio Deck Dashboard",
-      ],
-      cta: "Starter wählen",
+      features: t("pricing.plans.starter.features"),
+      cta: t("pricing.plans.starter.cta"),
       highlight: false,
       badge: null,
     },
     {
-      name: "Professional",
-      desc: "Für etablierte Studios und KMUs mit mehreren Kanälen und vollem KI-Swarm.",
+      name: t("pricing.plans.professional.name"),
+      desc: t("pricing.plans.professional.desc"),
       priceMonthly: 199,
       priceYearly: 159,
-      features: [
-        "3 Kommunikationskanäle",
-        "2.000 KI-Konversationen / Monat",
-        "Voller KI-Agenten-Swarm (5 Agenten)",
-        "3 Connectors inklusive",
-        "5 Benutzer",
-        "Custom Prompts & Tonalität",
-        "Analytics & Reporting",
-        "Prioritäts-Support",
-      ],
-      cta: "Professional wählen",
+      features: t("pricing.plans.professional.features"),
+      cta: t("pricing.plans.professional.cta"),
       highlight: true,
-      badge: "Beliebtester Plan",
+      badge: t("pricing.plans.professional.badge"),
     },
     {
-      name: "Business",
-      desc: "Für Studioketten und wachsende Unternehmen mit hohem Volumen.",
+      name: t("pricing.plans.business.name"),
+      desc: t("pricing.plans.business.desc"),
       priceMonthly: 399,
       priceYearly: 319,
-      features: [
-        "Alle Kommunikationskanäle",
-        "10.000 KI-Konversationen / Monat",
-        "Voller KI-Swarm + Priority Routing",
-        "Unbegrenzte Connectors",
-        "15 Benutzer",
-        "Churn Prediction inklusive",
-        "API-Zugang (REST + Webhooks)",
-        "Audit Logs & RBAC",
-        "Dedizierter Support",
-      ],
-      cta: "Business wählen",
+      features: t("pricing.plans.business.features"),
+      cta: t("pricing.plans.business.cta"),
       highlight: false,
       badge: null,
     },
   ];
 
   const addons = [
-    { icon: BarChart3, name: "Churn Prediction", price: "49", desc: "ML-basierte Abwanderungsprognose.", color: "oklch(0.8 0.16 85)" },
-    { icon: Headphones, name: "Voice Pipeline", price: "79", desc: "Whisper STT + ElevenLabs TTS.", color: "oklch(0.62 0.22 292)" },
-    { icon: Eye, name: "Vision AI", price: "39", desc: "YOLOv8-basierte Bildanalyse.", color: "oklch(0.68 0.18 25)" },
-    { icon: MessageSquare, name: "Extra Kanal", price: "29", desc: "Zusätzlicher Kanal.", color: "oklch(0.62 0.22 292)" },
+    { icon: BarChart3, name: t("pricing.addons.churn.name"), price: "49", desc: t("pricing.addons.churn.desc"), color: "oklch(0.8 0.16 85)" },
+    { icon: Headphones, name: t("pricing.addons.voice.name"), price: "79", desc: t("pricing.addons.voice.desc"), color: "oklch(0.62 0.22 292)" },
+    { icon: Eye, name: t("pricing.addons.vision.name"), price: "39", desc: t("pricing.addons.vision.desc"), color: "oklch(0.68 0.18 25)" },
+    { icon: MessageSquare, name: t("pricing.addons.channel.name"), price: "29", desc: t("pricing.addons.channel.desc"), color: "oklch(0.62 0.22 292)" },
   ];
 
-  const faqs = [
-    { q: "Gibt es eine kostenlose Testphase?", a: "Ja, alle Pläne beinhalten eine 14-tägige kostenlose Testphase. Keine Kreditkarte erforderlich." },
-    { q: "Kann ich meinen Plan jederzeit wechseln?", a: "Ja, du kannst jederzeit upgraden oder downgraden." },
-    { q: "Was passiert beim Limit-Erreichen?", a: "Du wirst benachrichtigt und kannst Upgraden oder einen Boost buchen." },
-    { q: "Ist ARIIA DSGVO-konform?", a: "Ja, ARIIA wurde von Grund auf für den deutschen Markt entwickelt." },
-  ];
+  const faqs = t("pricing.faqs");
 
   return (
     <div className="min-h-screen" style={{ background: "oklch(0.09 0.04 270)" }}>

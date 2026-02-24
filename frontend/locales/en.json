@@ -19,7 +19,28 @@
     "madeInGermany": "Made in Germany",
     "enterpriseReady": "Enterprise-Ready"
   },
+  "navbar": {
+    "login": "Login",
+    "register": "Get Started"
+  },
+  "footer": {
+    "brandDesc": "AI-powered customer communication for fitness studios, personal trainers and SMEs. Made in Germany.",
+    "product": "Product",
+    "company": "Company",
+    "contact": "Contact",
+    "rights": "All rights reserved.",
+    "links": {
+      "features": "Features",
+      "pricing": "Pricing",
+      "test": "Test for Free",
+      "impressum": "Imprint",
+      "datenschutz": "Privacy Policy",
+      "agb": "T&C",
+      "enterprise": "Enterprise Inquiries"
+    }
+  },
   "hero": {
+    "versionBadge": "Living System Agent v2.0",
     "title": "Your AI Assistant for",
     "words": ["intelligent", "personal", "automated", "scalable"],
     "subtitle": "Customer Communication",
@@ -75,7 +96,49 @@
       "deckTitle": "Studio Deck",
       "deckSubtitle": "Your",
       "deckSubtitleAccent": "Command Center",
-      "deckDesc": "The Studio Deck Dashboard gives you full control over your AI agents, members, and communication."
+      "deckDesc": "The Studio Deck Dashboard gives you full control over your AI agents, members, and communication.",
+      "details": {
+        "intent": "Intent Detection",
+        "routing": "Dynamic Agent Routing",
+        "fallback": "Fallback & Escalation",
+        "confidence": "Confidence Analysis",
+        "wa": "WhatsApp Business API",
+        "tg": "Telegram Polling",
+        "voice": "Voice Pipeline",
+        "chat": "Web-Chat",
+        "ml": "ML-based Forecasting",
+        "proactive": "Proactive Measures",
+        "scoring": "Risk Scoring",
+        "behavior": "Behavioral Analysis",
+        "session": "Session Memory",
+        "semantic": "Semantic Memory",
+        "episodic": "Episodic Memory",
+        "auto": "Auto-Extraction",
+        "dsgvo": "GDPR-compliant",
+        "rls": "Row-Level Security",
+        "pii": "PII-Filter",
+        "audit": "Audit Logs",
+        "magicline": "Magicline",
+        "shopify": "Shopify",
+        "woo": "WooCommerce",
+        "api": "REST API"
+      },
+      "securityLabels": {
+        "dsgvo": "GDPR",
+        "rls": "RLS",
+        "pii": "PII",
+        "audit": "Audit",
+        "rbac": "RBAC",
+        "encryption": "Encryption"
+      },
+      "platform": {
+        "live": { "title": "Live Monitor", "desc": "Real-time overview of all active sessions." },
+        "churn": { "title": "Churn Prediction", "desc": "ML-based prediction for at-risk customers." },
+        "members": { "title": "Member Management", "desc": "Contact database with churn score and contracts." },
+        "knowledge": { "title": "Knowledge Base", "desc": "WYSIWYG editor for your training content." },
+        "multi": { "title": "Multi-Tenant", "desc": "Multiple locations, one central dashboard." },
+        "prompts": { "title": "Custom Prompts", "desc": "Define tone and persona per tenant." }
+      }
     }
   },
   "cta": {
@@ -93,6 +156,54 @@
     "yearly": "Yearly",
     "discount": "-20%",
     "billedYearly": "billed yearly",
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "desc": "For personal trainers and micro-studios looking to test AI communication.",
+        "cta": "Choose Starter",
+        "features": [
+          "1 Communication channel",
+          "500 AI conversations / month",
+          "ARIIA Core Agent",
+          "Basic Connector (1 system)",
+          "1 User",
+          "Email Support",
+          "Studio Deck Dashboard"
+        ]
+      },
+      "professional": {
+        "name": "Professional",
+        "desc": "For established studios and SMEs with multiple channels and full AI swarm.",
+        "cta": "Choose Professional",
+        "badge": "Most Popular",
+        "features": [
+          "3 Communication channels",
+          "2,000 AI conversations / month",
+          "Full AI Agent Swarm (5 agents)",
+          "3 Connectors included",
+          "5 Users",
+          "Custom Prompts & Tone",
+          "Analytics & Reporting",
+          "Priority Support"
+        ]
+      },
+      "business": {
+        "name": "Business",
+        "desc": "For studio chains and growing businesses with high volume.",
+        "cta": "Choose Business",
+        "features": [
+          "All Communication channels",
+          "10,000 AI conversations / month",
+          "Full AI Swarm + Priority Routing",
+          "Unlimited Connectors",
+          "15 Users",
+          "Churn Prediction included",
+          "API Access (REST + Webhooks)",
+          "Audit Logs & RBAC",
+          "Dedicated Support"
+        ]
+      }
+    },
     "enterpriseTitle": "Enterprise",
     "enterpriseDesc": "SLA guarantee, On-Premise, custom integrations, dedicated account manager.",
     "enterpriseCta": "Get in touch",
@@ -100,10 +211,83 @@
     "addonsSubtitle": "Optional",
     "addonsSubtitleAccent": "Modules",
     "addonsDesc": "Flexible extensions for your plan – pay only for what you need.",
+    "addons": {
+      "churn": { "name": "Churn Prediction", "desc": "ML-based churn forecasting." },
+      "voice": { "name": "Voice Pipeline", "desc": "Whisper STT + ElevenLabs TTS." },
+      "vision": { "name": "Vision AI", "desc": "YOLOv8-based image analysis." },
+      "channel": { "name": "Extra Channel", "desc": "Additional channel." }
+    },
     "faqTitle": "Frequently Asked Questions",
+    "faqs": [
+      { "q": "Is there a free trial period?", "a": "Yes, all plans include a 14-day free trial period. No credit card required." },
+      { "q": "Can I change my plan at any time?", "a": "Yes, you can upgrade or downgrade at any time." },
+      { "q": "What happens when I reach my limit?", "a": "You will be notified and can either upgrade or book a boost." },
+      { "q": "Is ARIIA GDPR compliant?", "a": "Yes, ARIIA was developed from the ground up for the German market." }
+    ],
     "finalCta": "Still unsure?",
     "finalCtaAccent": "Try it out.",
     "finalCtaDesc": "14 days free, full feature set, no credit card. See for yourself."
+  },
+  "legal": {
+    "impressum": {
+      "title": "Imprint",
+      "tmg5": "Information according to § 5 TMG",
+      "representedBy": "Represented by",
+      "managingDirector": "Managing Director",
+      "contact": "Contact",
+      "phone": "Phone",
+      "email": "Email",
+      "website": "Website",
+      "registerEntry": "Register entry",
+      "registerCourt": "Register court",
+      "registerNumber": "Register number",
+      "vatId": "VAT ID",
+      "responsibleContent": "Responsible for content according to § 55 Abs. 2 RStV",
+      "dispute": "Dispute resolution",
+      "liabilityContent": "Liability for content",
+      "liabilityLinks": "Liability for links"
+    },
+    "agb": {
+      "title": "Terms and Conditions",
+      "s1_title": "§ 1 Scope",
+      "s1_text": "These General Terms and Conditions (GTC) apply to all contracts between ARIIA GmbH (i.G.), Musterstraße 1, 10115 Berlin (hereinafter referred to as \"Provider\") and the customer (hereinafter referred to as \"Customer\") regarding the use of the ARIIA platform as Software-as-a-Service (SaaS).",
+      "s2_title": "§ 2 Subject of the contract",
+      "s2_text": "The provider provides the customer with the ARIIA platform, an AI-supported solution for automated customer communication via various channels.",
+      "s3_title": "§ 3 Conclusion of contract and test phase",
+      "s3_text": "The contract is concluded by the registration of the customer on the website and the confirmation by the provider. Every new customer receives a free trial phase of 14 days.",
+      "s4_title": "§ 4 Prices and terms of payment",
+      "s4_text": "The current prices can be found on the provider's website. All prices are subject to the statutory value-added tax.",
+      "s5_title": "§ 5 Term and termination",
+      "s5_text": "For monthly billing, the minimum term is one month. For annual billing, the minimum term is one year.",
+      "s6_title": "§ 6 Availability and SLA",
+      "s6_text": "The provider strives for an availability of the platform of 99.9% on annual average.",
+      "s7_title": "§ 7 Data protection",
+      "s7_text": "The provider processes personal data of the customer and its end customers exclusively within the framework of the applicable data protection laws, in particular the GDPR.",
+      "s8_title": "§ 8 Liability",
+      "s8_text": "The provider is liable without limitation for intent and gross negligence.",
+      "s9_title": "§ 9 Final provisions",
+      "s9_text": "The law of the Federal Republic of Germany applies, excluding the UN Convention on Contracts for the International Sale of Goods.",
+      "status": "As of: February 2026"
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "s1_title": "1. Controller",
+      "s1_text": "Responsible for data processing on this website is: ARIIA GmbH (i.G.)",
+      "s2_title": "2. Collection and storage of personal data",
+      "s2_text": "When you visit our website, information is automatically sent to our website server and temporarily stored in a log file.",
+      "s3_title": "3. Disclosure of data",
+      "s3_text": "Your personal data will not be transferred to third parties for purposes other than those listed.",
+      "s4_title": "4. Cookies",
+      "s4_text": "We use cookies on our site to improve your experience.",
+      "s5_title": "5. Analysis tools",
+      "s5_text": "We use Umami Analytics, a privacy-friendly, GDPR-compliant web analysis solution.",
+      "s6_title": "6. Data subject rights",
+      "s6_text": "You have the right to information, correction, deletion, and data portability of your personal data.",
+      "s7_title": "7. Data security",
+      "s7_text": "We use the widespread SSL (Secure Socket Layer) method during your website visit.",
+      "s8_title": "8. Timeliness and amendment of this privacy policy",
+      "s8_text": "This privacy policy is currently valid as of February 2026."
+    }
   },
   "dashboard": {
     "overview": "Overview of system status, KPIs, and activity.",

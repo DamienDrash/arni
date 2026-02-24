@@ -4,8 +4,10 @@
  */
 import Link from "next/link";
 import AriiaLogo from "./AriiaLogo";
+import { useI18n } from "@/lib/i18n/LanguageContext";
 
 export default function Footer() {
+  const { t } = useI18n();
   return (
     <footer className="relative" style={{ background: "oklch(0.07 0.04 270)", borderTop: "1px solid oklch(0.16 0.04 270)" }}>
       <div className="container mx-auto px-4 py-14 lg:py-16">
@@ -16,42 +18,42 @@ export default function Footer() {
               <AriiaLogo variant="full" height={34} />
             </div>
             <p className="text-sm leading-relaxed max-w-xs" style={{ color: "oklch(0.45 0.015 270)" }}>
-              KI-gestützte Kundenkommunikation für Fitness Studios, Personal Trainer und KMUs. Made in Germany.
+              {t("footer.brandDesc")}
             </p>
           </div>
 
           {/* Produkt */}
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "oklch(0.55 0.015 270)" }}>
-              Produkt
+              {t("footer.product")}
             </h4>
             <div className="space-y-2.5">
-              <Link href="/features" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>Features</Link>
-              <Link href="/pricing" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>Pricing</Link>
-              <Link href="/register" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>Kostenlos testen</Link>
+              <Link href="/features" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>{t("footer.links.features")}</Link>
+              <Link href="/pricing" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>{t("footer.links.pricing")}</Link>
+              <Link href="/register" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>{t("footer.links.test")}</Link>
             </div>
           </div>
 
           {/* Unternehmen */}
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "oklch(0.55 0.015 270)" }}>
-              Unternehmen
+              {t("footer.company")}
             </h4>
             <div className="space-y-2.5">
-              <Link href="/impressum" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>Impressum</Link>
-              <Link href="/datenschutz" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>Datenschutz</Link>
-              <Link href="/agb" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>AGB</Link>
+              <Link href="/impressum" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>{t("footer.links.impressum")}</Link>
+              <Link href="/datenschutz" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>{t("footer.links.datenschutz")}</Link>
+              <Link href="/agb" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>{t("footer.links.agb")}</Link>
             </div>
           </div>
 
           {/* Kontakt */}
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "oklch(0.55 0.015 270)" }}>
-              Kontakt
+              {t("footer.contact")}
             </h4>
             <div className="space-y-2.5">
               <a href="mailto:hello@ariia.ai" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>hello@ariia.ai</a>
-              <a href="mailto:enterprise@ariia.ai" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>Enterprise Anfragen</a>
+              <a href="mailto:enterprise@ariia.ai" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>{t("footer.links.enterprise")}</a>
             </div>
           </div>
         </div>
@@ -60,12 +62,12 @@ export default function Footer() {
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4"
           style={{ borderTop: "1px solid oklch(0.16 0.04 270)" }}>
           <p className="text-xs" style={{ color: "oklch(0.4 0.015 270)" }}>
-            &copy; {new Date().getFullYear()} ARIIA. Alle Rechte vorbehalten.
+            &copy; {new Date().getFullYear()} ARIIA. {t("footer.rights")}
           </p>
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5 text-xs" style={{ color: "oklch(0.4 0.015 270)" }}>
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: "oklch(0.62 0.22 292)" }} />
-              Alle Systeme online
+              {t("common.allSystemsOnline")}
             </span>
           </div>
         </div>

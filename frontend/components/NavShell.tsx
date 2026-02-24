@@ -35,8 +35,8 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
         "/settings/general": { title: "Settings · General", subtitle: "Kernparameter und globale Schalter." },
         "/settings/integrations": { title: "Settings · Integrationen", subtitle: "Telegram, WhatsApp, Magicline und SMTP zentral steuern." },
         "/settings/automation": { title: "Settings · Automation", subtitle: "Member-Memory Zeitplan, LLM und Run-Status." },
-        "/login": { title: "Login | ARIIA", subtitle: "" },
-        "/register": { title: "Registrierung | ARIIA", subtitle: "" },
+        "/login": { title: t("common.login"), subtitle: "" },
+        "/register": { title: t("common.register"), subtitle: "" },
     };
 
     const [authReady, setAuthReady] = useState(false);

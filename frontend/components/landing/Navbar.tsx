@@ -7,16 +7,17 @@ import { Button } from "@/components/ui/Button";
 import AriiaLogo from "./AriiaLogo";
 import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 
-const navLinks = [
-  { href: "/", label: "Home" },
-  { href: "/features", label: "Features" },
-  { href: "/pricing", label: "Pricing" },
-];
-
 export default function Navbar() {
   const pathname = usePathname();
+  const { t } = useI18n();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  const navLinks = [
+    { href: "/", label: "Home" },
+    { href: "/features", label: t("common.features") },
+    { href: "/pricing", label: t("common.pricing") },
+  ];
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -77,12 +78,12 @@ export default function Navbar() {
             <Link href="/login">
               <Button variant="ghost" className="text-sm font-medium transition-colors"
                 style={{ color: "oklch(0.75 0.01 270)" }}>
-                Anmelden
+                {t("navbar.login")}
               </Button>
             </Link>
             <Link href="/register">
               <Button className="text-sm px-5 py-2 rounded-lg" style={{ backgroundColor: "oklch(0.62 0.22 292)", color: "white" }}>
-                Kostenlos starten
+                {t("navbar.register")}
               </Button>
             </Link>
           </div>
@@ -134,12 +135,12 @@ export default function Navbar() {
               <div className="flex flex-col gap-2 pt-4 mt-2 border-t" style={{ borderColor: "oklch(0.22 0.04 270)" }}>
                 <Link href="/login" onClick={() => setMobileOpen(false)}>
                   <Button variant="ghost" className="w-full justify-start" style={{ color: "oklch(0.75 0.01 270)" }}>
-                    Anmelden
+                    {t("navbar.login")}
                   </Button>
                 </Link>
                 <Link href="/register" onClick={() => setMobileOpen(false)}>
                   <Button className="w-full rounded-lg" style={{ backgroundColor: "oklch(0.62 0.22 292)", color: "white" }}>
-                    Kostenlos starten
+                    {t("navbar.register")}
                   </Button>
                 </Link>
               </div>

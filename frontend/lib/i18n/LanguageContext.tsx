@@ -75,7 +75,12 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
 export const useI18n = () => {
   const context = useContext(LanguageContext);
   if (context === undefined) {
-    throw new Error("useI18n must be used within a LanguageProvider");
+    // Return a safe fallback for SSR or components outside provider
+    return {
+      language: "en" as Language,
+      setLanguage: () => {},
+      t: (key: string) => key
+    };
   }
   return context;
 };

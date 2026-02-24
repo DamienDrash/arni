@@ -193,7 +193,7 @@ export default function HomeClient() {
                   <motion.span animate={{ rotate: [0, 360] }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }}>
                     <Zap size={12} />
                   </motion.span>
-                  Living System Agent v2.0
+                  {t("hero.versionBadge")}
                 </span>
               </motion.div>
 
