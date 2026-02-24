@@ -1,221 +1,148 @@
-# ARIIA v1.4 🤖
+# ARIIA – Multi-Tenant AI Agent Platform for Fitness Studios
 
-> **Living System Agent für GetImpulse Berlin** – KI-gestützter Fitnessstudio-Assistent mit WhatsApp, Voice, Vision & Swarm Intelligence.
+**ARIIA** (formerly ARNI) is a sophisticated, multi-tenant SaaS platform designed to automate and enhance member interactions for fitness studios. It acts as a digital front-desk assistant, leveraging a powerful AI agent swarm to manage communications, bookings, and member support across multiple channels like WhatsApp, Telegram, and Voice.
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Open%20Studio%20Deck-brightgreen?style=for-the-badge&logo=live)](https://services.frigew.ski/arni)
 
 ---
 
-## Quick Start
+## ✨ Core Features
 
-```bash
-# 1. Environment vorbereiten
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+ARIIA has evolved far beyond a simple chatbot into a comprehensive studio management and automation platform. The current version is a production-ready, multi-tenant SaaS application.
 
-# 2. Redis starten
-redis-server --daemonize yes
+| Feature | Description |
+| :--- | :--- |
+| **Multi-Tenant SaaS** | Securely manage multiple independent fitness studios (tenants) with isolated data, configurations, and billing. |
+| **AI Agent Swarm** | A "Project Titan" Orchestrator-Worker architecture delegates tasks to specialized agents (Ops, Sales, Medic, Vision) for superior problem-solving. |
+| **Studio Deck** | A comprehensive web frontend (Next.js) for tenant admins to monitor conversations, manage members, view analytics, and configure the system. |
+| **Multi-Channel Comms** | Seamlessly integrates with **WhatsApp**, **Telegram**, and **Voice** (STT/TTS), normalizing messages into a unified pipeline. |
+| **Advanced CRM** | Rich member profiles with activity tracking, booking history, preference analysis, and automated data enrichment via **Magicline** integration. |
+| **Churn Prediction** | Proactively identifies at-risk members using activity data and configurable churn-scoring rules. |
+| **3-Tier Memory System** | Combines short-term (Redis), long-term (PostgreSQL), and knowledge-base (Markdown files) memory for deep, contextual conversations. |
+| **Billing & Subscriptions** | A robust feature-gating system manages different SaaS plans (Starter, Pro, Enterprise) and enforces usage limits. |
+| **Security & Governance** | Built with enterprise-grade security, including strict authentication, tenant data isolation (RLS), and encrypted API keys. |
 
-# 3. Gateway starten
-uvicorn app.gateway.main:app --host 0.0.0.0 --port 8000
+## 🏛️ Architecture
 
-# 4. Health Check
-curl http://185.209.228.251:8000/health
+The system is designed as a decoupled, service-oriented architecture, orchestrated via a central Redis message bus. This ensures scalability, resilience, and maintainability.
+
+```mermaid
+graph TD
+    subgraph "Channels"
+        direction LR
+        User_WA[Member via WhatsApp]
+        User_TG[Member via Telegram]
+        User_Voice[Member via Voice Call]
+    end
+
+    subgraph "ARIIA SaaS Platform (Docker)"
+        direction TB
+        Gateway[FastAPI Gateway]
+        Redis[Redis Message Bus]
+        Frontend[Next.js Studio Deck]
+        Postgres[PostgreSQL Database]
+        Worker[Background Worker]
+        
+        subgraph "AI Core"
+            direction TB
+            Orchestrator[Master Orchestrator]
+            Agent_Ops[Ops Agent]
+            Agent_Sales[Sales Agent]
+            Agent_Medic[Medic Agent]
+            Agent_Vision[Vision Agent]
+            Orchestrator --> Agent_Ops & Agent_Sales & Agent_Medic & Agent_Vision
+        end
+
+        User_WA & User_TG & User_Voice --> Gateway
+        Gateway <--> Redis
+        Redis --> Orchestrator
+        Orchestrator --> Redis
+        Redis --> Gateway
+        Gateway --> User_WA & User_TG & User_Voice
+        
+        Admin[Studio Admin] --> Frontend
+        Frontend <--> Gateway
+        Gateway <--> Postgres
+        Worker <--> Postgres
+        Worker <--> Redis
+    end
 ```
 
-## Docker (Empfohlen)
+## 🚀 Getting Started
+
+The entire platform is containerized and can be launched with a single command using Docker Compose.
+
+**Prerequisites:**
+*   Docker & Docker Compose
+*   An `.env` file configured with your API keys and secrets (see `.env.example`).
 
 ```bash
+# 1. Clone the repository
+git clone https://github.com/DamienDrash/arni.git
+cd arni
+
+# 2. Configure your environment
+cp .env.example .env
+# nano .env  <-- Add your OPENAI_API_KEY, AUTH_SECRET, etc.
+
+# 3. Launch the platform
 docker compose up --build
 ```
 
-## Projektstruktur
+Your services will be available at:
+*   **Studio Deck (Frontend):** `http://localhost:3000`
+*   **ARIIA Gateway (Backend):** `http://localhost:8000/docs`
+
+## 💻 Technology Stack
+
+| Area | Technology |
+| :--- | :--- |
+| **Backend** | Python 3.12, FastAPI, PostgreSQL, Redis, SQLAlchemy, Pydantic |
+| **Frontend** | Next.js 16, React 19, TypeScript, TailwindCSS, TanStack Query |
+| **AI & ML** | OpenAI (GPT-4), YOLOv8, Whisper STT, ElevenLabs TTS |
+| **DevOps** | Docker, Docker Compose, Alembic, Pytest, Playwright, GitHub Actions |
+
+## 📁 Project Structure
+
+The codebase is organized into a clean, modular structure that separates concerns and facilitates development.
 
 ```
-ariia/
-├── app/
-│   ├── gateway/          # Hybrid Gateway (FastAPI + Redis + WebSocket)
-│   │   ├── main.py       # Endpoints: /health, /webhook, /ws/control
-│   │   ├── redis_bus.py   # Async Redis Pub/Sub Connector
-│   │   └── schemas.py     # Pydantic Message Models
-│   ├── swarm/             # Agent Swarm (Sprint 2)
-│   ├── integrations/      # WhatsApp, Telegram, PII (Sprint 3)
-│   ├── memory/            # 3-Tier Memory System (Sprint 4)
-│   ├── vision/            # YOLOv8 + Privacy Engine (Sprint 5a)
-│   ├── voice/             # Whisper STT + ElevenLabs TTS (Sprint 5b)
-│   ├── acp/               # ACP Pipeline (Sprint 6a)
-│   ├── soul/              # Soul Evolution (Sprint 6b)
-│   ├── core/              # Metrics & Config (Sprint 7b)
-│   ├── tools/             # MCP Tools
-│   ├── voice/             # STT/TTS Pipeline (Sprint 5b)
-│   ├── vision/            # RTSP + YOLOv8 (Sprint 5a)
-│   └── integrations/      # Magicline, WhatsApp, Telegram
-├── config/
-│   └── settings.py        # Pydantic Settings
-├── tests/                 # Pytest Suite (246 Tests)
-├── docs/
-│   ├── specs/             # Architektur, DSGVO, Coding Standards
-│   ├── sprints/           # Roadmap + Sprint-Pläne
-│   └── audits/            # Security Audit Reports
-├── docker-compose.yml     # Gateway + Redis Services
-├── Dockerfile             # Multi-stage, non-root
-└── pyproject.toml         # Python 3.12, alle Dependencies
+/home/ubuntu/arni
+├── app/                  # Core Backend Application
+│   ├── core/             # Auth, DB Models, Feature Gates, Security
+│   ├── gateway/          # FastAPI Routers (Admin, Webhooks, WebSockets)
+│   ├── integrations/     # Connectors (WhatsApp, Telegram, Magicline)
+│   ├── memory/           # 3-Tier Memory & Knowledge Base System
+│   ├── swarm/            # AI Agent Swarm (Master Orchestrator & Workers)
+│   └── ...               # Other modules (Voice, Vision, etc.)
+├── frontend/             # Next.js Studio Deck Application
+│   ├── app/              # Next.js App Router, Pages & API Routes
+│   └── components/       # Reusable React Components
+├── tests/                # Backend Pytest Integration & Unit Tests
+├── alembic/              # Database Migration Scripts
+├── docs/                 # Project Documentation & Architecture Specs
+├── scripts/              # Utility and operational scripts
+├── docker-compose.yml    # Defines all application services
+└── pyproject.toml        # Python project definition and dependencies
 ```
 
-## Tests
+## 🧪 Testing
+
+The project maintains a high standard of quality with a comprehensive test suite.
 
 ```bash
-# Alle Tests
-pytest tests/ -v
-
-# Mit Coverage
-pytest tests/ --cov=app --cov-report=term-missing
-
-# Aktuell: 262 passed ✅, Coverage ~87%
+# Run all backend tests inside the container
+docker compose exec ariia-core pytest -v
 ```
 
-## API Endpoints
+*   **36+** detailed test files covering all critical modules.
+*   Integration tests for authentication, multi-tenancy, and core agent logic.
+*   End-to-end tests for the frontend using Playwright.
 
-| Method | Path | Beschreibung |
-|--------|------|-------------|
-| `GET` | `/health` | System-Status + Redis-Verbindung |
-| `GET` | `/webhook/whatsapp` | Meta Webhook Verification |
-| `POST` | `/webhook/whatsapp` | WhatsApp Message Ingress |
-| `POST` | `/swarm/route` | Intent Classification → Agent Response |
-| `WS` | `/ws/control` | Admin Dashboard (Ghost Mode) |
+## 🗺️ Roadmap
 
-## Swarm Intelligence (Sprint 2)
+This project is actively being developed into a high-end, enterprise-ready SaaS platform. The roadmap, detailed in `docs/sprints/SAAS_ROADMAP.md`, includes further enhancements to security, billing, and white-labeling capabilities.
 
-```
-User Message → Router (GPT-4o-mini) → Intent Classification
-                    ↓
-    ┌───────────────┼───────────────┐
-    │               │               │
-  Agent Ops    Agent Sales    Agent Medic    ...
-  (Booking)    (Retention)   (Health+⚕️)
+## 📄 License
 
-Fallback: Keyword-basiert wenn LLM nicht verfügbar
-Fallback: Ollama/Llama-3 wenn OpenAI offline
-```
-
-| Agent | Intent | Besonderheit |
-|-------|--------|-------------|
-| **Ops** | `booking` | Magicline API Stub, One-Way-Door |
-| **Sales** | `sales` | Retention-First, 3 Alternativen |
-| **Medic** | `health` | ⚕️ Disclaimer IMMER, Notfall → 112 |
-| **Vision** | `crowd` | Stub (Sprint 5: YOLOv8) |
-| **Persona** | `smalltalk` | Ariia-Persönlichkeit (SOUL.md) |
-
-## Communication Layer (Sprint 3)
-
-```
-WhatsApp (Meta Cloud API) ──→ Normalizer ──→ InboundMessage ──→ Redis Bus
-Telegram (Bot API)         ──→ Normalizer ──→ InboundMessage ──→ Redis Bus
-                                                                    ↓
-WhatsApp ←── Dispatcher ←── OutboundMessage ←── Swarm Router
-Telegram ←── Dispatcher ←── OutboundMessage ←── Swarm Router
-Dashboard←── Dispatcher ←── OutboundMessage ←── Swarm Router
-```
-
-| Modul | Funktion |
-|-------|----------|
-| `whatsapp.py` | Meta Cloud API Client, HMAC-SHA256 Webhook Verifizierung |
-| `telegram.py` | Admin Bot (/status, /ghost, /help), Emergency Alerts |
-| `normalizer.py` | Multi-Platform → einheitliches InboundMessage Schema |
-| `dispatcher.py` | OutboundMessage → richtigen Kanal (WA/TG/Dashboard) |
-| `pii_filter.py` | PII-Erkennung + Maskierung (DSGVO-konform) |
-| `wa_flows.py` | WhatsApp Interactive Buttons/Lists (Stub) |
-
-## Memory & Knowledge (Sprint 4)
-
-```
-                    ┌─── RAM Context (20 Turns, 30 Min TTL)
-                    │
-User Message ──→ Consent Check (Art. 6)
-                    │
-                    ├─── SQLite Sessions DB (90 Tage)
-                    │
-                [Context > 80%?]
-                    │ ja
-                Silent Flush → Fact Extraction → Knowledge Files
-                    │                              ↓
-                Context Kompaktiert         GraphRAG (NetworkX)
-```
-
-| Modul | Funktion |
-|-------|----------|
-| `context.py` | RAM Short-Term Context (20 Turns, TTL, Auto-Flush Trigger) |
-| `database.py` | Async SQLite (WAL, CASCADE DELETE, 90-Tage Cleanup) |
-| `repository.py` | Session + Message CRUD (Repository Pattern) |
-| `knowledge.py` | Per-Member Markdown Knowledge Files |
-| `flush.py` | Silent Flush: Fact Extraction + Context Compaction |
-| `graph.py` | NetworkX GraphRAG Stub (Full Neo4j in Sprint 6) |
-| `consent.py` | GDPR Art. 6 + Art. 17 Cascade Delete |
-
-## Physical Intelligence (Sprint 5)
-
-### Vision (Sprint 5a)
-```
-RTSP Camera ──→ Connector ──→ Processor (YOLOv8) ──→ Privacy Engine
-                                      ↓                    ↓
-                                 {count, density}     Frame gelöscht (0s)
-```
-
-| Modul | Funktion |
-|-------|----------|
-| `processor.py` | YOLOv8 Person Detection (Auto-Stub wenn keine GPU) |
-| `rtsp.py` | Snapshot Grabber (Auto-Reconnect) |
-| `privacy.py` | 0s Retention Enforcer (RAM-only, Audit Trail) |
-
-### Voice (Sprint 5b)
-```
-Audio In ──→ Ingress (FFmpeg) ──→ STT (Whisper) ──→ Swarm ──→ TTS (ElevenLabs) ──→ Audio Out
-```
-
-| Modul | Funktion |
-|-------|----------|
-| `stt.py` | Whisper Speech-to-Text (Auto-Stub wenn keine Lib) |
-| `tts.py` | ElevenLabs Turbo v2.5 (Auto-Stub wenn kein API Key) |
-| `pipeline.py` | E2E Orchestrator (<8s Latenz-Target) |
-
-## Self-Improvement (Sprint 6)
-
-### ACP Pipeline (6a)
-- **Soft Sandbox:** Python-based Isolation (`app/acp/sandbox.py`)
-- **Rollback:** Git-based Checkpoints (`app/acp/rollback.py`)
-- **Refactoring:** AST Analysis (`app/acp/refactor.py`)
-
-### Soul Evolution (6b)
-- **Analyzer:** LLM Topic Extraction from logs
-- **Evolver:** Auto-Update for `docs/personas/SOUL.md`
-- **Flow:** Continuous Persona Improvement Loop
-
-## Hardening & Launch (Sprint 7)
-
-### Security (7a)
-- **Audit:** Automated `pip-audit` + `bandit` checks (`scripts/audit.sh`).
-- **Load Test:** Locust scenario verified 100 concurrent users with <100ms latency.
-
-### Operations (7b)
-- **Metrics:** Prometheus endpoint at `/metrics`.
-- **Runbook:** Operational guides in `docs/ops/RUNBOOK.md`.
-- **Launch:** Production startup via `scripts/launch.sh`.
-
-## Architektur
-
-```
-WhatsApp/Telegram ──→ Gateway ──→ Redis Bus ──→ Swarm Router ──→ Agents
-                         ↑              ↓
-                    WebSocket      Events Channel
-                    (Admin)        (Alerts, Logs)
-```
-
-## Regeln
-
-- **BMAD-Zyklus:** Benchmark → Modularize → Architect → Deploy
-- **One-Way-Door:** Irreversible Aktionen → Menschliche Bestätigung
-- **DSGVO:** 0s Retention für Kameradaten, PII-Masking in Logs
-- **Sandboxing:** Docker, non-root, nur `./data/` writable
-
----
-
-> Entwickelt mit ❤️ für GetImpulse Berlin | VPS: `185.209.228.251`
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
