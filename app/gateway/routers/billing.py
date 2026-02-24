@@ -5,12 +5,13 @@ Vollständige Implementierung, ersetzt den alten Stub.
 Endpoints (alle prefix /admin via main.py):
     GET  /billing/plans                → Öffentlicher Plan-Katalog
     POST /billing/checkout-session     → Stripe Checkout Session erstellen
+    POST /billing/addon-checkout       → Stripe Checkout für Add-ons
     POST /billing/customer-portal      → Stripe Customer Portal Session
     POST /billing/webhook              → Stripe Webhook (HMAC-signiert)
 
 Stripe Events verarbeitet:
-    checkout.session.completed         → Subscription aktivieren / Plan setzen
-    customer.subscription.updated      → Status + Abrechnungsperiode sync
+    checkout.session.completed         → Subscription aktivieren / Plan setzen / Add-ons buchen
+    customer.subscription.updated      → Status + Abrechnungsperiode sync + Add-ons sync
     customer.subscription.deleted      → Status → canceled
     invoice.payment_succeeded / .paid  → Status → active, Periode renew
     invoice.payment_failed             → Status → past_due
@@ -26,14 +27,14 @@ from __future__ import annotations
 import json as _json
 import structlog
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from app.core.auth import AuthContext, get_current_user, require_role
 from app.core.db import SessionLocal
-from app.core.models import Plan, Subscription, Tenant, AuditLog
+from app.core.models import Plan, Subscription, Tenant, AuditLog, TenantAddon
 from app.gateway.persistence import persistence
 
 logger = structlog.get_logger()
@@ -116,64 +117,57 @@ PLAN_CATALOG: list[dict[str, Any]] = [
     {
         "slug": "starter",
         "name": "Starter",
-        "price_monthly_cents": 14900,
+        "price_monthly_cents": 7900,
         "max_members": 500,
-        "max_monthly_messages": 10_000,
+        "max_monthly_messages": 500,
         "max_channels": 1,
-        "whatsapp_enabled": True,
-        "telegram_enabled": False,
-        "sms_enabled": False,
-        "email_channel_enabled": False,
-        "voice_enabled": False,
-        "memory_analyzer_enabled": False,
-        "custom_prompts_enabled": False,
-        "features": ["WhatsApp KI-Support", "Bis zu 500 Mitglieder", "10.000 Nachrichten/Monat", "E-Mail Support"],
+        "max_connectors": 0,
+        "features": [
+            "WhatsApp", "500 Mitglieder", "500 Nachrichten/Monat", 
+            "Keine Connectors", "Basic AI"
+        ],
     },
     {
         "slug": "pro",
-        "name": "Pro",
-        "price_monthly_cents": 34900,
-        "max_members": 2_500,
-        "max_monthly_messages": 50_000,
+        "name": "Professional",
+        "price_monthly_cents": 19900,
+        "max_members": None,
+        "max_monthly_messages": 2000,
         "max_channels": 3,
-        "whatsapp_enabled": True,
-        "telegram_enabled": True,
-        "sms_enabled": False,
-        "email_channel_enabled": True,
-        "voice_enabled": False,
-        "memory_analyzer_enabled": True,
-        "custom_prompts_enabled": True,
+        "max_connectors": 1,
         "features": [
-            "WhatsApp + Telegram + E-Mail",
-            "Bis zu 2.500 Mitglieder",
-            "50.000 Nachrichten/Monat",
-            "Member Memory Analyzer",
-            "Custom Prompts",
-            "Priority Support",
+            "WhatsApp, Telegram, E-Mail, Instagram, Facebook",
+            "Unbegrenzte Mitglieder", "2.000 Nachrichten/Monat",
+            "1 Connector (z.B. Magicline)", "Member Memory Analyzer",
+            "Standard AI", "Branding"
         ],
         "highlight": True,
     },
     {
+        "slug": "business",
+        "name": "Business",
+        "price_monthly_cents": 39900,
+        "max_members": None,
+        "max_monthly_messages": 10000,
+        "max_channels": 99,
+        "max_connectors": 99,
+        "features": [
+            "Alle Kanäle inkl. Voice & Google Business",
+            "10.000 Nachrichten/Monat",
+            "Alle Connectors", "Automation Engine",
+            "Churn Prediction", "Vision AI", "Premium AI"
+        ],
+    },
+    {
         "slug": "enterprise",
         "name": "Enterprise",
-        "price_monthly_cents": 99900,
+        "price_monthly_cents": 0, # Custom
         "max_members": None,
         "max_monthly_messages": None,
-        "max_channels": 10,
-        "whatsapp_enabled": True,
-        "telegram_enabled": True,
-        "sms_enabled": True,
-        "email_channel_enabled": True,
-        "voice_enabled": True,
-        "memory_analyzer_enabled": True,
-        "custom_prompts_enabled": True,
+        "max_channels": 999,
+        "max_connectors": 999,
         "features": [
-            "Alle Kanäle inkl. Voice + SMS",
-            "Unbegrenzte Mitglieder",
-            "Unbegrenzte Nachrichten",
-            "Dedicated CSM",
-            "SLA-Garantie",
-            "White-Label Option",
+            "Alles unbegrenzt", "White-Label", "SLA", "On-Premise Option", "Dedicated CSM"
         ],
     },
 ]
@@ -192,13 +186,12 @@ class CheckoutRequest(BaseModel):
     success_url: str = ""
     cancel_url: str = ""
 
-
 @router.post("/billing/checkout-session")
 async def create_checkout_session(
     req: CheckoutRequest,
     user: AuthContext = Depends(get_current_user),
 ) -> dict[str, str]:
-    """Erstellt eine Stripe Checkout Session.  Returns {'url': '...'}."""
+    """Erstellt eine Stripe Checkout Session für Plan-Upgrades."""
     _require_billing_access(user)
     stripe = _get_stripe(user.tenant_id)
 
@@ -209,16 +202,21 @@ async def create_checkout_session(
         ).first()
         if not plan:
             raise HTTPException(status_code=404, detail=f"Plan '{req.plan_slug}' nicht gefunden")
-        if not plan.stripe_price_id:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Plan '{req.plan_slug}' hat keine Stripe Price-ID — im System-Admin konfigurieren.",
-            )
+        if not plan.stripe_price_id and plan.price_monthly_cents > 0:
+             # Allow free plans if handled logic permits, but mostly we redirect to Stripe even for $0 trials if setup
+             pass 
+
         tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
         tenant_name = tenant.name if tenant else f"Tenant {user.tenant_id}"
         plan_id_int = plan.id
+        stripe_price_id = plan.stripe_price_id
     finally:
         db.close()
+    
+    if not stripe_price_id:
+         # Fallback for free plans without Stripe
+         # In a real scenario, we might just upgrade them directly without Stripe Checkout
+         raise HTTPException(status_code=422, detail="Plan has no price ID configured.")
 
     stripe_customer_id = _get_or_create_stripe_customer(
         stripe, tenant_id=user.tenant_id,
@@ -233,18 +231,20 @@ async def create_checkout_session(
         session = stripe.checkout.Session.create(
             mode="subscription",
             customer=stripe_customer_id,
-            line_items=[{"price": plan.stripe_price_id, "quantity": 1}],
+            line_items=[{"price": stripe_price_id, "quantity": 1}],
             success_url=success_url + "&session_id={CHECKOUT_SESSION_ID}",
             cancel_url=cancel_url,
             metadata={
                 "tenant_id": str(user.tenant_id),
                 "plan_slug": req.plan_slug,
                 "ariia_plan_id": str(plan_id_int),
+                "type": "plan_upgrade"
             },
             subscription_data={"metadata": {
                 "tenant_id": str(user.tenant_id),
                 "plan_id": str(plan_id_int),
             }},
+            allow_promotion_codes=True,
         )
     except Exception as exc:
         logger.error("billing.checkout_session_failed", error=str(exc), tenant_id=user.tenant_id)
@@ -254,8 +254,71 @@ async def create_checkout_session(
         "plan_slug": req.plan_slug,
         "stripe_session_id": session.get("id"),
     })
-    logger.info("billing.checkout_session_created",
-                tenant_id=user.tenant_id, plan=req.plan_slug, session_id=session.get("id"))
+    return {"url": session["url"]}
+
+
+class AddonCheckoutRequest(BaseModel):
+    addon_slug: str  # e.g., "voice_pipeline"
+    price_id: str    # Stripe Price ID for the addon
+    quantity: int = 1
+    success_url: str = ""
+    cancel_url: str = ""
+
+@router.post("/billing/addon-checkout")
+async def create_addon_checkout_session(
+    req: AddonCheckoutRequest,
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, str]:
+    """Erstellt eine Stripe Checkout Session für Add-ons."""
+    _require_billing_access(user)
+    stripe = _get_stripe(user.tenant_id)
+    
+    db = SessionLocal()
+    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant_name = tenant.name if tenant else f"Tenant {user.tenant_id}"
+    db.close()
+
+    stripe_customer_id = _get_or_create_stripe_customer(
+        stripe, tenant_id=user.tenant_id,
+        admin_email=user.email, tenant_name=tenant_name,
+    )
+
+    base_url = (persistence.get_setting("gateway_public_url", "") or "").rstrip("/")
+    success_url = req.success_url or f"{base_url}/settings/billing?addon=success"
+    cancel_url  = req.cancel_url  or f"{base_url}/settings/billing?addon=canceled"
+
+    # Check if user has an active subscription to upsell to
+    # If using 'subscription' mode in Checkout with an existing customer who has a sub, 
+    # Stripe might create a new subscription. To add to existing, we usually use the Portal or API.
+    # But Checkout is easiest. Let's assume we create a NEW subscription for the addon OR 
+    # we use 'setup' mode if we just want to authorize.
+    # Actually, the standard way for SaaS add-ons in Checkout is to create a separate subscription 
+    # OR if we want to add to existing, we have to use the API directly (SubscriptionItem.create), not Checkout.
+    # BUT, the prompt implies "Checkout". So let's create a Checkout Session that creates a subscription for the addon.
+    # This results in multiple subscriptions per customer, which is valid in Stripe.
+
+    try:
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            customer=stripe_customer_id,
+            line_items=[{"price": req.price_id, "quantity": req.quantity}],
+            success_url=success_url + "&session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=cancel_url,
+            metadata={
+                "tenant_id": str(user.tenant_id),
+                "addon_slug": req.addon_slug,
+                "type": "addon_purchase"
+            },
+            subscription_data={"metadata": {
+                "tenant_id": str(user.tenant_id),
+                "addon_slug": req.addon_slug,
+                "is_addon": "true"
+            }},
+        )
+    except Exception as exc:
+        logger.error("billing.addon_checkout_failed", error=str(exc), tenant_id=user.tenant_id)
+        raise HTTPException(status_code=502, detail=f"Stripe-Fehler: {exc}")
+
     return {"url": session["url"]}
 
 
@@ -303,30 +366,48 @@ def _ts_to_dt(ts: int | None) -> datetime | None:
 def _on_checkout_completed(obj: dict) -> None:
     meta = obj.get("metadata", {})
     tenant_id = meta.get("tenant_id")
-    plan_id   = meta.get("ariia_plan_id")
+    type_ = meta.get("type", "plan_upgrade")
     stripe_sub_id = obj.get("subscription")
     stripe_cid    = obj.get("customer")
+    
     if not tenant_id:
         return
+    
     db = SessionLocal()
     try:
-        sub = db.query(Subscription).filter(Subscription.tenant_id == int(tenant_id)).first()
-        if sub:
-            if plan_id:
-                sub.plan_id = int(plan_id)
-            sub.status = "active"
-            sub.stripe_subscription_id = stripe_sub_id
-            sub.stripe_customer_id = stripe_cid
-        else:
-            db.add(Subscription(
-                tenant_id=int(tenant_id),
-                plan_id=int(plan_id) if plan_id else 1,
-                status="active",
-                stripe_subscription_id=stripe_sub_id,
-                stripe_customer_id=stripe_cid,
-            ))
+        if type_ == "plan_upgrade":
+            plan_id = meta.get("ariia_plan_id")
+            sub = db.query(Subscription).filter(Subscription.tenant_id == int(tenant_id)).first()
+            if sub:
+                if plan_id:
+                    sub.plan_id = int(plan_id)
+                sub.status = "active"
+                sub.stripe_subscription_id = stripe_sub_id
+                sub.stripe_customer_id = stripe_cid
+            else:
+                db.add(Subscription(
+                    tenant_id=int(tenant_id),
+                    plan_id=int(plan_id) if plan_id else 1,
+                    status="active",
+                    stripe_subscription_id=stripe_sub_id,
+                    stripe_customer_id=stripe_cid,
+                ))
+            logger.info("billing.webhook.plan_activated", tenant_id=tenant_id, plan_id=plan_id)
+        
+        elif type_ == "addon_purchase":
+            addon_slug = meta.get("addon_slug")
+            if addon_slug:
+                # Add to TenantAddon table
+                db.add(TenantAddon(
+                    tenant_id=int(tenant_id),
+                    addon_slug=addon_slug,
+                    stripe_subscription_item_id=stripe_sub_id, # Storing sub ID as item ID proxy for now
+                    quantity=1,
+                    status="active"
+                ))
+                logger.info("billing.webhook.addon_activated", tenant_id=tenant_id, addon=addon_slug)
+
         db.commit()
-        logger.info("billing.webhook.checkout_activated", tenant_id=tenant_id)
     except Exception as exc:
         db.rollback()
         logger.error("billing.webhook.checkout_db_failed", error=str(exc))
@@ -338,24 +419,54 @@ def _on_subscription_event(event_type: str, obj: dict) -> None:
     stripe_sub_id = obj.get("id")
     meta = obj.get("metadata", {})
     tenant_id = meta.get("tenant_id")
+    is_addon = meta.get("is_addon") == "true"
+    addon_slug = meta.get("addon_slug")
+
     db = SessionLocal()
     try:
-        q = db.query(Subscription)
-        sub = q.filter(Subscription.stripe_subscription_id == stripe_sub_id).first()
-        if not sub and tenant_id:
-            sub = q.filter(Subscription.tenant_id == int(tenant_id)).first()
-        if not sub:
-            return
-        if event_type == "customer.subscription.deleted":
-            sub.status = "canceled"
-            sub.canceled_at = datetime.now(timezone.utc)
+        if is_addon:
+            # Handle Addon Subscription
+            addon = db.query(TenantAddon).filter(
+                TenantAddon.stripe_subscription_item_id == stripe_sub_id
+            ).first()
+            
+            if not addon and tenant_id and addon_slug:
+                 # Try to recover if missing
+                 addon = TenantAddon(
+                    tenant_id=int(tenant_id),
+                    addon_slug=addon_slug,
+                    stripe_subscription_item_id=stripe_sub_id,
+                    quantity=1,
+                    status="active"
+                 )
+                 db.add(addon)
+            
+            if addon:
+                if event_type == "customer.subscription.deleted":
+                    addon.status = "canceled"
+                    # Or delete the row? Better to keep as canceled.
+                    # Actually, if we want to free up the 'slot', we might delete or mark inactive.
+                    # Marking as canceled is safer for history.
+                else:
+                    addon.status = obj.get("status", addon.status)
         else:
-            sub.status = obj.get("status", sub.status)
-            sub.current_period_start = _ts_to_dt(obj.get("current_period_start"))
-            sub.current_period_end   = _ts_to_dt(obj.get("current_period_end"))
+            # Handle Main Plan Subscription
+            q = db.query(Subscription)
+            sub = q.filter(Subscription.stripe_subscription_id == stripe_sub_id).first()
+            if not sub and tenant_id:
+                sub = q.filter(Subscription.tenant_id == int(tenant_id)).first()
+            
+            if sub:
+                if event_type == "customer.subscription.deleted":
+                    sub.status = "canceled"
+                    sub.canceled_at = datetime.now(timezone.utc)
+                else:
+                    sub.status = obj.get("status", sub.status)
+                    sub.current_period_start = _ts_to_dt(obj.get("current_period_start"))
+                    sub.current_period_end   = _ts_to_dt(obj.get("current_period_end"))
+        
         db.commit()
-        logger.info("billing.webhook.subscription_updated", event_type=event_type,
-                    status=sub.status, sub_id=stripe_sub_id)
+        logger.info("billing.webhook.subscription_updated", event_type=event_type, sub_id=stripe_sub_id)
     except Exception as exc:
         db.rollback()
         logger.error("billing.webhook.subscription_db_failed", error=str(exc))
@@ -369,23 +480,26 @@ def _on_invoice_event(event_type: str, obj: dict) -> None:
         return
     db = SessionLocal()
     try:
-        sub = db.query(Subscription).filter(
-            Subscription.stripe_subscription_id == stripe_sub_id
-        ).first()
-        if not sub:
+        # Check both Subscriptions and Addons
+        sub = db.query(Subscription).filter(Subscription.stripe_subscription_id == stripe_sub_id).first()
+        addon = db.query(TenantAddon).filter(TenantAddon.stripe_subscription_item_id == stripe_sub_id).first()
+        
+        target = sub or addon
+        if not target:
             return
+
         if event_type in ("invoice.payment_succeeded", "invoice.paid"):
-            sub.status = "active"
-            # Update period end from line items
-            lines = obj.get("lines", {}).get("data", [])
-            if lines:
-                period_end = lines[0].get("period", {}).get("end")
-                if period_end:
-                    sub.current_period_end = _ts_to_dt(period_end)
+            target.status = "active"
+            if isinstance(target, Subscription):
+                 lines = obj.get("lines", {}).get("data", [])
+                 if lines:
+                    period_end = lines[0].get("period", {}).get("end")
+                    if period_end:
+                        target.current_period_end = _ts_to_dt(period_end)
         elif event_type == "invoice.payment_failed":
-            sub.status = "past_due"
+            target.status = "past_due"
+            
         db.commit()
-        logger.info("billing.webhook.invoice_event", event_type=event_type, sub_id=stripe_sub_id)
     except Exception as exc:
         db.rollback()
         logger.error("billing.webhook.invoice_db_failed", error=str(exc))

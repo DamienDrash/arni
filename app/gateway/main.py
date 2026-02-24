@@ -115,6 +115,13 @@ app.include_router(websocket.router)
 app.include_router(admin_router)
 app.include_router(billing_router, prefix="/admin")
 
+# --- New Routers (PR 2, 3, 4) ---
+from app.gateway.routers import members_crud, integrations_sync, connector_hub, permissions
+app.include_router(members_crud.router)
+app.include_router(integrations_sync.router)
+app.include_router(connector_hub.router)
+app.include_router(permissions.router)
+
 # --- ACP Router ---
 from app.acp.server import router as acp_router
 app.include_router(acp_router)

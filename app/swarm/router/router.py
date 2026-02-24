@@ -74,8 +74,29 @@ class SwarmRouter:
     async def route(self, message: InboundMessage) -> AgentResponse:
         """Classify intent and dispatch to appropriate agent.
 
-        TITAN UPGRADE: Emergency goes to Medic, EVERYTHING ELSE goes to Master.
+        TITAN UPGRADE: 
+        1. Check Feature Gate for channel availability.
+        2. Emergency goes to Medic.
+        3. EVERYTHING ELSE goes to Master.
         """
+        # 0. PLATFORM CHECK (PR 4/5 - Feature Gating)
+        gate = FeatureGate(message.tenant_id)
+        try:
+            gate.require_channel(message.platform)
+        except HTTPException as exc:
+            logger.warning(
+                "router.channel_blocked",
+                tenant_id=message.tenant_id,
+                platform=message.platform,
+                detail=exc.detail,
+            )
+            return AgentResponse(
+                content=(
+                    "Dieser Kommunikationskanal (z.B. Telegram/SMS) ist in deinem aktuellen ARIIA-Plan "
+                    "nicht freigeschaltet. Bitte kontaktiere das Studio-Management für ein Upgrade."
+                )
+            )
+
         content_lower = message.content.lower()
 
         # SAFETY: Emergency keywords always go to Medic (no LLM gamble)

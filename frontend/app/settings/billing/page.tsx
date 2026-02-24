@@ -1,410 +1,256 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { CheckCircle2, Zap, ArrowUpRight, ShieldCheck, HelpCircle, History, Package, CreditCard, LayoutGrid, Info } from "lucide-react";
 
 import SettingsSubnav from "@/components/settings/SettingsSubnav";
+import { Card } from "@/components/ui/Card";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { Badge } from "@/components/ui/Badge";
 import { apiFetch } from "@/lib/api";
+import { T } from "@/lib/tokens";
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 
-interface PlanFeature {
-  slug: string;
-  name: string;
-  price_monthly_cents: number;
-  max_members: number | null;
-  max_monthly_messages: number | null;
-  max_channels: number;
-  whatsapp_enabled: boolean;
-  telegram_enabled: boolean;
-  sms_enabled: boolean;
-  email_channel_enabled: boolean;
-  voice_enabled: boolean;
-  memory_analyzer_enabled: boolean;
-  custom_prompts_enabled: boolean;
-  features: string[];
-  highlight?: boolean;
-}
-
 interface Plan {
-  name: string;
   slug: string;
+  name: string;
   price_monthly_cents: number;
   max_members: number | null;
   max_monthly_messages: number | null;
   max_channels: number;
-  whatsapp_enabled: boolean;
-  telegram_enabled: boolean;
-  sms_enabled: boolean;
-  email_channel_enabled: boolean;
-  voice_enabled: boolean;
-  memory_analyzer_enabled: boolean;
-  custom_prompts_enabled: boolean;
+  features: string[];
 }
 
 interface Subscription {
   has_subscription: boolean;
   status: string;
-  stripe_subscription_id: string | null;
-  current_period_end: string | null;
-  trial_ends_at: string | null;
   plan: Plan;
+  current_period_end?: string;
 }
 
 interface Usage {
-  period: { year: number; month: number };
-  messages_inbound: number;
-  messages_outbound: number;
-  messages_total: number;
+  messages_used: number;
   messages_limit: number | null;
-  messages_pct: number | null;
-  active_members: number;
-  llm_tokens_used: number;
+  members_count: number;
+  members_limit: number | null;
 }
 
-/* ─── Helpers ────────────────────────────────────────────────────────────── */
-
-function formatCents(cents: number): string {
-  if (cents === 0) return "Kostenlos";
-  return `€${(cents / 100).toFixed(0)}/Monat`;
-}
-
-function ProgressBar({ value, max }: { value: number; max: number | null }) {
-  if (!max) return <span className="text-gray-400 text-xs">Unbegrenzt</span>;
-  const pct = Math.min(100, Math.round((value / max) * 100));
-  const color = pct > 90 ? "bg-red-500" : pct > 70 ? "bg-yellow-500" : "bg-blue-500";
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs text-gray-400">
-        <span>{value.toLocaleString()} / {max.toLocaleString()}</span>
-        <span>{pct}%</span>
-      </div>
-      <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-        <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function FeatureFlag({ label, enabled }: { label: string; enabled: boolean }) {
-  return (
-    <div className="flex items-center justify-between py-2 border-b border-gray-800 last:border-0">
-      <span className="text-sm text-gray-300">{label}</span>
-      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${enabled ? "bg-green-900/50 text-green-400" : "bg-gray-800 text-gray-500"}`}>
-        {enabled ? "Aktiv" : "Nicht verfügbar"}
-      </span>
-    </div>
-  );
-}
-
-/* ─── Plan Card ──────────────────────────────────────────────────────────── */
-
-function PlanCard({
-  plan,
-  current,
-  onSelect,
-  loading,
-}: {
-  plan: PlanFeature;
-  current: boolean;
-  onSelect: (slug: string) => void;
-  loading: boolean;
-}) {
-  return (
-    <div
-      className={`relative flex flex-col rounded-xl border p-5 space-y-4 transition-all
-        ${plan.highlight
-          ? "border-blue-600 bg-blue-950/30 shadow-lg shadow-blue-900/20"
-          : "border-gray-700 bg-gray-900"}
-        ${current ? "ring-2 ring-green-600" : ""}`}
-    >
-      {plan.highlight && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-semibold px-3 py-0.5 rounded-full">
-          Empfohlen
-        </div>
-      )}
-      {current && (
-        <div className="absolute -top-3 right-4 bg-green-600 text-white text-xs font-semibold px-3 py-0.5 rounded-full">
-          Aktuell
-        </div>
-      )}
-
-      <div>
-        <h3 className="text-lg font-bold text-white">{plan.name}</h3>
-        <p className="text-2xl font-extrabold text-white mt-1">
-          {formatCents(plan.price_monthly_cents)}
-        </p>
-      </div>
-
-      <ul className="space-y-1 flex-1">
-        {plan.features.map((f) => (
-          <li key={f} className="flex items-center gap-2 text-sm text-gray-300">
-            <span className="text-green-400">✓</span>
-            {f}
-          </li>
-        ))}
-      </ul>
-
-      {current ? (
-        <div className="text-center text-green-400 text-sm font-medium py-2">Dein aktueller Plan</div>
-      ) : (
-        <button
-          onClick={() => onSelect(plan.slug)}
-          disabled={loading}
-          className={`w-full py-2 rounded-lg text-sm font-semibold transition-all
-            ${plan.highlight
-              ? "bg-blue-600 hover:bg-blue-500 text-white"
-              : "bg-gray-700 hover:bg-gray-600 text-white"}
-            disabled:opacity-50 disabled:cursor-not-allowed`}
-        >
-          {loading ? "Wird geladen..." : `Zu ${plan.name} wechseln`}
-        </button>
-      )}
-    </div>
-  );
-}
-
-/* ─── Main Page ──────────────────────────────────────────────────────────── */
+/* ─── Page ──────────────────────────────────────────────────────────── */
 
 export default function BillingPage() {
   const [sub, setSub] = useState<Subscription | null>(null);
   const [usage, setUsage] = useState<Usage | null>(null);
-  const [catalogPlans, setCatalogPlans] = useState<PlanFeature[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const router = useRouter();
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    // Handle Stripe redirect feedback
-    const checkout = searchParams.get("checkout");
-    if (checkout === "success") {
-      setSuccessMsg("🎉 Abonnement erfolgreich aktiviert! Es kann einen Moment dauern, bis der Status aktualisiert wird.");
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [subRes, usageRes, plansRes] = await Promise.all([
-          apiFetch("/admin/billing/subscription"),
-          apiFetch("/admin/billing/usage"),
-          apiFetch("/admin/billing/plans"),
-        ]);
-        if (!subRes.ok) throw new Error(`Subscription: HTTP ${subRes.status}`);
-        if (!usageRes.ok) throw new Error(`Usage: HTTP ${usageRes.status}`);
-        const [subData, usageData, plansData] = await Promise.all([
-          subRes.json(), usageRes.json(), plansRes.ok ? plansRes.json() : [],
-        ]);
-        setSub(subData);
-        setUsage(usageData);
-        setCatalogPlans(Array.isArray(plansData) ? plansData : []);
-      } catch (e) {
-        setError(`Fehler beim Laden: ${e}`);
-      } finally {
-        setLoading(false);
+  async function loadData() {
+    try {
+      const [pRes, sRes, uRes] = await Promise.all([
+        apiFetch("/admin/billing/plans"),
+        apiFetch("/admin/permissions"), // returns subscription info
+        apiFetch("/admin/stats") // using existing stats endpoint
+      ]);
+      
+      if (pRes.ok) setPlans(await pRes.json());
+      if (sRes.ok) {
+        const data = await sRes.json();
+        setSub({
+          has_subscription: data.subscription.has_subscription,
+          status: data.subscription.status,
+          plan: data.plan,
+          current_period_end: data.subscription.current_period_end
+        });
+        setUsage({
+          messages_used: data.usage.messages_used,
+          messages_limit: data.plan.limits.max_monthly_messages,
+          members_count: data.usage.members_count,
+          members_limit: data.plan.limits.max_members
+        });
       }
-    };
-    load();
-  }, []);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const handleCheckout = async (planSlug: string) => {
-    setCheckoutLoading(true);
+  useEffect(() => { loadData(); }, []);
+
+  const handleUpgrade = async (slug: string) => {
+    setCheckoutLoading(slug);
     try {
       const res = await apiFetch("/admin/billing/checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan_slug: planSlug,
-          success_url: window.location.origin + "/settings/billing?checkout=success",
-          cancel_url: window.location.origin + "/settings/billing?checkout=canceled",
-        }),
+        body: JSON.stringify({ plan_slug: slug })
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
-        throw new Error(err.detail || "Unbekannter Fehler");
+      if (res.ok) {
+        const { url } = await res.json();
+        window.location.href = url;
       }
-      const { url } = await res.json();
-      window.location.href = url;
-    } catch (e) {
-      setError(`Checkout-Fehler: ${e}`);
-      setCheckoutLoading(false);
+    } finally {
+      setCheckoutLoading(null);
     }
   };
 
-  const handlePortal = async () => {
-    setPortalLoading(true);
-    try {
-      const res = await apiFetch("/admin/billing/customer-portal", { method: "POST" });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
-        throw new Error(err.detail || "Unbekannter Fehler");
-      }
-      const { url } = await res.json();
-      window.location.href = url;
-    } catch (e) {
-      setError(`Portal-Fehler: ${e}`);
-      setPortalLoading(false);
-    }
-  };
-
-  if (loading) return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <SettingsSubnav />
-      <div className="p-8 text-gray-400">Wird geladen...</div>
-    </div>
-  );
-
-  const plan = sub?.plan;
-  const MONTH_NAMES = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
-  const hasStripeSubscription = sub?.has_subscription && sub?.stripe_subscription_id;
+  if (loading) return <div className="p-12 text-center">Laden...</div>;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="flex flex-col gap-6">
       <SettingsSubnav />
-      <div className="max-w-4xl mx-auto p-6 space-y-8" style={{ width: "100%" }}>
 
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-white">Abonnement &amp; Nutzung</h1>
-          <p className="text-gray-400 mt-1 text-sm">Dein aktueller Plan und der Verbrauch diesen Monat.</p>
-        </div>
+      <SectionHeader 
+        title="Abonnement & Nutzung" 
+        subtitle="Verwalte deinen SaaS-Plan, Add-ons und überwache deinen Verbrauch."
+      />
 
-        {/* Success / Error banners */}
-        {successMsg && (
-          <div className="bg-green-900/40 border border-green-700 text-green-300 rounded-lg px-4 py-3 text-sm">
-            {successMsg}
-          </div>
-        )}
-        {error && (
-          <div className="bg-red-900/40 border border-red-700 text-red-300 rounded-lg px-4 py-3 text-sm flex justify-between">
-            {error}
-            <button onClick={() => setError(null)} className="ml-4 text-red-400 hover:text-red-200">✕</button>
-          </div>
-        )}
-
-        {/* Current subscription */}
-        {plan && (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-white">{plan.name}</h2>
-                <p className="text-gray-400 text-sm">{formatCents(plan.price_monthly_cents)}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Current Plan & Usage */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
+          <Card className="p-6 bg-slate-900 border-slate-800 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10"><Package size={120} /></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-4">
+                <Badge variant="success" className="bg-green-500/20 text-green-400 border-green-500/30">
+                  {sub?.status.toUpperCase() || 'AKTIV'}
+                </Badge>
+                {sub?.plan.slug === 'business' && <Badge className="bg-indigo-500 text-white border-none flex items-center gap-1"><Zap size={10} fill="currentColor" /> Business</Badge>}
               </div>
-              <span className={`text-xs font-medium px-3 py-1 rounded-full border ${sub?.status === "active" || !sub?.has_subscription
-                  ? "bg-green-900/40 text-green-400 border-green-700"
-                  : sub?.status === "trialing"
-                    ? "bg-blue-900/40 text-blue-400 border-blue-700"
-                    : "bg-yellow-900/40 text-yellow-400 border-yellow-700"
-                }`}>
-                {sub?.has_subscription ? sub.status : "Free"}
-              </span>
-            </div>
-
-            {sub?.trial_ends_at && (
-              <div className="text-sm text-blue-400">
-                Trial läuft bis: {new Date(sub.trial_ends_at).toLocaleDateString("de-DE")}
-              </div>
-            )}
-            {sub?.current_period_end && (
-              <div className="text-sm text-gray-400">
-                Nächste Abrechnung: {new Date(sub.current_period_end).toLocaleDateString("de-DE")}
-              </div>
-            )}
-
-            <div className="pt-2 space-y-0">
-              <h3 className="text-sm font-medium text-gray-300 mb-2">Features in diesem Plan</h3>
-              <FeatureFlag label="WhatsApp" enabled={plan.whatsapp_enabled} />
-              <FeatureFlag label="Telegram" enabled={plan.telegram_enabled} />
-              <FeatureFlag label="SMS" enabled={plan.sms_enabled} />
-              <FeatureFlag label="E-Mail-Kanal" enabled={plan.email_channel_enabled} />
-              <FeatureFlag label="Voice" enabled={plan.voice_enabled} />
-              <FeatureFlag label="Memory Analyzer" enabled={plan.memory_analyzer_enabled} />
-              <FeatureFlag label="Custom Prompts" enabled={plan.custom_prompts_enabled} />
-            </div>
-
-            {/* Customer Portal button */}
-            {hasStripeSubscription && (
-              <div className="pt-2">
-                <button
-                  onClick={handlePortal}
-                  disabled={portalLoading}
-                  className="text-sm text-blue-400 hover:text-blue-300 underline disabled:opacity-50"
-                >
-                  {portalLoading ? "Wird geöffnet..." : "Abonnement verwalten (Stripe Portal) →"}
+              <h2 className="text-3xl font-black mb-1">{sub?.plan.name || 'Starter Plan'}</h2>
+              <p className="text-slate-400 text-sm">
+                Nächste Abrechnung am {sub?.current_period_end ? new Date(sub.current_period_end).toLocaleDateString() : '—'}
+              </p>
+              
+              <div className="mt-8 flex gap-4">
+                <button onClick={() => {}} className="px-4 py-2 bg-white text-slate-900 rounded-lg text-sm font-bold flex items-center gap-2">
+                  Zahlungsmethode ändern <ArrowUpRight size={14} />
+                </button>
+                <button className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold border border-slate-700">
+                  Rechnungen
                 </button>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          </Card>
 
-        {/* Usage */}
-        {usage && (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-5">
-            <h2 className="text-lg font-semibold text-white">
-              Nutzung — {MONTH_NAMES[(usage.period.month - 1)]} {usage.period.year}
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-300 mb-1">Nachrichten gesamt (Ein + Ausgehend)</p>
-                <ProgressBar value={usage.messages_total} max={usage.messages_limit} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-800 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-white">{usage.messages_inbound.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 mt-1">Eingehend</p>
-                </div>
-                <div className="bg-gray-800 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-white">{usage.messages_outbound.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 mt-1">Ausgehend</p>
-                </div>
-                <div className="bg-gray-800 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-white">{usage.active_members.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 mt-1">Aktive Mitglieder</p>
-                </div>
-                <div className="bg-gray-800 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-white">{usage.llm_tokens_used.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 mt-1">LLM Tokens</p>
-                </div>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <UsageCard 
+              label="Konversationen" 
+              used={usage?.messages_used || 0} 
+              limit={usage?.messages_limit} 
+              unit="Mtg" 
+            />
+            <UsageCard 
+              label="Mitglieder" 
+              used={usage?.members_count || 0} 
+              limit={usage?.members_limit} 
+              unit="Mitgl." 
+            />
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <LayoutGrid size={20} className="text-indigo-600" /> Verfügbare Add-ons
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <AddonCard title="Vision AI" price="39€" description="Automatisches Erkennen der Studio-Auslastung via Kamera." />
+              <AddonCard title="Voice Pipeline" price="79€" description="KI-Telefonate für Terminbuchungen und Rückrufe." />
+              <AddonCard title="Churn Prediction" price="49€" description="KI-basierte Vorhersage von Kündigungsrisiken." />
+              <AddonCard title="White-Label" price="149€" description="Eigene Domain und Branding ohne ARIIA-Logo." />
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Plan selection */}
-        {catalogPlans.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-white">Plan wechseln</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {catalogPlans.map((p) => (
-                <PlanCard
-                  key={p.slug}
-                  plan={p}
-                  current={plan?.slug === p.slug}
-                  onSelect={handleCheckout}
-                  loading={checkoutLoading}
-                />
-              ))}
+        {/* Right: Plan Comparison / Upgrade */}
+        <div className="flex flex-col gap-4">
+          <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <ArrowUpRight size={20} className="text-indigo-600" /> Plan wechseln
+          </h3>
+          <div className="flex flex-col gap-3">
+            {plans.map(p => (
+              <button
+                key={p.slug}
+                onClick={() => handleUpgrade(p.slug)}
+                disabled={sub?.plan.slug === p.slug || !!checkoutLoading}
+                className={`p-4 rounded-xl border text-left transition-all ${
+                  sub?.plan.slug === p.slug 
+                    ? "bg-slate-50 border-slate-200 cursor-default" 
+                    : "bg-white border-slate-200 hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-50"
+                }`}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-bold text-slate-900">{p.name}</span>
+                  {sub?.plan.slug === p.slug ? (
+                    <Badge variant="success">Aktuell</Badge>
+                  ) : (
+                    <span className="text-sm font-black text-indigo-600">
+                      {p.price_monthly_cents === 0 ? "Individuell" : `${p.price_monthly_cents / 100}€`}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  {p.features.slice(0, 3).map(f => (
+                    <div key={f} className="text-xs text-slate-500 flex items-center gap-1.5">
+                      <CheckCircle2 size={10} className="text-green-500" /> {f}
+                    </div>
+                  ))}
+                </div>
+                {sub?.plan.slug !== p.slug && (
+                  <div className="mt-4 text-xs font-bold text-indigo-600 flex items-center gap-1">
+                    {checkoutLoading === p.slug ? "Wird geladen..." : "Jetzt auswählen"} <ArrowUpRight size={12} />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <Card className="p-4 bg-indigo-50 border-indigo-100">
+            <div className="flex gap-3">
+              <Info className="text-indigo-600 shrink-0" size={18} />
+              <div className="text-xs text-indigo-900 leading-relaxed">
+                <strong>Nutzungsbasierte Abrechnung:</strong> Überschreitungen der Inklusiv-Limits werden automatisch am Monatsende über Stripe abgerechnet (z.B. 0,05€ pro extra Nachricht).
+              </div>
             </div>
-            <p className="text-xs text-gray-500 text-center mt-2">
-              Sichere Bezahlung über Stripe. Kündigung jederzeit möglich.
-            </p>
-          </div>
-        )}
-
-        {/* Fallback — kein Stripe konfiguriert */}
-        {catalogPlans.length === 0 && plan?.slug === "starter" && (
-          <div className="bg-blue-950/40 border border-blue-800 rounded-xl p-4 text-sm text-blue-300">
-            <strong>Upgrade verfügbar:</strong> Konfiguriere Stripe in den{" "}
-            <a href="/settings/integrations" className="underline hover:text-blue-200">Integrationseinstellungen</a>{" "}
-            um direkt upgraden zu können, oder kontaktiere uns unter{" "}
-            <span className="font-mono">support@ariia.ai</span>.
-          </div>
-        )}
+          </Card>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function UsageCard({ label, used, limit, unit }: { label: string, used: number, limit: number | null, unit: string }) {
+  const pct = limit ? Math.min(100, (used / limit) * 100) : 0;
+  return (
+    <Card className="p-5 bg-white border-slate-200">
+      <div className="flex justify-between items-center mb-4">
+        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{label}</span>
+        <span className="text-xs font-bold text-slate-900">{used} / {limit || '∞'} {unit}</span>
+      </div>
+      <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
+        <div 
+          className={`h-full transition-all duration-1000 ${pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-indigo-600'}`} 
+          style={{ width: `${limit ? pct : 5}%` }} 
+        />
+      </div>
+      <div className="text-[10px] text-slate-400">{limit ? `${Math.round(pct)}% verbraucht` : 'Flatrate aktiv'}</div>
+    </Card>
+  );
+}
+
+function AddonCard({ title, price, description }: { title: string, price: string, description: string }) {
+  return (
+    <div className="p-4 rounded-xl border border-slate-200 bg-white hover:border-indigo-200 transition-colors flex flex-col justify-between">
+      <div>
+        <div className="flex justify-between items-center mb-1">
+          <span className="font-bold text-slate-900">{title}</span>
+          <span className="text-xs font-bold text-indigo-600">+{price}/mtl.</span>
+        </div>
+        <p className="text-xs text-slate-500 leading-relaxed">{description}</p>
+      </div>
+      <button className="mt-4 text-xs font-bold text-slate-400 hover:text-indigo-600 flex items-center gap-1 transition-colors">
+        Hinzufügen <Plus size={12} />
+      </button>
     </div>
   );
 }

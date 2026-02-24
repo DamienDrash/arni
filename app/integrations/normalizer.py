@@ -144,3 +144,35 @@ class MessageNormalizer:
             chat_type=chat.get("type", "private"),
         )
         return inbound
+
+    def normalize_email(self, payload: dict[str, Any]) -> InboundMessage:
+        """Normalize Postmark inbound email payload."""
+        content = payload.get("TextBody", payload.get("HtmlBody", ""))
+        inbound = InboundMessage(
+            message_id=payload.get("MessageID", str(uuid4())),
+            platform=Platform.EMAIL,
+            user_id=payload.get("From", "unknown"),
+            content=content,
+            content_type="text",
+            metadata={
+                "subject": payload.get("Subject"),
+                "to": payload.get("To"),
+                "reply_to": payload.get("InReplyTo"),
+            }
+        )
+        return inbound
+
+    def normalize_sms(self, payload: dict[str, str]) -> InboundMessage:
+        """Normalize Twilio SMS webhook payload."""
+        inbound = InboundMessage(
+            message_id=payload.get("SmsMessageSid", str(uuid4())),
+            platform=Platform.SMS,
+            user_id=payload.get("From", "unknown"),
+            content=payload.get("Body", ""),
+            content_type="text",
+            metadata={
+                "to": payload.get("To"),
+                "num_media": payload.get("NumMedia", "0"),
+            }
+        )
+        return inbound

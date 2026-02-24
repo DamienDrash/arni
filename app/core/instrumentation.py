@@ -5,8 +5,11 @@ Exposes Prometheus metrics at /metrics.
 """
 
 import time
+import logging
+import sys
 from typing import Callable
 
+import structlog
 from fastapi import FastAPI, Request, Response
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
@@ -15,29 +18,29 @@ from prometheus_client import (
     generate_latest,
 )
 
-# --- Metrics Definition ---
+from app.integrations.pii_filter import filter_log_record
 
-REQUEST_COUNT = Counter(
-    "http_requests_total",
-    "Total HTTP requests",
-    ["method", "endpoint", "status"],
-)
-
-REQUEST_LATENCY = Histogram(
-    "http_request_duration_seconds",
-    "HTTP request latency",
-    ["method", "endpoint"],
-)
-
-SWARM_MESSAGE_COUNT = Counter(
-    "swarm_messages_total",
-    "Total Swarm messages processed",
-    ["agent", "status"],
-)
-
+def setup_logging():
+    """Configure structlog with PII masking (Gold Standard)."""
+    structlog.configure(
+        processors=[
+            structlog.contextvars.merge_contextvars,
+            structlog.processors.add_log_level,
+            structlog.processors.StackInfoRenderer(),
+            structlog.dev.set_exc_info,
+            structlog.processors.TimeStamper(fmt="iso"),
+            filter_log_record, # PII MASKING (PR 2)
+            structlog.processors.JSONRenderer(),
+        ],
+        wrapper_class=structlog.make_filtering_bound_logger(logging.NOTSET),
+        context_class=dict,
+        logger_factory=structlog.PrintLoggerFactory(),
+        cache_logger_on_first_use=True,
+    )
 
 def setup_instrumentation(app: FastAPI) -> None:
     """Attach instrumentation middleware and /metrics endpoint."""
+    setup_logging()
 
     @app.middleware("http")
     async def metrics_middleware(request: Request, call_next: Callable) -> Response:

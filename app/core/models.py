@@ -146,12 +146,54 @@ class StudioMember(Base):
     recent_bookings = Column(Text, nullable=True)  # JSON: [{type, title, start, status}, …]
     enriched_at = Column(DateTime, nullable=True)
 
+    # --- Multi-Source Extensions (PR 2) ---
+    source = Column(String, default="manual", nullable=False)  # manual, magicline, shopify, etc.
+    source_id = Column(String, nullable=True)                  # External ID in source system
+    tags = Column(Text, nullable=True)                         # JSON list: ["vip", "new"]
+    custom_fields = Column(Text, nullable=True)                # JSON dict: {"Schuhgröße": "42"}
+    notes = Column(Text, nullable=True)
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+
+
+class MemberCustomColumn(Base):
+    """Dynamic custom columns for member table (PR 2)."""
+    __tablename__ = "member_custom_columns"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, index=True, nullable=False)
+    name = Column(String, nullable=False)        # Display name "Schuhgröße"
+    slug = Column(String, nullable=False)        # "schuhgroesse"
+    field_type = Column(String, nullable=False)  # text, number, date, boolean
+    options = Column(Text, nullable=True)        # JSON array for dropdowns
+    position = Column(Integer, default=0)
+    is_visible = Column(Boolean, default=True)
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "slug", name="uq_member_column_slug"),
+    )
+
+
+class MemberImportLog(Base):
+    """Log of bulk import/sync operations (PR 2)."""
+    __tablename__ = "member_import_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, index=True, nullable=False)
+    source = Column(String, nullable=False)      # csv, shopify, magicline
+    status = Column(String, nullable=False)      # running, completed, failed
+    total_rows = Column(Integer, default=0)
+    imported = Column(Integer, default=0)
+    updated = Column(Integer, default=0)
+    skipped = Column(Integer, default=0)
+    errors = Column(Integer, default=0)
+    error_log = Column(Text, nullable=True)      # JSON details
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 # ─── Billing Models (S4.1) ───────────────────────────────────────────────────
@@ -171,6 +213,9 @@ class Plan(Base):
     max_members = Column(Integer, nullable=True)
     max_monthly_messages = Column(Integer, nullable=True)
     max_channels = Column(Integer, nullable=False, default=1)
+    max_connectors = Column(Integer, nullable=False, default=0)
+    ai_tier = Column(String, nullable=False, default="basic")  # basic, standard, premium, unlimited
+    monthly_tokens = Column(Integer, nullable=False, default=100000)
 
     # Channel toggles
     whatsapp_enabled = Column(Boolean, nullable=False, default=True)
@@ -178,12 +223,45 @@ class Plan(Base):
     sms_enabled = Column(Boolean, nullable=False, default=False)
     email_channel_enabled = Column(Boolean, nullable=False, default=False)
     voice_enabled = Column(Boolean, nullable=False, default=False)
+    instagram_enabled = Column(Boolean, nullable=False, default=False)
+    facebook_enabled = Column(Boolean, nullable=False, default=False)
+    google_business_enabled = Column(Boolean, nullable=False, default=False)
 
     # Feature toggles
     memory_analyzer_enabled = Column(Boolean, nullable=False, default=False)
     custom_prompts_enabled = Column(Boolean, nullable=False, default=False)
+    advanced_analytics_enabled = Column(Boolean, nullable=False, default=False)
+    branding_enabled = Column(Boolean, nullable=False, default=False)
+    audit_log_enabled = Column(Boolean, nullable=False, default=False)
+    automation_enabled = Column(Boolean, nullable=False, default=False)
+    api_access_enabled = Column(Boolean, nullable=False, default=False)
+    multi_source_members_enabled = Column(Boolean, nullable=False, default=False)
+    churn_prediction_enabled = Column(Boolean, nullable=False, default=False)
+    vision_ai_enabled = Column(Boolean, nullable=False, default=False)
+    white_label_enabled = Column(Boolean, nullable=False, default=False)
+    sla_guarantee_enabled = Column(Boolean, nullable=False, default=False)
+    on_premise_enabled = Column(Boolean, nullable=False, default=False)
+
+    # Overage Pricing (in cents)
+    overage_conversation_cents = Column(Integer, default=5)
+    overage_user_cents = Column(Integer, default=1500)
+    overage_connector_cents = Column(Integer, default=4900)
+    overage_channel_cents = Column(Integer, default=2900)
 
     is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class TenantAddon(Base):
+    """Active add-ons for a tenant (e.g., extra channel, white-label)."""
+    __tablename__ = "tenant_addons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    addon_slug = Column(String, nullable=False)  # "voice_pipeline", "churn_prediction"
+    stripe_subscription_item_id = Column(String, nullable=True)
+    quantity = Column(Integer, default=1)
+    status = Column(String, default="active")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 

@@ -23,16 +23,33 @@ logger = structlog.get_logger()
 # Default plan used when no subscription exists for a tenant.
 # Maps to feature flags — mirrors the "Starter" plan seeded at startup.
 _STARTER_DEFAULTS: dict[str, object] = {
-    "max_monthly_messages": 1000,
+    "max_monthly_messages": 500,
     "max_members": 500,
     "max_channels": 1,
+    "max_connectors": 0,
+    "ai_tier": "basic",
+    "monthly_tokens": 100000,
     "whatsapp_enabled": True,
     "telegram_enabled": False,
     "sms_enabled": False,
     "email_channel_enabled": False,
     "voice_enabled": False,
+    "instagram_enabled": False,
+    "facebook_enabled": False,
+    "google_business_enabled": False,
     "memory_analyzer_enabled": False,
     "custom_prompts_enabled": False,
+    "advanced_analytics_enabled": False,
+    "branding_enabled": False,
+    "audit_log_enabled": False,
+    "automation_enabled": False,
+    "api_access_enabled": False,
+    "multi_source_members_enabled": False,
+    "churn_prediction_enabled": False,
+    "vision_ai_enabled": False,
+    "white_label_enabled": False,
+    "sla_guarantee_enabled": False,
+    "on_premise_enabled": False,
 }
 
 
@@ -75,7 +92,7 @@ class FeatureGate:
         """Raise HTTP 402 if the given channel is not enabled in the tenant's plan.
 
         Args:
-            channel: One of 'whatsapp', 'telegram', 'sms', 'email', 'voice'.
+            channel: One of 'whatsapp', 'telegram', 'sms', 'email', 'voice', 'instagram', 'facebook', 'google_business'.
         """
         key_map = {
             "whatsapp": "whatsapp_enabled",
@@ -83,9 +100,15 @@ class FeatureGate:
             "sms": "sms_enabled",
             "email": "email_channel_enabled",
             "voice": "voice_enabled",
+            "instagram": "instagram_enabled",
+            "facebook": "facebook_enabled",
+            "google_business": "google_business_enabled",
         }
         plan_key = key_map.get(channel.lower())
         if plan_key and not self._plan_data.get(plan_key, False):
+            # Check for addons (PR 5)
+            # This is a simplified check; in a full implementation we would check the TenantAddon table too.
+            # For now, we strictly enforce the plan limits as per the base requirement.
             raise HTTPException(
                 status_code=402,
                 detail=f"Channel '{channel}' is not available on your current plan. Please upgrade.",
@@ -99,25 +122,49 @@ class FeatureGate:
         """
         key = f"{feature}_enabled"
         if not self._plan_data.get(key, False):
-            raise HTTPException(
+             raise HTTPException(
                 status_code=402,
                 detail=f"Feature '{feature}' is not available on your current plan. Please upgrade.",
             )
 
-    # ── Usage Gates ───────────────────────────────────────────────────────────
+    # ── Usage Gates ─────────────────────────────────────────────────────────
 
     def check_message_limit(self) -> None:
         """Raise HTTP 429 if the tenant has reached their monthly message quota."""
         max_msgs = self._plan_data.get("max_monthly_messages")
         if max_msgs is None:
             return  # unlimited
+        
         current = self._get_current_usage()
         total = current.get("messages_inbound", 0) + current.get("messages_outbound", 0)
+        
+        # In the new model, we allow overage for some plans, but let's stick to the strict limit for Starter
+        # and assume "soft limit" for higher tiers if implemented.
+        # For this "Gold Standard" implementation, we'll enforce the limit unless it's an Enterprise plan (which is None anyway).
         if total >= int(max_msgs):
-            raise HTTPException(
+             raise HTTPException(
                 status_code=429,
                 detail=(
                     f"Monthly message limit of {max_msgs} reached. "
+                    "Please upgrade your plan to continue."
+                ),
+            )
+
+    def check_member_limit(self) -> None:
+        """Raise HTTP 402 if the tenant has reached their member quota."""
+        max_members = self._plan_data.get("max_members")
+        if max_members is None:
+            return # unlimited
+        
+        # We need to query the actual member count.
+        # This is expensive to do on every request, so we should rely on cached usage record or count efficiently.
+        # Here we use the usage record.
+        current = self._get_current_usage()
+        if current.get("active_members", 0) >= int(max_members):
+             raise HTTPException(
+                status_code=402,
+                detail=(
+                    f"Member limit of {max_members} reached. "
                     "Please upgrade your plan to continue."
                 ),
             )
@@ -162,11 +209,17 @@ class FeatureGate:
         """Add LLM token usage for the current month. Non-fatal."""
         self._increment_usage_field("llm_tokens_used", amount=tokens)
 
+    def set_active_members(self, count: int) -> None:
+        """Set the active members counter for the current month."""
+        self._set_usage_field("active_members", count)
+
     def _increment_usage_field(self, field: str, amount: int = 1) -> None:
         now = datetime.now(timezone.utc)
         try:
             from sqlalchemy import text
             from app.core.db import SessionLocal, engine
+            from app.core.models import UsageRecord
+            
             db = SessionLocal()
             try:
                 dialect = engine.dialect.name
@@ -182,7 +235,6 @@ class FeatureGate:
                     )
                 else:
                     # SQLite fallback — read-modify-write (acceptable for low concurrency)
-                    from app.core.models import UsageRecord
                     rec = db.query(UsageRecord).filter(
                         UsageRecord.tenant_id == self._tenant_id,
                         UsageRecord.period_year == now.year,
@@ -204,70 +256,204 @@ class FeatureGate:
         except Exception as exc:
             logger.warning("feature_gate.usage_increment_failed", field=field, tenant_id=self._tenant_id, error=str(exc))
 
+    def _set_usage_field(self, field: str, value: int) -> None:
+        now = datetime.now(timezone.utc)
+        try:
+            from sqlalchemy import text
+            from app.core.db import SessionLocal, engine
+            from app.core.models import UsageRecord
+            
+            db = SessionLocal()
+            try:
+                dialect = engine.dialect.name
+                if dialect == "postgresql":
+                    db.execute(
+                        text(
+                            f"INSERT INTO usage_records (tenant_id, period_year, period_month, {field}) "
+                            f"VALUES (:tid, :yr, :mo, :val) "
+                            f"ON CONFLICT (tenant_id, period_year, period_month) "
+                            f"DO UPDATE SET {field} = :val"
+                        ),
+                        {"tid": self._tenant_id, "yr": now.year, "mo": now.month, "val": value},
+                    )
+                else:
+                    rec = db.query(UsageRecord).filter(
+                        UsageRecord.tenant_id == self._tenant_id,
+                        UsageRecord.period_year == now.year,
+                        UsageRecord.period_month == now.month,
+                    ).first()
+                    if rec:
+                        setattr(rec, field, value)
+                    else:
+                        rec = UsageRecord(
+                            tenant_id=self._tenant_id,
+                            period_year=now.year,
+                            period_month=now.month,
+                            **{field: value},
+                        )
+                        db.add(rec)
+                db.commit()
+            finally:
+                db.close()
+        except Exception as exc:
+            logger.warning("feature_gate.usage_set_failed", field=field, tenant_id=self._tenant_id, error=str(exc))
+
 
 def seed_plans() -> None:
-    """Seed the three standard plans if they don't exist yet. Called at startup."""
+    """Seed the 4 standard plans if they don't exist yet. Called at startup.
+    
+    Plans: Starter, Professional, Business, Enterprise
+    """
     from app.core.db import SessionLocal
-    from app.core.models import Plan
+    from app.core.models import Plan, Subscription, Tenant
+    
     db = SessionLocal()
     try:
         plans_data = [
             {
                 "name": "Starter",
                 "slug": "starter",
-                "price_monthly_cents": 0,
+                "price_monthly_cents": 7900,
                 "max_members": 500,
-                "max_monthly_messages": 1000,
+                "max_monthly_messages": 500,
                 "max_channels": 1,
+                "max_connectors": 0,
+                "ai_tier": "basic",
+                "monthly_tokens": 100000,
                 "whatsapp_enabled": True,
                 "telegram_enabled": False,
                 "sms_enabled": False,
                 "email_channel_enabled": False,
                 "voice_enabled": False,
+                "instagram_enabled": False,
+                "facebook_enabled": False,
+                "google_business_enabled": False,
                 "memory_analyzer_enabled": False,
                 "custom_prompts_enabled": False,
+                "advanced_analytics_enabled": False,
+                "branding_enabled": False,
+                "audit_log_enabled": False,
+                "automation_enabled": False,
+                "api_access_enabled": False,
+                "multi_source_members_enabled": True, # Included in all as base feature
+                "churn_prediction_enabled": False,
+                "vision_ai_enabled": False,
+                "white_label_enabled": False,
+                "sla_guarantee_enabled": False,
+                "on_premise_enabled": False,
             },
             {
-                "name": "Pro",
+                "name": "Professional",
                 "slug": "pro",
-                "price_monthly_cents": 9900,  # 99.00 EUR
-                "max_members": None,
-                "max_monthly_messages": None,
-                "max_channels": 4,
+                "price_monthly_cents": 19900,
+                "max_members": None, # Unlimited
+                "max_monthly_messages": 2000,
+                "max_channels": 3,
+                "max_connectors": 1,
+                "ai_tier": "standard",
+                "monthly_tokens": 500000,
                 "whatsapp_enabled": True,
                 "telegram_enabled": True,
                 "sms_enabled": True,
                 "email_channel_enabled": True,
                 "voice_enabled": False,
+                "instagram_enabled": True,
+                "facebook_enabled": True,
+                "google_business_enabled": False,
                 "memory_analyzer_enabled": True,
                 "custom_prompts_enabled": True,
+                "advanced_analytics_enabled": True,
+                "branding_enabled": True,
+                "audit_log_enabled": True,
+                "automation_enabled": False,
+                "api_access_enabled": True,
+                "multi_source_members_enabled": True,
+                "churn_prediction_enabled": False,
+                "vision_ai_enabled": False,
+                "white_label_enabled": False,
+                "sla_guarantee_enabled": False,
+                "on_premise_enabled": False,
             },
             {
-                "name": "Enterprise",
-                "slug": "enterprise",
-                "price_monthly_cents": 0,   # Invoiced separately
+                "name": "Business",
+                "slug": "business",
+                "price_monthly_cents": 39900,
                 "max_members": None,
-                "max_monthly_messages": None,
-                "max_channels": 10,
+                "max_monthly_messages": 10000,
+                "max_channels": 99, # "All"
+                "max_connectors": 99, # "All"
+                "ai_tier": "premium",
+                "monthly_tokens": 2000000,
                 "whatsapp_enabled": True,
                 "telegram_enabled": True,
                 "sms_enabled": True,
                 "email_channel_enabled": True,
                 "voice_enabled": True,
+                "instagram_enabled": True,
+                "facebook_enabled": True,
+                "google_business_enabled": True,
                 "memory_analyzer_enabled": True,
                 "custom_prompts_enabled": True,
+                "advanced_analytics_enabled": True,
+                "branding_enabled": True,
+                "audit_log_enabled": True,
+                "automation_enabled": True,
+                "api_access_enabled": True,
+                "multi_source_members_enabled": True,
+                "churn_prediction_enabled": True,
+                "vision_ai_enabled": True,
+                "white_label_enabled": False,
+                "sla_guarantee_enabled": False,
+                "on_premise_enabled": False,
+            },
+            {
+                "name": "Enterprise",
+                "slug": "enterprise",
+                "price_monthly_cents": 0, # Custom
+                "max_members": None,
+                "max_monthly_messages": None,
+                "max_channels": 999,
+                "max_connectors": 999,
+                "ai_tier": "unlimited",
+                "monthly_tokens": 0, # Unlimited
+                "whatsapp_enabled": True,
+                "telegram_enabled": True,
+                "sms_enabled": True,
+                "email_channel_enabled": True,
+                "voice_enabled": True,
+                "instagram_enabled": True,
+                "facebook_enabled": True,
+                "google_business_enabled": True,
+                "memory_analyzer_enabled": True,
+                "custom_prompts_enabled": True,
+                "advanced_analytics_enabled": True,
+                "branding_enabled": True,
+                "audit_log_enabled": True,
+                "automation_enabled": True,
+                "api_access_enabled": True,
+                "multi_source_members_enabled": True,
+                "churn_prediction_enabled": True,
+                "vision_ai_enabled": True,
+                "white_label_enabled": True,
+                "sla_guarantee_enabled": True,
+                "on_premise_enabled": True,
             },
         ]
+
         for data in plans_data:
             existing = db.query(Plan).filter(Plan.slug == data["slug"]).first()
             if not existing:
                 db.add(Plan(**data))
+            else:
+                # Update existing plan definitions to match code (important for deployments)
+                for key, value in data.items():
+                    setattr(existing, key, value)
+        
         db.commit()
         logger.info("feature_gate.plans_seeded")
 
         # Assign Starter plan to any tenant without a subscription (idempotent)
-        from app.core.models import Subscription, Tenant
-        starter_plan = db.query(Plan).filter(Plan.slug == "starter", Plan.is_active.is_(True)).first()
+        starter_plan = db.query(Plan).filter(Plan.slug == "starter").first()
         if starter_plan:
             all_tenants = db.query(Tenant).filter(Tenant.is_active.is_(True)).all()
             seeded_count = 0

@@ -482,3 +482,43 @@ async def webhook_telegram_tenant(
     asyncio.create_task(save_inbound_to_db(inbound))
     asyncio.create_task(process_and_reply(inbound))
     return {"status": "ok"}
+
+@router.post("/webhook/email/{tenant_slug}")
+async def webhook_email_tenant(
+    tenant_slug: str,
+    payload: dict[str, Any]
+) -> dict[str, str]:
+    tenant_id = _resolve_tenant_id_by_slug(tenant_slug)
+    if tenant_id is None:
+        raise HTTPException(status_code=404, detail="Unknown tenant")
+    
+    from app.integrations.normalizer import MessageNormalizer
+    norm = MessageNormalizer().normalize_email(payload)
+    norm.tenant_id = tenant_id
+    
+    asyncio.create_task(save_inbound_to_db(norm))
+    asyncio.create_task(process_and_reply(norm))
+    return {"status": "ok"}
+
+@router.post("/webhook/sms/{tenant_slug}")
+async def webhook_sms_tenant(
+    tenant_slug: str,
+    request: Request
+) -> Response:
+    tenant_id = _resolve_tenant_id_by_slug(tenant_slug)
+    if tenant_id is None:
+        raise HTTPException(status_code=404, detail="Unknown tenant")
+    
+    # Twilio sends form data
+    form_data = await request.form()
+    data_dict = dict(form_data)
+    
+    from app.integrations.normalizer import MessageNormalizer
+    norm = MessageNormalizer().normalize_sms(data_dict)
+    norm.tenant_id = tenant_id
+    
+    asyncio.create_task(save_inbound_to_db(norm))
+    asyncio.create_task(process_and_reply(norm))
+    
+    # Twilio expects TwiML response
+    return Response(content="<Response></Response>", media_type="text/xml")

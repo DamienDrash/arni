@@ -27,9 +27,10 @@ import type { ElementType } from "react";
 import { apiFetch } from "@/lib/api";
 import { clearSession, getStoredUser } from "@/lib/auth";
 import { isPathAllowedForRole } from "@/lib/rbac";
+import { usePermissions } from "@/lib/permissions";
 import styles from "./Sidebar.module.css";
 
-type NavItem = { name: string; href: string; icon: ElementType; badge?: string };
+type NavItem = { name: string; href: string; icon: ElementType; badge?: string; feature?: string };
 
 const tenantSections: Array<{ title: string; items: NavItem[] }> = [
   {
@@ -38,13 +39,13 @@ const tenantSections: Array<{ title: string; items: NavItem[] }> = [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Live Monitor", href: "/live", icon: Activity },
       { name: "Eskalationen", href: "/escalations", icon: AlertTriangle },
-      { name: "Analytics", href: "/analytics", icon: BarChart3 },
+      { name: "Analytics", href: "/analytics", icon: BarChart3, feature: "advanced_analytics" },
     ],
   },
   {
     title: "Kunden & Team",
     items: [
-      { name: "Mitglieder", href: "/members", icon: Users },
+      { name: "Mitglieder", href: "/members", icon: Users, feature: "multi_source_members" },
       { name: "Benutzer", href: "/users", icon: Users },
     ],
   },
@@ -52,14 +53,14 @@ const tenantSections: Array<{ title: string; items: NavItem[] }> = [
     title: "Knowledge",
     items: [
       { name: "Wissensbasis", href: "/knowledge", icon: BookOpen },
-      { name: "Member Memory", href: "/member-memory", icon: Brain },
-      { name: "Studio-Prompt", href: "/system-prompt", icon: Bot },
+      { name: "Member Memory", href: "/member-memory", icon: Brain, feature: "memory_analyzer" },
+      { name: "Studio-Prompt", href: "/system-prompt", icon: Bot, feature: "custom_prompts" },
     ],
   },
   {
     title: "Studio",
     items: [
-      { name: "Magicline Sync", href: "/magicline", icon: Database },
+      { name: "Sync", href: "/magicline", icon: Database },
       { name: "Abonnement", href: "/settings/billing", icon: CreditCard },
       { name: "Settings", href: "/settings", icon: Settings },
     ],
@@ -90,8 +91,8 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
   const pathname = usePathname();
   const router = useRouter();
   const [handoffCount, setHandoffCount] = useState(0);
+  const { role, canPage, plan, feature } = usePermissions();
   const user = getStoredUser();
-  const role = user?.role;
   const isSystemAdmin = role === "system_admin";
 
   useEffect(() => {
@@ -117,27 +118,31 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
       ...section,
       items: section.items
         .filter((item) => isPathAllowedForRole(role, item.href))
+        .filter((item) => canPage(item.href))
         .map((item) => ({
           ...item,
           badge: item.href === "/escalations" && handoffCount > 0 ? String(handoffCount) : undefined,
         })),
     })).filter((section) => section.items.length > 0);
-  }, [handoffCount, role, isSystemAdmin]);
+  }, [handoffCount, role, isSystemAdmin, canPage]);
 
   const renderItem = (item: NavItem) => {
     const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
     const Icon = item.icon;
+    const isLocked = item.feature && !feature(item.feature);
+
     return (
       <Link
         key={item.href}
-        href={item.href}
-        className={`${styles.item} ${isActive ? styles.itemActive : ""}`}
+        href={isLocked ? "/settings/billing" : item.href}
+        className={`${styles.item} ${isActive ? styles.itemActive : ""} ${isLocked ? styles.itemLocked : ""}`}
       >
         <Icon size={16} className={`${styles.itemIcon} ${isActive ? styles.itemIconActive : ""}`} />
         <span className={`${styles.itemText} ${isActive ? styles.itemTextActive : ""}`}>
           {item.name}
         </span>
-        {item.badge && (
+        {isLocked && <Zap size={12} className={styles.lockIcon} />}
+        {item.badge && !isLocked && (
           <span className={styles.itemBadge}>{item.badge}</span>
         )}
       </Link>
@@ -162,7 +167,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
             </h1>
           )}
         </div>
-        <p className={styles.brandSub}>{isSystemAdmin ? "Platform Control" : "Studio Deck"}</p>
+        <p className={styles.brandSub}>{isSystemAdmin ? "Platform Control" : `Studio Deck • ${plan?.name || "..."}`}</p>
       </div>
 
       <nav className={styles.nav}>
@@ -185,6 +190,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
                   ]),
             ]
               .filter((q) => isPathAllowedForRole(role, q.href))
+              .filter((q) => canPage(q.href))
               .map((q) => (
               <Link
                 key={q.href}
@@ -214,7 +220,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
             <p className={styles.footerEmail}>
               {user?.email || "Admin"}
             </p>
-            <p className={styles.footerRole}>{isSystemAdmin ? "SYSTEM ADMIN" : (role || "online")}</p>
+            <p className={styles.footerRole}>{isSystemAdmin ? "SYSTEM ADMIN" : (plan?.name?.toUpperCase() || "TENANT ADMIN")}</p>
           </div>
           <button
             onClick={() => {
