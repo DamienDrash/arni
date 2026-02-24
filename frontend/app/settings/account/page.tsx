@@ -9,6 +9,8 @@ import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { apiFetch } from "@/lib/api";
 import { getStoredUser } from "@/lib/auth";
 import { T } from "@/lib/tokens";
+import { useI18n } from "@/lib/i18n/LanguageContext";
+import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 
 type ProfileSettings = {
   id: number;
@@ -44,6 +46,7 @@ const inputStyle: CSSProperties = {
 };
 
 export default function SettingsAccountPage() {
+  const { t, language, setLanguage } = useI18n();
   const role = getStoredUser()?.role;
   const isTenantAdmin = role === "tenant_admin";
   const [profile, setProfile] = useState<ProfileSettings | null>(null);
@@ -205,6 +208,14 @@ export default function SettingsAccountPage() {
                       value={(profile?.compact_mode ?? "false") === "true"}
                       onChange={(v) => setProfile((prev) => (prev ? { ...prev, compact_mode: v ? "true" : "false" } : prev))}
                     />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: "0.03em" }}>{t("settings.language")}</div>
+                  <div style={{ marginTop: 6 }}>
+                    <LanguageSwitcher />
+                    <p style={{ fontSize: 11, color: T.textDim, marginTop: 6 }}>{t("settings.selectLanguage")}</p>
                   </div>
                 </div>
               </div>

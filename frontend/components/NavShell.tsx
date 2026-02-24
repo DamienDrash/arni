@@ -8,38 +8,37 @@ import { getStoredUser, setStoredUser, type AuthUser } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import { isPathAllowedForRole } from "@/lib/rbac";
 import { applyBrandingCSS, type BrandingPrefs } from "@/lib/branding";
+import { useI18n } from "@/lib/i18n/LanguageContext";
 import styles from "./NavShell.module.css";
 
-const pageMeta: Record<string, { title: string; subtitle: string }> = {
-    "/": { title: "ARIIA | AI Living System Agent", subtitle: "Willkommen beim Intelligent Living System." },
-    "/dashboard": { title: "Dashboard | ARIIA Studio Deck", subtitle: "Überblick über Systemstatus, KPIs und Aktivität." },
-    "/features": { title: "Features | Intelligent Operations", subtitle: "Entdecke die Möglichkeiten von ARIIA." },
-    "/pricing": { title: "Pricing | SaaS Pläne", subtitle: "Transparente Pläne für jedes Business." },
-    "/impressum": { title: "Impressum | ARIIA", subtitle: "Rechtliche Informationen." },
-    "/datenschutz": { title: "Datenschutz | ARIIA", subtitle: "Informationen zum Umgang mit deinen Daten." },
-    "/agb": { title: "AGB | ARIIA", subtitle: "Allgemeine Geschäftsbedingungen." },
-    "/live": { title: "Live Monitor | Real-time AI", subtitle: "Echtzeit-Ansicht aktiver Konversationen und Handoffs." },
-    "/escalations": { title: "Eskalationen", subtitle: "Offene menschliche Übergaben und Bearbeitungsstatus." },
-    "/analytics": { title: "Analytics & Performance", subtitle: "Qualität, Trends und Performance über alle Kanäle." },
-    "/members": { title: "Mitgliederverwaltung", subtitle: "Mitgliederdaten, Suche und Enrichment-Status." },
-    "/users": { title: "Benutzerverwaltung", subtitle: "Rollen, Tenant-Zuordnung und Zugriffsverwaltung." },
-    "/tenants": { title: "Tenants | Multi-Studio", subtitle: "Mandantenstruktur, Wachstum und Governance." },
-    "/plans": { title: "Plans & Billing", subtitle: "Produktpläne, Limits und Zahlungsanbieter konfigurieren." },
-    "/knowledge": { title: "Wissensbasis (RAG)", subtitle: "Dokumente verwalten und mit der Suche synchronisieren." },
-    "/member-memory": { title: "Member Memory", subtitle: "Langzeitkontext je Mitglied einsehen und pflegen." },
-    "/system-prompt": { title: "LLM System Prompt", subtitle: "Systemanweisung für den Ops-Agenten zentral steuern." },
-    "/magicline": { title: "Magicline Sync", subtitle: "Datenanbindung, Sync-Läufe und Abdeckung." },
-    "/audit": { title: "Security Audit Log", subtitle: "Nachvollziehbarkeit aller sicherheitsrelevanten Änderungen." },
-    "/settings": { title: "Settings Center", subtitle: "Systemweite Konfiguration, Integrationen und Automation." },
-    "/settings/account": { title: "Settings · Account", subtitle: "Persönliches Profil, Security und Tenant-Präferenzen verwalten." },
-    "/settings/general": { title: "Settings · General", subtitle: "Kernparameter und globale Schalter." },
-    "/settings/integrations": { title: "Settings · Integrationen", subtitle: "Telegram, WhatsApp, Magicline und SMTP zentral steuern." },
-    "/settings/automation": { title: "Settings · Automation", subtitle: "Member-Memory Zeitplan, LLM und Run-Status." },
-    "/login": { title: "Login | ARIIA", subtitle: "" },
-    "/register": { title: "Registrierung | ARIIA", subtitle: "" },
-};
 export default function NavShell({ children }: { children: React.ReactNode }) {
+    const { t } = useI18n();
     const [open, setOpen] = useState(false);
+
+    const pageMeta: Record<string, { title: string; subtitle: string }> = {
+        "/": { title: t("common.welcome"), subtitle: "" },
+        "/dashboard": { title: t("common.dashboard"), subtitle: t("dashboard.overview") },
+        "/live": { title: "Live Monitor | Real-time AI", subtitle: "Echtzeit-Ansicht aktiver Konversationen und Handoffs." },
+        "/escalations": { title: "Eskalationen", subtitle: "Offene menschliche Übergaben und Bearbeitungsstatus." },
+        "/analytics": { title: "Analytics & Performance", subtitle: "Qualität, Trends und Performance über alle Kanäle." },
+        "/members": { title: "Mitgliederverwaltung", subtitle: "Mitgliederdaten, Suche und Enrichment-Status." },
+        "/users": { title: "Benutzerverwaltung", subtitle: "Rollen, Tenant-Zuordnung und Zugriffsverwaltung." },
+        "/tenants": { title: "Tenants | Multi-Studio", subtitle: "Mandantenstruktur, Wachstum und Governance." },
+        "/plans": { title: "Plans & Billing", subtitle: "Produktpläne, Limits und Zahlungsanbieter konfigurieren." },
+        "/knowledge": { title: "Wissensbasis (RAG)", subtitle: "Dokumente verwalten und mit der Suche synchronisieren." },
+        "/member-memory": { title: "Member Memory", subtitle: "Langzeitkontext je Mitglied einsehen und pflegen." },
+        "/system-prompt": { title: "LLM System Prompt", subtitle: "Systemanweisung für den Ops-Agenten zentral steuern." },
+        "/magicline": { title: "Magicline Sync", subtitle: "Datenanbindung, Sync-Läufe und Abdeckung." },
+        "/audit": { title: "Security Audit Log", subtitle: "Nachvollziehbarkeit aller sicherheitsrelevanten Änderungen." },
+        "/settings": { title: t("common.settings"), subtitle: "Systemweite Konfiguration, Integrationen und Automation." },
+        "/settings/account": { title: "Settings · Account", subtitle: "Persönliches Profil, Security und Tenant-Präferenzen verwalten." },
+        "/settings/general": { title: "Settings · General", subtitle: "Kernparameter und globale Schalter." },
+        "/settings/integrations": { title: "Settings · Integrationen", subtitle: "Telegram, WhatsApp, Magicline und SMTP zentral steuern." },
+        "/settings/automation": { title: "Settings · Automation", subtitle: "Member-Memory Zeitplan, LLM und Run-Status." },
+        "/login": { title: "Login | ARIIA", subtitle: "" },
+        "/register": { title: "Registrierung | ARIIA", subtitle: "" },
+    };
+
     const [authReady, setAuthReady] = useState(false);
     const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
     const [branding, setBranding] = useState<Partial<BrandingPrefs> | null>(null);
@@ -51,7 +50,7 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
     const isPublicLanding = pathname === "/features" || pathname === "/pricing" || pathname === "/impressum" || pathname === "/datenschutz" || pathname === "/agb";
     const isPublicRoute = isRoot || isAuthRoute || isPublicLanding;
 
-    const meta =
+    const currentMeta =
         pageMeta[pathname || ""] ||
         Object.entries(pageMeta)
             .filter(([route]) => route !== "/" && pathname?.startsWith(`${route}/`))
@@ -234,8 +233,8 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
                     </div>
                 )}
                 <div className={styles.pageHead}>
-                    <h1 className={styles.pageTitle}>{meta.title}</h1>
-                    <p className={styles.pageSubtitle}>{meta.subtitle}</p>
+                    <h1 className={styles.pageTitle}>{currentMeta.title}</h1>
+                    <p className={styles.pageSubtitle}>{currentMeta.subtitle}</p>
                 </div>
                 {children}
             </main>

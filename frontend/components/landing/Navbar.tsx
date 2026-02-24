@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import AriiaLogo from "./AriiaLogo";
+import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -72,6 +73,7 @@ export default function Navbar() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-3">
+            <LanguageSwitcher />
             <Link href="/login">
               <Button variant="ghost" className="text-sm font-medium transition-colors"
                 style={{ color: "oklch(0.75 0.01 270)" }}>
@@ -86,13 +88,16 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Toggle */}
-          <button
-            className="md:hidden p-2 rounded-lg transition-colors"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            style={{ color: "oklch(0.88 0.01 270)" }}
-          >
-            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
+          <div className="md:hidden flex items-center gap-2">
+            <LanguageSwitcher />
+            <button
+              className="p-2 rounded-lg transition-colors"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              style={{ color: "oklch(0.88 0.01 270)" }}
+            >
+              {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
+          </div>
         </div>
       </motion.div>
 

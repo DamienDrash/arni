@@ -1,0 +1,44 @@
+{
+  "common": {
+    "login": "Anmelden",
+    "register": "Registrieren",
+    "getStarted": "Kostenlos starten",
+    "features": "Features",
+    "pricing": "Preise",
+    "dashboard": "Dashboard",
+    "logout": "Abmelden",
+    "settings": "Einstellungen",
+    "allSystemsOnline": "Alle Systeme online",
+    "welcome": "Willkommen beim Intelligent Living System.",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "loading": "Lädt..."
+  },
+  "hero": {
+    "title": "Dein KI-Assistent für",
+    "words": ["intelligente", "persönliche", "automatisierte", "skalierbare"],
+    "subtitle": "Kundenkommunikation",
+    "description": "ARIIA beantwortet Kundenanfragen über WhatsApp, Telegram und Voice – rund um die Uhr, persönlich und intelligent. Für Fitness Studios, Personal Trainer und KMUs.",
+    "cta": "14 Tage kostenlos testen"
+  },
+  "dashboard": {
+    "overview": "Überblick über Systemstatus, KPIs und Aktivität.",
+    "tickets24h": "Tickets (24h)",
+    "aiResolution": "KI-Auflösungsrate",
+    "responseTime": "Antwortzeit",
+    "agentsInSwarm": "KI-Agenten im Swarm",
+    "availability": "Verfügbarkeit",
+    "confidence": "Ø Confidence",
+    "tickets30d": "Tickets (30d)",
+    "latestTickets": "Letzte Tickets",
+    "recentConversations": "Kürzliche Konversationen"
+  },
+  "settings": {
+    "account": "Konto",
+    "general": "Allgemein",
+    "integrations": "Integrationen",
+    "automation": "Automatisierung",
+    "language": "Sprache",
+    "selectLanguage": "Wähle deine bevorzugte Sprache"
+  }
+}

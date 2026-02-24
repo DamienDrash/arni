@@ -94,6 +94,7 @@ class UserAccount(Base):
     full_name = Column(String, nullable=True)
     role = Column(String, default="tenant_user", nullable=False)  # system_admin|tenant_admin|tenant_user
     password_hash = Column(String, nullable=False)
+    language = Column(String, default="en", nullable=False)  # de|en|bg
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(

@@ -46,6 +46,10 @@ GLOBAL_SYSTEM_SETTING_KEYS = {
     "platform_langfuse_secret_key",
     "platform_langfuse_host",
     
+    # Language Governance
+    "platform_available_languages", # JSON list: ["de", "en", "bg"]
+    "platform_default_language",   # "en"
+    
     # Billing Governance
     "billing_plans_json",
     "billing_stripe_enabled",
@@ -180,6 +184,8 @@ class PersistenceService:
             ]), "Inventory of AI providers."),
             ("platform_pii_masking_enabled", "true", "Global PII masking."),
             ("platform_data_retention_days", "90", "Message retention in days."),
+            ("platform_available_languages", json.dumps(["de", "en", "bg"]), "List of supported UI languages."),
+            ("platform_default_language", "en", "System fallback language."),
         ]
         with self._lock:
             for key, value, desc in platform_defaults:

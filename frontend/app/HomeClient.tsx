@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getStoredUser } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/LanguageContext";
 import { motion, useInView, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import Navbar from "@/components/landing/Navbar";
@@ -121,10 +122,10 @@ const features = [
 ];
 
 const stats = [
-  { value: "98,7", suffix: "%", label: "KI-Auflösungsrate", icon: TrendingUp },
-  { value: "< 2s", suffix: "", label: "Antwortzeit", icon: Zap },
-  { value: "5", suffix: "", label: "KI-Agenten im Swarm", icon: Brain },
-  { value: "24/7", suffix: "", label: "Verfügbarkeit", icon: Globe },
+  { value: "98,7", suffix: "%", label: "aiResolution", icon: TrendingUp },
+  { value: "< 2s", suffix: "", label: "responseTime", icon: Zap },
+  { value: "5", suffix: "", label: "agentsInSwarm", icon: Brain },
+  { value: "24/7", suffix: "", label: "availability", icon: Globe },
 ];
 
 const workflowSteps = [
@@ -144,6 +145,7 @@ const logos = [
 
 export default function HomeClient() {
   const router = useRouter();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (getStoredUser()) {
@@ -218,9 +220,9 @@ export default function HomeClient() {
                 className="text-4xl sm:text-5xl lg:text-[3.5rem] xl:text-6xl font-bold leading-[1.06] tracking-tight mb-7"
                 style={{ color: "oklch(0.97 0.005 270)" }}
               >
-                Dein KI-Assistent für{" "}
-                <TypingWords words={["intelligente", "persönliche", "automatisierte", "skalierbare"]} />{" "}
-                Kundenkommunikation
+                {t("hero.title")}{" "}
+                <TypingWords words={t("hero.words") as any} />{" "}
+                {t("hero.subtitle")}
               </motion.h1>
 
               <motion.p
@@ -230,7 +232,7 @@ export default function HomeClient() {
                 className="text-lg lg:text-xl leading-relaxed mb-9 max-w-xl"
                 style={{ color: "oklch(0.65 0.015 270)" }}
               >
-                ARIIA beantwortet Kundenanfragen über WhatsApp, Telegram und Voice – rund um die Uhr, persönlich und intelligent. Für Fitness Studios, Personal Trainer und KMUs.
+                {t("hero.description")}
               </motion.p>
 
               <motion.div
@@ -241,7 +243,7 @@ export default function HomeClient() {
               >
                 <Link href="/register">
                   <Button className="text-base px-8 py-3.5 rounded-lg h-auto group" style={{ backgroundColor: "oklch(0.62 0.22 292)", color: "white" }}>
-                    14 Tage kostenlos testen
+                    {t("hero.cta")}
                     <motion.span className="ml-2 inline-block" animate={{ x: [0, 4, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
                       <ArrowRight size={16} />
                     </motion.span>
@@ -382,7 +384,7 @@ export default function HomeClient() {
                 <div className="text-3xl lg:text-4xl font-bold tracking-tight mb-1" style={{ color: "oklch(0.97 0.005 270)" }}>
                   <Counter value={s.value} suffix={s.suffix} />
                 </div>
-                <div className="text-sm" style={{ color: "oklch(0.55 0.015 270)" }}>{s.label}</div>
+                <div className="text-sm" style={{ color: "oklch(0.55 0.015 270)" }}>{t("dashboard." + s.label)}</div>
               </motion.div>
             ))}
           </div>
