@@ -1,31 +1,34 @@
-# ARIIA v1.4 – Aktueller Status
+# ARIIA v1.4 – Project Titan (Gold Standard)
 
-> **Letzte Aktualisierung:** 2026-02-14T01:40:00+01:00
-> **VPS:** `185.209.228.251` | **Gateway:** Port 8000 | **Redis:** Port 6379
+> **Status:** 🟢 Live & Stable
+> **Architecture:** Orchestrator-Worker (Arnold Prime)
+> **Memory:** Infinite Context (Librarian) + Vector-based Semantic Facts
 
 ---
 
-## Status: 🟢 Sprint 2 – Abgeschlossen ✅
+## 🚀 Project Titan: Achievements
 
-### Sprint 2 – Swarm Intelligence
+### 1. Orchestrator Architecture ("Arnold Prime")
+- **Central Intelligence:** The `MasterAgent` handles all user interactions, maintaining a consistent persona.
+- **Worker Swarm:** `Ops`, `Sales`, `Medic`, and `Vision` act as specialized tools, returning structured data instead of chat.
+- **Parallel Execution:** The Orchestrator can consult multiple specialists in a single turn (Multi-Hop Reasoning).
 
-| Task | Agent | Status |
-|------|-------|--------|
-| 2.1 Base Agent Class | @ARCH | ✅ |
-| 2.2 Swarm Router | @ARCH/@BACKEND | ✅ |
-| 2.3 Intents + Routing Table | @BACKEND | ✅ |
-| 2.4 Agent Ops (Scheduler) | @BACKEND | ✅ |
-| 2.5 Agent Sales (Hunter) | @BACKEND | ✅ |
-| 2.6 Agent Medic (Coach + Disclaimer) | @BACKEND | ✅ |
-| 2.7 Agent Vision (Stub) | @BACKEND | ✅ |
-| 2.8 Persona Handler | @BACKEND | ✅ |
-| 2.9 Ollama Fallback / LLM Client | @BACKEND | ✅ |
-| 2.11–2.13 Tests (35 Swarm Tests) | @QA | ✅ |
+### 2. Intelligent Memory (Gold Standard)
+- **Silent Flush 2.0:** Uses LLM extraction to capture semantic facts (Goals, Injuries, Preferences) instead of regex.
+- **Librarian Service:** Background task that summarizes old sessions into narrative episodes for "Infinite Context".
+- **Robust Retrieval:** 3-Tier fallback (Vector -> ID-Match -> Markdown File) ensures 100% data availability.
 
-### Metriken
-- **Tests:** 68/68 passed ✅ (34 Sprint 1 + 34 Sprint 2)
-- **Coverage:** 77% global | Router 91% | Agents 79–93%
-- **Warnings:** 0
+### 3. Empathy & Retention
+- **De-Escalation Protocol:** The Sales agent prioritizes emotional validation over data collection during complaints.
+- **Loyalty Bridge:** The Persona agent actively uses long-term memory (e.g., Marathon goal) to motivate users during frustration.
 
-### Nächster Schritt
-🚀 **Sprint 3:** Communication Layer (WhatsApp, Telegram, Message Normalization)
+### 4. Enterprise Security & Stability
+- **PII Shield:** Automatic masking of sensitive data (Phone, Email, IBAN) in the persistence layer.
+- **Anti-Loop:** Agents detect and break redundant tool-call loops.
+- **Tenant Isolation:** Strict data separation for Knowledge Base and Member Memory.
+
+---
+
+## Next Steps (Roadmap)
+- **Sprint 3:** Communication Layer Polish (WhatsApp/Telegram normalization).
+- **Sprint 4:** Advanced Vision features (Gym occupancy analysis).

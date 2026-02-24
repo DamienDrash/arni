@@ -42,7 +42,7 @@ WORKERS:
 PROTOKOLL:
 1. ANALYSIERE den User-Input.
 2. PLANUNG: Entscheide, welche Worker du brauchst. Du kannst mehrere nacheinander aufrufen.
-3. TOOL-CALL: Rufe Worker mit 'TOOL: worker_name("query")' auf.
+3. TOOL-CALL: Rufe Worker mit 'TOOL: worker_name("query")' auf. Du kannst mehrere Tools in eine Antwort schreiben!
 4. SYNTHESE: Erhalte die Daten der Worker und erstelle eine finale, motivierende Antwort im Arnold-Style.
 
 WICHTIG:
@@ -76,53 +76,47 @@ class MasterAgent(BaseAgent):
         """The Orchestration Loop (Thought -> Action -> Observation -> Final)."""
         logger.info("master.orchestration.started", message_id=message.message_id)
         
-        # 1. Prepare context (Short-term + Long-term)
-        # We inject the current Gold Standard logic for memory and context here
-        
-        # 2. Start the Loop
         messages = [
             {"role": "system", "content": MASTER_SYSTEM_PROMPT},
             {"role": "user", "content": message.content}
         ]
         
-        max_turns = 3
+        max_turns = 5
         for turn in range(max_turns):
             response = await self._chat_with_messages(messages, tenant_id=message.tenant_id)
             if not response:
                 return AgentResponse(content="Hoppla, mein Team braucht gerade etwas länger. Versuchs gleich nochmal!", confidence=0.5)
 
-            # Check for Worker Tool Call
-            tool_call = self._parse_tool_call(response)
-            if not tool_call:
+            # Check for Worker Tool Calls (Parallel support)
+            tool_calls = self._parse_multiple_tool_calls(response)
+            if not tool_calls:
                 # Final synthesis reached
                 return AgentResponse(content=response, confidence=1.0)
             
-            worker_name, worker_query = tool_call
-            logger.info("master.worker_call", worker=worker_name, query=worker_query, turn=turn+1)
-            
-            # Execute Worker
-            if worker_name in self._workers:
-                worker = self._workers[worker_name]
-                # We wrap the user message but change the content to the master's query
-                worker_msg = InboundMessage(
-                    **message.model_dump(exclude={"content"}),
-                    content=worker_query
-                )
-                worker_res = await worker.handle(worker_msg)
-                observation = worker_res.content
-            else:
-                observation = f"Error: Worker '{worker_name}' not found."
+            observations = []
+            for worker_name, worker_query in tool_calls:
+                logger.info("master.worker_call", worker=worker_name, query=worker_query, turn=turn+1)
+                
+                # Execute Worker
+                if worker_name in self._workers:
+                    worker = self._workers[worker_name]
+                    worker_msg = InboundMessage(
+                        **message.model_dump(exclude={"content"}),
+                        content=worker_query
+                    )
+                    worker_res = await worker.handle(worker_msg)
+                    observations.append(f"OBSERVATION from {worker_name}: {worker_res.content}")
+                else:
+                    observations.append(f"Error: Worker '{worker_name}' not found.")
 
-            # Feed back to Master
+            # Feed all back to Master in one go
             messages.append({"role": "assistant", "content": response})
-            messages.append({"role": "user", "content": f"OBSERVATION from {worker_name}: {observation}"})
+            messages.append({"role": "user", "content": "\n".join(observations)})
 
-        return AgentResponse(content="Ich habe die Infos gesammelt, aber brauche einen Moment zum Sortieren. Frag mich gleich nochmal!", confidence=0.5)
+        return AgentResponse(content="Ich habe viele Infos gesammelt. Kurz gesagt: Wir kümmern uns drum! Frag mich gleich nach den Details.", confidence=0.5)
 
-    def _parse_tool_call(self, response: str) -> tuple[str, str] | None:
+    def _parse_multiple_tool_calls(self, response: str) -> list[tuple[str, str]]:
         import re
-        # Look for TOOL: worker_name("query")
-        match = re.search(r"TOOL:\s*(\w+)\s*\("(.*)"\)", response, re.IGNORECASE)
-        if match:
-            return match.group(1).lower(), match.group(2)
-        return None
+        # Look for all matches of TOOL: worker_name("query")
+        matches = re.findall(r"TOOL:\s*(\w+)\s*\(\"(.*?)\"\)", response, re.IGNORECASE | re.DOTALL)
+        return [(m[0].lower(), m[1]) for m in matches]
