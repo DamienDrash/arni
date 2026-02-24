@@ -1,4 +1,4 @@
-"""ARIIA v1.4 – Hybrid Gateway (Refactored).
+"""ARIIA v2.0 – Hybrid Gateway (Project Titan).
 
 @BACKEND: High-End SaaS Architecture (Phase 1)
 Decoupled entry point. Logic moved to app/gateway/routers/.
@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         logger.warning("ariia.gateway.billing_seed_skipped", error=str(_e))
         
-    logger.info("ariia.gateway.startup", version="1.4.0", env=settings.environment)
+    logger.info("ariia.gateway.startup", version="2.0.0", env=settings.environment)
     
     try:
         await redis_bus.connect()
@@ -90,7 +90,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="ARIIA Gateway",
     description="ARIIA – Multi-Tenant AI Agent Gateway (Refactored)",
-    version="1.4.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -130,7 +130,7 @@ async def health_check() -> dict[str, Any]:
     return {
         "status": "ok" if redis_ok else "degraded",
         "service": "ariia-gateway",
-        "version": "1.4.0",
+        "version": "2.0.0",
         "redis": "connected" if redis_ok else "disconnected",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

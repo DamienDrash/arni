@@ -1,7 +1,7 @@
 # GEMINI.md – ARIIA Project Context & Instructions
 
 ## Project Overview
-**ARIIA (v1.4)** is a multi-tenant SaaS AI agent platform designed for fitness studios (specifically GetImpulse Berlin). It integrates multiple communication channels (WhatsApp, Telegram, SMS, Email, Voice) with a swarm-based AI architecture to handle member interactions, bookings, and studio operations.
+**ARIIA (v2.0)** is a multi-tenant SaaS AI agent platform designed for fitness studios (specifically GetImpulse Berlin). It integrates multiple communication channels (WhatsApp, Telegram, SMS, Email, Voice) with a swarm-based AI architecture to handle member interactions, bookings, and studio operations.
 
 ### Core Technologies
 - **Backend:** Python 3.12, FastAPI, Redis (Pub/Sub & Caching), SQLAlchemy (PostgreSQL/SQLite), Pydantic.

@@ -1,9 +1,9 @@
-# @ARCH: pyproject.toml – ARIIA v1.4 Project Definition
+# @ARCH: pyproject.toml – ARIIA v2.0 Project Definition
 
 [project]
 name = "ariia"
-version = "1.4.0"
-description = "ARIIA – Living System Agent for GetImpulse Berlin"
+version = "2.0.0"
+description = "ARIIA – Multi-Tenant Agentic SaaS Platform (Project Titan)"
 requires-python = ">=3.12"
 license = {text = "Proprietary"}
 

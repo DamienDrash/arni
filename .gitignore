@@ -76,3 +76,7 @@ app/voice/models/*.json
 # ---- Dev artifacts ----
 whatsapp_qr.png
 "; done"
+
+# Local artifacts
+ariia-website.zip
+*.zip

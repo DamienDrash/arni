@@ -7,12 +7,18 @@ type RoleAccess = {
 
 const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
   system_admin: {
-    exact: ["/", "/users", "/tenants", "/system-prompt", "/plans", "/audit", "/settings", "/settings/account"],
+    exact: ["/", "/dashboard", "/features", "/pricing", "/impressum", "/datenschutz", "/agb", "/users", "/tenants", "/system-prompt", "/plans", "/audit", "/settings", "/settings/account"],
     prefixes: ["/users/", "/tenants/", "/plans/", "/audit/", "/settings/", "/settings/account/"],
   },
   tenant_admin: {
     exact: [
       "/",
+      "/dashboard",
+      "/features",
+      "/pricing",
+      "/impressum",
+      "/datenschutz",
+      "/agb",
       "/live",
       "/escalations",
       "/analytics",
@@ -47,21 +53,30 @@ const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     ],
   },
   tenant_user: {
-    exact: ["/", "/live", "/escalations", "/analytics", "/magicline", "/settings", "/settings/account"],
+    exact: ["/", "/dashboard", "/features", "/pricing", "/impressum", "/datenschutz", "/agb", "/live", "/escalations", "/analytics", "/magicline", "/settings", "/settings/account"],
     prefixes: ["/live/", "/escalations/", "/analytics/", "/magicline/", "/settings/account/"],
   },
 };
 
 export function allowedPrefixesForRole(role: AppRole | undefined): string[] {
-  if (!role) return ["/"];
+  if (!role) return ["/", "/features", "/pricing", "/impressum", "/datenschutz", "/agb"];
   const access = ROLE_ACCESS[role];
-  if (!access) return ["/"];
+  if (!access) return ["/", "/features", "/pricing", "/impressum", "/datenschutz", "/agb"];
   return [...access.exact, ...access.prefixes];
 }
 
 export function isPathAllowedForRole(role: AppRole | undefined, path: string): boolean {
   const normalized = (path || "/").replace(/\/+$/, "") || "/";
-  if (normalized === "/login" || normalized === "/register") return true;
+  if (
+    normalized === "/login" ||
+    normalized === "/register" ||
+    normalized === "/features" ||
+    normalized === "/pricing" ||
+    normalized === "/impressum" ||
+    normalized === "/datenschutz" ||
+    normalized === "/agb"
+  )
+    return true;
   if (!role) return normalized === "/";
   const access = ROLE_ACCESS[role];
   if (!access) return normalized === "/";

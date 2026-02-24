@@ -35,7 +35,7 @@ const tenantSections: Array<{ title: string; items: NavItem[] }> = [
   {
     title: "Operations",
     items: [
-      { name: "Dashboard", href: "/", icon: LayoutDashboard },
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Live Monitor", href: "/live", icon: Activity },
       { name: "Eskalationen", href: "/escalations", icon: AlertTriangle },
       { name: "Analytics", href: "/analytics", icon: BarChart3 },
@@ -70,7 +70,7 @@ const systemSections: Array<{ title: string; items: NavItem[] }> = [
   {
     title: "Platform Governance",
     items: [
-      { name: "SaaS Dashboard", href: "/", icon: LayoutDashboard },
+      { name: "SaaS Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Tenants", href: "/tenants", icon: Building2 },
       { name: "User Management", href: "/users", icon: Users },
     ],

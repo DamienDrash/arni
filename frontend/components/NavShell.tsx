@@ -11,7 +11,13 @@ import { applyBrandingCSS, type BrandingPrefs } from "@/lib/branding";
 import styles from "./NavShell.module.css";
 
 const pageMeta: Record<string, { title: string; subtitle: string }> = {
-    "/": { title: "Dashboard", subtitle: "Überblick über Systemstatus, KPIs und Aktivität." },
+    "/": { title: "ARIIA", subtitle: "Willkommen beim Intelligent Living System." },
+    "/dashboard": { title: "Dashboard", subtitle: "Überblick über Systemstatus, KPIs und Aktivität." },
+    "/features": { title: "Features", subtitle: "Entdecke die Möglichkeiten von ARIIA." },
+    "/pricing": { title: "Pricing", subtitle: "Transparente Pläne für jedes Business." },
+    "/impressum": { title: "Impressum", subtitle: "Rechtliche Informationen." },
+    "/datenschutz": { title: "Datenschutz", subtitle: "Informationen zum Umgang mit deinen Daten." },
+    "/agb": { title: "AGB", subtitle: "Allgemeine Geschäftsbedingungen." },
     "/live": { title: "Live Monitor", subtitle: "Echtzeit-Ansicht aktiver Konversationen und Handoffs." },
     "/escalations": { title: "Eskalationen", subtitle: "Offene menschliche Übergaben und Bearbeitungsstatus." },
     "/analytics": { title: "Analytics", subtitle: "Qualität, Trends und Performance über alle Kanäle." },
@@ -40,7 +46,11 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
     const [leavingGhostMode, setLeavingGhostMode] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
+    const isRoot = pathname === "/";
     const isAuthRoute = pathname === "/login" || pathname === "/register";
+    const isPublicLanding = pathname === "/features" || pathname === "/pricing" || pathname === "/impressum" || pathname === "/datenschutz" || pathname === "/agb";
+    const isPublicRoute = isRoot || isAuthRoute || isPublicLanding;
+
     const meta =
         pageMeta[pathname || ""] ||
         Object.entries(pageMeta)
@@ -56,7 +66,7 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         let cancelled = false;
         const bootstrap = async () => {
-            if (isAuthRoute) {
+            if (isPublicRoute) {
                 if (!cancelled) setAuthReady(true);
                 return;
             }
@@ -106,7 +116,7 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
         return () => {
             cancelled = true;
         };
-    }, [isAuthRoute, router]);
+    }, [isPublicRoute, router]);
 
     useEffect(() => {
         const onSessionUpdated = () => setUser(getStoredUser());
@@ -115,12 +125,16 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
     }, []);
 
     useEffect(() => {
-        if (isAuthRoute) return;
+        if (isPublicRoute) return;
         if (!user) return;
         if (!isPathAllowedForRole(user.role, pathname || "/")) {
             router.replace("/");
         }
-    }, [isAuthRoute, pathname, router, user]);
+    }, [isPublicRoute, pathname, router, user]);
+
+    if (isRoot || isPublicLanding) {
+        return <main className="min-h-screen overflow-x-hidden">{children}</main>;
+    }
 
     if (isAuthRoute) {
         return <main className="min-h-screen overflow-x-hidden p-4 md:p-8">{children}</main>;

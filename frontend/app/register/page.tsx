@@ -39,7 +39,7 @@ export default function RegisterPage() {
       }
       const data = await res.json();
       storeSession(data.access_token, data.user);
-      router.replace("/");
+      router.replace("/dashboard");
     } finally {
       setLoading(false);
     }
