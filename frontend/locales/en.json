@@ -12,7 +12,12 @@
     "welcome": "Welcome to the Intelligent Living System.",
     "save": "Save",
     "cancel": "Cancel",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "featuresTitle": "Features discover",
+    "membersSynced": "180 members synchronized",
+    "dsgvo": "GDPR compliant",
+    "madeInGermany": "Made in Germany",
+    "enterpriseReady": "Enterprise-Ready"
   },
   "hero": {
     "title": "Your AI Assistant for",
@@ -21,13 +26,53 @@
     "description": "ARIIA answers customer inquiries via WhatsApp, Telegram, and Voice – 24/7, personal and intelligent. For Fitness Studios, Personal Trainers, and SMEs.",
     "cta": "Test 14 days for free"
   },
+  "stats": {
+    "aiResolution": "AI Resolution Rate",
+    "responseTime": "Response Time",
+    "agentsInSwarm": "AI Agents in Swarm",
+    "availability": "Availability"
+  },
+  "features": {
+    "badge": "Platform Features",
+    "title": "Everything your business",
+    "titleAccent": "needs",
+    "description": "ARIIA combines state-of-the-art AI technology with an intuitive platform – built for companies that want to transform their customer communication.",
+    "swarm": {
+      "title": "AI Agent Swarm",
+      "desc": "5 specialized agents (Ops, Sales, Medic, Vision, Persona) work as a team – orchestrated by Project Titan."
+    },
+    "omnichannel": {
+      "title": "Omni-Channel",
+      "desc": "WhatsApp, Telegram, Voice, Web-Chat – one AI, consistent answers on all channels."
+    },
+    "churn": {
+      "title": "Churn Prediction",
+      "desc": "ML-based churn forecasting detects at-risk customers and suggests proactive measures."
+    },
+    "memory": {
+      "title": "3-Tier Memory",
+      "desc": "Session, Semantic and Episodic Memory – ARIIA remembers every customer and every interaction."
+    },
+    "security": {
+      "title": "Enterprise Security",
+      "desc": "GDPR-compliant with Row-Level Security, PII filters, audit logs and encrypted communication."
+    },
+    "connectors": {
+      "title": "Open Connectors",
+      "desc": "Magicline, Shopify, WooCommerce, API – connect any business system in minutes."
+    }
+  },
+  "cta": {
+    "title": "Ready to transform your customer",
+    "titleAccent": "communication",
+    "subtitle": "Start your 14-day free trial now. No risk, no credit card required.",
+    "button": "Start for free now",
+    "compare": "Compare plans"
+  },
   "dashboard": {
     "overview": "Overview of system status, KPIs, and activity.",
     "tickets24h": "Tickets (24h)",
     "aiResolution": "AI Resolution",
-    "responseTime": "Response Time",
-    "agentsInSwarm": "AI Agents in Swarm",
-    "availability": "Availability",
     "confidence": "Avg. Confidence",
     "tickets30d": "Tickets (30d)",
     "latestTickets": "Latest Tickets",

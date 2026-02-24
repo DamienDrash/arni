@@ -12,7 +12,12 @@
     "welcome": "Willkommen beim Intelligent Living System.",
     "save": "Speichern",
     "cancel": "Abbrechen",
-    "loading": "Lädt..."
+    "loading": "Lädt...",
+    "featuresTitle": "Features entdecken",
+    "membersSynced": "180 Mitglieder synchronisiert",
+    "dsgvo": "DSGVO-konform",
+    "madeInGermany": "Made in Germany",
+    "enterpriseReady": "Enterprise-Ready"
   },
   "hero": {
     "title": "Dein KI-Assistent für",
@@ -21,13 +26,53 @@
     "description": "ARIIA beantwortet Kundenanfragen über WhatsApp, Telegram und Voice – rund um die Uhr, persönlich und intelligent. Für Fitness Studios, Personal Trainer und KMUs.",
     "cta": "14 Tage kostenlos testen"
   },
+  "stats": {
+    "aiResolution": "KI-Auflösungsrate",
+    "responseTime": "Antwortzeit",
+    "agentsInSwarm": "KI-Agenten im Swarm",
+    "availability": "Verfügbarkeit"
+  },
+  "features": {
+    "badge": "Plattform-Features",
+    "title": "Alles, was dein Business",
+    "titleAccent": "braucht",
+    "description": "ARIIA vereint modernste KI-Technologie mit einer intuitiven Plattform – gebaut für Unternehmen, die ihre Kundenkommunikation transformieren wollen.",
+    "swarm": {
+      "title": "KI-Agenten-Swarm",
+      "desc": "5 spezialisierte Agenten (Ops, Sales, Medic, Vision, Persona) arbeiten als Team – orchestriert durch Project Titan."
+    },
+    "omnichannel": {
+      "title": "Omni-Channel",
+      "desc": "WhatsApp, Telegram, Voice, Web-Chat – eine KI, konsistente Antworten auf allen Kanälen."
+    },
+    "churn": {
+      "title": "Churn Prediction",
+      "desc": "ML-basierte Abwanderungsprognose erkennt gefährdete Kunden und schlägt proaktive Maßnahmen vor."
+    },
+    "memory": {
+      "title": "3-Tier Memory",
+      "desc": "Session, Semantic und Episodic Memory – ARIIA erinnert sich an jeden Kunden und jede Interaktion."
+    },
+    "security": {
+      "title": "Enterprise Security",
+      "desc": "DSGVO-konform mit Row-Level Security, PII-Filter, Audit Logs und verschlüsselter Kommunikation."
+    },
+    "connectors": {
+      "title": "Offene Connectors",
+      "desc": "Magicline, Shopify, WooCommerce, API – verbinde jedes Geschäftssystem in Minuten."
+    }
+  },
+  "cta": {
+    "title": "Bereit, deine Kundenkommunikation zu",
+    "titleAccent": "transformieren",
+    "subtitle": "Starte jetzt mit der 14-tägigen kostenlosen Testphase. Kein Risiko, keine Kreditkarte erforderlich.",
+    "button": "Jetzt kostenlos starten",
+    "compare": "Pläne vergleichen"
+  },
   "dashboard": {
     "overview": "Überblick über Systemstatus, KPIs und Aktivität.",
     "tickets24h": "Tickets (24h)",
     "aiResolution": "KI-Auflösungsrate",
-    "responseTime": "Antwortzeit",
-    "agentsInSwarm": "KI-Agenten im Swarm",
-    "availability": "Verfügbarkeit",
     "confidence": "Ø Confidence",
     "tickets30d": "Tickets (30d)",
     "latestTickets": "Letzte Tickets",

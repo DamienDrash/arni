@@ -252,7 +252,7 @@ export default function HomeClient() {
                 <Link href="/features">
                   <Button variant="outline" className="text-base px-8 py-3.5 rounded-lg h-auto bg-transparent group"
                     style={{ borderColor: "oklch(0.28 0.04 270)", color: "oklch(0.8 0.01 270)" }}>
-                    Features entdecken
+                    {t("common.featuresTitle")}
                     <ChevronRight size={16} className="ml-1 transition-transform group-hover:translate-x-1" />
                   </Button>
                 </Link>
@@ -265,7 +265,7 @@ export default function HomeClient() {
                 transition={{ duration: 0.6, delay: 0.5 }}
                 className="flex items-center gap-6 mt-10"
               >
-                {["DSGVO-konform", "Made in Germany", "Enterprise-Ready"].map((badge, i) => (
+                {[t("common.dsgvo"), t("common.madeInGermany"), t("common.enterpriseReady")].map((badge, i) => (
                   <motion.span
                     key={badge}
                     initial={{ opacity: 0, x: -10 }}
@@ -313,8 +313,8 @@ export default function HomeClient() {
                   <CheckCircle2 size={18} style={{ color: "oklch(0.62 0.22 292)" }} />
                 </motion.div>
                 <div>
-                  <div className="text-sm font-semibold" style={{ color: "oklch(0.95 0.005 270)" }}>All Systems Online</div>
-                  <div className="text-xs" style={{ color: "oklch(0.55 0.015 270)" }}>180 Mitglieder synchronisiert</div>
+                  <div className="text-sm font-semibold" style={{ color: "oklch(0.95 0.005 270)" }}>{t("common.allSystemsOnline")}</div>
+                  <div className="text-xs" style={{ color: "oklch(0.55 0.015 270)" }}>{t("common.membersSynced")}</div>
                 </div>
               </motion.div>
 
@@ -334,7 +334,7 @@ export default function HomeClient() {
                 >
                   98,7%
                 </motion.div>
-                <div className="text-xs" style={{ color: "oklch(0.9 0.01 270)" }}>AI Resolution Rate</div>
+                <div className="text-xs" style={{ color: "oklch(0.9 0.01 270)" }}>{t("stats.aiResolution")}</div>
               </motion.div>
             </motion.div>
           </div>
@@ -384,7 +384,7 @@ export default function HomeClient() {
                 <div className="text-3xl lg:text-4xl font-bold tracking-tight mb-1" style={{ color: "oklch(0.97 0.005 270)" }}>
                   <Counter value={s.value} suffix={s.suffix} />
                 </div>
-                <div className="text-sm" style={{ color: "oklch(0.55 0.015 270)" }}>{t("dashboard." + s.label)}</div>
+                <div className="text-sm" style={{ color: "oklch(0.55 0.015 270)" }}>{t("stats." + s.label)}</div>
               </motion.div>
             ))}
           </div>
@@ -402,18 +402,25 @@ export default function HomeClient() {
               className="inline-block text-xs font-semibold uppercase tracking-widest mb-4"
               style={{ color: "oklch(0.62 0.22 292)" }}
             >
-              Plattform-Features
+              {t("features.badge")}
             </motion.span>
             <h2 className="text-3xl lg:text-5xl font-bold tracking-tight mb-5" style={{ color: "oklch(0.97 0.005 270)" }}>
-              Alles, was dein Business <span style={{ color: "oklch(0.62 0.22 292)" }}>braucht</span>
+              {t("features.title")} <span style={{ color: "oklch(0.62 0.22 292)" }}>{t("features.titleAccent")}</span>
             </h2>
             <p className="text-lg max-w-2xl mx-auto" style={{ color: "oklch(0.6 0.015 270)" }}>
-              ARIIA vereint modernste KI-Technologie mit einer intuitiven Plattform – gebaut für Unternehmen, die ihre Kundenkommunikation transformieren wollen.
+              {t("features.description")}
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
-            {features.map((f, i) => (
+            {[
+              { icon: Brain, title: t("features.swarm.title"), desc: t("features.swarm.desc"), color: "oklch(0.62 0.22 292)" },
+              { icon: MessageSquare, title: t("features.omnichannel.title"), desc: t("features.omnichannel.desc"), color: "oklch(0.62 0.22 292)" },
+              { icon: BarChart3, title: t("features.churn.title"), desc: t("features.churn.desc"), color: "oklch(0.8 0.16 85)" },
+              { icon: Cpu, title: t("features.memory.title"), desc: t("features.memory.desc"), color: "oklch(0.68 0.18 25)" },
+              { icon: Lock, title: t("features.security.title"), desc: t("features.security.desc"), color: "oklch(0.65 0.15 220)" },
+              { icon: Plug, title: t("features.connectors.title"), desc: t("features.connectors.desc"), color: "oklch(0.72 0.2 292)" },
+            ].map((f, i) => (
               <motion.div
                 key={f.title}
                 initial={{ opacity: 0, y: 30 }}
@@ -467,16 +474,16 @@ export default function HomeClient() {
             transition={{ duration: 0.8 }}
           >
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-6" style={{ color: "oklch(0.97 0.005 270)" }}>
-              Bereit, deine Kundenkommunikation zu{" "}
-              <span style={{ color: "oklch(0.62 0.22 292)" }}>transformieren</span>?
+              {t("cta.title")}{" "}
+              <span style={{ color: "oklch(0.62 0.22 292)" }}>{t("cta.titleAccent")}</span>?
             </h2>
             <p className="text-lg max-w-2xl mx-auto mb-10" style={{ color: "oklch(0.6 0.015 270)" }}>
-              Starte jetzt mit der 14-tägigen kostenlosen Testphase. Kein Risiko, keine Kreditkarte erforderlich.
+              {t("cta.subtitle")}
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link href="/register">
                 <Button className="text-base px-9 py-4 rounded-xl h-auto text-lg group" style={{ backgroundColor: "oklch(0.62 0.22 292)", color: "white" }}>
-                  Jetzt kostenlos starten
+                  {t("cta.button")}
                   <motion.span className="ml-2 inline-block" animate={{ x: [0, 4, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
                     <ArrowRight size={18} />
                   </motion.span>
@@ -485,7 +492,7 @@ export default function HomeClient() {
               <Link href="/pricing">
                 <Button variant="outline" className="text-base px-9 py-4 rounded-xl h-auto text-lg bg-transparent group"
                   style={{ borderColor: "oklch(0.28 0.04 270)", color: "oklch(0.8 0.01 270)" }}>
-                  Pläne vergleichen
+                  {t("cta.compare")}
                   <ChevronRight size={18} className="ml-1 transition-transform group-hover:translate-x-1" />
                 </Button>
               </Link>
@@ -493,6 +500,12 @@ export default function HomeClient() {
           </motion.div>
         </div>
       </Section>
+
+      <Footer />
+    </div>
+  );
+}
+
 
       <Footer />
     </div>

@@ -32,6 +32,8 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     setLanguageState(lang);
     localStorage.setItem("ariia_lang", lang);
     document.cookie = `ariia_lang=${lang}; path=/; max-age=31536000`;
+    // Force reload to update all UI components (like NavShell metadata)
+    window.location.reload();
   };
 
   useEffect(() => {
@@ -51,7 +53,8 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     // 2. Load Translations
     const loadTranslations = async (lang: Language) => {
       try {
-        const response = await fetch(`/arni/locales/${lang}.json`);
+        const response = await fetch(`/arni/locales/${lang}.json?v=${Date.now()}`);
+        if (!response.ok) throw new Error("Network response was not ok");
         const data = await response.json();
         setTranslations(data);
         setReady(true);
@@ -68,9 +71,14 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   // Update translations when language changes manually
   useEffect(() => {
     const load = async () => {
-      const response = await fetch(`/arni/locales/${language}.json`);
-      const data = await response.json();
-      setTranslations(data);
+      try {
+        const response = await fetch(`/arni/locales/${language}.json?v=${Date.now()}`);
+        if (!response.ok) throw new Error("Network response was not ok");
+        const data = await response.json();
+        setTranslations(data);
+      } catch (err) {
+        console.error("Manual reload failed", err);
+      }
     };
     if (ready) void load();
   }, [language, ready]);
