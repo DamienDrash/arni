@@ -6,10 +6,11 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import de from "../../locales/de.json";
 import en from "../../locales/en.json";
 import bg from "../../locales/bg.json";
+import fr from "../../locales/fr.json";
 
-const dictionaries: Record<string, any> = { de, en, bg };
+const dictionaries: Record<string, any> = { de, en, bg, fr };
 
-type Language = "de" | "en" | "bg";
+type Language = "de" | "en" | "bg" | "fr";
 
 interface i18nContextType {
   language: Language;

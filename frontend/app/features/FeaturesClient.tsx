@@ -137,7 +137,7 @@ export default function FeaturesClient() {
                 <h3 className="text-lg font-bold mb-2.5" style={{ color: "oklch(0.95 0.005 270)" }}>{f.title}</h3>
                 <p className="text-sm leading-relaxed mb-5" style={{ color: "oklch(0.62 0.015 270)" }}>{f.desc}</p>
                 <div className="space-y-2">
-                  {f.details.map((d) => (
+                  {Array.isArray(f.details) && f.details.map((d: string) => (
                     <div key={d} className="flex items-start gap-2.5">
                       <CheckCircle2 size={13} className="shrink-0 mt-0.5" style={{ color: f.color }} />
                       <span className="text-xs" style={{ color: "oklch(0.7 0.015 270)" }}>{d}</span>

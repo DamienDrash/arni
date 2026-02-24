@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useI18n } from "@/lib/i18n/LanguageContext";
 import AriiaLogo from "./AriiaLogo";
 import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 

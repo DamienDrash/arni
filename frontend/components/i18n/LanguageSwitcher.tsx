@@ -8,7 +8,8 @@ import { motion, AnimatePresence } from "framer-motion";
 const languages = [
   { code: "de", label: "Deutsch", flag: "🇩🇪" },
   { code: "en", label: "English", flag: "🇺🇸" },
-  { code: "bg", label: "Български", flag: "🇧🇬" }
+  { code: "bg", label: "Български", flag: "🇧🇬" },
+  { code: "fr", label: "Français", flag: "🇫🇷" }
 ];
 
 export default function LanguageSwitcher() {

@@ -123,7 +123,7 @@ export default function PricingClient() {
                   {yearly && <div className="text-xs mt-1" style={{ color: "oklch(0.62 0.22 292)" }}>{plan.priceYearly * 12}€ {t("pricing.billedYearly")}</div>}
                 </div>
                 <div className="space-y-3 mb-8 flex-1">
-                  {plan.features.map((f) => (
+                  {Array.isArray(plan.features) && plan.features.map((f: string) => (
                     <div key={f} className="flex items-start gap-2.5">
                       <CheckCircle2 size={15} className="shrink-0 mt-0.5" style={{ color: plan.highlight ? "oklch(0.62 0.22 292)" : "oklch(0.5 0.12 292)" }} />
                       <span className="text-sm" style={{ color: "oklch(0.78 0.01 270)" }}>{f}</span>
@@ -176,7 +176,7 @@ export default function PricingClient() {
         <div className="container mx-auto px-4 max-w-3xl">
           <div className="text-center mb-14"><h2 className="text-2xl lg:text-4xl font-bold tracking-tight mb-4" style={{ color: "oklch(0.97 0.005 270)" }}>{t("pricing.faqTitle")}</h2></div>
           <div className="space-y-3">
-            {faqs.map((faq, i) => (
+            {Array.isArray(faqs) && faqs.map((faq, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: i * 0.06 }} className="rounded-xl overflow-hidden" style={{ background: "oklch(0.12 0.04 270)", border: "1px solid oklch(0.22 0.04 270)" }}>
                 <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full flex items-center justify-between p-5 text-left">
                   <span className="text-sm font-semibold pr-4" style={{ color: "oklch(0.92 0.005 270)" }}>{faq.q}</span>
