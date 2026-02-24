@@ -2281,6 +2281,79 @@ async def get_billing_subscription(user: AuthContext = Depends(get_current_user)
         db.close()
 
 
+# ── Plan Management (Stripe Price ID Mapping) ────────────────────────────────
+
+class PlanStripePriceUpdate(BaseModel):
+    stripe_price_id: str = Field(..., description="Stripe Price ID (price_...)")
+
+
+@router.get("/billing/plans/db")
+async def list_db_plans(user: AuthContext = Depends(get_current_user)) -> list[dict[str, Any]]:
+    """List all plans from the database including stripe_price_id mapping."""
+    _require_system_admin(user)
+    from app.core.models import Plan
+    db = SessionLocal()
+    try:
+        plans = db.query(Plan).filter(Plan.is_active.is_(True)).order_by(Plan.id).all()
+        return [
+            {
+                "id": p.id,
+                "name": p.name,
+                "slug": p.slug,
+                "stripe_price_id": p.stripe_price_id,
+                "price_monthly_cents": p.price_monthly_cents,
+                "max_members": p.max_members,
+                "max_monthly_messages": p.max_monthly_messages,
+                "max_channels": p.max_channels,
+                "whatsapp_enabled": p.whatsapp_enabled,
+                "telegram_enabled": p.telegram_enabled,
+                "sms_enabled": p.sms_enabled,
+                "email_channel_enabled": p.email_channel_enabled,
+                "voice_enabled": p.voice_enabled,
+                "memory_analyzer_enabled": p.memory_analyzer_enabled,
+                "custom_prompts_enabled": p.custom_prompts_enabled,
+                "is_active": p.is_active,
+            }
+            for p in plans
+        ]
+    finally:
+        db.close()
+
+
+@router.put("/billing/plans/db/{plan_slug}/stripe-price")
+async def set_plan_stripe_price(
+    plan_slug: str,
+    body: PlanStripePriceUpdate,
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Set the Stripe Price ID for a plan. Required before Checkout can work."""
+    _require_system_admin(user)
+    from app.core.models import Plan
+    price_id = (body.stripe_price_id or "").strip()
+    if not price_id.startswith("price_"):
+        raise HTTPException(status_code=422, detail="stripe_price_id must start with 'price_'")
+    db = SessionLocal()
+    try:
+        plan = db.query(Plan).filter(Plan.slug == plan_slug, Plan.is_active.is_(True)).first()
+        if not plan:
+            raise HTTPException(status_code=404, detail=f"Plan '{plan_slug}' not found")
+        old_price_id = plan.stripe_price_id
+        plan.stripe_price_id = price_id
+        db.commit()
+        _write_admin_audit(
+            actor=user,
+            action="billing.plan_stripe_price_updated",
+            category="billing",
+            target_type="plan",
+            target_id=plan_slug,
+            details={"old_stripe_price_id": old_price_id, "new_stripe_price_id": price_id},
+        )
+        logger.info("admin.plan_stripe_price_updated", slug=plan_slug, price_id=price_id)
+        return {"status": "ok", "slug": plan_slug, "stripe_price_id": price_id}
+    finally:
+        db.close()
+
+
 # ── Analytics ─────────────────────────────────────────────────────────────────
 
 _INTENT_LABELS: dict[str, str] = {
