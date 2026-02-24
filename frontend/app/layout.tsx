@@ -18,8 +18,8 @@ const monoFont = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ARIIA Control Deck",
-  description: "Enterprise Admin Interface for Ariia AI",
+  title: "ARIIA | AI Living System Agent",
+  description: "Enterprise AI Agent Platform for Studio Operations",
 };
 
 export default function RootLayout({
