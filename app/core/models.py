@@ -132,6 +132,10 @@ class StudioMember(Base):
     phone_number = Column(String, nullable=True)
     email = Column(String, nullable=True)
 
+    # --- Multi-Source tracking ---
+    source = Column(String, nullable=False, default="manual")  # 'manual'|'magicline'|'shopify'|'woocommerce'|'hubspot'|'csv'|'api'
+    source_id = Column(String, nullable=True, index=True)      # External ID in source system
+
     # --- Bulk sync fields (from /v1/customers, zero extra API calls) ---
     gender = Column(String, nullable=True)               # "MALE" / "FEMALE" / "DIVERSE"
     preferred_language = Column(String, nullable=True)   # "de", "en", …
@@ -140,6 +144,11 @@ class StudioMember(Base):
     pause_info = Column(Text, nullable=True)             # JSON: {"is_currently_paused": bool, "pause_until": "YYYY-MM-DD"|null, ...}
     contract_info = Column(Text, nullable=True)          # JSON: {"plan_name": "Premium", "status": "ACTIVE", "end_date": ...}
     additional_info = Column(Text, nullable=True)        # JSON: {"Trainingsziel": "Muskelaufbau", …}
+
+    # --- Custom fields & tags (user-defined per tenant) ---
+    tags = Column(Text, nullable=True)                   # JSON array: ["vip", "new", ...]
+    custom_fields = Column(Text, nullable=True)          # JSON object: {"slug": "value", ...}
+    notes = Column(Text, nullable=True)                  # Free-text notes
 
     # --- Lazy enrichment (per-member API, cached with TTL) ---
     checkin_stats = Column(Text, nullable=True)    # JSON: {total_30d, total_90d, avg_per_week, last_visit, days_since, status}
@@ -179,9 +188,20 @@ class Plan(Base):
     email_channel_enabled = Column(Boolean, nullable=False, default=False)
     voice_enabled = Column(Boolean, nullable=False, default=False)
 
+    # Channel toggles (new channels)
+    instagram_enabled = Column(Boolean, nullable=False, default=False)
+    facebook_enabled = Column(Boolean, nullable=False, default=False)
+    google_business_enabled = Column(Boolean, nullable=False, default=False)
+
     # Feature toggles
     memory_analyzer_enabled = Column(Boolean, nullable=False, default=False)
     custom_prompts_enabled = Column(Boolean, nullable=False, default=False)
+    advanced_analytics_enabled = Column(Boolean, nullable=False, default=False)
+    branding_enabled = Column(Boolean, nullable=False, default=False)
+    audit_log_enabled = Column(Boolean, nullable=False, default=False)
+    automation_enabled = Column(Boolean, nullable=False, default=False)
+    api_access_enabled = Column(Boolean, nullable=False, default=False)
+    multi_source_members_enabled = Column(Boolean, nullable=False, default=False)
 
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -213,6 +233,45 @@ class Subscription(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+
+
+class MemberCustomColumn(Base):
+    """Tenant-defined custom columns for member data."""
+
+    __tablename__ = "member_custom_columns"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)                # Display name: "Schuhgröße"
+    slug = Column(String, nullable=False)                # Key in custom_fields: "schuhgroesse"
+    field_type = Column(String, nullable=False, default="text")  # 'text'|'number'|'date'|'select'|'boolean'
+    options = Column(Text, nullable=True)                # JSON for select type: ["S","M","L","XL"]
+    position = Column(Integer, nullable=False, default=0)
+    is_visible = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "slug", name="uq_custom_column_tenant_slug"),
+    )
+
+
+class MemberImportLog(Base):
+    """Tracks member import operations from any source."""
+
+    __tablename__ = "member_import_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    source = Column(String, nullable=False)              # 'csv'|'shopify'|'woocommerce'|'hubspot'|'api'
+    status = Column(String, nullable=False, default="running")  # 'running'|'completed'|'failed'
+    total_rows = Column(Integer, nullable=False, default=0)
+    imported = Column(Integer, nullable=False, default=0)
+    updated = Column(Integer, nullable=False, default=0)
+    skipped = Column(Integer, nullable=False, default=0)
+    errors = Column(Integer, nullable=False, default=0)
+    error_log = Column(Text, nullable=True)              # JSON array with error details
+    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    completed_at = Column(DateTime, nullable=True)
 
 
 class UsageRecord(Base):
