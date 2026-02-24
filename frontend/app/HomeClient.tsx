@@ -112,27 +112,11 @@ function TypingWords({ words }: { words: string[] }) {
 }
 
 /* ═══ Data ═══ */
-const features = [
-  { icon: Brain, title: "KI-Agenten-Swarm", desc: "5 spezialisierte Agenten (Ops, Sales, Medic, Vision, Persona) arbeiten als Team – orchestriert durch Project Titan.", color: "oklch(0.62 0.22 292)" },
-  { icon: MessageSquare, title: "Omni-Channel", desc: "WhatsApp, Telegram, Voice, Web-Chat – eine KI, konsistente Antworten auf allen Kanälen.", color: "oklch(0.62 0.22 292)" },
-  { icon: BarChart3, title: "Churn Prediction", desc: "ML-basierte Abwanderungsprognose erkennt gefährdete Kunden und schlägt proaktive Maßnahmen vor.", color: "oklch(0.8 0.16 85)" },
-  { icon: Cpu, title: "3-Tier Memory", desc: "Session, Semantic und Episodic Memory – ARIIA erinnert sich an jeden Kunden und jede Interaktion.", color: "oklch(0.68 0.18 25)" },
-  { icon: Lock, title: "Enterprise Security", desc: "DSGVO-konform mit Row-Level Security, PII-Filter, Audit Logs und verschlüsselter Kommunikation.", color: "oklch(0.65 0.15 220)" },
-  { icon: Plug, title: "Offene Connectors", desc: "Magicline, Shopify, WooCommerce, API – verbinde jedes Geschäftssystem in Minuten.", color: "oklch(0.72 0.2 292)" },
-];
-
 const stats = [
   { value: "98,7", suffix: "%", label: "aiResolution", icon: TrendingUp },
   { value: "< 2s", suffix: "", label: "responseTime", icon: Zap },
   { value: "5", suffix: "", label: "agentsInSwarm", icon: Brain },
   { value: "24/7", suffix: "", label: "availability", icon: Globe },
-];
-
-const workflowSteps = [
-  { num: "01", title: "Kunde schreibt", desc: "Über WhatsApp, Telegram oder Voice – der Kanal spielt keine Rolle.", icon: MessageSquare, color: "oklch(0.62 0.22 292)" },
-  { num: "02", title: "Orchestrator analysiert", desc: "Project Titan erkennt Intent, Kontext und wählt den passenden Agenten.", icon: Cpu, color: "oklch(0.62 0.22 292)" },
-  { num: "03", title: "Agent antwortet", desc: "Der spezialisierte Agent greift auf Memory und Wissensbasis zu.", icon: Brain, color: "oklch(0.8 0.16 85)" },
-  { num: "04", title: "Lernen & Optimieren", desc: "Jede Interaktion fließt ins 3-Tier Memory für bessere Antworten.", icon: Sparkles, color: "oklch(0.68 0.18 25)" },
 ];
 
 const logos = [
@@ -500,12 +484,6 @@ export default function HomeClient() {
           </motion.div>
         </div>
       </Section>
-
-      <Footer />
-    </div>
-  );
-}
-
 
       <Footer />
     </div>
