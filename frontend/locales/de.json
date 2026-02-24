@@ -60,6 +60,22 @@
     "connectors": {
       "title": "Offene Connectors",
       "desc": "Magicline, Shopify, WooCommerce, API – verbinde jedes Geschäftssystem in Minuten."
+    },
+    "page": {
+      "title": "Features die dein Business",
+      "titleAccent": "transformieren",
+      "description": "ARIIA ist mehr als ein Chatbot. Es ist ein Living System Agent mit 5 spezialisierten KI-Agenten, 3-Tier Memory und Enterprise-Grade Security.",
+      "techTitle": "KI-Kern-Technologie",
+      "techSubtitle": "Was ARIIA von Chatbots",
+      "techSubtitleAccent": "unterscheidet",
+      "securityTitle": "Enterprise Security",
+      "securitySubtitle": "Sicherheit auf",
+      "securitySubtitleAccent": "Enterprise-Niveau",
+      "securityDesc": "Von Grund auf für den deutschen Markt entwickelt. Jede Datenzeile ist durch Row-Level Security isoliert.",
+      "deckTitle": "Studio Deck",
+      "deckSubtitle": "Dein",
+      "deckSubtitleAccent": "Command Center",
+      "deckDesc": "Das Studio Deck Dashboard gibt dir die volle Kontrolle über deine KI-Agenten, Mitglieder und Kommunikation."
     }
   },
   "cta": {
@@ -68,6 +84,26 @@
     "subtitle": "Starte jetzt mit der 14-tägigen kostenlosen Testphase. Kein Risiko, keine Kreditkarte erforderlich.",
     "button": "Jetzt kostenlos starten",
     "compare": "Pläne vergleichen"
+  },
+  "pricing": {
+    "title": "Transparente",
+    "titleAccent": "Preise",
+    "description": "Wähle den Plan, der zu deinem Business passt. Alle Pläne beinhalten eine 14-tägige kostenlose Testphase – ohne Kreditkarte.",
+    "monthly": "Monatlich",
+    "yearly": "Jährlich",
+    "discount": "-20%",
+    "billedYearly": "jährlich abgerechnet",
+    "enterpriseTitle": "Enterprise",
+    "enterpriseDesc": "SLA-Garantie, On-Premise, Custom Integrationen, dedizierter Account Manager.",
+    "enterpriseCta": "Kontakt aufnehmen",
+    "addonsTitle": "Modulare Erweiterungen",
+    "addonsSubtitle": "Zubuchbare",
+    "addonsSubtitleAccent": "Add-ons",
+    "addonsDesc": "Erweitere deinen Plan flexibel mit zusätzlichen Modulen – zahle nur für das, was du brauchst.",
+    "faqTitle": "Häufig gestellte Fragen",
+    "finalCta": "Noch unsicher?",
+    "finalCtaAccent": "Teste es einfach.",
+    "finalCtaDesc": "14 Tage kostenlos, voller Funktionsumfang, keine Kreditkarte. Überzeuge dich selbst."
   },
   "dashboard": {
     "overview": "Überblick über Systemstatus, KPIs und Aktivität.",

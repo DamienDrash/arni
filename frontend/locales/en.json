@@ -13,7 +13,7 @@
     "save": "Save",
     "cancel": "Cancel",
     "loading": "Loading...",
-    "featuresTitle": "Features discover",
+    "featuresTitle": "Discover features",
     "membersSynced": "180 members synchronized",
     "dsgvo": "GDPR compliant",
     "madeInGermany": "Made in Germany",
@@ -60,6 +60,22 @@
     "connectors": {
       "title": "Open Connectors",
       "desc": "Magicline, Shopify, WooCommerce, API – connect any business system in minutes."
+    },
+    "page": {
+      "title": "Features that transform your",
+      "titleAccent": "business",
+      "description": "ARIIA is more than a chatbot. It is a Living System Agent with 5 specialized AI agents, 3-tier memory and enterprise-grade security.",
+      "techTitle": "AI Core Technology",
+      "techSubtitle": "What sets ARIIA apart from",
+      "techSubtitleAccent": "chatbots",
+      "securityTitle": "Enterprise Security",
+      "securitySubtitle": "Security at",
+      "securitySubtitleAccent": "Enterprise Level",
+      "securityDesc": "Developed from the ground up for the German market. Every row of data is isolated by Row-Level Security.",
+      "deckTitle": "Studio Deck",
+      "deckSubtitle": "Your",
+      "deckSubtitleAccent": "Command Center",
+      "deckDesc": "The Studio Deck Dashboard gives you full control over your AI agents, members, and communication."
     }
   },
   "cta": {
@@ -68,6 +84,26 @@
     "subtitle": "Start your 14-day free trial now. No risk, no credit card required.",
     "button": "Start for free now",
     "compare": "Compare plans"
+  },
+  "pricing": {
+    "title": "Transparent",
+    "titleAccent": "Pricing",
+    "description": "Choose the plan that fits your business. All plans include a 14-day free trial – no credit card required.",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "discount": "-20%",
+    "billedYearly": "billed yearly",
+    "enterpriseTitle": "Enterprise",
+    "enterpriseDesc": "SLA guarantee, On-Premise, custom integrations, dedicated account manager.",
+    "enterpriseCta": "Get in touch",
+    "addonsTitle": "Modular Add-ons",
+    "addonsSubtitle": "Optional",
+    "addonsSubtitleAccent": "Modules",
+    "addonsDesc": "Flexible extensions for your plan – pay only for what you need.",
+    "faqTitle": "Frequently Asked Questions",
+    "finalCta": "Still unsure?",
+    "finalCtaAccent": "Try it out.",
+    "finalCtaDesc": "14 days free, full feature set, no credit card. See for yourself."
   },
   "dashboard": {
     "overview": "Overview of system status, KPIs, and activity.",
