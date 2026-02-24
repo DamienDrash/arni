@@ -17,6 +17,9 @@ class Platform(str, Enum):
 
     WHATSAPP = "whatsapp"
     TELEGRAM = "telegram"
+    INSTAGRAM = "instagram"
+    FACEBOOK = "facebook"
+    GOOGLE_BUSINESS = "google_business"
     SMS = "sms"
     EMAIL = "email"
     PHONE = "phone"

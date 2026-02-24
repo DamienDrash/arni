@@ -24,10 +24,16 @@ class OutboundDispatcher:
         whatsapp_client: Any | None = None,
         telegram_bot: Any | None = None,
         websocket_broadcast: Any | None = None,
+        instagram_client: Any | None = None,
+        facebook_client: Any | None = None,
+        google_business_client: Any | None = None,
     ) -> None:
         self._whatsapp = whatsapp_client
         self._telegram = telegram_bot
         self._ws_broadcast = websocket_broadcast
+        self._instagram = instagram_client
+        self._facebook = facebook_client
+        self._google_business = google_business_client
 
     async def dispatch(self, message: OutboundMessage) -> bool:
         """Dispatch an outbound message to the correct platform.
@@ -43,6 +49,12 @@ class OutboundDispatcher:
                 return await self._dispatch_whatsapp(message)
             elif message.platform == Platform.TELEGRAM:
                 return await self._dispatch_telegram(message)
+            elif message.platform == Platform.INSTAGRAM:
+                return await self._dispatch_instagram(message)
+            elif message.platform == Platform.FACEBOOK:
+                return await self._dispatch_facebook(message)
+            elif message.platform == Platform.GOOGLE_BUSINESS:
+                return await self._dispatch_google_business(message)
             elif message.platform == Platform.DASHBOARD:
                 return await self._dispatch_dashboard(message)
             else:
@@ -84,6 +96,33 @@ class OutboundDispatcher:
             "dispatcher.telegram_sent",
             message_id=message.message_id,
         )
+        return True
+
+    async def _dispatch_instagram(self, message: OutboundMessage) -> bool:
+        """Send message via Instagram DM using Meta Graph API."""
+        if not self._instagram:
+            logger.warning("dispatcher.instagram_not_configured")
+            return False
+        await self._instagram.send_message(message.user_id, message.content)
+        logger.info("dispatcher.instagram_sent", message_id=message.message_id)
+        return True
+
+    async def _dispatch_facebook(self, message: OutboundMessage) -> bool:
+        """Send message via Facebook Messenger using Send API."""
+        if not self._facebook:
+            logger.warning("dispatcher.facebook_not_configured")
+            return False
+        await self._facebook.send_message(message.user_id, message.content)
+        logger.info("dispatcher.facebook_sent", message_id=message.message_id)
+        return True
+
+    async def _dispatch_google_business(self, message: OutboundMessage) -> bool:
+        """Send message via Google Business Messages API."""
+        if not self._google_business:
+            logger.warning("dispatcher.google_business_not_configured")
+            return False
+        await self._google_business.send_message(message.user_id, message.content)
+        logger.info("dispatcher.google_business_sent", message_id=message.message_id)
         return True
 
     async def _dispatch_dashboard(self, message: OutboundMessage) -> bool:
