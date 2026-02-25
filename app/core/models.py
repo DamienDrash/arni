@@ -206,8 +206,16 @@ class Plan(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)               # "Starter", "Pro", "Enterprise"
     slug = Column(String, unique=True, nullable=False)  # "starter", "pro", "enterprise"
-    stripe_price_id = Column(String, nullable=True)     # Stripe Price ID (NULL for free plans)
+    description = Column(Text, nullable=True)            # Short description for UI/Landing Page
+    stripe_product_id = Column(String, nullable=True)    # Stripe Product ID
+    stripe_price_id = Column(String, nullable=True)      # Stripe Price ID (NULL for free plans)
+    stripe_price_yearly_id = Column(String, nullable=True)  # Stripe Price ID for yearly billing
     price_monthly_cents = Column(Integer, nullable=False, default=0)  # 0 = free
+    price_yearly_cents = Column(Integer, nullable=True)  # Yearly price (NULL = no yearly option)
+    trial_days = Column(Integer, nullable=False, default=0)  # Free trial period
+    display_order = Column(Integer, nullable=False, default=0)  # Sort order on pricing page
+    is_highlighted = Column(Boolean, nullable=False, default=False)  # "Most Popular" badge
+    features_json = Column(Text, nullable=True)          # JSON list of feature strings for UI display
 
     # Feature limits (NULL = unlimited)
     max_members = Column(Integer, nullable=True)
@@ -249,7 +257,37 @@ class Plan(Base):
     overage_channel_cents = Column(Integer, default=2900)
 
     is_active = Column(Boolean, nullable=False, default=True)
+    is_public = Column(Boolean, nullable=False, default=True)  # Show on public pricing page
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
+class AddonDefinition(Base):
+    """Global add-on catalog (system-level). Defines available add-ons with pricing."""
+    __tablename__ = "addon_definitions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, nullable=False)   # "voice_pipeline", "churn_prediction"
+    name = Column(String, nullable=False)                 # "Voice Pipeline"
+    description = Column(Text, nullable=True)             # For UI display
+    category = Column(String, nullable=True)              # "ai", "channel", "analytics"
+    icon = Column(String, nullable=True)                  # Lucide icon name
+    price_monthly_cents = Column(Integer, nullable=False, default=0)
+    stripe_product_id = Column(String, nullable=True)
+    stripe_price_id = Column(String, nullable=True)
+    features_json = Column(Text, nullable=True)           # JSON list of feature keys this addon unlocks
+    is_active = Column(Boolean, nullable=False, default=True)
+    display_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
 
 class TenantAddon(Base):

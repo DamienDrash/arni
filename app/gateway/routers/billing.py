@@ -34,7 +34,7 @@ from pydantic import BaseModel
 
 from app.core.auth import AuthContext, get_current_user, require_role
 from app.core.db import SessionLocal
-from app.core.models import Plan, Subscription, Tenant, AuditLog, TenantAddon
+from app.core.models import Plan, Subscription, Tenant, AuditLog, TenantAddon, AddonDefinition
 from app.gateway.persistence import persistence
 
 logger = structlog.get_logger()
@@ -113,72 +113,57 @@ def _audit(actor: AuthContext, action: str, details: dict) -> None:
 
 # ── Plan-Katalog ───────────────────────────────────────────────────────────────
 
-PLAN_CATALOG: list[dict[str, Any]] = [
-    {
-        "slug": "starter",
-        "name": "Starter",
-        "price_monthly_cents": 7900,
-        "max_members": 500,
-        "max_monthly_messages": 500,
-        "max_channels": 1,
-        "max_connectors": 0,
-        "features": [
-            "WhatsApp", "500 Mitglieder", "500 Nachrichten/Monat", 
-            "Keine Connectors", "Basic AI"
-        ],
-    },
-    {
-        "slug": "pro",
-        "name": "Professional",
-        "price_monthly_cents": 19900,
-        "max_members": None,
-        "max_monthly_messages": 2000,
-        "max_channels": 3,
-        "max_connectors": 1,
-        "features": [
-            "WhatsApp, Telegram, E-Mail, Instagram, Facebook",
-            "Unbegrenzte Mitglieder", "2.000 Nachrichten/Monat",
-            "1 Connector (z.B. Magicline)", "Member Memory Analyzer",
-            "Standard AI", "Branding"
-        ],
-        "highlight": True,
-    },
-    {
-        "slug": "business",
-        "name": "Business",
-        "price_monthly_cents": 39900,
-        "max_members": None,
-        "max_monthly_messages": 10000,
-        "max_channels": 99,
-        "max_connectors": 99,
-        "features": [
-            "Alle Kanäle inkl. Voice & Google Business",
-            "10.000 Nachrichten/Monat",
-            "Alle Connectors", "Automation Engine",
-            "Churn Prediction", "Vision AI", "Premium AI"
-        ],
-    },
-    {
-        "slug": "enterprise",
-        "name": "Enterprise",
-        "price_monthly_cents": 0, # Custom
-        "max_members": None,
-        "max_monthly_messages": None,
-        "max_channels": 999,
-        "max_connectors": 999,
-        "features": [
-            "Alles unbegrenzt", "White-Label", "SLA", "On-Premise Option", "Dedicated CSM"
-        ],
-    },
-]
+def _load_plan_catalog() -> list[dict[str, Any]]:
+    """Load plan catalog dynamically from the database."""
+    import json as _j
+    db = SessionLocal()
+    try:
+        plans = db.query(Plan).filter(
+            Plan.is_active.is_(True),
+            Plan.is_public.is_(True),
+        ).order_by(
+            Plan.display_order.asc(),
+            Plan.price_monthly_cents.asc(),
+        ).all()
+
+        result = []
+        for p in plans:
+            features_list = []
+            if getattr(p, "features_json", None):
+                try:
+                    features_list = _j.loads(p.features_json)
+                except (ValueError, TypeError):
+                    pass
+
+            result.append({
+                "slug": p.slug,
+                "name": p.name,
+                "description": getattr(p, "description", None),
+                "price_monthly_cents": p.price_monthly_cents,
+                "price_yearly_cents": getattr(p, "price_yearly_cents", None),
+                "trial_days": getattr(p, "trial_days", 0),
+                "max_members": p.max_members,
+                "max_monthly_messages": p.max_monthly_messages,
+                "max_channels": p.max_channels,
+                "max_connectors": p.max_connectors,
+                "features": features_list,
+                "highlight": getattr(p, "is_highlighted", False),
+                "stripe_price_id": p.stripe_price_id,
+            })
+        return result
+    except Exception as exc:
+        logger.warning("billing.plan_catalog_load_failed", error=str(exc))
+        return []
+    finally:
+        db.close()
 
 
 # ── Public Endpoints ───────────────────────────────────────────────────────────
 
 @router.get("/billing/plans")
 async def list_plans() -> list[dict[str, Any]]:
-    """Öffentlicher Plan-Katalog — kein Auth erforderlich."""
-    return PLAN_CATALOG
+    """Öffentlicher Plan-Katalog — dynamisch aus der Datenbank."""
+    return _load_plan_catalog()
 
 
 class CheckoutRequest(BaseModel):
@@ -474,6 +459,100 @@ def _on_subscription_event(event_type: str, obj: dict) -> None:
         db.close()
 
 
+def _on_product_event(event_type: str, obj: dict) -> None:
+    """Handle product.updated / product.deleted from Stripe → sync to local DB."""
+    product_id = obj.get("id")
+    meta = obj.get("metadata", {})
+    ariia_type = meta.get("ariia_type", "")
+    ariia_slug = meta.get("ariia_slug", "")
+
+    if not product_id:
+        return
+
+    db = SessionLocal()
+    try:
+        if ariia_type == "plan" and ariia_slug:
+            plan = db.query(Plan).filter(Plan.slug == ariia_slug).first()
+            if not plan:
+                plan = db.query(Plan).filter(Plan.stripe_product_id == product_id).first()
+            if plan:
+                clean_name = (obj.get("name") or "").replace("ARIIA Plan: ", "").replace("ARIIA ", "").strip()
+                if clean_name:
+                    plan.name = clean_name
+                if obj.get("description"):
+                    plan.description = obj["description"]
+                plan.is_active = obj.get("active", plan.is_active)
+                plan.stripe_product_id = product_id
+                logger.info("billing.webhook.product_plan_updated", slug=ariia_slug, product_id=product_id)
+
+        elif ariia_type == "addon" and ariia_slug:
+            addon = db.query(AddonDefinition).filter(AddonDefinition.slug == ariia_slug).first()
+            if not addon:
+                addon = db.query(AddonDefinition).filter(AddonDefinition.stripe_product_id == product_id).first()
+            if addon:
+                clean_name = (obj.get("name") or "").replace("ARIIA Add-on: ", "").replace("ARIIA Addon: ", "").strip()
+                if clean_name:
+                    addon.name = clean_name
+                if obj.get("description"):
+                    addon.description = obj["description"]
+                addon.is_active = obj.get("active", addon.is_active)
+                addon.stripe_product_id = product_id
+                logger.info("billing.webhook.product_addon_updated", slug=ariia_slug, product_id=product_id)
+
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.error("billing.webhook.product_event_failed", error=str(exc))
+    finally:
+        db.close()
+
+
+def _on_price_event(event_type: str, obj: dict) -> None:
+    """Handle price.updated / price.created from Stripe → sync to local DB."""
+    price_id = obj.get("id")
+    product_id = obj.get("product")
+    unit_amount = obj.get("unit_amount")
+    active = obj.get("active", True)
+    recurring = obj.get("recurring", {})
+    interval = recurring.get("interval", "month") if recurring else "month"
+
+    if not price_id or not product_id:
+        return
+
+    db = SessionLocal()
+    try:
+        # Check if this price belongs to a plan
+        plan = db.query(Plan).filter(Plan.stripe_product_id == product_id).first()
+        if plan:
+            if interval == "month":
+                plan.stripe_price_id = price_id
+                if unit_amount is not None:
+                    plan.price_monthly_cents = unit_amount
+            elif interval == "year":
+                plan.stripe_price_yearly_id = price_id
+                if unit_amount is not None:
+                    plan.price_yearly_cents = unit_amount
+            logger.info("billing.webhook.price_plan_updated", plan_slug=plan.slug, price_id=price_id, interval=interval)
+            db.commit()
+            return
+
+        # Check if this price belongs to an addon
+        addon = db.query(AddonDefinition).filter(AddonDefinition.stripe_product_id == product_id).first()
+        if addon:
+            addon.stripe_price_id = price_id
+            if unit_amount is not None:
+                addon.price_monthly_cents = unit_amount
+            logger.info("billing.webhook.price_addon_updated", addon_slug=addon.slug, price_id=price_id)
+            db.commit()
+            return
+
+    except Exception as exc:
+        db.rollback()
+        logger.error("billing.webhook.price_event_failed", error=str(exc))
+    finally:
+        db.close()
+
+
 def _on_invoice_event(event_type: str, obj: dict) -> None:
     stripe_sub_id = obj.get("subscription")
     if not stripe_sub_id:
@@ -547,6 +626,11 @@ async def stripe_webhook(request: Request) -> Response:
         "invoice.payment_succeeded":     lambda: _on_invoice_event(event_type, event_data.get("object", {})),
         "invoice.paid":                  lambda: _on_invoice_event(event_type, event_data.get("object", {})),
         "invoice.payment_failed":        lambda: _on_invoice_event(event_type, event_data.get("object", {})),
+        # Bidirectional Sync: Product & Price changes in Stripe → local DB
+        "product.updated":               lambda: _on_product_event(event_type, event_data.get("object", {})),
+        "product.deleted":               lambda: _on_product_event(event_type, event_data.get("object", {})),
+        "price.updated":                 lambda: _on_price_event(event_type, event_data.get("object", {})),
+        "price.created":                 lambda: _on_price_event(event_type, event_data.get("object", {})),
     }
 
     handler = HANDLERS.get(event_type)

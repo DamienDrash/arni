@@ -79,17 +79,21 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("ariia.gateway.maintenance_loop_skipped", error=str(e))
 
-    # Billing Sync Task
+    # Billing Sync Task (Plans + Addons from Stripe every 15 min)
     async def billing_sync_loop():
-        from app.core.billing_sync import sync_from_stripe
+        from app.core.billing_sync import sync_plans_from_stripe, sync_addons_from_stripe
         from app.core.db import SessionLocal as _SL
         while True:
             try:
                 db = _SL()
-                await sync_from_stripe(db)
-                db.close()
-            except: pass
-            await asyncio.sleep(900) # Every 15 minutes
+                try:
+                    await sync_plans_from_stripe(db)
+                    await sync_addons_from_stripe(db)
+                finally:
+                    db.close()
+            except Exception:
+                pass
+            await asyncio.sleep(900)  # Every 15 minutes
     background_tasks.append(asyncio.create_task(billing_sync_loop()))
 
     yield

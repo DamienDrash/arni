@@ -2,12 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 
 // Types matching the backend response
-export type PlanSlug = 'starter' | 'pro' | 'business' | 'enterprise';
+export type PlanSlug = string; // Dynamic slugs from DB
 
 export interface Plan {
   slug: PlanSlug;
   name: string;
-  price_monthly_cents: number;
+  description: string | null;
   features: Record<string, boolean>;
   limits: {
     max_members: number | null;
@@ -15,13 +15,14 @@ export interface Plan {
     max_channels: number;
     max_connectors: number;
   };
+  ai_tier: string;
+  features_display: string[];
 }
 
 export interface Subscription {
   has_subscription: boolean;
   status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid';
   current_period_end: string | null;
-  trial_ends_at: string | null;
 }
 
 export interface Usage {
@@ -32,12 +33,31 @@ export interface Usage {
   llm_tokens_used: number;
 }
 
+export interface ActiveAddon {
+  slug: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  quantity: number;
+  status: string;
+  features?: string[];
+}
+
+export interface Overage {
+  conversation_cents: number;
+  user_cents: number;
+  connector_cents: number;
+  channel_cents: number;
+}
+
 export interface PermissionsResponse {
   role: 'system_admin' | 'tenant_admin' | 'tenant_user';
   plan: Plan;
   subscription: Subscription;
   usage: Usage;
   pages: Record<string, boolean>;
+  addons: ActiveAddon[];
+  overage: Overage | null;
 }
 
 // Hook
@@ -57,17 +77,26 @@ export function usePermissions() {
   const isTenantAdmin = role === 'tenant_admin';
   const isTenantUser = role === 'tenant_user';
 
-  const feature = (key: string) => {
+  /**
+   * Check if a feature is available (from plan or addons).
+   */
+  const feature = (key: string): boolean => {
     if (!data?.plan?.features) return false;
     return !!data.plan.features[key];
   };
 
-  const canPage = (path: string) => {
-    if (!data?.pages) return true; // Default open if not specified? Or closed?
+  /**
+   * Check if a page is accessible.
+   */
+  const canPage = (path: string): boolean => {
+    if (!data?.pages) return true;
     return !!data.pages[path];
   };
 
-  const isNearLimit = (resource: 'messages' | 'members') => {
+  /**
+   * Check if a resource is near its limit (>80%).
+   */
+  const isNearLimit = (resource: 'messages' | 'members'): boolean => {
     if (!data?.plan?.limits || !data?.usage) return false;
     if (resource === 'messages') {
       const max = data.plan.limits.max_monthly_messages;
@@ -82,6 +111,58 @@ export function usePermissions() {
     return false;
   };
 
+  /**
+   * Check if a resource has exceeded its limit.
+   */
+  const isOverLimit = (resource: 'messages' | 'members'): boolean => {
+    if (!data?.plan?.limits || !data?.usage) return false;
+    if (resource === 'messages') {
+      const max = data.plan.limits.max_monthly_messages;
+      if (!max) return false;
+      return data.usage.messages_used >= max;
+    }
+    if (resource === 'members') {
+      const max = data.plan.limits.max_members;
+      if (!max) return false;
+      return data.usage.members_count >= max;
+    }
+    return false;
+  };
+
+  /**
+   * Get usage percentage for a resource.
+   */
+  const usagePercent = (resource: 'messages' | 'members'): number => {
+    if (!data?.plan?.limits || !data?.usage) return 0;
+    if (resource === 'messages') {
+      const max = data.plan.limits.max_monthly_messages;
+      if (!max) return 0;
+      return Math.min(100, (data.usage.messages_used / max) * 100);
+    }
+    if (resource === 'members') {
+      const max = data.plan.limits.max_members;
+      if (!max) return 0;
+      return Math.min(100, (data.usage.members_count / max) * 100);
+    }
+    return 0;
+  };
+
+  /**
+   * Check if the tenant has a specific addon active.
+   */
+  const hasAddon = (slug: string): boolean => {
+    if (!data?.addons) return false;
+    return data.addons.some(a => a.slug === slug && a.status === 'active');
+  };
+
+  /**
+   * Check if subscription is in a problematic state.
+   */
+  const isSubscriptionHealthy = (): boolean => {
+    if (!data?.subscription) return true;
+    return ['active', 'trialing'].includes(data.subscription.status);
+  };
+
   return {
     role,
     isSystemAdmin,
@@ -92,7 +173,13 @@ export function usePermissions() {
     plan: data?.plan,
     usage: data?.usage,
     subscription: data?.subscription,
+    addons: data?.addons || [],
+    overage: data?.overage || null,
     isNearLimit,
+    isOverLimit,
+    usagePercent,
+    hasAddon,
+    isSubscriptionHealthy,
     loading: isLoading,
     reload: refetch,
   };

@@ -62,6 +62,7 @@ class FeatureGate:
     def __init__(self, tenant_id: int) -> None:
         self._tenant_id = tenant_id
         self._plan_data: dict[str, object] = self._load_plan()
+        self._addon_slugs: set[str] = self._load_active_addons()
 
     # ── Plan Loading ──────────────────────────────────────────────────────────
 
@@ -86,6 +87,28 @@ class FeatureGate:
             logger.warning("feature_gate.plan_load_failed", tenant_id=self._tenant_id, error=str(exc))
         return dict(_STARTER_DEFAULTS)
 
+    def _load_active_addons(self) -> set[str]:
+        """Load the set of active addon slugs for this tenant."""
+        try:
+            from app.core.db import SessionLocal
+            from app.core.models import TenantAddon
+            db = SessionLocal()
+            try:
+                addons = db.query(TenantAddon.addon_slug).filter(
+                    TenantAddon.tenant_id == self._tenant_id,
+                    TenantAddon.status == "active",
+                ).all()
+                return {a[0] for a in addons}
+            finally:
+                db.close()
+        except Exception as exc:
+            logger.warning("feature_gate.addon_load_failed", tenant_id=self._tenant_id, error=str(exc))
+        return set()
+
+    def has_addon(self, addon_slug: str) -> bool:
+        """Check if the tenant has an active addon by slug."""
+        return addon_slug in self._addon_slugs
+
     # ── Channel Gates ─────────────────────────────────────────────────────────
 
     def require_channel(self, channel: str) -> None:
@@ -106,26 +129,65 @@ class FeatureGate:
         }
         plan_key = key_map.get(channel.lower())
         if plan_key and not self._plan_data.get(plan_key, False):
-            # Check for addons (PR 5)
-            # This is a simplified check; in a full implementation we would check the TenantAddon table too.
-            # For now, we strictly enforce the plan limits as per the base requirement.
+            # Check if an addon unlocks this channel
+            channel_addon_map = {
+                "voice": "voice_pipeline",
+                "sms": "extra_channel",
+                "instagram": "extra_channel",
+                "facebook": "extra_channel",
+                "google_business": "extra_channel",
+            }
+            addon_slug = channel_addon_map.get(channel.lower())
+            if addon_slug and self.has_addon(addon_slug):
+                return  # Addon unlocks this channel
+
             raise HTTPException(
                 status_code=402,
                 detail=f"Channel '{channel}' is not available on your current plan. Please upgrade.",
             )
 
     def require_feature(self, feature: str) -> None:
-        """Raise HTTP 402 if a named feature is not in the tenant's plan.
+        """Raise HTTP 402 if a named feature is not in the tenant's plan or addons.
 
         Args:
-            feature: e.g. 'memory_analyzer', 'custom_prompts'
+            feature: e.g. 'memory_analyzer', 'custom_prompts', 'vision_ai'
         """
         key = f"{feature}_enabled"
-        if not self._plan_data.get(key, False):
-             raise HTTPException(
-                status_code=402,
-                detail=f"Feature '{feature}' is not available on your current plan. Please upgrade.",
-            )
+        if self._plan_data.get(key, False):
+            return  # Plan includes this feature
+
+        # Check if an addon unlocks this feature
+        feature_addon_map = {
+            "vision_ai": "vision_ai",
+            "churn_prediction": "churn_prediction",
+            "voice": "voice_pipeline",
+            "white_label": "white_label",
+            "advanced_analytics": "advanced_analytics",
+        }
+        addon_slug = feature_addon_map.get(feature)
+        if addon_slug and self.has_addon(addon_slug):
+            return  # Addon unlocks this feature
+
+        raise HTTPException(
+            status_code=402,
+            detail=f"Feature '{feature}' is not available on your current plan. Please upgrade.",
+        )
+
+    def get_plan_slug(self) -> str:
+        """Return the current plan slug."""
+        return str(self._plan_data.get("slug", "starter"))
+
+    def get_plan_name(self) -> str:
+        """Return the current plan name."""
+        return str(self._plan_data.get("name", "Starter"))
+
+    def get_ai_tier(self) -> str:
+        """Return the AI tier for this tenant's plan."""
+        return str(self._plan_data.get("ai_tier", "basic"))
+
+    def get_monthly_token_limit(self) -> int:
+        """Return the monthly token limit."""
+        return int(self._plan_data.get("monthly_tokens", 100000))
 
     # ── Usage Gates ─────────────────────────────────────────────────────────
 
@@ -300,20 +362,28 @@ class FeatureGate:
 
 
 def seed_plans() -> None:
-    """Seed the 4 standard plans if they don't exist yet. Called at startup.
-    
+    """Seed the 4 standard plans + default add-ons if they don't exist yet.
+
     Plans: Starter, Professional, Business, Enterprise
+    Add-ons: Voice Pipeline, Vision AI, White Label, Churn Prediction, Extra Channel, Automation Pack
+
+    Called at startup from gateway/main.py.
     """
     from app.core.db import SessionLocal
-    from app.core.models import Plan, Subscription, Tenant
-    
+    from app.core.models import Plan, Subscription, Tenant, AddonDefinition
+
     db = SessionLocal()
     try:
         plans_data = [
             {
                 "name": "Starter",
                 "slug": "starter",
+                "description": "Perfekt fuer den Einstieg - ein WhatsApp-Kanal mit KI-gestuetztem Kundenservice.",
                 "price_monthly_cents": 7900,
+                "display_order": 1,
+                "is_highlighted": False,
+                "is_public": True,
+                "features_json": '["1 WhatsApp-Kanal", "500 Mitglieder", "500 Nachrichten/Monat", "Basic AI", "100K Tokens/Monat"]',
                 "max_members": 500,
                 "max_monthly_messages": 500,
                 "max_channels": 1,
@@ -335,7 +405,7 @@ def seed_plans() -> None:
                 "audit_log_enabled": False,
                 "automation_enabled": False,
                 "api_access_enabled": False,
-                "multi_source_members_enabled": True, # Included in all as base feature
+                "multi_source_members_enabled": True,
                 "churn_prediction_enabled": False,
                 "vision_ai_enabled": False,
                 "white_label_enabled": False,
@@ -345,8 +415,14 @@ def seed_plans() -> None:
             {
                 "name": "Professional",
                 "slug": "pro",
+                "description": "Fuer wachsende Teams - Multi-Channel, erweiterte Analytics und Automatisierung.",
                 "price_monthly_cents": 19900,
-                "max_members": None, # Unlimited
+                "price_yearly_cents": 199000,
+                "display_order": 2,
+                "is_highlighted": True,
+                "is_public": True,
+                "features_json": '["3 Kanaele (WhatsApp, Telegram, SMS, E-Mail)", "Unbegrenzte Mitglieder", "2.000 Nachrichten/Monat", "Standard AI", "500K Tokens/Monat", "Memory Analyzer", "Custom Prompts", "Advanced Analytics", "Branding", "Audit Log", "API Access"]',
+                "max_members": None,
                 "max_monthly_messages": 2000,
                 "max_channels": 3,
                 "max_connectors": 1,
@@ -377,11 +453,17 @@ def seed_plans() -> None:
             {
                 "name": "Business",
                 "slug": "business",
+                "description": "Fuer Unternehmen - alle Kanaele, Premium AI, Automation und Churn Prediction.",
                 "price_monthly_cents": 39900,
+                "price_yearly_cents": 399000,
+                "display_order": 3,
+                "is_highlighted": False,
+                "is_public": True,
+                "features_json": '["Alle Kanaele inkl. Voice", "Unbegrenzte Mitglieder", "10.000 Nachrichten/Monat", "Premium AI", "2M Tokens/Monat", "Alle Pro-Features", "Automation", "Churn Prediction", "Vision AI", "Google Business"]',
                 "max_members": None,
                 "max_monthly_messages": 10000,
-                "max_channels": 99, # "All"
-                "max_connectors": 99, # "All"
+                "max_channels": 99,
+                "max_connectors": 99,
                 "ai_tier": "premium",
                 "monthly_tokens": 2000000,
                 "whatsapp_enabled": True,
@@ -409,13 +491,18 @@ def seed_plans() -> None:
             {
                 "name": "Enterprise",
                 "slug": "enterprise",
-                "price_monthly_cents": 0, # Custom
+                "description": "Massgeschneiderte Loesung mit White Label, SLA-Garantie und On-Premise Option.",
+                "price_monthly_cents": 0,
+                "display_order": 4,
+                "is_highlighted": False,
+                "is_public": True,
+                "features_json": '["Alles aus Business", "Unbegrenzte Nachrichten", "Unlimited AI", "White Label", "SLA-Garantie", "On-Premise Option", "Dedizierter Support"]',
                 "max_members": None,
                 "max_monthly_messages": None,
                 "max_channels": 999,
                 "max_connectors": 999,
                 "ai_tier": "unlimited",
-                "monthly_tokens": 0, # Unlimited
+                "monthly_tokens": 0,
                 "whatsapp_enabled": True,
                 "telegram_enabled": True,
                 "sms_enabled": True,
@@ -448,9 +535,78 @@ def seed_plans() -> None:
                 # Update existing plan definitions to match code (important for deployments)
                 for key, value in data.items():
                     setattr(existing, key, value)
-        
+
         db.commit()
         logger.info("feature_gate.plans_seeded")
+
+        # ── Seed Add-on Definitions ──────────────────────────────────────
+        addons_data = [
+            {
+                "slug": "voice_pipeline",
+                "name": "Voice Pipeline",
+                "description": "Sprach-KI fuer eingehende und ausgehende Anrufe mit natuerlicher Sprachverarbeitung.",
+                "category": "channel",
+                "price_monthly_cents": 4900,
+                "features_json": '["voice_enabled"]',
+                "display_order": 1,
+            },
+            {
+                "slug": "vision_ai",
+                "name": "Vision AI",
+                "description": "Bild- und Dokumentenanalyse mit KI - automatische Erkennung und Klassifizierung.",
+                "category": "ai",
+                "price_monthly_cents": 2900,
+                "features_json": '["vision_ai_enabled"]',
+                "display_order": 2,
+            },
+            {
+                "slug": "white_label",
+                "name": "White Label",
+                "description": "Eigenes Branding - Logo, Farben und Domain fuer deine Kunden.",
+                "category": "integration",
+                "price_monthly_cents": 9900,
+                "features_json": '["white_label_enabled"]',
+                "display_order": 3,
+            },
+            {
+                "slug": "churn_prediction",
+                "name": "Churn Prediction",
+                "description": "KI-basierte Abwanderungsvorhersage mit automatischen Warnungen.",
+                "category": "analytics",
+                "price_monthly_cents": 3900,
+                "features_json": '["churn_prediction_enabled"]',
+                "display_order": 4,
+            },
+            {
+                "slug": "extra_channel",
+                "name": "Extra Channel",
+                "description": "Zusaetzlicher Messaging-Kanal ueber das Plan-Limit hinaus.",
+                "category": "channel",
+                "price_monthly_cents": 2900,
+                "features_json": '["extra_channel"]',
+                "display_order": 5,
+            },
+            {
+                "slug": "automation_pack",
+                "name": "Automation Pack",
+                "description": "Erweiterte Workflow-Automatisierung mit Trigger-Regeln und Aktionen.",
+                "category": "integration",
+                "price_monthly_cents": 4900,
+                "features_json": '["automation_enabled"]',
+                "display_order": 6,
+            },
+        ]
+
+        for adata in addons_data:
+            existing_addon = db.query(AddonDefinition).filter(
+                AddonDefinition.slug == adata["slug"]
+            ).first()
+            if not existing_addon:
+                db.add(AddonDefinition(**adata))
+            # Do NOT overwrite existing addons (admin may have customized them)
+
+        db.commit()
+        logger.info("feature_gate.addons_seeded")
 
         # Assign Starter plan to any tenant without a subscription (idempotent)
         starter_plan = db.query(Plan).filter(Plan.slug == "starter").first()
@@ -470,3 +626,4 @@ def seed_plans() -> None:
         logger.warning("feature_gate.plans_seed_failed", error=str(exc))
     finally:
         db.close()
+
