@@ -317,7 +317,7 @@ async def get_profile_settings(user: AuthContext = Depends(get_current_user)) ->
             "email": row.email,
             "full_name": row.full_name or "",
             "role": row.role,
-            "locale": persistence.get_setting(_user_pref_key(user.user_id, "locale"), "de-DE", tenant_id=user.tenant_id) or "de-DE",
+            "locale": persistence.get_setting(_user_pref_key(user.user_id, "locale"), None, tenant_id=user.tenant_id),
             "timezone": persistence.get_setting(_user_pref_key(user.user_id, "timezone"), "Europe/Berlin", tenant_id=user.tenant_id) or "Europe/Berlin",
             "notify_email": persistence.get_setting(_user_pref_key(user.user_id, "notify_email"), "true", tenant_id=user.tenant_id) or "true",
             "notify_telegram": persistence.get_setting(_user_pref_key(user.user_id, "notify_telegram"), "false", tenant_id=user.tenant_id) or "false",

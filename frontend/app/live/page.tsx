@@ -1,644 +1,247 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Users, Send, Clock, Ghost, Phone } from "lucide-react";
-import { apiFetch } from "@/lib/api";
-import { T } from "@/lib/tokens";
-import { Avatar } from "@/components/ui/Avatar";
+import { useEffect, useState, useRef, useMemo } from "react";
+import { Activity, MessageSquare, User, Bot, AlertTriangle, Shield, Check, X, RefreshCw, Unplug, Globe, UserPlus, Brain } from "lucide-react";
+import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { MiniButton } from "@/components/ui/MiniButton";
+import { T } from "@/lib/tokens";
+import { apiFetch } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/LanguageContext";
 import { Modal } from "@/components/ui/Modal";
 
-type ChatSession = {
-  user_id: string;
-  platform: string;
-  last_active: string;
-  is_active: boolean;
-  user_name?: string;
+type Message = { role: string; content: string; timestamp: string };
+type Session = { 
+  user_id: string; 
+  platform: string; 
+  last_active: string; 
+  is_active: boolean; 
+  user_name?: string; 
+  active_token?: string; 
   member_id?: string;
-  active_token?: string;
 };
 
-type Message = {
-  role: string;
-  content: string;
-  timestamp: string;
-  metadata?: string;
-};
-
-function platformColor(platform: string): string {
-  if (platform === "whatsapp") return T.whatsapp;
-  if (platform === "telegram") return T.telegram;
-  if (platform === "email") return T.email;
-  return T.phone;
-}
-
-function initials(name: string) {
-  return name.substring(0, 2).toUpperCase();
-}
-
-export default function LiveGhostPage() {
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [wsStatus, setWsStatus] = useState<"connecting" | "connected" | "stale" | "fallback">("connecting");
-  const [manualToken, setManualToken] = useState<string | null>(null);
-  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
-  const [isAtBottom, setIsAtBottom] = useState(true);
-  const [isSending, setIsSending] = useState(false);
-  const [showLinkDialog, setShowLinkDialog] = useState(false);
+export default function LiveMonitorPage() {
+  const { t } = useI18n();
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [history, setHistory] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [linkModal, setLinkModal] = useState<string | null>(null);
   const [memberIdInput, setMemberIdInput] = useState("");
-  const [actionError, setActionError] = useState("");
+  const [manualToken, setManualToken] = useState<{ id: string; token: string } | null>(null);
 
-  const wsRef = useRef<WebSocket | null>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const shouldAutoScrollRef = useRef(true);
-  const selectedUserRef = useRef<string | null>(null);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectAttemptsRef = useRef(0);
-  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastWsEventAtRef = useRef<number>(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const currentSession = sessions.find(s => s.user_id === selectedUser);
-  const activeToken = currentSession?.member_id ? null : (manualToken ?? currentSession?.active_token ?? null);
-
-  const fetchSessions = useCallback(async () => {
+  async function fetchSessions() {
     try {
-      const res = await apiFetch("/admin/chats?limit=200");
+      const res = await apiFetch("/admin/chats?limit=50");
       if (res.ok) setSessions(await res.json());
-    } catch { }
-  }, []);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const fetchHistory = useCallback(async (userId: string) => {
+  async function fetchHistory(id: string) {
+    setLoadingHistory(true);
     try {
-      const res = await apiFetch(`/admin/chats/${userId}/history`);
-      if (res.ok) setMessages(await res.json());
-    } catch { }
-  }, []);
-
-  useEffect(() => {
-    if (!selectedUser) return;
-    const kickoff = setTimeout(() => { void fetchHistory(selectedUser); }, 0);
-    const bottomReset = setTimeout(() => {
-      shouldAutoScrollRef.current = true;
-      setIsAtBottom(true);
-    }, 0);
-    return () => {
-      clearTimeout(kickoff);
-      clearTimeout(bottomReset);
-    };
-  }, [fetchHistory, selectedUser]);
-
-  useEffect(() => {
-    selectedUserRef.current = selectedUser;
-  }, [selectedUser]);
-
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    if (!selectedUser && sessions.length > 0) {
-      timer = setTimeout(() => setSelectedUser(sessions[0].user_id), 0);
-    } else if (selectedUser && sessions.length > 0 && !sessions.some((s) => s.user_id === selectedUser)) {
-      timer = setTimeout(() => setSelectedUser(sessions[0].user_id), 0);
+      const res = await apiFetch(`/admin/chats/${id}/history`);
+      if (res.ok) setHistory(await res.json());
+    } finally {
+      setLoadingHistory(false);
     }
-    return () => { if (timer) clearTimeout(timer); };
-  }, [sessions, selectedUser]);
+  }
 
   useEffect(() => {
-    const timer = setTimeout(() => setManualToken(null), 0);
-    return () => clearTimeout(timer);
-  }, [selectedUser]);
-
-  useEffect(() => {
-    const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-    const wsEnabled = process.env.NEXT_PUBLIC_ENABLE_WS === "true" || isLocalhost;
-    if (!wsEnabled) {
-      setWsStatus("fallback");
-      return;
-    }
-
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const configuredBasePath = (process.env.NEXT_PUBLIC_GATEWAY_BASE_PATH || "").trim().replace(/\/+$/, "");
-    const wsCandidates: string[] = isLocalhost
-      ? ["ws://localhost:8000/ws/control"]
-      : [...new Set([
-        "/ws/control",
-        "/arni/ws/control",
-        "/proxy/ws/control",
-        "/arni/proxy/ws/control",
-        `${configuredBasePath}/ws/control`,
-        `${configuredBasePath}/proxy/ws/control`,
-      ])].map(p => `${protocol}//${window.location.host}${p}`);
-
-    let closedByCleanup = false;
-
-    const scheduleRefresh = () => {
-      if (refreshTimerRef.current) return;
-      refreshTimerRef.current = setTimeout(() => {
-        refreshTimerRef.current = null;
-        void fetchSessions();
-        const activeUser = selectedUserRef.current;
-        if (activeUser) void fetchHistory(activeUser);
-      }, 300);
-    };
-
-    const scheduleReconnect = () => {
-      if (closedByCleanup) return;
-      const attempt = reconnectAttemptsRef.current + 1;
-      reconnectAttemptsRef.current = attempt;
-      const delay = Math.min(15000, 1000 * Math.pow(2, Math.min(attempt, 4)));
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = setTimeout(() => connect(0), delay);
-    };
-
-    const connect = (index: number) => {
-      if (closedByCleanup) return;
-      if (index >= wsCandidates.length) {
-        setWsStatus("fallback");
-        scheduleReconnect();
-        return;
-      }
-      setWsStatus("connecting");
-      const ws = new WebSocket(wsCandidates[index]);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        reconnectAttemptsRef.current = 0;
-        lastWsEventAtRef.current = Date.now();
-        setWsStatus("connected");
-        scheduleRefresh();
-      };
-      ws.onclose = () => {
-        if (closedByCleanup) return;
-        setWsStatus("fallback");
-        scheduleReconnect();
-      };
-      ws.onerror = () => {
-        ws.close();
-      };
-      ws.onmessage = (event) => {
-        lastWsEventAtRef.current = Date.now();
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === "ghost.message_in" || data.type === "ghost.message_out") {
-            scheduleRefresh();
-          }
-        } catch {
-          // Keep socket alive even if malformed payload arrives.
-        }
-      };
-    };
-
-    connect(0);
-    return () => {
-      closedByCleanup = true;
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-      wsRef.current?.close();
-    };
-  }, [fetchHistory, fetchSessions]);
-
-  useEffect(() => {
-    void fetchSessions();
-    if (selectedUser) void fetchHistory(selectedUser);
-  }, [fetchHistory, fetchSessions, selectedUser]);
-
-  useEffect(() => {
-    if (wsStatus !== "connected") return;
-    const timer = setInterval(() => {
-      const lastEvent = lastWsEventAtRef.current;
-      if (!lastEvent) return;
-      if (Date.now() - lastEvent > 20000) {
-        setWsStatus("stale");
-        wsRef.current?.close();
-      }
-    }, 5000);
+    fetchSessions();
+    const timer = setInterval(fetchSessions, 5000);
     return () => clearInterval(timer);
-  }, [wsStatus]);
+  }, []);
 
   useEffect(() => {
-    if (wsStatus === "connected") return;
-    const sessionsTimer = setInterval(() => { void fetchSessions(); }, 5000);
-    const historyTimer = setInterval(() => {
-      if (selectedUserRef.current) void fetchHistory(selectedUserRef.current);
-    }, 3500);
-    return () => {
-      clearInterval(sessionsTimer);
-      clearInterval(historyTimer);
-    };
-  }, [fetchHistory, fetchSessions, wsStatus]);
-
-  const handleSend = () => {
-    if (!input || !selectedUser || isSending) return;
-    const content = input;
-    const platform = currentSession?.platform || "telegram";
-    setIsSending(true);
-    setInput("");
-    setMessages(prev => [...prev, {
-      role: "assistant",
-      content,
-      timestamp: new Date().toISOString(),
-      metadata: JSON.stringify({ source: "admin" }),
-    }]);
-
-    const run = async () => {
-      try {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          wsRef.current.send(JSON.stringify({
-            type: "intervention",
-            user_id: selectedUser,
-            content,
-            platform,
-          }));
-        } else {
-          await apiFetch(`/admin/chats/${selectedUser}/intervene`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content, platform }),
-          });
-        }
-      } catch {
-        // keep optimistic message, history polling will reconcile.
-      } finally {
-        setIsSending(false);
-      }
-    };
-    void run();
-  };
-
-  const handleGenerateToken = async () => {
-    if (!selectedUser || !memberIdInput.trim()) {
-      setActionError("Bitte eine gültige Member ID angeben.");
-      return;
-    }
-    try {
-      const res = await apiFetch("/admin/tokens", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ member_id: memberIdInput.trim(), user_id: selectedUser }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setManualToken(data.token);
-        setShowLinkDialog(false);
-        setMemberIdInput("");
-        setActionError("");
-      } else {
-        setActionError(`Token-Generierung fehlgeschlagen (${res.status}).`);
-      }
-    } catch {
-      setActionError("Token-Generierung fehlgeschlagen.");
-    }
-  };
+    if (selectedId) fetchHistory(selectedId);
+  }, [selectedId]);
 
   useEffect(() => {
-    const el = messagesContainerRef.current;
-    if (!el) return;
-    if (!shouldAutoScrollRef.current) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages]);
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [history]);
 
-  // ── List Panel ────────────────────────────────────────────────────────────
-  const listPanel = (
-    <div style={{ background: T.surface, display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-      <div style={{ padding: "20px 16px 16px", borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Users size={15} color={T.accent} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Live Sessions</span>
-          {sessions.length > 0 && (
-            <Badge variant="accent" size="xs">{sessions.length}</Badge>
-          )}
+  const activeSession = sessions.find(s => s.user_id === selectedId);
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-140px)] gap-4">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400">
+            <Activity size={20} />
+          </div>
+          <div>
+            <h1 className="text-xl font-black text-white uppercase tracking-tight">{t("live.title")}</h1>
+            <p className="text-xs text-slate-500 font-medium">{t("live.subtitle")}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">
+          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+          <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Live</span>
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
-        {sessions.length === 0 ? (
-          <div style={{ padding: 40, textAlign: "center", color: T.textDim, fontSize: 13 }}>
-            Keine aktiven Sessions
+      <div className="flex flex-1 gap-4 overflow-hidden">
+        {/* Sidebar */}
+        <Card className="w-80 flex flex-col p-0 overflow-hidden border-slate-800/50 bg-slate-900/20 backdrop-blur-sm">
+          <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/5">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("live.sessions")}</span>
+            <Badge variant="success" size="xs">{sessions.length}</Badge>
           </div>
-        ) : (
-          sessions.map(session => {
-            const isSelected = selectedUser === session.user_id;
-            const name = session.user_name || session.user_id;
-            return (
-              <button
-                key={session.user_id}
-                type="button"
-                aria-label={`Session öffnen: ${name}`}
-                onClick={() => { setSelectedUser(session.user_id); setMobileView("chat"); }}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "14px 16px",
-                  border: "none",
-                  borderBottom: `1px solid ${T.border}`,
-                  cursor: "pointer",
-                  background: isSelected ? T.accentDim : "transparent",
-                  borderLeft: `3px solid ${isSelected ? T.accent : "transparent"}`,
-                  transition: "background 0.15s",
-                }}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-2 flex flex-col gap-1">
+            {sessions.length === 0 && !loading && (
+              <div className="p-8 text-center text-slate-600 text-xs italic">{t("live.noSessions")}</div>
+            )}
+            {sessions.map(s => (
+              <button 
+                key={s.user_id}
+                onClick={() => setSelectedId(s.user_id)}
+                className={`w-full text-left p-3 rounded-xl transition-all border ${
+                  selectedId === s.user_id 
+                    ? "bg-indigo-600 border-indigo-500 shadow-lg shadow-indigo-600/20" 
+                    : "bg-white/5 border-transparent hover:bg-white/10 hover:border-white/10"
+                }`}
               >
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                  <Avatar
-                    initials={initials(name)}
-                    size={36}
-                    color={platformColor(session.platform)}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{name}</span>
-                      <span style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase" }}>{session.platform}</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
-                      <Clock size={11} color={T.textDim} />
-                      <span style={{ fontSize: 11, color: T.textMuted }}>
-                        {new Date(session.last_active).toLocaleTimeString()}
-                      </span>
-                      {session.member_id && (
-                        <Badge variant="accent" size="xs">{session.member_id}</Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-
-  // ── Chat Panel ────────────────────────────────────────────────────────────
-  const chatPanel = (
-    <div style={{ background: T.bg, display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" }}>
-      {selectedUser && currentSession ? (
-        <>
-          {/* Header */}
-          <div style={{
-            padding: "16px 24px",
-            borderBottom: `1px solid ${T.border}`,
-            background: T.surface,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: 8,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <button
-                className="md:hidden"
-                onClick={() => setMobileView("list")}
-                style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, padding: 4 }}
-              >
-                ←
-              </button>
-              <Avatar
-                initials={initials(currentSession.user_name || selectedUser)}
-                size={38}
-                color={platformColor(currentSession.platform)}
-              />
-              <div>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: 0 }}>
-                  {currentSession.user_name || selectedUser}
-                </h3>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-                  <span style={{ fontSize: 11, color: T.textDim, textTransform: "uppercase" }}>
-                    {currentSession.platform}
+                <div className="flex justify-between items-start mb-1">
+                  <span className={`text-xs font-bold truncate ${selectedId === s.user_id ? "text-white" : "text-slate-300"}`}>
+                    {s.user_name || s.user_id.slice(0, 12)}
                   </span>
-                  {currentSession.member_id && (
-                    <Badge variant="accent" size="xs">Member: {currentSession.member_id}</Badge>
+                  <span className={`text-[9px] font-bold uppercase ${selectedId === s.user_id ? "text-indigo-200" : "text-slate-500"}`}>
+                    {s.platform}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] ${selectedId === s.user_id ? "text-indigo-100" : "text-slate-500"}`}>
+                    {new Date(s.last_active).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  {s.active_token && (
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/20 rounded-md border border-amber-500/20">
+                      <Shield size={8} className="text-amber-500" />
+                      <span className="text-[9px] font-black text-amber-500">{s.active_token}</span>
+                    </div>
                   )}
-                  <span style={{ fontSize: 11, color: T.textDim }}>· {selectedUser}</span>
                 </div>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              {!currentSession.member_id && (
-                <MiniButton
-                  onClick={() => {
-                    setShowLinkDialog(true);
-                    setActionError("");
-                    setMemberIdInput("");
-                  }}
-                >
-                  <Phone size={12} /> Link Member
-                </MiniButton>
-              )}
-              <Badge variant={wsStatus === "connected" ? "success" : "warning"}>
-                {wsStatus === "connected" ? "Realtime aktiv" : wsStatus === "connecting" ? "Verbinde…" : wsStatus === "stale" ? "Reconnect…" : "Fallback Polling"}
-              </Badge>
-            </div>
+              </button>
+            ))}
           </div>
+        </Card>
 
-          {/* Token Banner */}
-          {activeToken && (
-            <div style={{
-              background: T.accentDim,
-              borderBottom: `1px solid ${T.accent}`,
-              padding: "12px 24px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <Phone size={18} color={T.accentLight} />
-                <div>
-                  <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                    Verifizierungscode
+        {/* Chat Area */}
+        <Card className="flex-1 flex flex-col p-0 overflow-hidden border-slate-800/50 bg-slate-950/50">
+          {selectedId ? (
+            <>
+              <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-inner">
+                    {(activeSession?.user_name || "U")[0]}
                   </div>
-                  <div style={{ fontSize: 22, fontFamily: "monospace", fontWeight: 700, color: T.accentLight, letterSpacing: "0.15em" }}>
-                    {activeToken}
+                  <div>
+                    <div className="text-xs font-bold text-white">{activeSession?.user_name || selectedId}</div>
+                    <div className="text-[10px] text-slate-500 uppercase font-black tracking-widest">{activeSession?.platform}</div>
                   </div>
                 </div>
+                <div className="flex gap-2">
+                  {!activeSession?.member_id && (
+                    <button onClick={() => setLinkModal(selectedId)} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg text-xs font-bold border border-white/10 transition-all">
+                      <UserPlus size={14} /> {t("live.handoff.link")}
+                    </button>
+                  )}
+                  {activeSession?.member_id && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg text-xs font-bold border border-emerald-500/20">
+                      <Check size={14} /> {activeSession.member_id}
+                    </div>
+                  )}
+                </div>
               </div>
-              <MiniButton onClick={() => setManualToken(null)}>✕</MiniButton>
-            </div>
-          )}
 
-          {/* Messages */}
-          <div
-            ref={messagesContainerRef}
-            onScroll={(e) => {
-              const el = e.currentTarget;
-              const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
-              const atBottom = distanceFromBottom < 48;
-              shouldAutoScrollRef.current = atBottom;
-              setIsAtBottom(atBottom);
-            }}
-            style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 16 }}
-          >
-            {messages.length === 0 && !activeToken && (
-              <div style={{ textAlign: "center", color: T.textDim, marginTop: 40, fontSize: 13 }}>
-                <Ghost size={40} style={{ opacity: 0.2, margin: "0 auto 12px", display: "block" }} />
-                Noch keine Nachrichten.
-                {!currentSession.member_id && (
-                  <div style={{ marginTop: 12 }}>
-                    <MiniButton
-                      onClick={() => {
-                        setShowLinkDialog(true);
-                        setActionError("");
-                        setMemberIdInput("");
-                      }}
-                    >
-                      <Phone size={12} /> Verifizierungstoken generieren
-                    </MiniButton>
+              <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-[url('/grid.svg')] bg-repeat bg-center">
+                {history.map((msg, idx) => {
+                  const isUser = msg.role === "user";
+                  return (
+                    <div key={idx} className={`flex ${isUser ? "justify-start" : "justify-end"}`}>
+                      <div className={`max-w-[80%] group`}>
+                        <div className={`flex items-center gap-2 mb-1.5 ${isUser ? "flex-row" : "flex-row-reverse"}`}>
+                          <div className={`w-5 h-5 rounded-md flex items-center justify-center ${isUser ? "bg-slate-800 text-slate-400" : "bg-indigo-500/20 text-indigo-400"}`}>
+                            {isUser ? <User size={12} /> : <Bot size={12} />}
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                            {isUser ? (activeSession?.user_name || "User") : "ARIIA AI"}
+                          </span>
+                          <span className="text-[9px] text-slate-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                            {new Date(msg.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm border ${
+                          isUser 
+                            ? "bg-slate-900 border-slate-800 text-slate-200 rounded-tl-none" 
+                            : "bg-indigo-600 border-indigo-500 text-white rounded-tr-none shadow-indigo-500/10"
+                        }`}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {loadingHistory && (
+                  <div className="flex justify-center p-4">
+                    <RefreshCw size={20} className="animate-spin text-slate-700" />
                   </div>
                 )}
               </div>
-            )}
-            {messages.map((msg, idx) => {
-              const isUser = msg.role === "user";
-              return (
-                <div key={idx} style={{ display: "flex", justifyContent: isUser ? "flex-start" : "flex-end" }}>
-                  <div style={{
-                    maxWidth: "80%",
-                    padding: "12px 16px",
-                    borderRadius: 14,
-                    background: isUser ? T.surfaceAlt : T.accentDim,
-                    border: `1px solid ${isUser ? T.border : "rgba(108,92,231,0.3)"}`,
-                  }}>
-                    <p style={{ fontSize: 13, color: T.text, margin: 0, lineHeight: 1.5 }}>{msg.content}</p>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, marginTop: 6, opacity: 0.7 }}>
-                      <span style={{ fontSize: 9, color: T.textDim, fontWeight: 500 }}>
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      {!isUser && <span style={{ fontSize: 9, color: T.accent, fontWeight: 800, letterSpacing: "0.05em" }}>ARIIA AI</span>}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {!isAtBottom && (
-            <div style={{ padding: "6px 24px 0", background: T.surface }}>
-              <MiniButton onClick={() => {
-                if (messagesContainerRef.current) {
-                  messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-                }
-                shouldAutoScrollRef.current = true;
-                setIsAtBottom(true);
-              }}>
-                Zu neuesten Nachrichten
-              </MiniButton>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-slate-600 gap-4">
+              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-slate-700 mb-2 border border-white/5 shadow-inner">
+                <MessageSquare size={32} strokeWidth={1.5} />
+              </div>
+              <p className="text-sm font-medium tracking-tight">{t("live.selectSession")}</p>
             </div>
           )}
-
-          {/* Input */}
-          <div style={{
-            padding: "12px 24px",
-            borderTop: `1px solid ${T.border}`,
-            background: T.surface,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}>
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              disabled={isSending}
-              placeholder={isSending ? "Sende…" : "Intervention eingeben…"}
-              style={{
-                flex: 1,
-                background: T.surfaceAlt,
-                border: `1px solid ${T.border}`,
-                borderRadius: 10,
-                padding: "10px 14px",
-                fontSize: 13,
-                color: T.text,
-                outline: "none",
-                opacity: isSending ? 0.6 : 1,
-              }}
-            />
-            <button
-              onClick={handleSend}
-              disabled={isSending || !input.trim()}
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                border: "none",
-                background: (!isSending && input.trim()) ? T.accent : T.surfaceAlt,
-                color: (!isSending && input.trim()) ? "#fff" : T.textDim,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: (!isSending && input.trim()) ? "pointer" : "not-allowed",
-                transition: "background 0.15s",
-                flexShrink: 0,
-              }}
-            >
-              <Send size={16} />
-            </button>
-          </div>
-        </>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: T.textDim }}>
-          <Ghost size={56} style={{ opacity: 0.15, marginBottom: 16 }} />
-          <p style={{ fontSize: 13, margin: 0 }}>Session auswählen</p>
-        </div>
-      )}
-    </div>
-  );
-
-  return (
-    <>
-      <div className="flex flex-col flex-1 h-[calc(100dvh-140px)] min-h-[520px] max-h-[980px] rounded-2xl overflow-hidden" style={{ border: `1px solid ${T.border}` }}>
-        {/* Desktop */}
-        <div className="hidden md:grid h-full" style={{ gridTemplateColumns: "340px 1fr", minHeight: 0 }}>
-          {listPanel}
-          {chatPanel}
-        </div>
-        {/* Mobile */}
-        <div className="md:hidden flex flex-col h-full" style={{ minHeight: 0 }}>
-          {mobileView === "list" ? listPanel : chatPanel}
-        </div>
+        </Card>
       </div>
-      <Modal
-        open={showLinkDialog}
-        onClose={() => setShowLinkDialog(false)}
-        title="Member verknüpfen"
-        subtitle="Bitte Member ID eingeben (z. B. M-1005)."
-        width="min(480px,100%)"
-      >
-        <div style={{ display: "grid", gap: 10 }}>
-          <input
-            value={memberIdInput}
-            onChange={(e) => setMemberIdInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void handleGenerateToken();
-            }}
-            placeholder="Member ID"
-            style={{
-              borderRadius: 10,
-              border: `1px solid ${T.border}`,
-              background: T.surfaceAlt,
-              color: T.text,
-              padding: "10px 12px",
-              fontSize: 13,
-              outline: "none",
-            }}
-          />
-          {actionError && <div style={{ fontSize: 12, color: T.danger }}>{actionError}</div>}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button
-              onClick={() => setShowLinkDialog(false)}
-              style={{ borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, padding: "8px 10px", cursor: "pointer" }}
+
+      <Modal open={!!linkModal} onClose={() => setLinkModal(null)} title={t("live.handoff.link")} subtitle={t("live.handoff.hint")}>
+        <div className="p-4 flex flex-col gap-4">
+          <div className="relative">
+            <Brain className="absolute left-3 top-3 text-slate-500" size={16} />
+            <input 
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-2.5 text-white outline-none focus:border-indigo-500"
+              placeholder={t("live.handoff.placeholder")}
+              value={memberIdInput}
+              onChange={e => setMemberIdInput(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-3 mt-2">
+            <button onClick={() => setLinkModal(null)} className="px-4 py-2 text-sm font-bold text-slate-400 hover:text-white transition-colors">{t("common.cancel")}</button>
+            <button 
+              onClick={async () => {
+                if (!linkModal || !memberIdInput) return;
+                const res = await apiFetch("/admin/tokens", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ member_id: memberIdInput, user_id: linkModal })
+                });
+                if (res.ok) {
+                  const { token } = await res.json();
+                  setManualToken({ id: linkModal, token });
+                  setLinkModal(null);
+                  setMemberIdInput("");
+                  fetchSessions();
+                }
+              }}
+              className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg shadow-indigo-500/20"
             >
-              Abbrechen
-            </button>
-            <button
-              onClick={() => void handleGenerateToken()}
-              style={{ borderRadius: 10, border: "none", background: T.accent, color: "#061018", fontWeight: 700, padding: "8px 12px", cursor: "pointer" }}
-            >
-              Token erstellen
+              Token generieren
             </button>
           </div>
         </div>
       </Modal>
-    </>
+    </div>
   );
 }

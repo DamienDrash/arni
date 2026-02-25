@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 // Types matching the backend response
 export type PlanSlug = 'starter' | 'pro' | 'business' | 'enterprise';
@@ -45,8 +45,9 @@ export function usePermissions() {
   const { data, isLoading, refetch } = useQuery<PermissionsResponse>({
     queryKey: ['permissions'],
     queryFn: async () => {
-      const res = await api.get('/admin/permissions'); // Need to implement this backend endpoint!
-      return res.data;
+      const res = await apiFetch('/admin/permissions');
+      if (!res.ok) throw new Error('Failed to load permissions');
+      return res.json();
     },
     staleTime: 5 * 60 * 1000, // 5 minutes cache
   });

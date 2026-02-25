@@ -16,15 +16,14 @@ def mask_pii(text: str) -> str:
     # Mask Email
     text = EMAIL_REGEX.sub("[EMAIL]", text)
     
-    # Mask Phone (simplified)
-    # This might be aggressive, so we use a placeholder that indicates a phone was there.
+    # Mask Phone
     text = PHONE_REGEX.sub("[PHONE]", text)
     
     return text
 
-def filter_log_record(record: dict) -> dict:
+def filter_log_record(logger, method_name, event_dict):
     """Processor for structlog to mask PII in log records."""
-    for key, value in record.items():
+    for key, value in event_dict.items():
         if isinstance(value, str):
-            record[key] = mask_pii(value)
-    return record
+            event_dict[key] = mask_pii(value)
+    return event_dict

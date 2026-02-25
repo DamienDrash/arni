@@ -130,4 +130,19 @@
   .ariia-editor em {
     color: #11142d;
   }
+
+  /* Global Form Readability Fix */
+  input, select, textarea {
+    color: #E8E9ED !important;
+    background-color: #1A1B24 !important;
+  }
+
+  input::placeholder {
+    color: #5A5C6B !important;
+  }
+
+  select option {
+    background-color: #12131A !important;
+    color: #E8E9ED !important;
+  }
 }

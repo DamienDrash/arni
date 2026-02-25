@@ -33,7 +33,7 @@ export async function apiFetch(path: string, init?: RequestInit) {
   const isRetryableRead = isRetryableMethod(method);
   
   // Internal API routes MUST go through our Next.js proxy at /proxy/...
-  // withBasePath ensures the /arni prefix is added correctly
+  // withBasePath ensures the /ariia prefix is added correctly
   const candidates = [
     withBasePath(`/proxy${normalizedPath}`)
   ];

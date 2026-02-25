@@ -1,142 +1,139 @@
-"""app/gateway/routers/permissions.py — Frontend Permissions & Feature Flags (PR 4).
-
-Endpoints:
-    GET /admin/permissions
-"""
-from __future__ import annotations
-
-from typing import Dict, Any, Optional
-
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
-
+from sqlalchemy.orm import Session
+from app.core.db import get_db
 from app.core.auth import AuthContext, get_current_user
-from app.core.db import SessionLocal
-from app.core.models import Plan, Subscription
-from app.core.feature_gates import FeatureGate
+from app.core.models import Plan, Subscription, UsageRecord, StudioMember
+from datetime import datetime
 
 router = APIRouter(prefix="/admin", tags=["permissions"])
 
-
-class PlanSchema(BaseModel):
-    slug: str
-    name: str
-    price_monthly_cents: int
-    features: Dict[str, bool]
-    limits: Dict[str, Optional[int]]
-
-class SubscriptionSchema(BaseModel):
-    has_subscription: bool
-    status: str
-    current_period_end: Optional[str] = None
-    trial_ends_at: Optional[str] = None
-
-class UsageSchema(BaseModel):
-    messages_used: int
-    messages_inbound: int
-    messages_outbound: int
-    members_count: int
-    llm_tokens_used: int
-
-class PermissionsResponse(BaseModel):
-    role: str
-    plan: Optional[PlanSchema] = None
-    subscription: SubscriptionSchema
-    usage: UsageSchema
-    pages: Dict[str, bool]
-
-
-@router.get("/permissions", response_model=PermissionsResponse)
-def get_permissions(user: AuthContext = Depends(get_current_user)):
-    """Return the full permission map for the current user/tenant context."""
+@router.get("/permissions")
+async def get_permissions(
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Gold Standard Permission Mapping.
+    System Admins receive absolute access ('God Mode').
+    Tenants are restricted by their subscription plan.
+    """
+    is_sys = user.role == "system_admin"
     
-    # 1. Load Feature Gate (Usage & Plan data)
-    gate = FeatureGate(user.tenant_id)
-    plan_data = gate._plan_data
-    usage_data = gate._get_current_usage()
+    # 1. Base Data
+    sub = db.query(Subscription).filter(Subscription.tenant_id == user.tenant_id).first()
+    plan = db.query(Plan).filter(Plan.id == sub.plan_id).first() if sub else None
     
-    # 2. Load Subscription Details
-    db = SessionLocal()
-    try:
-        sub = db.query(Subscription).filter(
-            Subscription.tenant_id == user.tenant_id,
-            Subscription.status.in_(["active", "trialing", "past_due"])
-        ).first()
-        
-        sub_schema = SubscriptionSchema(
-            has_subscription=bool(sub),
-            status=sub.status if sub else "none",
-            current_period_end=sub.current_period_end.isoformat() if sub and sub.current_period_end else None,
-            trial_ends_at=sub.trial_ends_at.isoformat() if sub and sub.trial_ends_at else None,
-        )
-    finally:
-        db.close()
-        
-    # 3. Construct Plan Schema
-    # Map raw plan_data keys to structured features/limits
-    features = {
-        k.replace("_enabled", ""): bool(v) 
-        for k, v in plan_data.items() 
-        if k.endswith("_enabled")
+    # 2. Gott-Modus Logik für System-Admins
+    if is_sys:
+        # Virtueller "God-Mode" Plan
+        plan_data = {
+            "slug": "system_admin",
+            "name": "Platform Administrator",
+            "features": {
+                "advanced_analytics": True,
+                "multi_source_members": True,
+                "memory_analyzer": True,
+                "custom_prompts": True,
+                "white_label": True,
+                "audit_log": True,
+                "vision_ai": True,
+                "churn_prediction": True,
+                "automation": True,
+                "api_access": True,
+                "voice": True,
+                "whatsapp": True,
+                "telegram": True,
+                "branding": True
+            },
+            "limits": {
+                "max_members": None, # Unendlich
+                "max_monthly_messages": None,
+                "max_channels": 9999,
+                "max_connectors": 9999,
+            }
+        }
+        # Alle Seiten für Admins offen
+        pages_data = {
+            "/dashboard": True,
+            "/tenants": True,
+            "/users": True,
+            "/members": True,
+            "/knowledge": True,
+            "/member-memory": True,
+            "/system-prompt": True,
+            "/magicline": True,
+            "/escalations": True,
+            "/live": True,
+            "/analytics": True,
+            "/plans": True,
+            "/audit": True,
+            "/settings": True,
+            "/settings/billing": True,
+            "/settings/branding": True,
+            "/settings/automation": True,
+            "/settings/integrations": True,
+            "/health": True
+        }
+    else:
+        # Standard SaaS-Logik für normale Tenants
+        plan_data = {
+            "slug": plan.slug if plan else "starter",
+            "name": plan.name if plan else "Starter",
+            "features": {
+                "advanced_analytics": getattr(plan, "advanced_analytics_enabled", False),
+                "multi_source_members": getattr(plan, "multi_source_members_enabled", True),
+                "memory_analyzer": getattr(plan, "memory_analyzer_enabled", False),
+                "custom_prompts": getattr(plan, "custom_prompts_enabled", False),
+                "white_label": getattr(plan, "white_label_enabled", False),
+                "audit_log": getattr(plan, "audit_log_enabled", False),
+                "vision_ai": getattr(plan, "vision_ai_enabled", False),
+                "churn_prediction": getattr(plan, "churn_prediction_enabled", False),
+            },
+            "limits": {
+                "max_members": getattr(plan, "max_members", 500),
+                "max_monthly_messages": getattr(plan, "max_monthly_messages", 500),
+                "max_channels": getattr(plan, "max_channels", 1),
+                "max_connectors": getattr(plan, "max_connectors", 0),
+            }
+        }
+        pages_data = {
+            "/dashboard": True,
+            "/live": True,
+            "/escalations": True,
+            "/members": True,
+            "/knowledge": True,
+            "/users": True,
+            "/settings": True,
+            "/settings/billing": True,
+            "/settings/account": True,
+            "/tenants": False, # Nur System Admin
+            "/plans": False,   # Nur System Admin
+            "/health": False   # Nur System Admin
+        }
+
+    # 3. Usage Data
+    now = datetime.now()
+    usage_rec = db.query(UsageRecord).filter(
+        UsageRecord.tenant_id == user.tenant_id,
+        UsageRecord.period_year == now.year,
+        UsageRecord.period_month == now.month
+    ).first()
+    members_count = db.query(StudioMember).filter(StudioMember.tenant_id == user.tenant_id).count()
+
+    return {
+        "role": user.role,
+        "plan": plan_data,
+        "subscription": {
+            "has_subscription": sub is not None or is_sys,
+            "status": sub.status if sub else "active",
+            "current_period_end": sub.current_period_end.isoformat() if sub and sub.current_period_end else None,
+        },
+        "usage": {
+            "messages_used": (usage_rec.messages_inbound + usage_rec.messages_outbound) if usage_rec else 0,
+            "messages_inbound": usage_rec.messages_inbound if usage_rec else 0,
+            "messages_outbound": usage_rec.messages_outbound if usage_rec else 0,
+            "members_count": members_count,
+            "llm_tokens_used": usage_rec.llm_tokens_used if usage_rec else 0,
+        },
+        "pages": pages_data
     }
-    
-    limits = {
-        "max_members": plan_data.get("max_members"),
-        "max_monthly_messages": plan_data.get("max_monthly_messages"),
-        "max_channels": plan_data.get("max_channels", 1),
-        "max_connectors": plan_data.get("max_connectors", 0),
-    }
-    
-    plan_schema = PlanSchema(
-        slug=str(plan_data.get("slug", "starter")),
-        name=str(plan_data.get("name", "Starter")),
-        price_monthly_cents=int(plan_data.get("price_monthly_cents", 0)),
-        features=features,
-        limits=limits
-    )
-    
-    # 4. Construct Usage Schema
-    msgs_in = usage_data.get("messages_inbound", 0)
-    msgs_out = usage_data.get("messages_outbound", 0)
-    usage_schema = UsageSchema(
-        messages_used=msgs_in + msgs_out,
-        messages_inbound=msgs_in,
-        messages_outbound=msgs_out,
-        members_count=usage_data.get("active_members", 0),
-        llm_tokens_used=usage_data.get("llm_tokens_used", 0)
-    )
-    
-    # 5. Calculate Page Access (Role + Feature based)
-    # Default to allowed, then restrict based on features
-    pages = {
-        "/dashboard": True,
-        "/live": True,
-        "/escalations": True,
-        "/analytics": features.get("advanced_analytics", False) or user.role == "system_admin", # Basic analytics usually open
-        "/members": True,
-        "/member-memory": features.get("memory_analyzer", False),
-        "/knowledge": True,
-        "/magicline": features.get("multi_source_members", False), # Legacy magicline
-        "/users": user.role in ("system_admin", "tenant_admin"),
-        "/audit": features.get("audit_log", False),
-        "/settings/integrations": user.role in ("system_admin", "tenant_admin"),
-        "/settings/prompts": features.get("custom_prompts", False),
-        "/settings/billing": user.role in ("system_admin", "tenant_admin"),
-        "/settings/branding": features.get("branding", False),
-        "/settings/automation": features.get("automation", False),
-        "/settings/account": True,
-    }
-    
-    # Role overrides
-    if user.role == "tenant_user":
-        # Restrict admin pages
-        for p in ["/users", "/settings/billing", "/settings/integrations", "/settings/branding"]:
-            pages[p] = False
-
-    return PermissionsResponse(
-        role=user.role,
-        plan=plan_schema,
-        subscription=sub_schema,
-        usage=usage_schema,
-        pages=pages
-    )

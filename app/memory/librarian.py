@@ -37,8 +37,7 @@ class Librarian:
     async def summarize_session(self, member_id: str, tenant_id: int, messages: list):
         if not messages: return
         
-        chat_text = "
-".join([f"{m.role}: {m.content}" for m in messages])
+        chat_text = "\n".join([f"{m.role}: {m.content}" for m in messages])
         
         try:
             summary = await self._llm.chat(

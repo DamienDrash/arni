@@ -79,6 +79,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("ariia.gateway.maintenance_loop_skipped", error=str(e))
 
+    # Billing Sync Task
+    async def billing_sync_loop():
+        from app.core.billing_sync import sync_from_stripe
+        from app.core.db import SessionLocal as _SL
+        while True:
+            try:
+                db = _SL()
+                await sync_from_stripe(db)
+                db.close()
+            except: pass
+            await asyncio.sleep(900) # Every 15 minutes
+    background_tasks.append(asyncio.create_task(billing_sync_loop()))
+
     yield
     
     for task in background_tasks:
@@ -93,6 +106,31 @@ app = FastAPI(
     version="2.0.0",
     lifespan=lifespan,
 )
+
+from app.gateway.persistence import persistence
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
+
+# --- Maintenance Middleware ---
+@app.middleware("http")
+async def maintenance_middleware(request: Request, call_next):
+    path = request.url.path
+    
+    # 1. Whitelist system, auth, admin and health paths
+    # Admins must always be able to access the dashboard and settings to fix the system.
+    whitelist = ["/health", "/metrics", "/_next", "/static", "/ariia/_next", "/admin", "/auth", "/proxy/admin", "/proxy/auth"]
+    if any(path.startswith(p) for p in whitelist):
+        return await call_next(request)
+        
+    mode = persistence.get_setting("maintenance_mode", "false")
+    if mode == "true":
+        # 2. Block all other traffic (Public API, Tenant Webhooks etc.)
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "System Maintenance: ARIIA is currently updating. Please try again later."}
+        )
+            
+    return await call_next(request)
 
 # Setup Instrumentation
 setup_instrumentation(app)
@@ -115,12 +153,18 @@ app.include_router(websocket.router)
 app.include_router(admin_router)
 app.include_router(billing_router, prefix="/admin")
 
+# Monitoring Router
+from app.core.instrumentation import router as metrics_router
+app.include_router(metrics_router)
+
 # --- New Routers (PR 2, 3, 4) ---
-from app.gateway.routers import members_crud, integrations_sync, connector_hub, permissions
+from app.gateway.routers import members_crud, integrations_sync, connector_hub, permissions, platform_ai, plans_admin
 app.include_router(members_crud.router)
 app.include_router(integrations_sync.router)
 app.include_router(connector_hub.router)
 app.include_router(permissions.router)
+app.include_router(platform_ai.router)
+app.include_router(plans_admin.router)
 
 # --- ACP Router ---
 from app.acp.server import router as acp_router

@@ -18,7 +18,7 @@ const monoFont = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://services.frigew.ski/arni"),
+  metadataBase: new URL("https://services.frigew.ski/ariia"),
   title: {
     default: "ARIIA | AI Living System Agent",
     template: "%s | ARIIA"

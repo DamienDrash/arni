@@ -2,77 +2,125 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/Card";
-import { T } from "@/lib/tokens";
+import { LogIn, Mail, Lock, Loader2, ShieldCheck, ArrowRight } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 import { storeSession } from "@/lib/auth";
-import { withBasePath } from "@/lib/base-path";
+import { T } from "@/lib/tokens";
+import { Card } from "@/components/ui/Card";
+import { useI18n } from "@/lib/i18n/LanguageContext";
 
 export default function LoginPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const submit = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     setError("");
+
     try {
-      const res = await fetch(withBasePath("/proxy/auth/login"), {
+      const res = await apiFetch("/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data?.detail || `Login failed (${res.status})`);
-        return;
+
+      if (res.ok) {
+        const data = await res.json();
+        storeSession(data.access_token, data.user);
+        router.replace("/dashboard");
+      } else {
+        const data = await res.json();
+        setError(data.detail || t("ai.errors.connectionError"));
       }
-      const data = await res.json();
-      storeSession(data.access_token, data.user);
-      router.replace("/dashboard");
+    } catch (err) {
+      setError(t("ai.errors.connectionError"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ minHeight: "100svh", display: "grid", placeItems: "center" }}>
-      <Card style={{ width: 420, maxWidth: "92vw", padding: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 24, color: T.text }}>Login</h1>
-        <p style={{ marginTop: 6, color: T.textDim, fontSize: 13 }}>Melde dich mit deinem Account an.</p>
-        <div style={{ display: "grid", gap: 12, marginTop: 18 }}>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-Mail" style={inputStyle} />
-          <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Passwort" style={inputStyle} />
-          {error && <div style={{ color: T.danger, fontSize: 12 }}>{error}</div>}
-          <button onClick={submit} disabled={loading} style={buttonStyle}>{loading ? "Bitte warten…" : "Login"}</button>
-          <button onClick={() => router.push("/register")} style={{ ...buttonStyle, background: T.surfaceAlt, color: T.text }}>
-            Registrierung
-          </button>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#0A0B0F] relative overflow-hidden">
+      {/* Abstract Background Orbs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full" />
+
+      <div className="w-full max-w-md relative z-10">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-16 h-16 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-600/20 mb-6 group hover:scale-105 transition-transform duration-300">
+            <ShieldCheck size={32} className="text-white" />
+          </div>
+          <h1 className="text-3xl font-black text-white tracking-tight uppercase">ARIIA<span className="text-indigo-500">.</span></h1>
+          <p className="text-slate-500 font-medium text-sm mt-2 tracking-wider uppercase">Living System Agent v2.0</p>
         </div>
-      </Card>
+
+        <Card className="p-8 border-slate-800/50 bg-slate-900/20 backdrop-blur-xl shadow-2xl">
+          <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+            <LogIn size={20} className="text-indigo-400" /> {t("common.login")}
+          </h2>
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t("members.form.email")}</label>
+              <div className="relative group">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                <input
+                  type="email"
+                  required
+                  className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-11 pr-4 py-3.5 text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all"
+                  placeholder="admin@ariia.io"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t("settings.general.smtp.pass")}</label>
+              <div className="relative group">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
+                <input
+                  type="password"
+                  required
+                  className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-11 pr-4 py-3.5 text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-bold flex items-center gap-3 animate-in shake duration-300">
+                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-4 font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              {loading ? <Loader2 className="animate-spin" size={18} /> : (
+                <>
+                  {t("common.login")}
+                  <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+          </form>
+        </Card>
+
+        <p className="text-center mt-8 text-slate-600 text-xs font-medium tracking-wide">
+          &copy; 2026 ARIIA Project Titan. Made in Germany.
+        </p>
+      </div>
     </div>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 10,
-  border: `1px solid ${T.border}`,
-  background: T.surfaceAlt,
-  color: T.text,
-  fontSize: 14,
-  outline: "none",
-};
-
-const buttonStyle: React.CSSProperties = {
-  width: "100%",
-  border: "none",
-  borderRadius: 10,
-  padding: "10px 12px",
-  cursor: "pointer",
-  background: T.accent,
-  color: "#061018",
-  fontWeight: 700,
-};

@@ -1,11 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 
-// Static imports for Gold Standard performance & no-flicker
 import de from "../../locales/de.json";
 import en from "../../locales/en.json";
-import bg from "../../locales/bg.json";
 import fr from "../../locales/fr.json";
 import es from "../../locales/es.json";
 import it from "../../locales/it.json";
@@ -13,63 +11,96 @@ import pt from "../../locales/pt.json";
 import nl from "../../locales/nl.json";
 import ru from "../../locales/ru.json";
 
-const dictionaries: Record<string, any> = { de, en, bg, fr, es, it, pt, nl, ru };
+const dictionaries: Record<string, any> = { de, en, fr, es, it, pt, nl, ru };
 
-type Language = "de" | "en" | "bg" | "fr" | "es" | "it" | "pt" | "nl" | "ru";
+type Language = "de" | "en" | "fr" | "es" | "it" | "pt" | "nl" | "ru";
+const ALLOWED_LANGUAGES: Language[] = ["de", "en", "fr", "es", "it", "pt", "nl", "ru"];
+
+// GLOBAL SINGLETON: This survives even if the component remounts or parents re-render
+let globalLanguage: Language = "en";
 
 interface i18nContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: string) => any; // Return any to support arrays/objects if needed
+  t: (key: string, variables?: Record<string, any>) => any;
 }
 
 const LanguageContext = createContext<i18nContextType | undefined>(undefined);
 
 const getNestedValue = (obj: any, path: string): any => {
+  if (!obj) return undefined;
   const keys = path.split(".");
   let current = obj;
   for (const key of keys) {
-    if (!current || current[key] === undefined) return path;
+    if (current[key] === undefined) return undefined;
     current = current[key];
   }
   return current;
 };
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  const [language, setLanguageState] = useState<Language>("en");
-  const [mounted, setReady] = useState(false);
-
-  const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("ariia_lang", lang);
-      document.cookie = `ariia_lang=${lang}; path=/; max-age=31536000`;
-      // We don't force reload unless strictly necessary for metadata sync
-      // window.location.reload(); 
-    }
-  };
+  const [language, setLanguageState] = useState<Language | null>(null);
+  const isInitialized = useRef(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("ariia_lang") as Language;
-    const browserLang = navigator.language.split("-")[0] as Language;
+    if (isInitialized.current) return;
     
-    if (["de", "en", "bg"].includes(saved)) {
-      setLanguageState(saved);
-    } else if (["de", "en", "bg"].includes(browserLang)) {
-      setLanguageState(browserLang);
-    }
-    setReady(true);
+    // 1. Recover from storage
+    const saved = localStorage.getItem("ariia_lang") as Language;
+    const finalLang: Language = (saved && ALLOWED_LANGUAGES.includes(saved)) ? saved : "en";
+    
+    console.log(`[i18n] BOOTSTRAP: Setting language to ${finalLang}`);
+    globalLanguage = finalLang;
+    setLanguageState(finalLang);
+    
+    // Set global helper for debug
+    (window as any).ariia_lang = finalLang;
+    
+    isInitialized.current = true;
   }, []);
 
-  const t = (key: string): any => {
-    const dict = dictionaries[language] || dictionaries["en"];
-    return getNestedValue(dict, key);
-  };
+  const setLanguage = useCallback((lang: Language) => {
+    if (!ALLOWED_LANGUAGES.includes(lang)) return;
+    
+    console.log(`[i18n] USER SWITCH: Changing to ${lang}`);
+    globalLanguage = lang;
+    setLanguageState(lang);
+    localStorage.setItem("ariia_lang", lang);
+    (window as any).ariia_lang = lang;
+    
+    // Optional: Sync to backend
+    fetch("/ariia/proxy/auth/profile-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locale: lang })
+    }).catch(() => {});
+  }, []);
 
-  // Avoid hydration mismatch by rendering a consistent state until mounted
-  if (!mounted) {
-    return <div style={{ visibility: "hidden" }}>{children}</div>;
-  }
+  const t = useCallback((key: string, variables?: Record<string, any>): any => {
+    // ALWAYS USE THE GLOBAL SINGLETON FOR RESOLUTION TO PREVENT FLICKER
+    const activeLang = globalLanguage || "en";
+    
+    const dict = dictionaries[activeLang] || dictionaries["en"];
+    let value = getNestedValue(dict, key);
+    
+    // FALLBACK ONLY TO ENGLISH (Allow arrays)
+    if (value === undefined || (typeof value === 'object' && !Array.isArray(value))) {
+      value = getNestedValue(dictionaries["en"], key);
+    }
+    
+    if (value === undefined || (typeof value === 'object' && !Array.isArray(value))) {
+      return key;
+    }
+
+    if (typeof value === "string" && variables) {
+      Object.entries(variables).forEach(([k, v]) => {
+        value = (value as string).replace(`{{${k}}}`, String(v));
+      });
+    }
+    return value;
+  }, []); // Static reference, depends on global singleton
+
+  if (language === null) return null;
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
@@ -81,12 +112,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
 export const useI18n = () => {
   const context = useContext(LanguageContext);
   if (context === undefined) {
-    // Return a safe fallback for SSR or components outside provider
-    return {
-      language: "en" as Language,
-      setLanguage: () => {},
-      t: (key: string) => key
-    };
+    return { language: "en" as Language, setLanguage: () => {}, t: (key: string) => key };
   }
   return context;
 };

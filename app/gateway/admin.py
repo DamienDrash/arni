@@ -17,7 +17,7 @@ from config.settings import get_settings
 from app.knowledge.ingest import ingest_tenant_knowledge, collection_name_for_slug
 from app.knowledge.store import KnowledgeStore
 from app.core.db import SessionLocal
-from app.core.models import StudioMember, ChatSession, ChatMessage, AuditLog
+from app.core.models import StudioMember, ChatSession, ChatMessage, AuditLog, Plan
 from app.integrations.magicline.members_sync import sync_members_from_magicline
 from app.integrations.magicline.member_enrichment import enrich_member, get_member_profile
 from app.integrations.magicline.client import MagiclineClient
@@ -1312,24 +1312,48 @@ class PlansConfigUpdate(BaseModel):
 async def get_plans_config(user: AuthContext = Depends(get_current_user)) -> dict[str, Any]:
     """Global plans/billing config (system-wide, not tenant scoped)."""
     _require_system_admin(user)
-    plans = _parse_json_setting("billing_plans_json", DEFAULT_BILLING_PLANS, tenant_id=user.tenant_id)
+    
+    # Fetch real plans from DB
+    db = SessionLocal()
+    plans_list = []
+    try:
+        plans = db.query(Plan).order_by(Plan.price_monthly_cents.asc()).all()
+        plans_list = [
+            {
+                "id": p.slug,
+                "name": p.name,
+                "priceMonthly": round(p.price_monthly_cents / 100),
+                "membersIncluded": p.max_members if p.max_members is not None else 999999, # Frontend expects number
+                "messagesIncluded": p.max_monthly_messages if p.max_monthly_messages is not None else 999999,
+                "aiAgents": 5, # Mock for now or map from features
+                "support": "Email", # Mock
+                "highlight": p.slug == "pro" or p.slug == "professional",
+                "stripe_price_id": p.stripe_price_id
+            }
+            for p in plans
+        ]
+    finally:
+        db.close()
+
     providers = _parse_json_setting("billing_providers_json", DEFAULT_BILLING_PROVIDERS, tenant_id=user.tenant_id)
     default_provider = persistence.get_setting("billing_default_provider", "stripe", tenant_id=user.tenant_id) or "stripe"
     return {
         "scope": "global_system",
-        "plans": plans,
+        "plans": plans_list,
         "providers": providers,
         "default_provider": default_provider,
     }
-
 
 @router.put("/plans/config")
 async def update_plans_config(
     body: PlansConfigUpdate,
     user: AuthContext = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Update global plans/billing config (system-wide)."""
+    """Update global billing provider config (system-wide). Plans are read-only here."""
     _require_system_admin(user)
+    
+    # We only update providers and default_provider here now
+    # Plans should be updated via separate endpoints if we build a Plan Editor
     providers = body.providers or []
     provider_ids = {str(p.get("id") or "").strip().lower() for p in providers}
     default_provider = (body.default_provider or "stripe").strip().lower()
@@ -1338,10 +1362,10 @@ async def update_plans_config(
     if not default_provider:
         default_provider = "stripe"
 
-    persistence.upsert_setting("billing_plans_json", _json.dumps(body.plans, ensure_ascii=False), tenant_id=user.tenant_id)
     persistence.upsert_setting("billing_providers_json", _json.dumps(providers, ensure_ascii=False), tenant_id=user.tenant_id)
     persistence.upsert_setting("billing_default_provider", default_provider, tenant_id=user.tenant_id)
-    logger.info("admin.plans_config_updated", plans=len(body.plans), providers=len(providers), default_provider=default_provider)
+    
+    logger.info("admin.plans_config_updated", providers=len(providers), default_provider=default_provider)
     return {"status": "ok", "scope": "global_system"}
 
 
@@ -1453,6 +1477,39 @@ async def get_all_settings(user: AuthContext = Depends(get_current_user)) -> lis
         for s in settings
     ]
 
+
+@router.put("/settings")
+async def update_settings_batch(
+    body: list[dict[str, Any]],
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, str]:
+    """Update multiple settings at once."""
+    _require_system_admin(user)
+    updated_keys = []
+    for entry in body:
+        key = entry.get("key")
+        value = entry.get("value")
+        desc = entry.get("description")
+        if key:
+            persistence.upsert_setting(key, str(value), desc, tenant_id=user.tenant_id)
+            updated_keys.append(key)
+    
+    # Gold Standard: Audit Log for batch operations
+    if updated_keys:
+        _write_admin_audit(
+            actor=user,
+            action="settings.batch_update",
+            category="settings",
+            target_type="system_config",
+            target_id="batch",
+            details={
+                "keys_count": len(updated_keys),
+                "keys": updated_keys,
+                "msg": "AI Engine or Platform settings updated via infrastructure manager."
+            }
+        )
+        
+    return {"status": "ok", "count": str(len(body))}
 
 @router.put("/settings/{key}")
 async def update_setting(

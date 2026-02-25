@@ -17,32 +17,304 @@
     "membersSynced": "180 membri sincronizzati",
     "dsgvo": "Conforme al GDPR",
     "madeInGermany": "Made in Germany",
-    "enterpriseReady": "Enterprise-Ready"
+    "enterpriseReady": "Enterprise-Ready",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmed": "Success",
+    "error": "Error",
+    "active": "Active",
+    "paused": "Paused",
+    "days": "Days",
+    "details": "Details",
+    "noEntries": "No entries found",
+    "search": "Search",
+    "status": "Status",
+    "noData": "No data available",
+    "never": "Never"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "monitor": "Live Monitor",
+    "escalations": "Escalations",
+    "analytics": "Analytics",
+    "members": "Members",
+    "users": "Users",
+    "knowledge": "Knowledge Base",
+    "memberMemory": "Member Memory",
+    "systemPrompt": "Studio Prompt",
+    "sync": "Sync",
+    "billing": "Subscription",
+    "settings": "Settings",
+    "tenants": "Tenant Manager",
+    "plans": "Billing Plans",
+    "audit": "Audit Log",
+    "health": "Engine Stats",
+    "quickActions": "Quick Actions",
+    "platformControl": "Platform Control",
+    "studioDeck": "Studio Deck",
+    "logout": "Logout",
+    "roles": {
+      "systemAdmin": "System Administrator",
+      "tenantAdmin": "Studio Administrator"
+    },
+    "sections": {
+      "operations": "Operations",
+      "customers": "Customers",
+      "knowledge": "Knowledge",
+      "studio": "Studio",
+      "governance": "Governance",
+      "system": "System"
+    }
+  },
+  "settings": {
+    "account": {
+      "title": "Account & Profile",
+      "subtitle": "Personal data and security.",
+      "personalData": "Personal Data",
+      "fullName": "Full Name",
+      "fullNameHint": "Your legal first and last name",
+      "email": "Email Address",
+      "emailHint": "Primary contact for security alerts",
+      "locale": "Interface Language",
+      "localeHint": "Set your preferred dashboard language",
+      "timezone": "Timezone",
+      "timezoneHint": "Used for scheduling and logs",
+      "compactMode": "Compact Mode",
+      "compactModeDesc": "Denser UI for power users",
+      "notifications": "Notifications",
+      "emailNotify": "Email Notifications",
+      "emailNotifyDesc": "Receive reports via email",
+      "tgNotify": "Telegram Alerts",
+      "tgNotifyDesc": "Real-time alerts via Telegram",
+      "password": {
+        "title": "Change Password",
+        "current": "Current Password",
+        "currentHint": "Verify your identity",
+        "new": "New Password",
+        "newHint": "At least 8 characters long"
+      },
+      "studio": {
+        "title": "Studio Profile",
+        "subtitle": "Public studio identity and contact",
+        "name": "Studio Name",
+        "nameHint": "Displayed in AI interactions",
+        "opsEmail": "Operations Email",
+        "opsEmailHint": "Contact for studio operations",
+        "opsTelegram": "Operations Telegram",
+        "opsTelegramHint": "Telegram handle for studio staff",
+        "refresh": "Data Refresh",
+        "refreshHint": "Manual sync with external systems",
+        "sla": "SLA Tier",
+        "slaHint": "Service level agreement level",
+        "localeHint": "Primary language of your studio members",
+        "timezoneHint": "Studio local time"
+      },
+      "placeholders": {
+        "fullName": "John Doe",
+        "locale": "en-US",
+        "timezone": "UTC",
+        "password": "••••••••",
+        "studioName": "Your Studio Name",
+        "opsEmail": "ops@example.com",
+        "opsTelegram": "-100...",
+        "sla": "15",
+        "refresh": "5"
+      }
+    },
+    "general": {
+      "title": "Platform Core",
+      "subtitle": "Governance and security.",
+      "privacy": {
+        "title": "Privacy & Compliance",
+        "subtitle": "Manage data retention and PII filtering",
+        "pii": "PII Masking",
+        "piiDesc": "Automatically mask personal data in logs",
+        "retention": "Data Retention",
+        "retentionDesc": "How long to keep interaction history"
+      },
+      "smtp": {
+        "title": "Email (SMTP)",
+        "subtitle": "Configure outgoing mail server",
+        "host": "SMTP Host",
+        "port": "Port",
+        "user": "Username",
+        "pass": "Password",
+        "senderAddr": "Sender Email",
+        "senderName": "Sender Name",
+        "test": "Send Test Email",
+        "testRecipient": "Recipient for Test"
+      },
+      "system": {
+        "title": "System Governance",
+        "subtitle": "Core engine and security parameters",
+        "audit": "Extended Audit Logs",
+        "auditDesc": "Keep detailed logs of every system change",
+        "maintenance": "Maintenance Mode",
+        "maintenanceDesc": "Restrict access during updates"
+      }
+    },
+    "integrations": {
+      "title": "Integrations",
+      "subtitle": "Connect Magicline, WhatsApp, and more."
+    },
+    "automation": "Automazione",
+    "language": "Lingua",
+    "selectLanguage": "Scegli la tua lingua preferita",
+    "overview": {
+      "title": "Overview",
+      "subtitle": "Profile and system parameters."
+    },
+    "aiEngine": "AI Engine",
+    "ai": {
+      "title": "AI Configuration",
+      "subtitle": "Tweak the behavior of your AI agents",
+      "addProvider": "Add Provider",
+      "editProvider": "Edit Provider",
+      "newProvider": "New AI Provider",
+      "selectProvider": "Select Provider",
+      "provider": "Provider",
+      "apiKey": "API Key",
+      "models": "Available Models",
+      "fetchModels": "Fetch Models",
+      "testConnection": "Test Connection",
+      "latencyTest": "Latency Test",
+      "confirmDelete": "Are you sure you want to remove this provider?",
+      "retry": "Retry",
+      "noModelsFound": "No models found",
+      "status": {
+        "configured": "Configured",
+        "error": "Error",
+        "fetching": "Fetching..."
+      },
+      "hints": {
+        "storedKey": "Key is securely stored",
+        "refreshNeeded": "Fetch models to see available options",
+        "initialFetch": "Fetching models for the first time...",
+        "clickRefresh": "Click to refresh model list"
+      },
+      "errors": {
+        "loadFailed": "Failed to load AI providers",
+        "saveFailed": "Failed to save provider",
+        "deleteFailed": "Failed to delete provider",
+        "fetchModelsFailed": "Failed to fetch models from provider",
+        "connectionError": "Could not connect to AI engine"
+      }
+    },
+    "billing": {
+      "title": "Billing & Subscription",
+      "subtitle": "Manage your plan and add-ons."
+    },
+    "prompts": {
+      "title": "Custom Prompts",
+      "subtitle": "Configure agent personas and behavior."
+    },
+    "branding": "Branding"
+  },
+  "tenants": {
+    "stats": {
+      "total": "Total Tenants",
+      "users": "Active Users",
+      "avg": "Avg. Users/Tenant"
+    },
+    "create": {
+      "title": "Create New Tenant",
+      "name": "Tenant Name",
+      "slug": "Slug (optional)"
+    },
+    "table": {
+      "name": "Name",
+      "users": "Users",
+      "admins": "Admins",
+      "active": "Active"
+    },
+    "edit": {
+      "title": "Edit Tenant"
+    },
+    "errors": {
+      "nameRequired": "Tenant name is required"
+    },
+    "bulk": {
+      "hint": "The action will be applied tenant-wide and logged as a governance event."
+    },
+    "audit": {
+      "title": "Last Audit Events"
+    },
+    "footer": {
+      "registration": "Tenant self-registration is still handled via /register."
+    }
+  },
+  "live": {
+    "title": "Live Monitor",
+    "subtitle": "Real-time AI interaction tracking",
+    "sessions": "Active Sessions",
+    "noSessions": "No active sessions at the moment",
+    "selectSession": "Select a session to view details",
+    "handoff": {
+      "link": "Link to Member",
+      "hint": "Manually associate this session with a member ID",
+      "placeholder": "Enter Member ID"
+    }
+  },
+  "members": {
+    "title": "Members",
+    "subtitle": "Manage your studio members and their AI state",
+    "add": "Add Member",
+    "import": {
+      "clickOrDrop": "Click or drag file to this area to upload",
+      "selectFile": "Select File",
+      "hint": "Supports .csv, .xls, .xlsx"
+    },
+    "importTitle": "Member Import",
+    "noMembers": "No members found",
+    "noContact": "No contact information",
+    "confirmDelete": "Are you sure you want to delete this member?",
+    "search": "Search members...",
+    "stats": {
+      "total": "Total Members",
+      "active": "Active",
+      "paused": "Paused",
+      "manual": "Manual Entries",
+      "external": "Synced (Magicline)",
+      "selected": "selected"
+    },
+    "table": {
+      "member": "Member",
+      "source": "Source",
+      "status": "Status"
+    },
+    "form": {
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email Address"
+    },
+    "status": {
+      "active": "Active",
+      "paused": "Paused"
+    }
+  },
+  "memberMemory": {
+    "title": "Member Memory",
+    "subtitle": "Long-term semantic knowledge base",
+    "files": "Memory Files",
+    "noFiles": "No memory entries found for this member",
+    "selectFile": "Select an entry to view details",
+    "reasonPlaceholder": "Enter reason for manual override",
+    "scheduler": "Analysis Scheduler",
+    "lastRun": "Last analyzed"
   },
   "navbar": {
     "login": "Accedi",
     "register": "Prova gratuita"
   },
-  "footer": {
-    "brandDesc": "Comunicazione clienti assistita dall'IA per palestre, personal trainer e PMI. Made in Germany.",
-    "product": "Prodotto",
-    "company": "Azienda",
-    "contact": "Contatto",
-    "rights": "Tutti i diritti riservati.",
-    "links": {
-      "features": "Funzionalità",
-      "pricing": "Prezzi",
-      "test": "Prova gratuita",
-      "impressum": "Note legali",
-      "datenschutz": "Privacy",
-      "agb": "Condizioni",
-      "enterprise": "Richieste Enterprise"
-    }
-  },
   "hero": {
     "versionBadge": "Living System Agent v2.0",
     "title": "Il tuo assistente IA per una",
-    "words": ["intelligente", "personale", "automatizzata", "scalabile"],
+    "words": [
+      "intelligente",
+      "personale",
+      "automatizzata",
+      "scalabile"
+    ],
     "subtitle": "comunicazione clienti",
     "description": "ARIIA risponde alle richieste dei clienti tramite WhatsApp, Telegram e voce, 24 ore su 24, in modo personale e intelligente. Per palestre e PMI.",
     "cta": "Prova gratis per 14 giorni"
@@ -132,13 +404,91 @@
         "encryption": "Crittografia"
       },
       "platform": {
-        "live": { "title": "Monitor in diretta", "desc": "Panoramica in tempo reale di tutte le sessioni attive." },
-        "churn": { "title": "Abbandono", "desc": "Previsione ML per i clienti a rischio." },
-        "members": { "title": "Gestione membri", "desc": "Database clienti con punteggio di rischio." },
-        "knowledge": { "title": "Base di conoscenza", "desc": "Editor WYSIWYG per i tuoi contenuti." },
-        "multi": { "title": "Multi-Tenant", "desc": "Più sedi, un'unica dashboard." },
-        "prompts": { "title": "Prompt personalizzati", "desc": "Definisci il tono e la persona." }
+        "live": {
+          "title": "Monitor in diretta",
+          "desc": "Panoramica in tempo reale di tutte le sessioni attive."
+        },
+        "churn": {
+          "title": "Abbandono",
+          "desc": "Previsione ML per i clienti a rischio."
+        },
+        "members": {
+          "title": "Gestione membri",
+          "desc": "Database clienti con punteggio di rischio."
+        },
+        "knowledge": {
+          "title": "Base di conoscenza",
+          "desc": "Editor WYSIWYG per i tuoi contenuti."
+        },
+        "multi": {
+          "title": "Multi-Tenant",
+          "desc": "Più sedi, un'unica dashboard."
+        },
+        "prompts": {
+          "title": "Prompt personalizzati",
+          "desc": "Definisci il tono e la persona."
+        }
       }
+    },
+    "platform": {
+      "live": {
+        "title": "Live Monitor",
+        "desc": "Watch AI interactions in real-time and intervene if necessary."
+      },
+      "members": {
+        "title": "Member Management",
+        "desc": "Deep integration with Magicline to handle bookings and contracts."
+      },
+      "knowledge": {
+        "title": "Knowledge Base",
+        "desc": "Upload your studio documents to train the AI on your specific rules."
+      },
+      "prompts": {
+        "title": "Persona Control",
+        "desc": "Customize the tone and personality of your studio assistant."
+      },
+      "multi": {
+        "title": "Multi-Tenant",
+        "desc": "Manage multiple studio locations from a single central account."
+      },
+      "churn": {
+        "title": "Churn Prevention",
+        "desc": "AI identifies members at risk of canceling based on behavior."
+      }
+    },
+    "details": {
+      "intent": "Intent Classification",
+      "routing": "Dynamic Routing",
+      "fallback": "Human-in-the-Loop",
+      "confidence": "Confidence Scoring",
+      "wa": "WhatsApp Cloud",
+      "tg": "Telegram Bot",
+      "voice": "Voice STT/TTS",
+      "chat": "Web Widget",
+      "ml": "Magicline Sync",
+      "proactive": "Proactive Outreach",
+      "scoring": "Behavioral Scoring",
+      "behavior": "Engagement Analysis",
+      "session": "Long-Term Sessions",
+      "semantic": "Semantic Search",
+      "episodic": "Episodic Memory",
+      "auto": "Automatic Indexing",
+      "dsgvo": "GDPR Compliance",
+      "rls": "Row Level Security",
+      "pii": "PII Masking",
+      "audit": "Audit Logs",
+      "api": "REST API Access",
+      "shopify": "Shopify Integration",
+      "woo": "WooCommerce",
+      "magicline": "Magicline Deep-Link"
+    },
+    "securityLabels": {
+      "dsgvo": "GDPR",
+      "encryption": "AES-256",
+      "pii": "PII Filter",
+      "audit": "Audit",
+      "rbac": "RBAC",
+      "rls": "RLS"
     }
   },
   "cta": {
@@ -148,162 +498,20 @@
     "button": "Inizia gratis ora",
     "compare": "Confronta i piani"
   },
-  "pricing": {
-    "title": "Prezzi",
-    "titleAccent": "trasparenti",
-    "description": "Scegli il piano più adatto al tuo business. Tutti i piani includono una prova gratuita di 14 giorni.",
-    "monthly": "Mensile",
-    "yearly": "Annuale",
-    "discount": "-20%",
-    "billedYearly": "fatturato annualmente",
-    "plans": {
-      "starter": {
-        "name": "Starter",
-        "desc": "Per personal trainer e micro-studi.",
-        "cta": "Scegli Starter",
-        "features": [
-          "1 canale di comunicazione",
-          "500 conversazioni IA / mese",
-          "Agente ARIIA Core",
-          "Connettore di base (1 sistema)",
-          "1 utente",
-          "Supporto via e-mail",
-          "Dashboard Studio Deck"
-        ]
-      },
-      "professional": {
-        "name": "Professional",
-        "desc": "Per studi affermati e PMI.",
-        "cta": "Scegli Professional",
-        "badge": "Il più popolare",
-        "features": [
-          "3 canali di comunicazione",
-          "2.000 conversazioni IA / mese",
-          "Sciame completo (5 agenti)",
-          "3 connettori inclusi",
-          "5 utenti",
-          "Prompt personalizzati",
-          "Report e analisi",
-          "Supporto prioritario"
-        ]
-      },
-      "business": {
-        "name": "Business",
-        "desc": "Per catene di studi e aziende ad alto volume.",
-        "cta": "Scegli Business",
-        "features": [
-          "Tutti i canali",
-          "10.000 conversazioni IA / mese",
-          "Sciame completo + instradamento prioritario",
-          "Connettori illimitati",
-          "15 utenti",
-          "Churn Prediction inclusa",
-          "Accesso API (REST + Webhooks)",
-          "Audit Logs e RBAC",
-          "Supporto dedicato"
-        ]
-      }
-    },
-    "enterpriseTitle": "Enterprise",
-    "enterpriseDesc": "Garanzia SLA, On-Premise, integrazioni personalizzate, account manager dedicato.",
-    "enterpriseCta": "Contattaci",
-    "addonsTitle": "Moduli aggiuntivi",
-    "addonsSubtitle": "Moduli",
-    "addonsSubtitleAccent": "opzionali",
-    "addonsDesc": "Amplia il tuo piano in modo flessibile con moduli aggiuntivi.",
-    "addons": {
-      "churn": { "name": "Previsione abbandono", "desc": "Previsione basata su ML." },
-      "voice": { "name": "Pipeline vocale", "desc": "Whisper STT + ElevenLabs TTS." },
-      "vision": { "name": "Vision AI", "desc": "Analisi immagini YOLOv8." },
-      "channel": { "name": "Canale extra", "desc": "Canale supplementare." }
-    },
-    "faqTitle": "Domande frequenti",
-    "faqs": [
-      { "q": "C'è un periodo di prova gratuito?", "a": "Sì, tutti i piani includono una prova gratuita di 14 giorni senza carta di credito." },
-      { "q": "Posso cambiare piano in qualsiasi momento?", "a": "Sì, puoi passare a un piano superiore o inferiore quando vuoi." },
-      { "q": "Cosa succede se raggiungo il mio limite?", "a": "Riceverai una notifica e potrai passare a un piano superiore o acquistare un boost." },
-      { "q": "ARIIA è conforme al GDPR?", "a": "Sì, ARIIA è stato sviluppato da zero per il mercato europeo." }
-    ],
-    "finalCta": "Ancora dubbi?",
-    "finalCtaAccent": "Provalo.",
-    "finalCtaDesc": "14 giorni gratis, tutte le funzioni, senza carta di credito. Vedi tu stesso."
-  },
-  "legal": {
-    "impressum": {
-      "title": "Note legali",
-      "tmg5": "Informazioni ai sensi del § 5 TMG",
-      "representedBy": "Rappresentato da",
-      "managingDirector": "Amministratore",
-      "contact": "Contatto",
-      "phone": "Telefono",
-      "email": "E-mail",
-      "website": "Sito web",
-      "registerEntry": "Registro",
-      "registerCourt": "Tribunale",
-      "registerNumber": "Numero di registro",
-      "vatId": "Partita IVA",
-      "responsibleContent": "Responsabile del contenuto",
-      "dispute": "Risoluzione controversie",
-      "liabilityContent": "Responsabilità per i contenuti",
-      "liabilityLinks": "Responsabilità per i link"
-    },
-    "agb": {
-      "title": "Condizioni generali",
-      "s1_title": "§ 1 Ambito di applicazione",
-      "s1_text": "Le presenti Condizioni si applicano a tutti i contratti tra ARIIA GmbH e il cliente.",
-      "s2_title": "§ 2 Oggetto del contratto",
-      "s2_text": "Il fornitore mette a disposizione la piattaforma ARIIA per la comunicazione automatizzata.",
-      "s3_title": "§ 3 Conclusione del contratto",
-      "s3_text": "Il contratto si conclude con la registrazione. È previsto un periodo di prova di 14 giorni.",
-      "s4_title": "§ 4 Prezzi",
-      "s4_text": "I prezzi attuali sono indicati sul sito web del fornitore.",
-      "s5_title": "§ 5 Durata",
-      "s5_text": "La durata minima è di un mese per la fatturazione mensile.",
-      "s6_title": "§ 6 Disponibilità",
-      "s6_text": "Il fornitore si impegna a garantire una disponibilità del 99,9%.",
-      "s7_title": "§ 7 Privacy",
-      "s7_text": "Trattiamo i dati personali in conformità al GDPR.",
-      "s8_title": "§ 8 Responsabilità",
-      "s8_text": "Il fornitore è responsabile in caso di dolo o colpa grave.",
-      "s9_title": "§ 9 Disposizioni finali",
-      "s9_text": "Si applica la legge della Repubblica Federale di Germania.",
-      "status": "Stato: febbraio 2026"
-    },
-    "privacy": {
-      "title": "Informativa sulla privacy",
-      "s1_title": "1. Titolare del trattamento",
-      "s1_text": "Il titolare del trattamento dei dati è ARIIA GmbH.",
-      "s2_title": "2. Raccolta dati",
-      "s2_text": "Visitando il sito, vengono inviate automaticamente informazioni tecniche.",
-      "s3_title": "3. Comunicazione",
-      "s3_text": "I vostri dati non saranno trasmessi a terzi senza base legale.",
-      "s4_title": "4. Cookie",
-      "s4_text": "Utilizziamo i cookie per migliorare l'esperienza utente.",
-      "s5_title": "5. Analisi",
-      "s5_text": "Utilizziamo Umami Analytics per analisi anonime.",
-      "s6_title": "6. Diritti",
-      "s6_text": "Avete il diritto di informazione, rettifica e cancellazione.",
-      "s7_title": "7. Sicurezza",
-      "s7_text": "Utilizziamo la crittografia SSL.",
-      "s8_title": "8. Attualità",
-      "s8_text": "Questa informativa è valida da febbraio 2026."
+  "footer": {
+    "brandDesc": "Comunicazione clienti assistita dall'IA per palestre, personal trainer e PMI. Made in Germany.",
+    "product": "Prodotto",
+    "company": "Azienda",
+    "contact": "Contatto",
+    "rights": "Tutti i diritti riservati.",
+    "links": {
+      "features": "Funzionalità",
+      "pricing": "Prezzi",
+      "test": "Prova gratuita",
+      "impressum": "Note legali",
+      "datenschutz": "Privacy",
+      "agb": "Condizioni",
+      "enterprise": "Richieste Enterprise"
     }
-  },
-  "dashboard": {
-    "overview": "Panoramica dello stato del sistema, dei KPI e dell'attività.",
-    "tickets24h": "Ticket (24h)",
-    "aiResolution": "Tasso risoluzione IA",
-    "confidence": "Ø Confidenza",
-    "tickets30d": "Ticket (30d)",
-    "latestTickets": "Ultimi ticket",
-    "recentConversations": "Conversazioni recenti"
-  },
-  "settings": {
-    "account": "Account",
-    "general": "Generale",
-    "integrations": "Integrazioni",
-    "automation": "Automazione",
-    "language": "Lingua",
-    "selectLanguage": "Scegli la tua lingua preferita"
   }
 }

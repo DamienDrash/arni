@@ -6,15 +6,15 @@ import { useI18n } from "@/lib/i18n/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
 
 const languages = [
-  { code: "de", label: "Deutsch", flag: "🇩🇪" },
-  { code: "en", label: "English", flag: "🇺🇸" },
-  { code: "fr", label: "Français", flag: "🇫🇷" },
-  { code: "es", label: "Español", flag: "🇪🇸" },
-  { code: "it", label: "Italiano", flag: "🇮🇹" },
-  { code: "pt", label: "Português", flag: "🇵🇹" },
-  { code: "nl", label: "Nederlands", flag: "🇳🇱" },
-  { code: "bg", label: "Български", flag: "🇧🇬" },
-  { code: "ru", label: "Русский", flag: "🇷🇺" }
+  { code: "de", label: "Deutsch", flag: "de" },
+  { code: "en", label: "English", flag: "us" },
+  { code: "fr", label: "Français", flag: "fr" },
+  { code: "es", label: "Español", flag: "es" },
+  { code: "it", label: "Italiano", flag: "it" },
+  { code: "pt", label: "Português", flag: "pt" },
+  { code: "nl", label: "Nederlands", flag: "nl" },
+  { code: "bg", label: "Български", flag: "bg" },
+  { code: "ru", label: "Русский", flag: "ru" }
 ];
 
 export default function LanguageSwitcher() {
@@ -38,15 +38,19 @@ export default function LanguageSwitcher() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 text-sm font-medium"
+        className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all duration-200 text-sm font-medium"
         style={{ 
-          background: "oklch(0.62 0.22 292 / 0.1)", 
+          background: "oklch(0.62 0.22 292 / 0.12)", 
           color: "oklch(0.72 0.2 292)",
-          border: "1px solid oklch(0.62 0.22 292 / 0.2)" 
+          border: "1px solid oklch(0.62 0.22 292 / 0.25)" 
         }}
       >
-        <span>{currentLang.flag}</span>
-        <span className="hidden sm:inline">{currentLang.label}</span>
+        <img 
+          src={`https://flagcdn.com/w40/${currentLang.flag}.png`} 
+          alt={currentLang.label}
+          className="w-5 h-auto rounded-sm shadow-sm"
+        />
+        <span className="hidden xs:inline">{currentLang.label}</span>
         <ChevronDown size={14} className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
@@ -57,14 +61,14 @@ export default function LanguageSwitcher() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-48 rounded-xl shadow-2xl overflow-hidden z-[100] backdrop-blur-xl"
+            className="absolute left-0 mt-2 w-52 rounded-xl shadow-2xl overflow-hidden z-[100] backdrop-blur-xl"
             style={{ 
-              background: "oklch(0.12 0.04 270 / 0.95)", 
-              border: "1px solid oklch(0.62 0.22 292 / 0.3)",
-              boxShadow: "0 20px 50px -12px oklch(0 0 0 / 0.5)"
+              background: "oklch(0.12 0.04 270 / 0.98)", 
+              border: "1px solid oklch(0.62 0.22 292 / 0.35)",
+              boxShadow: "0 20px 50px -12px oklch(0 0 0 / 0.6)"
             }}
           >
-            <div className="py-1">
+            <div className="py-1.5">
               {languages.map((lang) => (
                 <button
                   key={lang.code}
@@ -72,14 +76,18 @@ export default function LanguageSwitcher() {
                     setLanguage(lang.code as any);
                     setIsOpen(false);
                   }}
-                  className="w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors duration-150 hover:bg-white/5"
-                  style={{ color: language === lang.code ? "oklch(0.72 0.2 292)" : "oklch(0.8 0.01 270)" }}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm transition-colors duration-150 hover:bg-white/10"
+                  style={{ color: language === lang.code ? "oklch(0.72 0.2 292)" : "oklch(0.85 0.01 270)" }}
                 >
-                  <div className="flex items-center gap-3">
-                    <span>{lang.flag}</span>
-                    <span>{lang.label}</span>
+                  <div className="flex items-center gap-3.5">
+                    <img 
+                      src={`https://flagcdn.com/w40/${lang.flag}.png`} 
+                      alt={lang.label}
+                      className="w-6 h-auto rounded-sm"
+                    />
+                    <span className="font-medium">{lang.label}</span>
                   </div>
-                  {language === lang.code && <Check size={14} />}
+                  {language === lang.code && <Check size={16} strokeWidth={2.5} />}
                 </button>
               ))}
             </div>

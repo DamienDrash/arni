@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "ARIIA Pricing | Transparent & Skalierbar",
     description: "Starten Sie noch heute mit der digitalen Transformation Ihres Studios.",
-    url: "https://services.frigew.ski/arni/pricing",
+    url: "https://services.frigew.ski/ariia/pricing",
     type: "website",
   },
 };

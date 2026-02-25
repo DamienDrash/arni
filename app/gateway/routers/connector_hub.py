@@ -164,7 +164,4 @@ def get_setup_docs(
 ) -> Dict[str, str]:
     """Get setup documentation markdown."""
     # In real app, load from disk or DB
-    return {"content": f"# Setup Guide for {connector_id}
-
-1. Step one...
-2. Step two..."}
+    return {"content": f"# Setup Guide for {connector_id}\n\n1. Step one...\n2. Step two..."}

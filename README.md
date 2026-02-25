@@ -2,7 +2,7 @@
 
 **ARIIA** (formerly ARNI) is a sophisticated, multi-tenant SaaS platform designed to automate and enhance member interactions for fitness studios. It acts as a digital front-desk assistant, leveraging a powerful AI agent swarm to manage communications, bookings, and member support across multiple channels like WhatsApp, Telegram, and Voice.
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Open%20Studio%20Deck-6C5CE7?style=for-the-badge&logo=live)](https://services.frigew.ski/arni)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Open%20Studio%20Deck-6C5CE7?style=for-the-badge&logo=live)](https://services.frigew.ski/ariia)
 
 ---
 
@@ -78,7 +78,7 @@ The entire platform is containerized and can be launched with a single command u
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/DamienDrash/arni.git
+git clone https://github.com/DamienDrash/ariia.git
 cd arni
 
 # 2. Configure your environment
@@ -90,7 +90,7 @@ docker compose up -d --build
 ```
 
 Your services will be available at:
-* **Studio Deck (Frontend):** `https://services.frigew.ski/arni`
+* **Studio Deck (Frontend):** `https://services.frigew.ski/ariia`
 * **ARIIA Gateway (Backend):** `http://localhost:8000/docs`
 
 ## 💻 Technology Stack

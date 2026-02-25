@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Building2, Globe2, Plus, Pencil, Save, Eye } from "lucide-react";
+import { Building2, Globe2, Plus, Pencil, Save, Eye, X } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { T } from "@/lib/tokens";
 import { getStoredUser } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/LanguageContext";
 
 type TenantRow = { id: number; slug: string; name: string; is_active?: boolean };
 type UserRow = { id: number; tenant_id: number; role: string; is_active: boolean };
@@ -41,6 +42,7 @@ const inputStyle: React.CSSProperties = {
 };
 
 export default function TenantsPage() {
+  const { t } = useI18n();
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +91,7 @@ export default function TenantsPage() {
   async function createTenant() {
     if (!isSystemAdmin) return;
     if (!name.trim()) {
-      setError("Tenant-Name ist erforderlich.");
+      setError(t("tenants.errors.nameRequired") || "Name required");
       return;
     }
     setSaving(true);
@@ -223,22 +225,22 @@ export default function TenantsPage() {
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12 }}>
-        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>Tenants</div><div style={{ fontSize: 26, color: T.text, fontWeight: 800 }}>{stats.totalTenants}</div></Card>
-        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>User gesamt</div><div style={{ fontSize: 26, color: T.accent, fontWeight: 800 }}>{stats.totalUsers}</div></Card>
-        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>Ø User / Tenant</div><div style={{ fontSize: 26, color: T.success, fontWeight: 800 }}>{stats.avgUsersPerTenant}</div></Card>
+        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>{t("tenants.stats.total")}</div><div style={{ fontSize: 26, color: T.text, fontWeight: 800 }}>{stats.totalTenants}</div></Card>
+        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>{t("tenants.stats.users")}</div><div style={{ fontSize: 26, color: T.accent, fontWeight: 800 }}>{stats.totalUsers}</div></Card>
+        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>{t("tenants.stats.avg")}</div><div style={{ fontSize: 26, color: T.success, fontWeight: 800 }}>{stats.avgUsersPerTenant}</div></Card>
       </div>
 
       {isSystemAdmin && (
         <Card style={{ padding: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <Plus size={14} color={T.accent} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Neuen Tenant anlegen</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{t("tenants.create.title")}</span>
           </div>
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
-            <input style={inputStyle} placeholder="Tenant Name" value={name} onChange={(e) => setName(e.target.value)} />
-            <input style={inputStyle} placeholder="Slug (optional)" value={slug} onChange={(e) => setSlug(e.target.value)} />
+            <input style={inputStyle} placeholder={t("tenants.create.name")} value={name} onChange={(e) => setName(e.target.value)} />
+            <input style={inputStyle} placeholder={t("tenants.create.slug")} value={slug} onChange={(e) => setSlug(e.target.value)} />
             <button onClick={createTenant} disabled={saving} style={{ borderRadius: 10, border: "none", background: T.accent, color: "#061018", fontWeight: 700, padding: "10px 14px", cursor: "pointer" }}>
-              {saving ? "Speichern..." : "Tenant anlegen"}
+              {saving ? t("common.loading") : t("tenants.create.title")}
             </button>
           </div>
           {error && <div style={{ marginTop: 8, fontSize: 12, color: T.danger }}>{error}</div>}
@@ -248,9 +250,9 @@ export default function TenantsPage() {
       <Card style={{ padding: 0, overflow: "auto" }}>
         {isSystemAdmin && (
           <div style={{ padding: "12px 12px 0", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-            <Badge size="xs">{selectedIds.length} selektiert</Badge>
-            <button type="button" onClick={() => setBulkAction("activate")} disabled={selectedIds.length === 0} style={miniActionStyle}>Bulk aktivieren</button>
-            <button type="button" onClick={() => setBulkAction("deactivate")} disabled={selectedIds.length === 0} style={miniActionStyle}>Bulk deaktivieren</button>
+            <Badge size="xs">{selectedIds.length} {t("members.stats.selected")}</Badge>
+            <button type="button" onClick={() => setBulkAction("activate")} disabled={selectedIds.length === 0} style={miniActionStyle}>{t("common.active")} (Bulk)</button>
+            <button type="button" onClick={() => setBulkAction("deactivate")} disabled={selectedIds.length === 0} style={miniActionStyle}>{t("common.paused")} (Bulk)</button>
           </div>
         )}
         <table className="hidden md:table" style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -261,47 +263,46 @@ export default function TenantsPage() {
                   <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
                 </th>
               )}
-              {["Tenant", "Slug", "Users", "Admins", "Aktive User", "Status", "Aktion"].map((h) => (
+              {[t("tenants.table.name"), "Slug", t("tenants.table.users"), t("tenants.table.admins"), t("sidebar.monitor"), t("common.status"), t("ai.actions")].map((h) => (
                 <th key={h} style={{ textAlign: "left", fontSize: 10, color: T.textDim, padding: "10px 12px", textTransform: "uppercase", letterSpacing: "0.08em" }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={isSystemAdmin ? 8 : 7} style={{ padding: 20, color: T.textDim, fontSize: 13 }}>Lade Tenants...</td></tr>
-            ) : tenants.map((t) => {
-              const counts = byTenant.get(t.id) || { users: 0, admins: 0, active: 0 };
+              <tr><td colSpan={isSystemAdmin ? 8 : 7} style={{ padding: 20, color: T.textDim, fontSize: 13 }}>{t("common.loading")}</td></tr>
+            ) : tenants.map((tRow) => {
+              const counts = byTenant.get(tRow.id) || { users: 0, admins: 0, active: 0 };
               return (
-                <tr key={t.id} style={{ borderTop: `1px solid ${T.border}` }}>
+                <tr key={tRow.id} style={{ borderTop: `1px solid ${T.border}` }}>
                   {isSystemAdmin && (
                     <td style={{ padding: "10px 12px" }}>
                       <input
                         type="checkbox"
-                        checked={selectedSet.has(t.id)}
-                        onChange={() => toggleSelectTenant(t.id)}
-                        aria-label={`Tenant ${t.name} auswählen`}
+                        checked={selectedSet.has(tRow.id)}
+                        onChange={() => toggleSelectTenant(tRow.id)}
                       />
                     </td>
                   )}
                   <td style={{ padding: "10px 12px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <Building2 size={14} color={T.textDim} />
-                      <span style={{ fontSize: 13, color: T.text }}>{t.name}</span>
+                      <span style={{ fontSize: 13, color: T.text }}>{tRow.name}</span>
                     </div>
                   </td>
-                  <td style={{ padding: "10px 12px" }}><span style={{ fontSize: 12, color: T.textDim }}>{t.slug}</span></td>
+                  <td style={{ padding: "10px 12px" }}><span style={{ fontSize: 12, color: T.textDim }}>{tRow.slug}</span></td>
                   <td style={{ padding: "10px 12px", fontSize: 13, color: T.text }}>{counts.users}</td>
                   <td style={{ padding: "10px 12px", fontSize: 13, color: T.text }}>{counts.admins}</td>
                   <td style={{ padding: "10px 12px", fontSize: 13, color: T.text }}>{counts.active}</td>
-                  <td style={{ padding: "10px 12px" }}><Badge variant={(t.is_active ?? true) ? "success" : "warning"} size="xs">{(t.is_active ?? true) ? "active" : "inactive"}</Badge></td>
+                  <td style={{ padding: "10px 12px" }}><Badge variant={(tRow.is_active ?? true) ? "success" : "warning"} size="xs">{(tRow.is_active ?? true) ? t("common.active") : t("common.paused")}</Badge></td>
                   <td style={{ padding: "10px 12px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <button onClick={() => setDetailTenant(t)} style={{ borderRadius: 8, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 12, padding: "7px 10px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                        <Eye size={12} /> Details
+                      <button onClick={() => setDetailTenant(tRow)} style={miniActionStyle}>
+                        <Eye size={12} /> {t("common.details")}
                       </button>
                       {isSystemAdmin && (
-                        <button onClick={() => startEdit(t)} style={{ borderRadius: 8, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 12, padding: "7px 10px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <Pencil size={12} /> Bearbeiten
+                        <button onClick={() => startEdit(tRow)} style={miniActionStyle}>
+                          <Pencil size={12} /> {t("common.edit")}
                         </button>
                       )}
                     </div>
@@ -310,7 +311,7 @@ export default function TenantsPage() {
               );
             })}
             {!loading && tenants.length === 0 && (
-              <tr><td colSpan={isSystemAdmin ? 8 : 7} style={{ padding: 20, color: T.textDim, fontSize: 13 }}>Keine Tenants gefunden.</td></tr>
+              <tr><td colSpan={isSystemAdmin ? 8 : 7} style={{ padding: 20, color: T.textDim, fontSize: 13 }}>{t("common.noEntries")}</td></tr>
             )}
           </tbody>
         </table>
@@ -320,57 +321,56 @@ export default function TenantsPage() {
           {isSystemAdmin && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
-              <span style={{ fontSize: 12, color: T.textDim }}>Alle auswählen</span>
+              <span style={{ fontSize: 12, color: T.textDim }}>{t("common.details")} (Bulk)</span>
             </div>
           )}
 
           {loading ? (
-            <div style={{ color: T.textDim, fontSize: 13, textAlign: "center", padding: 20 }}>Lade Tenants...</div>
+            <div style={{ color: T.textDim, fontSize: 13, textAlign: "center", padding: 20 }}>{t("common.loading")}</div>
           ) : tenants.length === 0 ? (
-            <div style={{ color: T.textDim, fontSize: 13, textAlign: "center", padding: 20 }}>Keine Tenants gefunden.</div>
-          ) : tenants.map((t) => {
-            const counts = byTenant.get(t.id) || { users: 0, admins: 0, active: 0 };
+            <div style={{ color: T.textDim, fontSize: 13, textAlign: "center", padding: 20 }}>{t("common.noEntries")}</div>
+          ) : tenants.map((tRow) => {
+            const counts = byTenant.get(tRow.id) || { users: 0, admins: 0, active: 0 };
             return (
-              <div key={t.id} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, borderRadius: 12, border: `1px solid ${T.border}`, background: T.surfaceAlt }}>
+              <div key={tRow.id} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, borderRadius: 12, border: `1px solid ${T.border}`, background: T.surfaceAlt }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     {isSystemAdmin && (
                       <input
                         type="checkbox"
-                        checked={selectedSet.has(t.id)}
-                        onChange={() => toggleSelectTenant(t.id)}
-                        aria-label={`Tenant ${t.name} auswählen`}
+                        checked={selectedSet.has(tRow.id)}
+                        onChange={() => toggleSelectTenant(tRow.id)}
                       />
                     )}
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 600, color: T.text, display: "flex", alignItems: "center", gap: 6 }}>
-                        <Building2 size={14} color={T.textDim} /> {t.name}
+                        <Building2 size={14} color={T.textDim} /> {tRow.name}
                       </div>
-                      <div style={{ fontSize: 12, color: T.textDim }}>{t.slug}</div>
+                      <div style={{ fontSize: 12, color: T.textDim }}>{tRow.slug}</div>
                     </div>
                   </div>
-                  <div><Badge variant={(t.is_active ?? true) ? "success" : "warning"} size="xs">{(t.is_active ?? true) ? "active" : "inactive"}</Badge></div>
+                  <div><Badge variant={(tRow.is_active ?? true) ? "success" : "warning"} size="xs">{(tRow.is_active ?? true) ? t("common.active") : t("common.paused")}</Badge></div>
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 4 }}>
                   <div>
-                    <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase" }}>Users</div>
+                    <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase" }}>{t("tenants.table.users")}</div>
                     <div style={{ fontSize: 12, color: T.text, marginTop: 2 }}>{counts.users}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase" }}>Admins</div>
+                    <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase" }}>{t("tenants.table.admins")}</div>
                     <div style={{ fontSize: 12, color: T.text, marginTop: 2 }}>{counts.admins}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase" }}>Aktiv</div>
+                    <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase" }}>{t("tenants.table.active")}</div>
                     <div style={{ fontSize: 12, color: T.text, marginTop: 2 }}>{counts.active}</div>
                   </div>
                 </div>
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-                  <button onClick={() => setDetailTenant(t)} style={miniActionStyle}><Eye size={12} /> Details</button>
+                  <button onClick={() => setDetailTenant(tRow)} style={miniActionStyle}><Eye size={12} /> {t("common.details")}</button>
                   {isSystemAdmin && (
-                    <button onClick={() => startEdit(t)} style={miniActionStyle}><Pencil size={12} /> Bearbeiten</button>
+                    <button onClick={() => startEdit(tRow)} style={miniActionStyle}><Pencil size={12} /> {t("common.edit")}</button>
                   )}
                 </div>
               </div>
@@ -382,19 +382,19 @@ export default function TenantsPage() {
       <Modal
         open={!!bulkAction}
         onClose={() => !bulkBusy && setBulkAction(null)}
-        title={bulkAction === "activate" ? "Tenants aktivieren" : "Tenants deaktivieren"}
-        subtitle={`${selectedIds.length} Tenants selektiert`}
+        title={bulkAction === "activate" ? t("common.active") : t("common.paused")}
+        subtitle={`${selectedIds.length} ${t("tenants.stats.total")}`}
       >
         <div style={{ display: "grid", gap: 12 }}>
           <div style={{ fontSize: 13, color: T.text }}>
-            Die Aktion wird tenantweit angewendet und als Governance-Ereignis protokolliert.
+            {t("tenants.bulk.hint")}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
             <button onClick={() => setBulkAction(null)} disabled={bulkBusy} style={{ borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, padding: "10px 12px", cursor: "pointer" }}>
-              Abbrechen
+              {t("common.cancel")}
             </button>
             <button onClick={runBulkStatus} disabled={bulkBusy} style={{ borderRadius: 10, border: "none", background: T.accent, color: "#061018", fontWeight: 700, padding: "10px 12px", cursor: "pointer" }}>
-              {bulkBusy ? "Läuft..." : "Ausführen"}
+              {bulkBusy ? t("common.loading") : t("common.confirmed")}
             </button>
           </div>
         </div>
@@ -403,35 +403,30 @@ export default function TenantsPage() {
       <Modal
         open={!!detailTenant}
         onClose={() => setDetailTenant(null)}
-        title={detailTenant ? detailTenant.name : "Tenant Detail"}
+        title={detailTenant ? detailTenant.name : t("common.details")}
         subtitle={detailTenant ? `ID ${detailTenant.id} · ${detailTenant.slug}` : ""}
         width="min(900px, 100%)"
       >
         {detailTenant && (
           <div style={{ display: "grid", gap: 14 }}>
             <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}>
-              <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Status</div><div style={{ fontSize: 13, color: (detailTenant.is_active ?? true) ? T.success : T.warning }}>{(detailTenant.is_active ?? true) ? "active" : "inactive"}</div></Card>
-              <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Benutzer</div><div style={{ fontSize: 13, color: T.text }}>{detailUsers.length}</div></Card>
-              <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>Aktive Benutzer</div><div style={{ fontSize: 13, color: T.text }}>{detailUsers.filter((u) => u.is_active).length}</div></Card>
+              <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>{t("common.status")}</div><div style={{ fontSize: 13, color: (detailTenant.is_active ?? true) ? T.success : T.warning }}>{(detailTenant.is_active ?? true) ? t("common.active") : t("common.paused")}</div></Card>
+              <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>{t("tenants.table.users")}</div><div style={{ fontSize: 13, color: T.text }}>{detailUsers.length}</div></Card>
+              <Card style={{ padding: 12 }}><div style={{ fontSize: 11, color: T.textDim }}>{t("tenants.table.active")}</div><div style={{ fontSize: 13, color: T.text }}>{detailUsers.filter((u) => u.is_active).length}</div></Card>
             </div>
             <div style={{ border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
               <div style={{ padding: "10px 12px", background: T.surfaceAlt, fontSize: 11, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                Letzte Audit-Events
+                {t("tenants.audit.title")}
               </div>
               <div style={{ maxHeight: 280, overflow: "auto" }}>
                 {detailAuditRows.length === 0 ? (
-                  <div style={{ padding: 12, fontSize: 12, color: T.textDim }}>Keine Audit-Events gefunden.</div>
+                  <div style={{ padding: 12, fontSize: 12, color: T.textDim }}>{t("common.noEntries")}</div>
                 ) : detailAuditRows.map((row) => (
                   <div key={row.id} style={{ borderTop: `1px solid ${T.border}`, padding: "10px 12px" }}>
                     <div style={{ fontSize: 12, color: T.text }}>{row.action}</div>
                     <div style={{ marginTop: 2, fontSize: 11, color: T.textDim }}>
-                      {row.created_at ? new Date(row.created_at).toLocaleString("de-DE") : "-"} · {row.actor_email || "system"}
+                      {row.created_at ? new Date(row.created_at).toLocaleString() : "-"} · {row.actor_email || "system"}
                     </div>
-                    {row.details_json && (
-                      <pre style={{ marginTop: 8, marginBottom: 0, whiteSpace: "pre-wrap", fontSize: 11, color: T.textMuted }}>
-                        {row.details_json}
-                      </pre>
-                    )}
                   </div>
                 ))}
               </div>
@@ -443,7 +438,7 @@ export default function TenantsPage() {
       <Modal
         open={!!editTenant && isSystemAdmin}
         onClose={() => setEditTenant(null)}
-        title="Tenant bearbeiten"
+        title={t("tenants.edit.title")}
         subtitle={editTenant ? `ID ${editTenant.id} · Multi-Tenant Governance` : ""}
         width="min(820px, 100%)"
       >
@@ -451,27 +446,27 @@ export default function TenantsPage() {
           <>
             <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}>
               <div>
-                <div style={{ fontSize: 11, color: T.textDim, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>Name</div>
-                <input style={inputStyle} placeholder="Name" value={editTenant.name} onChange={(e) => setEditTenant({ ...editTenant, name: e.target.value })} />
+                <div style={{ fontSize: 11, color: T.textDim, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>{t("tenants.create.name")}</div>
+                <input style={inputStyle} placeholder={t("tenants.create.name")} value={editTenant.name} onChange={(e) => setEditTenant({ ...editTenant, name: e.target.value })} />
               </div>
               <div>
                 <div style={{ fontSize: 11, color: T.textDim, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>Slug</div>
                 <input style={inputStyle} placeholder="Slug" value={editTenant.slug} onChange={(e) => setEditTenant({ ...editTenant, slug: e.target.value })} />
               </div>
               <div>
-                <div style={{ fontSize: 11, color: T.textDim, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>Status</div>
+                <div style={{ fontSize: 11, color: T.textDim, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>{t("common.status")}</div>
                 <select style={inputStyle} value={editTenant.is_active ? "true" : "false"} onChange={(e) => setEditTenant({ ...editTenant, is_active: e.target.value === "true" })}>
-                  <option value="true">active</option>
-                  <option value="false">inactive</option>
+                  <option value="true">{t("common.active")}</option>
+                  <option value="false">{t("common.paused")}</option>
                 </select>
               </div>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
               <button onClick={() => setEditTenant(null)} style={{ borderRadius: 10, border: `1px solid ${T.border}`, background: T.surface, color: T.text, fontWeight: 600, padding: "10px 12px", cursor: "pointer" }}>
-                Abbrechen
+                {t("common.cancel")}
               </button>
               <button onClick={saveEdit} disabled={saveTenantBusy === editTenant.id} style={{ borderRadius: 10, border: "none", background: T.accent, color: "#061018", fontWeight: 700, padding: "10px 12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <Save size={12} /> {saveTenantBusy === editTenant.id ? "Speichern..." : "Speichern"}
+                <Save size={12} /> {saveTenantBusy === editTenant.id ? t("common.loading") : t("common.save")}
               </button>
             </div>
             {error && <div style={{ paddingTop: 10, fontSize: 12, color: T.danger }}>{error}</div>}
@@ -482,7 +477,7 @@ export default function TenantsPage() {
       <Card style={{ padding: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Globe2 size={14} color={T.textDim} />
-          <span style={{ fontSize: 12, color: T.textDim }}>Mandanten-Self-Registration läuft weiterhin über `/register`.</span>
+          <span style={{ fontSize: 12, color: T.textDim }}>{t("tenants.footer.registration")}</span>
         </div>
       </Card>
     </div>

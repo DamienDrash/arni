@@ -1,13 +1,14 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Search, Users, Plus, Download, Upload, Trash2, MoreHorizontal, Settings2, Filter, Database, Store, UserCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Users, Plus, Download, Upload, Trash2, MoreHorizontal, Settings2, Filter, Database, Store, UserCircle, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/tokens";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { useI18n } from "@/lib/i18n/LanguageContext";
 
 type Member = {
   id: number;
@@ -25,6 +26,7 @@ type Member = {
 };
 
 export default function MembersPage() {
+  const { t } = useI18n();
   const [members, setMembers] = useState<Member[]>([]);
   const [columns, setColumns] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +61,7 @@ export default function MembersPage() {
   }, [members, query]);
 
   async function bulkDelete() {
-    if (!confirm(`Möchtest du ${selectedIds.size} Mitglieder wirklich löschen?`)) return;
+    if (!confirm(t("members.confirmDelete", { count: selectedIds.size }))) return;
     const res = await apiFetch("/admin/members/bulk", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -83,15 +85,15 @@ export default function MembersPage() {
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader 
-        title="Mitgliederverwaltung" 
-        subtitle="Verwalte deine Mitglieder aus allen Quellen zentral an einem Ort."
+        title={t("members.title")} 
+        subtitle={t("members.subtitle")}
         action={
           <div className="flex gap-2">
             <button onClick={() => setIsImportModalOpen(true)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-slate-50">
-              <Upload size={16} /> Import
+              <Upload size={16} /> {t("members.import")}
             </button>
             <button onClick={() => setIsAddModalOpen(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-indigo-700">
-              <Plus size={16} /> Mitglied anlegen
+              <Plus size={16} /> {t("members.add")}
             </button>
           </div>
         }
@@ -100,19 +102,19 @@ export default function MembersPage() {
       {/* Stats & Search */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4 bg-white border-slate-200">
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Gesamt</div>
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{t("members.stats.total")}</div>
           <div className="text-2xl font-black text-slate-900">{members.length}</div>
         </Card>
         <Card className="p-4 bg-white border-slate-200">
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Manuell</div>
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{t("members.stats.manual")}</div>
           <div className="text-2xl font-black text-slate-900">{members.filter(m => m.source === 'manual').length}</div>
         </Card>
         <Card className="p-4 bg-white border-slate-200">
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">External Sync</div>
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{t("members.stats.external")}</div>
           <div className="text-2xl font-black text-slate-900">{members.filter(m => m.source !== 'manual').length}</div>
         </Card>
         <Card className="p-4 bg-white border-slate-200">
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ausgewählt</div>
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{t("members.stats.selected")}</div>
           <div className="flex items-center justify-between">
             <div className="text-2xl font-black text-indigo-600">{selectedIds.size}</div>
             {selectedIds.size > 0 && (
@@ -132,7 +134,7 @@ export default function MembersPage() {
               value={query}
               onChange={e => setQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
-              placeholder="Suchen nach Name, E-Mail..."
+              placeholder={t("members.search")}
             />
           </div>
           <button className="p-2 border border-slate-200 rounded-lg hover:bg-white text-slate-600"><Filter size={18} /></button>
@@ -150,9 +152,9 @@ export default function MembersPage() {
                     className="w-4 h-4 rounded border-slate-300 text-indigo-600"
                   />
                 </th>
-                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Mitglied</th>
-                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Quelle</th>
-                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">{t("members.table.member")}</th>
+                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">{t("members.table.source")}</th>
+                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">{t("members.table.status")}</th>
                 {columns.filter(c => c.is_visible).map(col => (
                   <th key={col.slug} className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">{col.name}</th>
                 ))}
@@ -161,9 +163,9 @@ export default function MembersPage() {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {isLoading ? (
-                <tr><td colSpan={10} className="p-12 text-center text-slate-400"><Loader2 className="animate-spin mx-auto mb-2" /> Laden...</td></tr>
+                <tr><td colSpan={10} className="p-12 text-center text-slate-400"><Loader2 className="animate-spin mx-auto mb-2" /> {t("common.loading")}</td></tr>
               ) : filteredMembers.length === 0 ? (
-                <tr><td colSpan={10} className="p-12 text-center text-slate-400">Keine Mitglieder gefunden.</td></tr>
+                <tr><td colSpan={10} className="p-12 text-center text-slate-400">{t("members.noMembers")}</td></tr>
               ) : filteredMembers.map(m => (
                 <tr key={m.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="p-4">
@@ -181,7 +183,7 @@ export default function MembersPage() {
                       </div>
                       <div>
                         <div className="font-bold text-slate-900">{m.first_name} {m.last_name}</div>
-                        <div className="text-xs text-slate-500">{m.email || m.phone_number || 'Kein Kontakt'}</div>
+                        <div className="text-xs text-slate-500">{m.email || m.phone_number || t("members.noContact")}</div>
                       </div>
                     </div>
                   </td>
@@ -193,9 +195,9 @@ export default function MembersPage() {
                   </td>
                   <td className="p-4">
                     {m.is_paused ? (
-                      <Badge variant="warning">Pausiert</Badge>
+                      <Badge variant="warning">{t("members.status.paused")}</Badge>
                     ) : (
-                      <Badge variant="success">Aktiv</Badge>
+                      <Badge variant="success">{t("members.status.active")}</Badge>
                     )}
                   </td>
                   {columns.filter(c => c.is_visible).map(col => (
@@ -216,42 +218,42 @@ export default function MembersPage() {
       </Card>
 
       {/* Add Member Modal */}
-      <Modal open={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Neues Mitglied anlegen">
+      <Modal open={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title={t("members.add")}>
         <div className="p-4 flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-slate-500">Vorname</label>
+              <label className="text-xs font-bold text-slate-500">{t("members.form.firstName")}</label>
               <input className="px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="Max" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-slate-500">Nachname</label>
+              <label className="text-xs font-bold text-slate-500">{t("members.form.lastName")}</label>
               <input className="px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="Mustermann" />
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-slate-500">E-Mail</label>
+            <label className="text-xs font-bold text-slate-500">{t("members.form.email")}</label>
             <input className="px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="max@beispiel.de" />
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-lg">Abbrechen</button>
-            <button className="px-4 py-2 text-sm font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Speichern</button>
+            <button onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-lg">{t("common.cancel")}</button>
+            <button className="px-4 py-2 text-sm font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{t("common.save")}</button>
           </div>
         </div>
       </Modal>
 
       {/* CSV Import Modal */}
-      <Modal open={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} title="Mitglieder importieren (CSV)">
+      <Modal open={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} title={t("members.importTitle")}>
         <div className="p-8 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 gap-4">
           <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-slate-400">
             <Upload size={24} />
           </div>
           <div className="text-center">
-            <div className="text-sm font-bold text-slate-900">Klicke zum Hochladen oder Drag & Drop</div>
-            <div className="text-xs text-slate-500 mt-1">Nur .csv Dateien (max. 10MB)</div>
+            <div className="text-sm font-bold text-slate-900">{t("members.import.clickOrDrop")}</div>
+            <div className="text-xs text-slate-500 mt-1">{t("members.import.hint")}</div>
           </div>
           <input type="file" className="hidden" id="csv-upload" accept=".csv" />
           <label htmlFor="csv-upload" className="mt-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold cursor-pointer hover:bg-slate-50 transition-colors">
-            Datei auswählen
+            {t("members.import.selectFile")}
           </label>
         </div>
       </Modal>

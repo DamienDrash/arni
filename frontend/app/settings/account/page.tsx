@@ -40,14 +40,15 @@ const inputStyle: CSSProperties = {
   borderRadius: 9,
   background: T.surfaceAlt,
   border: `1px solid ${T.border}`,
-  color: T.text,
+  color: "#FFFFFF",
   fontSize: 13,
   outline: "none",
 };
 
 export default function SettingsAccountPage() {
-  const { t, language, setLanguage } = useI18n();
+  const { t } = useI18n();
   const role = getStoredUser()?.role;
+  const isSystemAdmin = role === "system_admin";
   const isTenantAdmin = role === "tenant_admin";
   const [profile, setProfile] = useState<ProfileSettings | null>(null);
   const [tenantPrefs, setTenantPrefs] = useState<TenantPreferences | null>(null);
@@ -62,7 +63,7 @@ export default function SettingsAccountPage() {
     setError("");
     const profileRes = await apiFetch("/auth/profile-settings");
     if (!profileRes.ok) {
-      setError(`Profil konnte nicht geladen werden (${profileRes.status}).`);
+      setError(t("ai.errors.loadFailed"));
       return;
     }
     setProfile((await profileRes.json()) as ProfileSettings);
@@ -96,10 +97,10 @@ export default function SettingsAccountPage() {
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        setError(payload?.detail || `Speichern fehlgeschlagen (${res.status}).`);
+        setError(payload?.detail || t("ai.errors.saveFailed"));
         return;
       }
-      setSaved("Profil gespeichert");
+      setSaved(t("common.confirmed"));
       setCurrentPassword("");
       setNewPassword("");
       setTimeout(() => setSaved(""), 1800);
@@ -120,21 +121,19 @@ export default function SettingsAccountPage() {
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        setError(payload?.detail || `Tenant-Einstellungen fehlgeschlagen (${res.status}).`);
+        setError(payload?.detail || t("ai.errors.saveFailed"));
         return;
       }
-      setSaved("Tenant Preferences gespeichert");
+      setSaved(t("common.confirmed"));
       setTimeout(() => setSaved(""), 1800);
     } finally {
       setSavingTenant(false);
     }
   }
 
-  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     void load();
   }, []);
-  /* eslint-enable react-hooks/exhaustive-deps */
 
   const profileReady = useMemo(() => !!profile, [profile]);
 
@@ -143,73 +142,75 @@ export default function SettingsAccountPage() {
       <SettingsSubnav />
 
       <Card style={{ padding: 24 }}>
-        <SectionHeader title="Account & Preferences" subtitle="Self-Service Profil, Security und persönliche UI/Notification-Einstellungen." />
+        <SectionHeader title={t("settings.account.title")} subtitle={t("settings.account.subtitle")} />
         {saved && <div style={{ marginTop: 8, fontSize: 12, color: T.success }}>{saved}</div>}
         {error && <div style={{ marginTop: 8, fontSize: 12, color: T.danger }}>{error}</div>}
 
         {!profileReady ? (
-          <div style={{ marginTop: 12, color: T.textMuted, fontSize: 13 }}>Laden…</div>
+          <div style={{ marginTop: 12, color: T.textMuted, fontSize: 13 }}>{t("common.loading")}</div>
         ) : (
           <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
 
-            {/* ── Persönliche Daten ──────────────────────────────── */}
             <Card style={{ padding: 14, background: T.surfaceAlt }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 10, letterSpacing: "0.04em", textTransform: "uppercase" }}>Persönliche Daten</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 10, letterSpacing: "0.04em", textTransform: "uppercase" }}>{t("settings.account.personalData")}</div>
               <div style={{ display: "grid", gap: 10 }}>
-                <AccountField label="E-Mail-Adresse" hint="Kann nicht geändert werden — kontaktiere einen Admin.">
+                <AccountField label={t("settings.account.email")} hint={t("settings.account.emailHint")}>
                   <div style={{ ...inputStyle, color: T.textMuted, background: T.surface, cursor: "default", userSelect: "all" as const }}>
                     {profile?.email ?? ""}
                   </div>
                 </AccountField>
-                <AccountField label="Vollständiger Name" hint="Wird in Berichten und Audit-Logs angezeigt.">
+                <AccountField label={t("settings.account.fullName")} hint={t("settings.account.fullNameHint")}>
                   <input
                     value={profile?.full_name ?? ""}
                     onChange={(e) => setProfile((prev) => (prev ? { ...prev, full_name: e.target.value } : prev))}
                     style={inputStyle}
-                    placeholder="Max Mustermann"
+                    placeholder={t("settings.account.placeholders.fullName")}
                   />
                 </AccountField>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <AccountField label="Locale" hint="Sprache / Region (BCP-47)">
+                  <AccountField label={t("settings.account.locale")} hint={t("settings.account.localeHint")}>
                     <input
                       value={profile?.locale ?? ""}
                       onChange={(e) => setProfile((prev) => (prev ? { ...prev, locale: e.target.value } : prev))}
                       style={inputStyle}
-                      placeholder="de-DE"
+                      placeholder={t("settings.account.placeholders.locale")}
                     />
                   </AccountField>
-                  <AccountField label="Zeitzone" hint="IANA-Zeitzone">
+                  <AccountField label={t("settings.account.timezone")} hint={t("settings.account.timezoneHint")}>
                     <input
                       value={profile?.timezone ?? ""}
                       onChange={(e) => setProfile((prev) => (prev ? { ...prev, timezone: e.target.value } : prev))}
                       style={inputStyle}
-                      placeholder="Europe/Berlin"
+                      placeholder={t("settings.account.placeholders.timezone")}
                     />
                   </AccountField>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: "0.03em" }}>Benachrichtigungen & UI</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
-                    <ToggleRow
-                      label="E-Mail-Benachrichtigungen"
-                      description="Eskalationsalarme und Systemmeldungen werden an deine registrierte E-Mail-Adresse gesendet."
-                      value={(profile?.notify_email ?? "false") === "true"}
-                      onChange={(v) => setProfile((prev) => (prev ? { ...prev, notify_email: v ? "true" : "false" } : prev))}
-                    />
-                    <ToggleRow
-                      label="Telegram-Benachrichtigungen"
-                      description="Alarme werden an deinen Telegram-Account gesendet. Chat-ID muss unter Studio-Einstellungen hinterlegt sein."
-                      value={(profile?.notify_telegram ?? "false") === "true"}
-                      onChange={(v) => setProfile((prev) => (prev ? { ...prev, notify_telegram: v ? "true" : "false" } : prev))}
-                    />
-                    <ToggleRow
-                      label="Kompakter Modus"
-                      description="Reduziert den Zeilenabstand in Listen und Tabellen — spart Platz auf kleinen Bildschirmen."
-                      value={(profile?.compact_mode ?? "false") === "true"}
-                      onChange={(v) => setProfile((prev) => (prev ? { ...prev, compact_mode: v ? "true" : "false" } : prev))}
-                    />
+
+                {!isSystemAdmin && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: "0.03em" }}>{t("settings.account.notifications")}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
+                      <ToggleRow
+                        label={t("settings.account.emailNotify")}
+                        description={t("settings.account.emailNotifyDesc")}
+                        value={(profile?.notify_email ?? "false") === "true"}
+                        onChange={(v) => setProfile((prev) => (prev ? { ...prev, notify_email: v ? "true" : "false" } : prev))}
+                      />
+                      <ToggleRow
+                        label={t("settings.account.tgNotify")}
+                        description={t("settings.account.tgNotifyDesc")}
+                        value={(profile?.notify_telegram ?? "false") === "true"}
+                        onChange={(v) => setProfile((prev) => (prev ? { ...prev, notify_telegram: v ? "true" : "false" } : prev))}
+                      />
+                      <ToggleRow
+                        label={t("settings.account.compactMode")}
+                        description={t("settings.account.compactModeDesc")}
+                        value={(profile?.compact_mode ?? "false") === "true"}
+                        onChange={(v) => setProfile((prev) => (prev ? { ...prev, compact_mode: v ? "true" : "false" } : prev))}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 10 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: "0.03em" }}>{t("settings.language")}</div>
@@ -220,58 +221,56 @@ export default function SettingsAccountPage() {
                 </div>
               </div>
 
-              {/* ── Passwort ändern ──────────────────────────────── */}
               <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.border}` }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 10, letterSpacing: "0.04em", textTransform: "uppercase" }}>Passwort ändern</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 10, letterSpacing: "0.04em", textTransform: "uppercase" }}>{t("settings.account.password.title")}</div>
                 <div style={{ display: "grid", gap: 10 }}>
-                  <AccountField label="Aktuelles Passwort" hint="Nur ausfüllen wenn du das Passwort ändern möchtest.">
-                    <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} style={inputStyle} placeholder="••••••••" />
+                  <AccountField label={t("settings.account.password.current")} hint={t("settings.account.password.currentHint")}>
+                    <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} style={inputStyle} placeholder={t("settings.account.placeholders.password")} />
                   </AccountField>
-                  <AccountField label="Neues Passwort" hint="Mindestens 8 Zeichen.">
-                    <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={inputStyle} placeholder="••••••••" />
+                  <AccountField label={t("settings.account.password.new")} hint={t("settings.account.password.newHint")}>
+                    <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={inputStyle} placeholder={t("settings.account.placeholders.password")} />
                   </AccountField>
                 </div>
               </div>
 
               <button type="button" onClick={() => void saveProfile()} disabled={savingProfile} style={primaryButtonStyle}>
-                {savingProfile ? "Speichere…" : "Profil speichern"}
+                {savingProfile ? t("common.loading") : t("common.save")}
               </button>
             </Card>
 
-            {/* ── Studio-Einstellungen (tenant_admin) ──────────── */}
             {isTenantAdmin && tenantPrefs && (
               <Card style={{ padding: 14, background: T.surfaceAlt }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 4, letterSpacing: "0.04em", textTransform: "uppercase" }}>Studio-Einstellungen</div>
-                <div style={{ fontSize: 11, color: T.textDim, marginBottom: 12 }}>Globale Standardwerte für diesen Tenant — gelten für alle Nutzer des Studios. Ops-E-Mail und Telegram werden für Eskalationsalarme und Systemmeldungen verwendet.</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 4, letterSpacing: "0.04em", textTransform: "uppercase" }}>{t("settings.account.studio.title")}</div>
+                <div style={{ fontSize: 11, color: T.textDim, marginBottom: 12 }}>{t("settings.account.studio.subtitle")}</div>
                 <div style={{ display: "grid", gap: 10 }}>
-                  <AccountField label="Studio-Anzeigename" hint="Interner Name für Berichte, Audit-Logs und E-Mails.">
-                    <input value={tenantPrefs.tenant_display_name} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_display_name: e.target.value })} style={inputStyle} placeholder="Mein Fitness Studio GmbH" />
+                  <AccountField label={t("settings.account.studio.name")} hint={t("settings.account.studio.nameHint")}>
+                    <input value={tenantPrefs.tenant_display_name} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_display_name: e.target.value })} style={inputStyle} placeholder={t("settings.account.placeholders.studioName")} />
                   </AccountField>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <AccountField label="Zeitzone" hint="IANA-Zeitzone des Studios">
-                      <input value={tenantPrefs.tenant_timezone} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_timezone: e.target.value })} style={inputStyle} placeholder="Europe/Berlin" />
+                    <AccountField label={t("settings.account.timezone")} hint={t("settings.account.studio.timezoneHint")}>
+                      <input value={tenantPrefs.tenant_timezone} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_timezone: e.target.value })} style={inputStyle} placeholder={t("settings.account.placeholders.timezone")} />
                     </AccountField>
-                    <AccountField label="Locale" hint="Sprache für automatische Texte (BCP-47)">
-                      <input value={tenantPrefs.tenant_locale} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_locale: e.target.value })} style={inputStyle} placeholder="de-DE" />
+                    <AccountField label={t("settings.account.locale")} hint={t("settings.account.studio.localeHint")}>
+                      <input value={tenantPrefs.tenant_locale} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_locale: e.target.value })} style={inputStyle} placeholder={t("settings.account.placeholders.locale")} />
                     </AccountField>
                   </div>
-                  <AccountField label="Ops-Benachrichtigungs-E-Mail" hint="E-Mail-Adresse für interne Betriebsmeldungen und Eskalationen.">
-                    <input value={tenantPrefs.tenant_notify_email} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_notify_email: e.target.value })} style={inputStyle} placeholder="ops@mein-studio.de" />
+                  <AccountField label={t("settings.account.studio.opsEmail")} hint={t("settings.account.studio.opsEmailHint")}>
+                    <input value={tenantPrefs.tenant_notify_email} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_notify_email: e.target.value })} style={inputStyle} placeholder={t("settings.account.placeholders.opsEmail")} />
                   </AccountField>
-                  <AccountField label="Ops Telegram Chat-ID" hint="Numerische Telegram-Chat-ID für Ops-Benachrichtigungen.">
-                    <input value={tenantPrefs.tenant_notify_telegram} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_notify_telegram: e.target.value })} style={inputStyle} placeholder="-100123456789" />
+                  <AccountField label={t("settings.account.studio.opsTelegram")} hint={t("settings.account.studio.opsTelegramHint")}>
+                    <input value={tenantPrefs.tenant_notify_telegram} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_notify_telegram: e.target.value })} style={inputStyle} placeholder={t("settings.account.placeholders.opsTelegram")} />
                   </AccountField>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <AccountField label="Eskalations-SLA (Minuten)" hint="Nach wie vielen Minuten gilt eine Konversation als eskaliert.">
-                      <input value={tenantPrefs.tenant_escalation_sla_minutes} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_escalation_sla_minutes: e.target.value })} style={inputStyle} placeholder="15" />
+                    <AccountField label={t("settings.account.studio.sla")} hint={t("settings.account.studio.slaHint")}>
+                      <input value={tenantPrefs.tenant_escalation_sla_minutes} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_escalation_sla_minutes: e.target.value })} style={inputStyle} placeholder={t("settings.account.placeholders.sla")} />
                     </AccountField>
-                    <AccountField label="Live-Refresh-Intervall (Sekunden)" hint="Wie oft das Live-Dashboard automatisch aktualisiert wird.">
-                      <input value={tenantPrefs.tenant_live_refresh_seconds} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_live_refresh_seconds: e.target.value })} style={inputStyle} placeholder="5" />
+                    <AccountField label={t("settings.account.studio.refresh")} hint={t("settings.account.studio.refreshHint")}>
+                      <input value={tenantPrefs.tenant_live_refresh_seconds} onChange={(e) => setTenantPrefs({ ...tenantPrefs, tenant_live_refresh_seconds: e.target.value })} style={inputStyle} placeholder={t("settings.account.placeholders.refresh")} />
                     </AccountField>
                   </div>
                 </div>
                 <button type="button" onClick={() => void saveTenantPrefs()} disabled={savingTenant} style={primaryButtonStyle}>
-                  {savingTenant ? "Speichere…" : "Studio-Einstellungen speichern"}
+                  {savingTenant ? t("common.loading") : t("common.save")}
                 </button>
               </Card>
             )}
@@ -305,6 +304,7 @@ function AccountField({ label, hint, children }: { label: string; hint?: string;
 }
 
 function ToggleRow({ label, description, value, onChange }: { label: string; description: string; value: boolean; onChange: (v: boolean) => void }) {
+  const { t } = useI18n();
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 10px", borderRadius: 8, background: T.surface, border: `1px solid ${T.border}` }}>
       <ToggleSwitch value={value} onChange={onChange} label={label} />

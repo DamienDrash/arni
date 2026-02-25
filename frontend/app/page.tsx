@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "ARIIA | AI Living System Agent",
     description: "Die Evolution der Studio-Operationen. Agentic Multi-Tenant SaaS Platform.",
-    url: "https://services.frigew.ski/arni/",
+    url: "https://services.frigew.ski/ariia/",
     siteName: "ARIIA",
     images: [
       {

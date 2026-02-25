@@ -10,6 +10,7 @@ interface BadgeProps {
   children: ReactNode;
   variant?: BadgeVariant;
   size?: BadgeSize;
+  className?: string;
 }
 
 const styles: Record<BadgeVariant, { background: string; color: string; border: string }> = {
@@ -21,10 +22,11 @@ const styles: Record<BadgeVariant, { background: string; color: string; border: 
   accent:  { background: T.accentDim,  color: T.accentLight, border: "transparent" },
 };
 
-export function Badge({ children, variant = "default", size = "sm" }: BadgeProps) {
+export function Badge({ children, variant = "default", size = "sm", className = "" }: BadgeProps) {
   const s = styles[variant];
   return (
     <span
+      className={className}
       style={{
         display: "inline-flex",
         alignItems: "center",

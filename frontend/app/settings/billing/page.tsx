@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, Zap, ArrowUpRight, ShieldCheck, HelpCircle, History, Package, CreditCard, LayoutGrid, Info } from "lucide-react";
+import { CheckCircle2, Zap, ArrowUpRight, ShieldCheck, HelpCircle, History, Package, CreditCard, LayoutGrid, Info, Plus } from "lucide-react";
 
 import SettingsSubnav from "@/components/settings/SettingsSubnav";
 import { Card } from "@/components/ui/Card";
@@ -138,13 +138,13 @@ export default function BillingPage() {
             <UsageCard 
               label="Konversationen" 
               used={usage?.messages_used || 0} 
-              limit={usage?.messages_limit} 
+              limit={usage?.messages_limit ?? null} 
               unit="Mtg" 
             />
             <UsageCard 
               label="Mitglieder" 
               used={usage?.members_count || 0} 
-              limit={usage?.members_limit} 
+              limit={usage?.members_limit ?? null} 
               unit="Mitgl." 
             />
           </div>

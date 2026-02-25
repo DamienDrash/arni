@@ -145,7 +145,12 @@ export default function PricingClient() {
               <h3 className="text-lg font-bold mb-1" style={{ color: "oklch(0.97 0.005 270)" }}>{t("pricing.enterpriseTitle")}</h3>
               <p className="text-sm" style={{ color: "oklch(0.65 0.015 270)" }}>{t("pricing.enterpriseDesc")}</p>
             </div>
-            <a href="mailto:enterprise@ariia.ai"><Button className="text-sm px-6 py-2.5 rounded-lg shrink-0" style={{ backgroundColor: "oklch(0.62 0.22 292)", color: "white" }}>{t("pricing.enterpriseCta")}</Button></a>
+            <a href="mailto:enterprise@ariia.ai">
+              <Button className="text-sm px-6 py-2.5 rounded-lg shrink-0 font-bold active:scale-95 transition-transform" 
+                style={{ backgroundColor: "oklch(0.62 0.22 292)", color: "white" }}>
+                {t("pricing.enterpriseCta")}
+              </Button>
+            </a>
           </motion.div>
         </div>
       </Section>
@@ -200,7 +205,12 @@ export default function PricingClient() {
           <p className="text-lg max-w-xl mx-auto mb-10" style={{ color: "oklch(0.65 0.015 270)" }}>{t("pricing.finalCtaDesc")}</p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link href="/register"><Button className="text-base px-9 py-4 rounded-xl h-auto" style={{ backgroundColor: "oklch(0.62 0.22 292)", color: "white" }}>{t("hero.cta")} <ArrowRight size={16} className="ml-2" /></Button></Link>
-            <a href="mailto:hello@ariia.ai"><Button variant="outline" className="text-base px-9 py-4 rounded-xl h-auto bg-transparent group" style={{ borderColor: "oklch(0.28 0.04 270)", color: "oklch(0.75 0.01 270)" }}>{t("pricing.enterpriseCta")}</Button></a>
+            <a href="mailto:hello@ariia.ai">
+              <Button variant="outline" className="text-base px-9 py-4 rounded-xl h-auto bg-transparent group hover:bg-white/5 active:bg-white/10 active:scale-95 transition-all" 
+                style={{ borderColor: "oklch(0.28 0.04 270)", color: "oklch(0.75 0.01 270)" }}>
+                {t("pricing.enterpriseCta")}
+              </Button>
+            </a>
           </div>
         </div>
       </Section>

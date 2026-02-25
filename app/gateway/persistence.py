@@ -8,7 +8,7 @@ from app.core.models import ChatSession, ChatMessage, Setting, Tenant
 from app.core.db import SessionLocal, engine, Base
 from app.gateway.schemas import Platform
 from app.core.crypto import encrypt_value, decrypt_value
-from app.integrations.pii_filter import PIIFilter
+from app.integrations.pii_filter import mask_pii
 
 logger = structlog.get_logger()
 
@@ -178,10 +178,7 @@ class PersistenceService:
             ("system_name", "ARIIA Platform Control", "Main branding for the SaaS dashboard."),
             ("notification_email", "admin@ariia.io", "Platform-wide alerts."),
             ("maintenance_mode", "false", "Global maintenance switch."),
-            ("platform_llm_providers_json", json.dumps([
-                {"id": "openai", "name": "OpenAI", "base_url": "https://api.openai.com/v1", "models": ["gpt-4o-mini", "gpt-4o"]},
-                {"id": "groq", "name": "Groq", "base_url": "https://api.groq.com/openai/v1", "models": ["llama-3.3-70b-versatile"]}
-            ]), "Inventory of AI providers."),
+            ("platform_llm_providers_json", json.dumps([]), "Inventory of AI providers."),
             ("platform_pii_masking_enabled", "true", "Global PII masking."),
             ("platform_data_retention_days", "90", "Message retention in days."),
             ("platform_available_languages", json.dumps(["de", "en", "bg"]), "List of supported UI languages."),
@@ -256,8 +253,7 @@ class PersistenceService:
             try:
                 # 1. Mask PII before storage (Gold Standard Compliance)
                 is_enabled = self.get_setting("platform_pii_masking_enabled", "true") == "true"
-                pii_filter = PIIFilter(enabled=is_enabled)
-                safe_content = pii_filter.mask(content)
+                safe_content = mask_pii(content) if is_enabled else content
                 
                 session = self.get_or_create_session(user_id=user_id, platform=platform, tenant_id=tenant_id, user_name=user_name, phone_number=phone_number, member_id=member_id)
                 msg = ChatMessage(session_id=user_id, tenant_id=session.tenant_id, role=role, content=safe_content, metadata_json=json.dumps(metadata) if metadata else None)

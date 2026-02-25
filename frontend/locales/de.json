@@ -1,309 +1,456 @@
 {
   "common": {
+    "welcome": "Willkommen bei ARIIA",
+    "dashboard": "Dashboard",
+    "settings": "Einstellungen",
     "login": "Anmelden",
     "register": "Registrieren",
-    "getStarted": "Kostenlos starten",
-    "features": "Features",
-    "pricing": "Preise",
-    "dashboard": "Dashboard",
     "logout": "Abmelden",
-    "settings": "Einstellungen",
-    "allSystemsOnline": "Alle Systeme online",
-    "welcome": "Willkommen beim Intelligent Living System.",
     "save": "Speichern",
     "cancel": "Abbrechen",
     "loading": "Lädt...",
-    "featuresTitle": "Features entdecken",
-    "membersSynced": "180 Mitglieder synchronisiert",
-    "dsgvo": "DSGVO-konform",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "confirmed": "Erfolgreich",
+    "error": "Fehler",
+    "active": "Aktiv",
+    "paused": "Pausiert",
+    "days": "Tage",
+    "features": "Features",
+    "featuresTitle": "Alle Features",
+    "pricing": "Preise",
+    "dsgvo": "DSGVO Konform",
     "madeInGermany": "Made in Germany",
-    "enterpriseReady": "Enterprise-Ready"
+    "enterpriseReady": "Enterprise Ready",
+    "allSystemsOnline": "Alle Systeme online",
+    "membersSynced": "Mitglieder synchronisiert",
+    "details": "Details",
+    "noEntries": "Keine Einträge gefunden",
+    "search": "Suchen",
+    "status": "Status",
+    "noData": "Keine Daten verfügbar",
+    "never": "Niemals"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "monitor": "Live Monitor",
+    "escalations": "Eskalationen",
+    "analytics": "Analytics",
+    "members": "Mitglieder",
+    "users": "Benutzer",
+    "knowledge": "Wissensbasis",
+    "memberMemory": "Member Memory",
+    "systemPrompt": "Studio-Prompt",
+    "sync": "Sync",
+    "billing": "Abonnement",
+    "settings": "Einstellungen",
+    "tenants": "Tenant Manager",
+    "plans": "Abo-Modelle",
+    "audit": "Audit Log",
+    "health": "Engine Stats",
+    "quickActions": "Schnellzugriff",
+    "platformControl": "Platform Control",
+    "studioDeck": "Studio Deck",
+    "logout": "Abmelden",
+    "roles": {
+      "systemAdmin": "System-Administrator",
+      "tenantAdmin": "Studio-Administrator"
+    },
+    "sections": {
+      "operations": "Betrieb",
+      "customers": "Kunden",
+      "knowledge": "Wissen",
+      "studio": "Studio",
+      "governance": "Governance",
+      "system": "System"
+    }
+  },
+  "settings": {
+    "overview": {
+      "title": "Übersicht",
+      "subtitle": "Profileinstellungen und Systemparameter."
+    },
+    "account": {
+      "personalData": "Persönliche Daten",
+      "fullName": "Vollständiger Name",
+      "fullNameHint": "Ihr Vor- und Nachname",
+      "email": "E-Mail-Adresse",
+      "emailHint": "Primärer Kontakt für Sicherheitshinweise",
+      "locale": "Sprache der Benutzeroberfläche",
+      "localeHint": "Wählen Sie Ihre bevorzugte Dashboardsprache",
+      "timezone": "Zeitzone",
+      "timezoneHint": "Wird für Planungen und Protokolle verwendet",
+      "compactMode": "Kompakt-Modus",
+      "compactModeDesc": "Dichtere Benutzeroberfläche für Power-User",
+      "notifications": "Benachrichtigungen",
+      "emailNotify": "E-Mail-Benachrichtigungen",
+      "emailNotifyDesc": "Berichte per E-Mail erhalten",
+      "tgNotify": "Telegram-Alarme",
+      "tgNotifyDesc": "Echtzeit-Alarme über Telegram",
+      "password": {
+        "title": "Passwort ändern",
+        "current": "Aktuelles Passwort",
+        "currentHint": "Bestätigen Sie Ihre Identität",
+        "new": "Neues Passwort",
+        "newHint": "Mindestens 8 Zeichen lang"
+      },
+      "studio": {
+        "title": "Studio-Profil",
+        "subtitle": "Öffentliche Studio-Identität und Kontakt",
+        "name": "Studioname",
+        "nameHint": "Wird in KI-Interaktionen angezeigt",
+        "opsEmail": "Betriebs-E-Mail",
+        "opsEmailHint": "Kontakt für den Studiobetrieb",
+        "opsTelegram": "Betriebs-Telegram",
+        "opsTelegramHint": "Telegram-Handle für Studiopersonal",
+        "refresh": "Datenaktualisierung",
+        "refreshHint": "Manueller Sync mit externen Systemen",
+        "sla": "SLA-Stufe",
+        "slaHint": "Service-Level-Agreement-Level",
+        "localeHint": "Hauptsprache Ihrer Studiomitglieder",
+        "timezoneHint": "Lokale Studiozeit"
+      },
+      "title": "Kontoeinstellungen",
+      "subtitle": "Persönliches Profil und Sicherheit verwalten",
+      "placeholders": {
+        "fullName": "Max Mustermann",
+        "locale": "de-DE",
+        "timezone": "Europe/Berlin",
+        "password": "••••••••",
+        "studioName": "Dein Studiostandort",
+        "opsEmail": "betrieb@studio.de",
+        "opsTelegram": "-100...",
+        "sla": "15",
+        "refresh": "5"
+      }
+    },
+    "aiEngine": "AI Engine",
+    "general": {
+      "privacy": {
+        "title": "Datenschutz & Compliance",
+        "subtitle": "Datenaufbewahrung und PII-Filterung verwalten",
+        "pii": "PII-Maskierung",
+        "piiDesc": "Persönliche Daten in Logs automatisch maskieren",
+        "retention": "Datenaufbewahrung",
+        "retentionDesc": "Wie lange der Interaktionsverlauf gespeichert wird"
+      },
+      "smtp": {
+        "title": "E-Mail (SMTP)",
+        "subtitle": "Ausgehenden Mailserver konfigurieren",
+        "host": "SMTP-Host",
+        "port": "Port",
+        "user": "Benutzername",
+        "pass": "Passwort",
+        "senderAddr": "Absender-E-Mail",
+        "senderName": "Absender-Name",
+        "test": "Test-E-Mail senden",
+        "testRecipient": "Empfänger für Test"
+      },
+      "system": {
+        "title": "System-Governance",
+        "subtitle": "Kern-Engine und Sicherheitsparameter",
+        "audit": "Erweiterte Audit-Logs",
+        "auditDesc": "Detaillierte Logs jeder Systemänderung führen",
+        "maintenance": "Wartungsmodus",
+        "maintenanceDesc": "Zugriff während Updates einschränken"
+      },
+      "title": "Allgemeine Einstellungen",
+      "subtitle": "Kernsystem-Parameter und Governance"
+    },
+    "ai": {
+      "title": "KI-Konfiguration",
+      "subtitle": "LLM-Provider und Modellparameter verwalten",
+      "addProvider": "Provider hinzufügen",
+      "editProvider": "Provider bearbeiten",
+      "newProvider": "Neuer KI-Provider",
+      "selectProvider": "Provider auswählen",
+      "provider": "Anbieter",
+      "apiKey": "API-Schlüssel",
+      "models": "Verfügbare Modelle",
+      "fetchModels": "Modelle abrufen",
+      "testConnection": "Verbindung testen",
+      "latencyTest": "Latenz-Test",
+      "confirmDelete": "Sind Sie sicher, dass Sie diesen Provider entfernen möchten?",
+      "retry": "Wiederholen",
+      "noModelsFound": "Keine Modelle gefunden",
+      "status": {
+        "configured": "Konfiguriert",
+        "error": "Fehler",
+        "fetching": "Wird abgerufen..."
+      },
+      "hints": {
+        "storedKey": "Schlüssel ist sicher gespeichert",
+        "refreshNeeded": "Modelle abrufen, um Optionen zu sehen",
+        "initialFetch": "Modelle werden zum ersten Mal abgerufen...",
+        "clickRefresh": "Klicken zum Aktualisieren der Modellliste"
+      },
+      "errors": {
+        "loadFailed": "KI-Provider konnten nicht geladen werden",
+        "saveFailed": "Provider konnte nicht gespeichert werden",
+        "deleteFailed": "Provider konnte nicht gelöscht werden",
+        "fetchModelsFailed": "Modelle konnten nicht vom Anbieter abgerufen werden",
+        "connectionError": "Verbindung zur KI-Engine fehlgeschlagen"
+      }
+    },
+    "language": "Sprache",
+    "selectLanguage": "Sprache wählen",
+    "billing": {
+      "title": "Abrechnung & Abo",
+      "subtitle": "Plan und Add-ons verwalten."
+    },
+    "integrations": {
+      "title": "Integrationen",
+      "subtitle": "Verbinde Magicline, WhatsApp und mehr."
+    },
+    "prompts": {
+      "title": "Eigene Prompts",
+      "subtitle": "Agenten-Personas und Verhalten konfigurieren."
+    },
+    "automation": "Automatisierung",
+    "branding": "Branding"
+  },
+  "tenants": {
+    "stats": {
+      "total": "Mandanten gesamt",
+      "users": "Aktive Nutzer",
+      "avg": "Ø Nutzer/Mandant"
+    },
+    "create": {
+      "title": "Neuen Mandanten anlegen",
+      "name": "Mandantenname",
+      "slug": "Slug (optional)"
+    },
+    "table": {
+      "name": "Name",
+      "users": "Nutzer",
+      "admins": "Admins",
+      "active": "Aktiv"
+    },
+    "edit": {
+      "title": "Mandant bearbeiten"
+    },
+    "errors": {
+      "nameRequired": "Mandantenname ist erforderlich"
+    },
+    "bulk": {
+      "hint": "Die Aktion wird tenantweit angewendet und als Governance-Ereignis protokolliert."
+    },
+    "audit": {
+      "title": "Letzte Audit-Events"
+    },
+    "footer": {
+      "registration": "Mandanten-Self-Registration läuft weiterhin über /register."
+    }
+  },
+  "live": {
+    "title": "Live Monitor",
+    "subtitle": "Echtzeit-Verfolgung der KI-Interaktionen",
+    "sessions": "Aktive Sitzungen",
+    "noSessions": "Momentan keine aktiven Sitzungen",
+    "selectSession": "Sitzung auswählen, um Details anzuzeigen",
+    "handoff": {
+      "link": "Mit Mitglied verknüpfen",
+      "hint": "Diese Sitzung manuell einer Mitglieds-ID zuordnen",
+      "placeholder": "Mitglieds-ID eingeben"
+    }
+  },
+  "members": {
+    "title": "Mitglieder",
+    "subtitle": "Verwalten Sie Ihre Studiomitglieder und deren KI-Status",
+    "add": "Mitglied hinzufügen",
+    "import": {
+      "clickOrDrop": "Klicken oder Datei hierher ziehen zum Hochladen",
+      "selectFile": "Datei auswählen",
+      "hint": "Unterstützt .csv, .xls, .xlsx"
+    },
+    "importTitle": "Mitglieder-Import",
+    "noMembers": "Keine Mitglieder gefunden",
+    "noContact": "Keine Kontaktinformationen",
+    "confirmDelete": "Sind Sie sicher, dass Sie dieses Mitglied löschen möchten?",
+    "search": "Mitglieder suchen...",
+    "stats": {
+      "total": "Mitglieder gesamt",
+      "active": "Aktiv",
+      "paused": "Pausiert",
+      "manual": "Manuelle Einträge",
+      "external": "Synchronisiert (Magicline)",
+      "selected": "ausgewählt"
+    },
+    "table": {
+      "member": "Mitglied",
+      "source": "Quelle",
+      "status": "Status"
+    },
+    "form": {
+      "firstName": "Vorname",
+      "lastName": "Nachname",
+      "email": "E-Mail Adresse"
+    },
+    "status": {
+      "active": "Aktiv",
+      "paused": "Pausiert"
+    }
+  },
+  "memberMemory": {
+    "title": "Member Memory",
+    "subtitle": "Langzeit-Wissensbasis der Mitglieder",
+    "files": "Speicher-Dateien",
+    "noFiles": "Keine Einträge für dieses Mitglied gefunden",
+    "selectFile": "Eintrag auswählen, um Details anzuzeigen",
+    "reasonPlaceholder": "Grund für manuelles Eingreifen",
+    "scheduler": "Analyse-Planer",
+    "lastRun": "Zuletzt analysiert"
   },
   "navbar": {
     "login": "Anmelden",
-    "register": "Kostenlos starten"
-  },
-  "footer": {
-    "brandDesc": "KI-gestützte Kundenkommunikation für Fitness Studios, Personal Trainer und KMUs. Made in Germany.",
-    "product": "Produkt",
-    "company": "Unternehmen",
-    "contact": "Kontakt",
-    "rights": "Alle Rechte vorbehalten.",
-    "links": {
-      "features": "Features",
-      "pricing": "Pricing",
-      "test": "Kostenlos testen",
-      "impressum": "Impressum",
-      "datenschutz": "Datenschutz",
-      "agb": "AGB",
-      "enterprise": "Enterprise Anfragen"
-    }
+    "register": "Registrieren"
   },
   "hero": {
-    "versionBadge": "Living System Agent v2.0",
-    "title": "Dein KI-Assistent für",
-    "words": ["intelligente", "persönliche", "automatisierte", "skalierbare"],
-    "subtitle": "Kundenkommunikation",
-    "description": "ARIIA beantwortet Kundenanfragen über WhatsApp, Telegram und Voice – rund um die Uhr, persönlich und intelligent. Für Fitness Studios, Personal Trainer und KMUs.",
-    "cta": "14 Tage kostenlos testen"
+    "versionBadge": "Version 2.0 Live",
+    "title": "Der intelligente",
+    "words": [
+      "KI-Assistent",
+      "Studio-Manager",
+      "Operations-Bot",
+      "Sales-Agent"
+    ],
+    "subtitle": "für Ihr Fitnessstudio",
+    "description": "ARIIA automatisiert die Kundenkommunikation über WhatsApp, Telegram und Voice. Steigern Sie Ihre Effizienz mit Arnold Prime Orchestration.",
+    "cta": "Jetzt starten"
   },
   "stats": {
-    "aiResolution": "KI-Auflösungsrate",
-    "responseTime": "Antwortzeit",
+    "aiResolution": "KI-Lösungsrate",
+    "responseTime": "Reaktionszeit",
     "agentsInSwarm": "KI-Agenten im Swarm",
     "availability": "Verfügbarkeit"
   },
   "features": {
-    "badge": "Plattform-Features",
-    "title": "Alles, was dein Business",
-    "titleAccent": "braucht",
-    "description": "ARIIA vereint modernste KI-Technologie mit einer intuitiven Plattform – gebaut für Unternehmen, die ihre Kundenkommunikation transformieren wollen.",
+    "badge": "Features",
+    "title": "Alles was Ihr Studio",
+    "titleAccent": "erfolgreich macht",
+    "description": "Ein komplettes Ökosystem an KI-Agenten, die nahtlos in Ihre bestehenden Systeme integriert sind.",
     "swarm": {
-      "title": "KI-Agenten-Swarm",
-      "desc": "5 spezialisierte Agenten (Ops, Sales, Medic, Vision, Persona) arbeiten als Team – orchestriert durch Project Titan."
+      "title": "Swarm Intelligence",
+      "desc": "Spezialisierte Agenten (Sales, Medic, Ops) arbeiten zusammen, um jedes Anliegen zu lösen."
     },
     "omnichannel": {
-      "title": "Omni-Channel",
-      "desc": "WhatsApp, Telegram, Voice, Web-Chat – eine KI, konsistente Antworten auf allen Kanälen."
+      "title": "Omnichannel",
+      "desc": "WhatsApp, Telegram, SMS und Voice. Erreichen Sie Ihre Mitglieder dort, wo sie sind."
     },
     "churn": {
-      "title": "Churn Prediction",
-      "desc": "ML-basierte Abwanderungsprognose erkennt gefährdete Kunden und schlägt proaktive Maßnahmen vor."
+      "title": "Churn Prevention",
+      "desc": "KI-gestützte Analyse erkennt Kündigungsrisiken, bevor sie entstehen."
     },
     "memory": {
-      "title": "3-Tier Memory",
-      "desc": "Session, Semantic und Episodic Memory – ARIIA erinnert sich an jeden Kunden und jede Interaktion."
+      "title": "Context Memory",
+      "desc": "ARIIA erinnert sich an jede Interaktion und baut echte Beziehungen zu Mitgliedern auf."
     },
     "security": {
-      "title": "Enterprise Security",
-      "desc": "DSGVO-konform mit Row-Level Security, PII-Filter, Audit Logs und verschlüsselter Kommunikation."
+      "title": "DSGVO & Sicherheit",
+      "desc": "Verschlüsselte Datenhaltung in Deutschland und volle Compliance-Garantie."
     },
     "connectors": {
-      "title": "Offene Connectors",
-      "desc": "Magicline, Shopify, WooCommerce, API – verbinde jedes Geschäftssystem in Minuten."
+      "title": "Deep Integration",
+      "desc": "Direkte Anbindung an Magicline, Shopify und mehr für echtes Real-Time-Handling."
     },
     "page": {
-      "title": "Features die dein Business",
-      "titleAccent": "transformieren",
-      "description": "ARIIA ist mehr als ein Chatbot. Es ist ein Living System Agent mit 5 spezialisierten KI-Agenten, 3-Tier Memory und Enterprise-Grade Security.",
-      "techTitle": "KI-Kern-Technologie",
-      "techSubtitle": "Was ARIIA von Chatbots",
-      "techSubtitleAccent": "unterscheidet",
-      "securityTitle": "Enterprise Security",
-      "securitySubtitle": "Sicherheit auf",
-      "securitySubtitleAccent": "Enterprise-Niveau",
-      "securityDesc": "Von Grund auf für den deutschen Markt entwickelt. Jede Datenzeile ist durch Row-Level Security isoliert.",
-      "deckTitle": "Studio Deck",
-      "deckSubtitle": "Dein",
-      "deckSubtitleAccent": "Command Center",
-      "deckDesc": "Das Studio Deck Dashboard gibt dir die volle Kontrolle über deine KI-Agenten, Mitglieder und Kommunikation.",
-      "details": {
-        "intent": "Intent-Erkennung",
-        "routing": "Dynamisches Agent-Routing",
-        "fallback": "Fallback & Eskalation",
-        "confidence": "Confidence-Analyse",
-        "wa": "WhatsApp Business API",
-        "tg": "Telegram Polling",
-        "voice": "Voice Pipeline",
-        "chat": "Web-Chat",
-        "ml": "ML-basierte Prognose",
-        "proactive": "Proaktive Maßnahmen",
-        "scoring": "Risiko-Scoring",
-        "behavior": "Verhaltensanalyse",
-        "session": "Session Memory",
-        "semantic": "Semantic Memory",
-        "episodic": "Episodic Memory",
-        "auto": "Automatische Extraktion",
-        "dsgvo": "DSGVO-konform",
-        "rls": "Row-Level Security",
-        "pii": "PII-Filter",
-        "audit": "Audit Logs",
-        "magicline": "Magicline",
-        "shopify": "Shopify",
-        "woo": "WooCommerce",
-        "api": "REST API"
+      "title": "Next-Gen",
+      "titleAccent": "Studio Intelligence",
+      "description": "ARIIA ist mehr als ein Chatbot. Es ist ein Schwarm spezialisierter KI-Agenten, die Ihr Studio und Ihre Mitglieder verstehen.",
+      "techTitle": "Deep",
+      "techSubtitle": "Technology",
+      "techSubtitleAccent": "Stack",
+      "deckTitle": "Studio",
+      "deckSubtitle": "Control",
+      "deckSubtitleAccent": "Deck",
+      "deckDesc": "Ein zentrales Dashboard, um jede KI-Interaktion zu überwachen und Ihre Studioeinstellungen in Echtzeit zu verwalten.",
+      "securityTitle": "Enterprise",
+      "securitySubtitle": "Sicherheit &",
+      "securitySubtitleAccent": "Compliance",
+      "securityDesc": "Ihre Daten werden in Deutschland gehostet, voll verschlüstelt und sind 100% DSGVO-konform."
+    },
+    "platform": {
+      "live": {
+        "title": "Live Monitor",
+        "desc": "KI-Interaktionen in Echtzeit verfolgen und bei Bedarf eingreifen."
       },
-      "securityLabels": {
-        "dsgvo": "DSGVO",
-        "rls": "RLS",
-        "pii": "PII",
-        "audit": "Audit",
-        "rbac": "RBAC",
-        "encryption": "Verschlüsselung"
+      "members": {
+        "title": "Mitgliederverwaltung",
+        "desc": "Tiefe Integration mit Magicline für Buchungen und Verträge."
       },
-      "platform": {
-        "live": { "title": "Live Monitor", "desc": "Echtzeit-Übersicht aller aktiven Sessions." },
-        "churn": { "title": "Churn Prediction", "desc": "ML-basierte Vorhersage für gefährdete Kunden." },
-        "members": { "title": "Mitgliederverwaltung", "desc": "Kontaktdatenbank mit Churn-Score und Verträgen." },
-        "knowledge": { "title": "Wissensbasis", "desc": "WYSIWYG-Editor für deine Trainings-Inhalte." },
-        "multi": { "title": "Multi-Tenant", "desc": "Mehrere Standorte, ein zentrales Dashboard." },
-        "prompts": { "title": "Custom Prompts", "desc": "Definiere Tonalität und Persona pro Tenant." }
+      "knowledge": {
+        "title": "Wissensbasis",
+        "desc": "Laden Sie Studiodokumente hoch, um die KI auf Ihre spezifischen Regeln zu trainieren."
+      },
+      "prompts": {
+        "title": "Persona-Kontrolle",
+        "desc": "Passen Sie den Tonfall und die Persönlichkeit Ihres Studio-Assistenten an."
+      },
+      "multi": {
+        "title": "Multi-Tenant",
+        "desc": "Verwalten Sie mehrere Studiostandorte über ein einziges zentrales Konto."
+      },
+      "churn": {
+        "title": "Churn Prevention",
+        "desc": "KI identifiziert kündigungsgefährdete Mitglieder basierend auf ihrem Verhalten."
       }
+    },
+    "details": {
+      "intent": "Intent-Klassifizierung",
+      "routing": "Dynamisches Routing",
+      "fallback": "Human-in-the-Loop",
+      "confidence": "Confidence Scoring",
+      "wa": "WhatsApp Cloud",
+      "tg": "Telegram Bot",
+      "voice": "Voice STT/TTS",
+      "chat": "Web-Widget",
+      "ml": "Magicline Sync",
+      "proactive": "Proaktive Ansprache",
+      "scoring": "Verhaltens-Scoring",
+      "behavior": "Engagement-Analyse",
+      "session": "Langzeit-Sitzungen",
+      "semantic": "Semantische Suche",
+      "episodic": "Episodisches Gedächis",
+      "auto": "Automatische Indexierung",
+      "dsgvo": "DSGVO Konformität",
+      "rls": "Row Level Security",
+      "pii": "PII-Maskierung",
+      "audit": "Audit-Logs",
+      "api": "REST API Zugriff",
+      "shopify": "Shopify Integration",
+      "woo": "WooCommerce",
+      "magicline": "Magicline Deep-Link"
+    },
+    "securityLabels": {
+      "dsgvo": "DSGVO",
+      "encryption": "AES-256",
+      "pii": "PII Filter",
+      "audit": "Audit",
+      "rbac": "RBAC",
+      "rls": "RLS"
     }
   },
   "cta": {
-    "title": "Bereit, deine Kundenkommunikation zu",
-    "titleAccent": "transformieren",
-    "subtitle": "Starte jetzt mit der 14-tägigen kostenlosen Testphase. Kein Risiko, keine Kreditkarte erforderlich.",
-    "button": "Jetzt kostenlos starten",
-    "compare": "Pläne vergleichen"
+    "title": "Bereit für die Zukunft der",
+    "titleAccent": "Studio-Automation",
+    "subtitle": "Schließen Sie sich über 50 Fitnessstudios an, die bereits mit ARIIA wachsen.",
+    "button": "Kostenlosen Account erstellen",
+    "compare": "Preise vergleichen"
   },
-  "pricing": {
-    "title": "Transparente",
-    "titleAccent": "Preise",
-    "description": "Wähle den Plan, der zu deinem Business passt. Alle Pläne beinhalten eine 14-tägige kostenlose Testphase – ohne Kreditkarte.",
-    "monthly": "Monatlich",
-    "yearly": "Jährlich",
-    "discount": "-20%",
-    "billedYearly": "jährlich abgerechnet",
-    "plans": {
-      "starter": {
-        "name": "Starter",
-        "desc": "Für Personal Trainer und Mikro-Studios, die KI-Kommunikation testen wollen.",
-        "cta": "Starter wählen",
-        "features": [
-          "1 Kommunikationskanal",
-          "500 KI-Konversationen / Monat",
-          "ARIIA Core Agent",
-          "Basis-Connector (1 System)",
-          "1 Benutzer",
-          "E-Mail Support",
-          "Studio Deck Dashboard"
-        ]
-      },
-      "professional": {
-        "name": "Professional",
-        "desc": "Für etablierte Studios und KMUs mit mehreren Kanälen und vollem KI-Swarm.",
-        "cta": "Professional wählen",
-        "badge": "Beliebtester Plan",
-        "features": [
-          "3 Kommunikationskanäle",
-          "2.000 KI-Konversationen / Monat",
-          "Voller KI-Agenten-Swarm (5 Agenten)",
-          "3 Connectors inklusive",
-          "5 Benutzer",
-          "Custom Prompts & Tonalität",
-          "Analytics & Reporting",
-          "Prioritäts-Support"
-        ]
-      },
-      "business": {
-        "name": "Business",
-        "desc": "Für Studioketten und wachsende Unternehmen mit hohem Volumen.",
-        "cta": "Business wählen",
-        "features": [
-          "Alle Kommunikationskanäle",
-          "10.000 KI-Konversationen / Monat",
-          "Voller KI-Swarm + Priority Routing",
-          "Unbegrenzte Connectors",
-          "15 Benutzer",
-          "Churn Prediction inklusive",
-          "API-Zugang (REST + Webhooks)",
-          "Audit Logs & RBAC",
-          "Dedizierter Support"
-        ]
-      }
+  "footer": {
+    "brandDesc": "Die Evolution der Studio-Operationen. Agentic Multi-Tenant SaaS Platform.",
+    "product": "Produkt",
+    "company": "Unternehmen",
+    "contact": "Kontakt",
+    "links": {
+      "features": "Features",
+      "pricing": "Preise",
+      "test": "Kostenlos testen",
+      "impressum": "Impressum",
+      "datenschutz": "Datenschutz",
+      "agb": "AGB",
+      "enterprise": "Enterprise Kontakt"
     },
-    "enterpriseTitle": "Enterprise",
-    "enterpriseDesc": "SLA-Garantie, On-Premise, Custom Integrationen, dedizierter Account Manager.",
-    "enterpriseCta": "Kontakt aufnehmen",
-    "addonsTitle": "Modulare Erweiterungen",
-    "addonsSubtitle": "Zubuchbare",
-    "addonsSubtitleAccent": "Add-ons",
-    "addonsDesc": "Erweitere deinen Plan flexibel mit zusätzlichen Modulen – zahle nur für das, was du brauchst.",
-    "addons": {
-      "churn": { "name": "Churn Prediction", "desc": "ML-basierte Abwanderungsprognose." },
-      "voice": { "name": "Voice Pipeline", "desc": "Whisper STT + ElevenLabs TTS." },
-      "vision": { "name": "Vision AI", "desc": "YOLOv8-basierte Bildanalyse." },
-      "channel": { "name": "Extra Kanal", "desc": "Zusätzlicher Kanal." }
-    },
-    "faqTitle": "Häufig gestellte Fragen",
-    "faqs": [
-      { "q": "Gibt es eine kostenlose Testphase?", "a": "Ja, alle Pläne beinhalten eine 14-tägige kostenlose Testphase. Keine Kreditkarte erforderlich." },
-      { "q": "Kann ich meinen Plan jederzeit wechseln?", "a": "Ja, du kannst jederzeit upgraden oder downgraden." },
-      { "q": "Was passiert beim Limit-Erreichen?", "a": "Du wirst benachrichtigt und kannst Upgraden oder einen Boost buchen." },
-      { "q": "Ist ARIIA DSGVO-konform?", "a": "Ja, ARIIA wurde von Grund auf für den deutschen Markt entwickelt." }
-    ],
-    "finalCta": "Noch unsicher?",
-    "finalCtaAccent": "Teste es einfach.",
-    "finalCtaDesc": "14 Tage kostenlos, voller Funktionsumfang, keine Kreditkarte. Überzeuge dich selbst."
-  },
-  "legal": {
-    "impressum": {
-      "title": "Impressum",
-      "tmg5": "Angaben gemäß § 5 TMG",
-      "representedBy": "Vertreten durch",
-      "managingDirector": "Geschäftsführer",
-      "contact": "Kontakt",
-      "phone": "Telefon",
-      "email": "E-Mail",
-      "website": "Webseite",
-      "registerEntry": "Registereintrag",
-      "registerCourt": "Registergericht",
-      "registerNumber": "Registernummer",
-      "vatId": "Umsatzsteuer-ID",
-      "responsibleContent": "Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV",
-      "dispute": "Streitschlichtung",
-      "liabilityContent": "Haftung für Inhalte",
-      "liabilityLinks": "Haftung für Links"
-    },
-    "agb": {
-      "title": "Allgemeine Geschäftsbedingungen",
-      "s1_title": "§ 1 Geltungsbereich",
-      "s1_text": "Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle Verträge zwischen der ARIIA GmbH (i.G.), Musterstraße 1, 10115 Berlin (nachfolgend „Anbieter\") und dem Kunden (nachfolgend „Kunde\") über die Nutzung der ARIIA-Plattform als Software-as-a-Service (SaaS). Abweichende Bedingungen des Kunden werden nicht anerkannt, es sei denn, der Anbieter stimmt ihrer Geltung ausdrücklich schriftlich zu.",
-      "s2_title": "§ 2 Vertragsgegenstand",
-      "s2_text": "Der Anbieter stellt dem Kunden die ARIIA-Plattform zur Verfügung, eine KI-gestützte Lösung für automatisierte Kundenkommunikation über verschiedene Kanäle (WhatsApp, Telegram, Voice, SMS, E-Mail). Der genaue Leistungsumfang ergibt sich aus dem vom Kunden gewählten Tarif (Starter, Pro oder Enterprise) sowie etwaigen Add-ons.",
-      "s3_title": "§ 3 Vertragsschluss und Testphase",
-      "s3_text": "Der Vertrag kommt durch die Registrierung des Kunden auf der Webseite und die Bestätigung durch den Anbieter zustande. Jeder neue Kunde erhält eine kostenlose Testphase von 14 Tagen. Während der Testphase kann der Kunde den vollen Funktionsumfang des gewählten Tarifs nutzen. Nach Ablauf der Testphase wird der Vertrag automatisch in ein kostenpflichtiges Abonnement überführt, sofern der Kunde nicht vorher kündigt.",
-      "s4_title": "§ 4 Preise und Zahlungsbedingungen",
-      "s4_text": "Die aktuellen Preise ergeben sich aus der Preisliste auf der Webseite des Anbieters. Alle Preise verstehen sich zuzüglich der gesetzlichen Mehrwertsteuer. Die Abrechnung erfolgt monatlich oder jährlich im Voraus, je nach gewähltem Abrechnungszeitraum. Bei jährlicher Abrechnung gewährt der Anbieter einen Rabatt von 20% auf den monatlichen Preis. Die Zahlung erfolgt per Kreditkarte, SEPA-Lastschrift oder Überweisung.",
-      "s5_title": "§ 5 Laufzeit und Kündigung",
-      "s5_text": "Bei monatlicher Abrechnung beträgt die Mindestlaufzeit einen Monat. Der Vertrag verlängert sich automatisch um jeweils einen weiteren Monat, sofern er nicht mit einer Frist von 14 Tagen zum Ende des jeweiligen Abrechnungszeitraums gekündigt wird. Bei jährlicher Abrechnung beträgt die Mindestlaufzeit ein Jahr. Die Kündigung kann schriftlich oder über das Kundenkonto erfolgen.",
-      "s6_title": "§ 6 Verfügbarkeit und SLA",
-      "s6_text": "Der Anbieter bemüht sich um eine Verfügbarkeit der Plattform von 99,9% im Jahresmittel. Geplante Wartungsarbeiten werden dem Kunden mindestens 48 Stunden im Voraus angekündigt und finden nach Möglichkeit außerhalb der Geschäftszeiten statt. Im Enterprise-Tarif gelten individuelle SLA-Vereinbarungen.",
-      "s7_title": "§ 7 Datenschutz",
-      "s7_text": "Der Anbieter verarbeitet personenbezogene Daten des Kunden und seiner Endkunden ausschließlich im Rahmen der geltenden Datenschutzgesetze, insbesondere der DSGVO. Einzelheiten zur Datenverarbeitung sind in der Datenschutzerklärung und im Auftragsverarbeitungsvertrag (AVV) geregelt, der auf Anfrage bereitgestellt wird.",
-      "s8_title": "§ 8 Haftung",
-      "s8_text": "Der Anbieter haftet unbeschränkt für Vorsatz und grobe Fahrlässigkeit. Bei leichter Fahrlässigkeit haftet der Anbieter nur bei Verletzung wesentlicher Vertragspflichten (Kardinalpflichten) und begrenzt auf den vorhersehbaren, vertragstypischen Schaden. Die Haftung für mittelbare Schäden, Folgeschäden und entgangenen Gewinn ist bei leichter Fahrlässigkeit ausgeschlossen.",
-      "s9_title": "§ 9 Schlussbestimmungen",
-      "s9_text": "Es gilt das Recht der Bundesrepublik Deutschland unter Ausschluss des UN-Kaufrechts. Gerichtsstand für alle Streitigkeiten aus oder im Zusammenhang mit diesem Vertrag ist Berlin, sofern der Kunde Kaufmann, juristische Person des öffentlichen Rechts oder öffentlich-rechtliches Sondervermögen ist. Sollten einzelne Bestimmungen dieser AGB unwirksam sein oder werden, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.",
-      "status": "Stand: Februar 2026"
-    },
-    "privacy": {
-      "title": "Datenschutzerklärung",
-      "s1_title": "1. Verantwortlicher",
-      "s1_text": "Verantwortlich für die Datenverarbeitung auf dieser Webseite ist:",
-      "s2_title": "2. Erhebung und Speicherung personenbezogener Daten",
-      "s2_text": "Beim Besuch unserer Webseite werden automatisch Informationen an den Server unserer Webseite gesendet. Diese Informationen werden temporär in einem sogenannten Logfile gespeichert. Folgende Informationen werden dabei ohne Ihr Zutun erfasst und bis zur automatisierten Löschung gespeichert: IP-Adresse des anfragenden Rechners, Datum und Uhrzeit des Zugriffs, Name und URL der abgerufenen Datei, Webseite, von der aus der Zugriff erfolgt (Referrer-URL), verwendeter Browser und ggf. das Betriebssystem Ihres Rechners sowie der Name Ihres Access-Providers.",
-      "s3_title": "3. Weitergabe von Daten",
-      "s3_text": "Eine Übermittlung Ihrer persönlichen Daten an Dritte zu anderen als den im Folgenden aufgeführten Zwecken findet nicht statt. Wir geben Ihre persönlichen Daten nur an Dritte weiter, wenn Sie Ihre nach Art. 6 Abs. 1 S. 1 lit. a DSGVO ausdrückliche Einwilligung dazu erteilt haben, die Weitergabe nach Art. 6 Abs. 1 S. 1 lit. f DSGVO zur Geltendmachung, Ausübung oder Verteidigung von Rechtsansprüchen erforderlich ist und kein Grund zur Annahme besteht, dass Sie ein überwiegendes schutzwürdiges Interesse an der Nichtweitergabe Ihrer Daten haben.",
-      "s4_title": "4. Cookies",
-      "s4_text": "Wir setzen auf unserer Seite Cookies ein. Hierbei handelt es sich um kleine Dateien, die Ihr Browser automatisch erstellt und die auf Ihrem Endgerät gespeichert werden, wenn Sie unsere Seite besuchen. Cookies richten auf Ihrem Endgerät keinen Schaden an, enthalten keine Viren, Trojaner oder sonstige Schadsoftware. In dem Cookie werden Informationen abgelegt, die sich jeweils im Zusammenhang mit dem spezifisch eingesetzten Endgerät ergeben.",
-      "s5_title": "5. Analyse-Tools",
-      "s5_text": "Wir nutzen Umami Analytics, eine datenschutzfreundliche, DSGVO-konforme Webanalyse-Lösung. Umami speichert keine persönlichen Daten, verwendet keine Cookies und respektiert die „Do Not Track\"-Einstellung Ihres Browsers. Alle Daten werden anonymisiert erhoben und auf unseren eigenen Servern in der EU verarbeitet.",
-      "s6_title": "6. Betroffenenrechte",
-      "s6_text": "Sie haben das Recht: gemäß Art. 15 DSGVO Auskunft über Ihre von uns verarbeiteten personenbezogenen Daten zu verlangen, gemäß Art. 16 DSGVO unverzüglich die Berichtigung unrichtiger oder Vervollständigung Ihrer bei uns gespeicherten personenbezogenen Daten zu verlangen, gemäß Art. 17 DSGVO die Löschung Ihrer bei uns gespeicherten personenbezogenen Daten zu verlangen, gemäß Art. 20 DSGVO Ihre personenbezogenen Daten in einem strukturierten, gängigen und maschinenlesbaren Format zu erhalten oder die Übermittlung an einen anderen Verantwortlichen zu verlangen.",
-      "s7_title": "7. Datensicherheit",
-      "s7_text": "Wir verwenden innerhalb des Webseiten-Besuchs das verbreitete SSL-Verfahren (Secure Socket Layer) in Verbindung mit der jeweils höchsten Verschlüsselungsstufe, die von Ihrem Browser unterstützt wird. Ob eine einzelne Seite unseres Internetauftrittes verschlüsselt übertragen wird, erkennen Sie an der geschlossenen Darstellung des Schlüssel- beziehungsweise Schloss-Symbols in der unteren Statusleiste Ihres Browsers.",
-      "s8_title": "8. Aktualität und Änderung dieser Datenschutzerklärung",
-      "s8_text": "Diese Datenschutzerklärung ist aktuell gültig und hat den Stand Februar 2026. Durch die Weiterentwicklung unserer Webseite und Angebote darüber oder aufgrund geänderter gesetzlicher beziehungsweise behördlicher Vorgaben kann es notwendig werden, diese Datenschutzerklärung zu ändern."
-    }
-  },
-  "dashboard": {
-    "overview": "Überblick über Systemstatus, KPIs und Aktivität.",
-    "tickets24h": "Tickets (24h)",
-    "aiResolution": "KI-Auflösungsrate",
-    "confidence": "Ø Confidence",
-    "tickets30d": "Tickets (30d)",
-    "latestTickets": "Letzte Tickets",
-    "recentConversations": "Kürzliche Konversationen"
-  },
-  "settings": {
-    "account": "Konto",
-    "general": "Allgemein",
-    "integrations": "Integrationen",
-    "automation": "Automatisierung",
-    "language": "Sprache",
-    "selectLanguage": "Wähle deine bevorzugte Sprache"
+    "rights": "Alle Rechte vorbehalten."
   }
 }

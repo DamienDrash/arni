@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { CheckCircle2, Loader2, MinusCircle, PlugZap, TriangleAlert, QrCode, Globe, X, ExternalLink, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Loader2, MinusCircle, PlugZap, TriangleAlert, QrCode, Globe, X, ExternalLink, ShieldCheck, Activity, BookOpen } from "lucide-react";
 
 import SettingsSubnav from "@/components/settings/SettingsSubnav";
 import { Card } from "@/components/ui/Card";

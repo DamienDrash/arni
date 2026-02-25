@@ -77,13 +77,14 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             <LanguageSwitcher />
             <Link href="/login">
-              <Button variant="ghost" className="text-sm font-medium transition-colors"
+              <Button variant="ghost" className="text-sm font-medium hover:bg-white/5 active:bg-white/10"
                 style={{ color: "oklch(0.75 0.01 270)" }}>
                 {t("navbar.login")}
               </Button>
             </Link>
             <Link href="/register">
-              <Button className="text-sm px-5 py-2 rounded-lg" style={{ backgroundColor: "oklch(0.62 0.22 292)", color: "white" }}>
+              <Button className="text-sm px-5 py-2 rounded-lg font-bold shadow-lg shadow-indigo-500/20 active:scale-95" 
+                style={{ backgroundColor: "oklch(0.62 0.22 292)", color: "white" }}>
                 {t("navbar.register")}
               </Button>
             </Link>

@@ -1,31 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { T } from "@/lib/tokens";
-import { CreditCard, Layers3, Wallet, PlugZap } from "lucide-react";
+import { CreditCard, Layers3, RefreshCw, Plus, Save, Trash2, Edit3, Puzzle, AlertCircle, Loader2, Sparkles, Wand2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { Modal } from "@/components/ui/Modal";
 
 type Plan = {
-  id: string;
+  id: number;
+  slug: string;
   name: string;
-  priceMonthly: number;
-  membersIncluded: number;
-  messagesIncluded: number;
-  aiAgents: number;
-  support: string;
-  highlight?: boolean;
+  price_monthly_cents: number;
+  stripe_price_id?: string;
+  is_active: boolean;
 };
 
-type Provider = { id: string; name: string; enabled: boolean; mode: "mock" | "live"; note: string };
-
-type StripeConfig = {
-  enabled: boolean;
-  mode: "test" | "live";
-  publishable_key: string;
-  secret_key: string;
-  webhook_secret: string;
+type Addon = {
+  id: string;
+  name: string;
+  price: number;
+  stripe_price_id: string;
 };
 
 const inputStyle: React.CSSProperties = {
@@ -41,254 +37,216 @@ const inputStyle: React.CSSProperties = {
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [scope, setScope] = useState("global_system");
-  const [status, setStatus] = useState("Lade Konfiguration...");
-  const [isSaving, setIsSaving] = useState(false);
+  const [addons, setAddons] = useState<Addon[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  
+  // Modals
+  const [isNewModal, setIsNewModal] = useState(false);
+  const [isAddonModal, setIsAddonModal] = useState(false);
+  const [editPlan, setEditPlan] = useState<Plan | null>(null);
 
-  const [stripe, setStripe] = useState<StripeConfig>({
-    enabled: false,
-    mode: "test",
-    publishable_key: "",
-    secret_key: "",
-    webhook_secret: "",
-  });
-  const [connectorStatus, setConnectorStatus] = useState("");
+  // Form States
+  const [newName, setNewName] = useState("");
+  const [newSlug, setNewSlug] = useState("");
+  const [newPrice, setNewPrice] = useState(99);
+  
+  const [addonName, setAddonName] = useState("");
+  const [addonPrice, setAddonPrice] = useState(29);
 
-  const [draftName, setDraftName] = useState("");
-  const [draftPrice, setDraftPrice] = useState(99);
-
-  const loadAll = async () => {
+  async function loadData() {
+    setLoading(true);
     try {
-      const [plansRes, connectorsRes] = await Promise.all([
-        apiFetch("/admin/plans/config"),
-        apiFetch("/admin/billing/connectors"),
+      const [pRes, aRes] = await Promise.all([
+        apiFetch("/admin/plans"),
+        apiFetch("/admin/plans/addons")
       ]);
-      if (plansRes.ok) {
-        const data = await plansRes.json();
-        setPlans(Array.isArray(data.plans) ? data.plans : []);
-        setProviders(Array.isArray(data.providers) ? data.providers : []);
-        setScope(typeof data.scope === "string" ? data.scope : "global_system");
-      }
-      if (connectorsRes.ok) {
-        const c = await connectorsRes.json();
-        if (c?.stripe) {
-          setStripe({
-            enabled: !!c.stripe.enabled,
-            mode: (c.stripe.mode || "test") as "test" | "live",
-            publishable_key: c.stripe.publishable_key || "",
-            secret_key: c.stripe.secret_key || "",
-            webhook_secret: c.stripe.webhook_secret || "",
-          });
-        }
-      }
-      setStatus("Globale Billing-Konfiguration geladen.");
-    } catch {
-      setStatus("Laden fehlgeschlagen.");
-    }
-  };
-
-  useEffect(() => {
-    void loadAll();
-  }, []);
-
-  const persistPlans = async (nextPlans: Plan[], nextProviders: Provider[]) => {
-    setIsSaving(true);
-    try {
-      const defaultProvider =
-        nextProviders.find((p) => p.id === "stripe")?.enabled
-          ? "stripe"
-          : (nextProviders.find((p) => p.enabled)?.id || "stripe");
-      const res = await apiFetch("/admin/plans/config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plans: nextPlans, providers: nextProviders, default_provider: defaultProvider }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setStatus(data?.detail || `Speichern fehlgeschlagen (${res.status})`);
-        return false;
-      }
-      setStatus("Globale Plans-Konfiguration gespeichert.");
-      return true;
-    } catch {
-      setStatus("Speichern fehlgeschlagen (Netzwerkfehler).");
-      return false;
+      if (pRes.ok) setPlans(await pRes.json());
+      if (aRes.ok) setAddons(await aRes.json());
     } finally {
-      setIsSaving(false);
+      setLoading(false);
     }
-  };
+  }
 
-  const persistStripe = async () => {
-    setIsSaving(true);
-    try {
-      const res = await apiFetch("/admin/billing/connectors", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stripe }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setConnectorStatus(data?.detail || `Connector speichern fehlgeschlagen (${res.status})`);
-        return;
-      }
-      setConnectorStatus("Stripe Connector gespeichert (global_system).");
-      await loadAll();
-    } catch {
-      setConnectorStatus("Connector speichern fehlgeschlagen (Netzwerkfehler).");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  useEffect(() => { void loadData(); }, []);
 
-  const testStripe = async () => {
-    setConnectorStatus("Teste Stripe-Verbindung...");
-    try {
-      const res = await apiFetch("/admin/billing/connectors/stripe/test", { method: "POST" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setConnectorStatus(data?.detail || `Stripe Test fehlgeschlagen (${res.status})`);
-        return;
-      }
-      setConnectorStatus(`Stripe OK · Account: ${data.account_id || "-"} · Charges: ${String(data.charges_enabled)}`);
-    } catch {
-      setConnectorStatus("Stripe Test fehlgeschlagen (Netzwerkfehler).");
-    }
-  };
+  async function triggerSync() {
+    setIsSyncing(true);
+    await apiFetch("/admin/plans/sync-now", { method: "POST" });
+    await loadData();
+    setIsSyncing(false);
+  }
 
-  const stats = useMemo(() => {
-    return {
-      planCount: plans.length,
-      avgPrice: Math.round(plans.reduce((acc, p) => acc + Number(p.priceMonthly || 0), 0) / Math.max(1, plans.length)),
-      enabledProviders: providers.filter((p) => p.enabled).length,
-    };
-  }, [plans, providers]);
+  async function triggerCleanup() {
+    if (!confirm("Alle Pläne ohne Stripe-Anbindung (Leichen) löschen?")) return;
+    await apiFetch("/admin/plans/cleanup", { method: "POST" });
+    await loadData();
+  }
 
-  const toggleProvider = (id: string) => {
-    const nextProviders = providers.map((p) => {
-      if (p.id !== id) return p;
-      if (id === "stripe") return { ...p, enabled: true };
-      return { ...p, enabled: !p.enabled };
+  async function handleDeletePlan(id: number) {
+    if (!confirm("Diesen Plan wirklich unwiderruflich löschen?")) return;
+    const res = await apiFetch(`/admin/plans/${id}`, { method: "DELETE" });
+    if (res.ok) loadData();
+  }
+
+  async function handleSaveNew() {
+    const res = await apiFetch("/admin/plans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName, slug: newSlug, price: newPrice * 100 })
     });
-    setProviders(nextProviders);
-    void persistPlans(plans, nextProviders);
-  };
+    if (res.ok) { setIsNewModal(false); loadData(); }
+  }
 
-  const setStripeDefault = () => {
-    const nextProviders = providers.map((p) => ({ ...p, enabled: p.id === "stripe" ? true : p.enabled }));
-    setProviders(nextProviders);
-    void persistPlans(plans, nextProviders);
-    setStatus("Stripe als Default Provider markiert.");
-  };
+  async function handleSaveAddon() {
+    const res = await apiFetch("/admin/plans/addons", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: addonName, price: addonPrice * 100 })
+    });
+    if (res.ok) { setIsAddonModal(false); loadData(); }
+  }
 
-  const addPlan = () => {
-    if (!draftName.trim()) return;
-    const nextPlans = [
-      ...plans,
-      {
-        id: draftName.trim().toLowerCase().replace(/\s+/g, "-"),
-        name: draftName.trim(),
-        priceMonthly: Number(draftPrice) || 0,
-        membersIncluded: 1000,
-        messagesIncluded: 20000,
-        aiAgents: 3,
-        support: "Email",
-      },
-    ];
-    setPlans(nextPlans);
-    void persistPlans(nextPlans, providers);
-    setDraftName("");
-    setDraftPrice(99);
-  };
+  async function handleUpdate() {
+    if (!editPlan) return;
+    const res = await apiFetch(`/admin/plans/${editPlan.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editPlan)
+    });
+    if (res.ok) { setEditPlan(null); loadData(); }
+  }
+
+  if (loading) return <div className="p-20 text-center text-slate-500 font-bold uppercase tracking-widest text-xs flex flex-col items-center gap-4"><Loader2 className="animate-spin" size={32} /> Lade Infrastruktur...</div>;
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12 }}>
-        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>Pläne</div><div style={{ fontSize: 26, color: T.text, fontWeight: 800 }}>{stats.planCount}</div></Card>
-        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>Ø Preis / Monat</div><div style={{ fontSize: 26, color: T.accent, fontWeight: 800 }}>{stats.avgPrice}€</div></Card>
-        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>Aktive Provider</div><div style={{ fontSize: 26, color: T.success, fontWeight: 800 }}>{stats.enabledProviders}</div></Card>
+    <div className="flex flex-col gap-8 pb-20">
+      {/* Header */}
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Billing Infrastructure</h1>
+          <p className="text-sm text-slate-500">Zentrale Kontrolle über Abonnements und Add-ons.</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={triggerCleanup} className="px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl text-xs font-bold border border-red-500/20 transition-all flex items-center gap-2">
+            <Wand2 size={14} /> Cleanup DB
+          </button>
+          <button onClick={triggerSync} disabled={isSyncing} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold border border-slate-700 transition-all">
+            <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} /> Sync Stripe
+          </button>
+          <button onClick={() => setIsNewModal(true)} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-500/20 transition-all">
+            <Plus size={16} /> New Plan
+          </button>
+        </div>
       </div>
 
-      <Card style={{ padding: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <Layers3 size={15} color={T.accent} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Plans Catalog</span>
-          <Badge variant="accent" size="xs">Scope: {scope}</Badge>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
-          {plans.map((p) => (
-            <div key={p.id} style={{ border: `1px solid ${p.highlight ? `${T.accent}88` : T.border}`, borderRadius: 12, padding: 12, background: p.highlight ? T.accentDim : T.surfaceAlt }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontSize: 14, color: T.text, fontWeight: 700 }}>{p.name}</div>
-                {p.highlight && <Badge variant="accent" size="xs">Recommended</Badge>}
-              </div>
-              <div style={{ marginTop: 6, fontSize: 22, color: T.text, fontWeight: 800 }}>{p.priceMonthly}€<span style={{ fontSize: 11, color: T.textDim, fontWeight: 500 }}>/Monat</span></div>
-              <div style={{ marginTop: 8, fontSize: 12, color: T.textDim }}>Mitglieder: {p.membersIncluded}</div>
-              <div style={{ marginTop: 2, fontSize: 12, color: T.textDim }}>Messages: {p.messagesIncluded}</div>
-              <div style={{ marginTop: 2, fontSize: 12, color: T.textDim }}>Agents: {p.aiAgents}</div>
-              <div style={{ marginTop: 2, fontSize: 12, color: T.textDim }}>Support: {p.support}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
-          <input style={inputStyle} placeholder="Neuer Planname" value={draftName} onChange={(e) => setDraftName(e.target.value)} />
-          <input style={inputStyle} type="number" min={0} value={draftPrice} onChange={(e) => setDraftPrice(Number(e.target.value || 0))} />
-          <button onClick={addPlan} style={{ borderRadius: 10, border: "none", background: T.accent, color: "#061018", fontWeight: 700, padding: "10px 14px", cursor: "pointer" }}>Plan hinzufügen</button>
-        </div>
-      </Card>
-
-      <Card style={{ padding: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <Wallet size={15} color={T.accent} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Payment Methods (Mockup)</span>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
-          {providers.map((p) => (
-            <div key={p.id} style={{ border: `1px solid ${T.border}`, borderRadius: 12, padding: 12, background: T.surfaceAlt }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <CreditCard size={14} color={T.textDim} />
-                  <span style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>{p.name}</span>
+      {/* Plans Section */}
+      <section className="flex flex-col gap-4">
+        <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 px-1">
+          <Layers3 size={14} /> Subscription Plans
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {plans.map(p => (
+            <Card key={p.id} className={`p-6 flex flex-col gap-5 border transition-all ${p.is_active ? 'border-slate-800' : 'border-red-500/20 opacity-50 bg-red-500/[0.01]'}`}>
+              <div className="flex justify-between items-start">
+                <div className="flex flex-col">
+                  <h3 className="font-bold text-white text-lg">{p.name}</h3>
+                  <code className="text-[9px] text-slate-500 uppercase tracking-widest mt-1">{p.slug}</code>
                 </div>
-                {p.id === "stripe" ? <Badge variant="accent" size="xs">Default</Badge> : <Badge size="xs">Optional</Badge>}
+                <Badge variant={p.is_active ? "success" : "danger"} size="xs">{p.is_active ? "Live" : "Inactive"}</Badge>
               </div>
-              <div style={{ marginTop: 6, fontSize: 12, color: T.textDim }}>{p.note} · Modus: {p.mode}</div>
-              <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-                <button onClick={() => toggleProvider(p.id)} style={{ borderRadius: 8, border: `1px solid ${T.border}`, background: p.enabled ? T.successDim : T.surface, color: T.text, fontSize: 12, padding: "7px 10px", cursor: "pointer" }}>
-                  {p.enabled ? "Aktiv" : "Inaktiv"}
+
+              <div className="flex flex-col">
+                <span className="text-3xl font-black text-white">{p.price_monthly_cents / 100}€<span className="text-xs text-slate-500 ml-1">/mo</span></span>
+                <span className={`text-[9px] font-mono truncate mt-2 p-1.5 rounded bg-white/5 ${!p.stripe_price_id ? 'text-red-400 border border-red-500/20' : 'text-slate-500'}`}>
+                  {p.stripe_price_id || "FEHLENDE STRIPE-ID"}
+                </span>
+              </div>
+
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => setEditPlan(p)} className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/5 transition-all">
+                  Edit
                 </button>
-                {p.id === "stripe" && <button onClick={setStripeDefault} style={{ borderRadius: 8, border: `1px solid ${T.border}`, background: T.accentDim, color: T.text, fontSize: 12, padding: "7px 10px", cursor: "pointer" }}>Als Default</button>}
+                <button onClick={() => handleDeletePlan(p.id)} className="p-2.5 bg-red-500/5 hover:bg-red-500/10 text-red-500 rounded-xl border border-red-500/10 transition-all">
+                  <Trash2 size={14} />
+                </button>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
-        <div style={{ marginTop: 10, fontSize: 12, color: T.textDim }}>{status} {isSaving ? "· Speichere..." : ""}</div>
-      </Card>
+      </section>
 
-      <Card style={{ padding: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <PlugZap size={15} color={T.accent} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Stripe Connector (global)</span>
+      {/* Addons Section */}
+      <section className="flex flex-col gap-4">
+        <div className="flex justify-between items-center px-1">
+          <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+            <Puzzle size={14} /> Global Add-ons (via Stripe)
+          </h2>
+          <button onClick={() => setIsAddonModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-widest border border-indigo-500/20 transition-all">
+            <Plus size={12} /> Add Extension
+          </button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
-          <select style={inputStyle} value={stripe.mode} onChange={(e) => setStripe({ ...stripe, mode: e.target.value as "test" | "live" })}>
-            <option value="test">test</option>
-            <option value="live">live</option>
-          </select>
-          <select style={inputStyle} value={stripe.enabled ? "true" : "false"} onChange={(e) => setStripe({ ...stripe, enabled: e.target.value === "true" })}>
-            <option value="true">enabled</option>
-            <option value="false">disabled</option>
-          </select>
-          <input style={inputStyle} placeholder="Publishable Key (pk_...)" value={stripe.publishable_key} onChange={(e) => setStripe({ ...stripe, publishable_key: e.target.value })} />
-          <input style={inputStyle} placeholder="Secret Key (sk_...)" value={stripe.secret_key} onChange={(e) => setStripe({ ...stripe, secret_key: e.target.value })} />
-          <input style={inputStyle} placeholder="Webhook Secret (whsec_...)" value={stripe.webhook_secret} onChange={(e) => setStripe({ ...stripe, webhook_secret: e.target.value })} />
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={persistStripe} style={{ borderRadius: 10, border: "none", background: T.accent, color: "#061018", fontWeight: 700, padding: "10px 14px", cursor: "pointer" }}>Connector speichern</button>
-            <button onClick={testStripe} style={{ borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontWeight: 600, padding: "10px 14px", cursor: "pointer" }}>Verbindung testen</button>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {addons.map(a => (
+            <Card key={a.id} className="p-5 bg-slate-900/40 border-slate-800 flex items-center justify-between group hover:border-slate-700 transition-all">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/20 transition-all">
+                  <Sparkles size={24} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-white uppercase tracking-tight">{a.name}</h4>
+                  <code className="text-[9px] text-slate-500 font-mono">{a.stripe_price_id}</code>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-black text-white">{a.price / 100}€</div>
+                <div className="text-[8px] text-slate-500 uppercase font-black">monthly</div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Modals */}
+      <Modal open={isNewModal} onClose={() => setIsNewModal(false)} title="New Subscription Plan">
+        <div className="p-4 flex flex-col gap-4">
+          <input style={inputStyle} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Name (e.g. Professional)" />
+          <input style={inputStyle} value={newSlug} onChange={e => setNewSlug(e.target.value)} placeholder="Slug (e.g. professional)" />
+          <input style={inputStyle} type="number" value={newPrice} onChange={e => setNewPrice(Number(e.target.value))} placeholder="Price in EUR" />
+          <button onClick={handleSaveNew} className="mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all">Create & Provision Stripe</button>
+        </div>
+      </Modal>
+
+      <Modal open={isAddonModal} onClose={() => setIsAddonModal(false)} title="New Stripe Add-on">
+        <div className="p-4 flex flex-col gap-4">
+          <input style={inputStyle} value={addonName} onChange={e => setAddonName(e.target.value)} placeholder="Add-on Name (e.g. Voice Pipeline)" />
+          <input style={inputStyle} type="number" value={addonPrice} onChange={e => setAddonPrice(Number(e.target.value))} placeholder="Monthly Price in EUR" />
+          <button onClick={handleSaveAddon} className="mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all">Create Product in Stripe</button>
+        </div>
+      </Modal>
+
+      <Modal open={!!editPlan} onClose={() => setEditPlan(null)} title="Edit Plan">
+        {editPlan && (
+          <div className="p-4 flex flex-col gap-4">
+            <input style={inputStyle} value={editPlan.name} onChange={e => setEditPlan({...editPlan, name: e.target.value})} />
+            <input style={inputStyle} type="number" value={editPlan.price_monthly_cents} onChange={e => setEditPlan({...editPlan, price_monthly_cents: Number(e.target.value)})} />
+            <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 cursor-pointer" onClick={() => setEditPlan({...editPlan, is_active: !editPlan.is_active})}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${editPlan.is_active ? 'bg-emerald-500' : 'bg-red-500'}`}>{editPlan.is_active ? <Check size={14} /> : <X size={14} />}</div>
+              <span className="text-xs font-bold text-white uppercase tracking-wider">Plan Active</span>
+            </div>
+            <button onClick={handleUpdate} className="mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all">Save & Sync</button>
           </div>
-        </div>
-        <div style={{ marginTop: 10, fontSize: 12, color: T.textDim }}>{connectorStatus || "Noch kein Test ausgeführt."}</div>
-      </Card>
+        )}
+      </Modal>
     </div>
   );
 }
+
+const X = ({ size }: { size: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+);
+const Check = ({ size }: { size: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+);
