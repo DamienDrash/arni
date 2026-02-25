@@ -1,585 +1,585 @@
 {
   "common": {
-    "welcome": "Welcome to ARIIA",
-    "dashboard": "Dashboard",
-    "settings": "Settings",
-    "login": "Login",
-    "register": "Register",
-    "logout": "Logout",
-    "save": "Save",
-    "cancel": "Cancel",
-    "loading": "Loading...",
-    "edit": "Edit",
-    "delete": "Delete",
-    "confirmed": "Success",
-    "error": "Error",
-    "active": "Active",
-    "paused": "Paused",
-    "days": "Days",
-    "features": "Features",
-    "featuresTitle": "All Features",
-    "pricing": "Pricing",
-    "dsgvo": "GDPR Compliant",
-    "madeInGermany": "Made in Germany",
-    "enterpriseReady": "Enterprise Ready",
-    "allSystemsOnline": "All systems online",
-    "membersSynced": "Members synced",
-    "details": "Details",
-    "noEntries": "No entries found",
-    "search": "Search",
-    "status": "Status",
-    "noData": "No data available",
-    "never": "Never"
+    "welcome": "ARIIAへようこそ",
+    "dashboard": "ダッシュボード",
+    "settings": "設定",
+    "login": "ログイン",
+    "register": "登録",
+    "logout": "ログアウト",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "loading": "読み込み中...",
+    "edit": "編集",
+    "delete": "削除",
+    "confirmed": "成功",
+    "error": "エラー",
+    "active": "アクティブ",
+    "paused": "一時停止中",
+    "days": "日",
+    "features": "機能",
+    "featuresTitle": "全機能",
+    "pricing": "料金",
+    "dsgvo": "GDPR準拠",
+    "madeInGermany": "ドイツ製",
+    "enterpriseReady": "エンタープライズ対応",
+    "allSystemsOnline": "全システムオンライン",
+    "membersSynced": "メンバー同期済み",
+    "details": "詳細",
+    "noEntries": "エントリが見つかりません",
+    "search": "検索",
+    "status": "ステータス",
+    "noData": "データがありません",
+    "never": "なし"
   },
   "sidebar": {
-    "dashboard": "Dashboard",
-    "monitor": "Live Monitor",
-    "escalations": "Escalations",
-    "analytics": "Analytics",
-    "members": "Members",
-    "users": "Users",
-    "knowledge": "Knowledge Base",
-    "memberMemory": "Member Memory",
-    "systemPrompt": "Studio Prompt",
-    "sync": "Sync",
-    "billing": "Subscription",
-    "settings": "Settings",
-    "tenants": "Tenant Manager",
-    "plans": "Billing Plans",
-    "audit": "Audit Log",
-    "health": "Engine Stats",
-    "quickActions": "Quick Actions",
-    "platformControl": "Platform Control",
-    "studioDeck": "Studio Deck",
-    "logout": "Logout",
+    "dashboard": "ダッシュボード",
+    "monitor": "ライブモニター",
+    "escalations": "エスカレーション",
+    "analytics": "分析",
+    "members": "メンバー",
+    "users": "ユーザー",
+    "knowledge": "ナレッジベース",
+    "memberMemory": "メンバーメモリー",
+    "systemPrompt": "スタジオプロンプト",
+    "sync": "同期",
+    "billing": "サブスクリプション",
+    "settings": "設定",
+    "tenants": "テナントマネージャー",
+    "plans": "請求プラン",
+    "audit": "監査ログ",
+    "health": "エンジン統計",
+    "quickActions": "クイックアクション",
+    "platformControl": "プラットフォームコントロール",
+    "studioDeck": "スタジオデッキ",
+    "logout": "ログアウト",
     "roles": {
-      "systemAdmin": "System Administrator",
-      "tenantAdmin": "Studio Administrator"
+      "systemAdmin": "システム管理者",
+      "tenantAdmin": "スタジオ管理者"
     },
     "sections": {
-      "operations": "Operations",
-      "customers": "Customers",
-      "knowledge": "Knowledge",
-      "studio": "Studio",
-      "governance": "Governance",
-      "system": "System"
+      "operations": "運用",
+      "customers": "顧客",
+      "knowledge": "ナレッジ",
+      "studio": "スタジオ",
+      "governance": "ガバナンス",
+      "system": "システム"
     }
   },
   "settings": {
     "overview": {
-      "title": "Overview",
-      "subtitle": "Profile and system parameters."
+      "title": "概要",
+      "subtitle": "プロフィールとシステムパラメータ。"
     },
     "account": {
-      "personalData": "Personal Data",
-      "fullName": "Full Name",
-      "fullNameHint": "Your legal first and last name",
-      "email": "Email Address",
-      "emailHint": "Primary contact for security alerts",
-      "locale": "Interface Language",
-      "localeHint": "Set your preferred dashboard language",
-      "timezone": "Timezone",
-      "timezoneHint": "Used for scheduling and logs",
-      "compactMode": "Compact Mode",
-      "compactModeDesc": "Denser UI for power users",
-      "notifications": "Notifications",
-      "emailNotify": "Email Notifications",
-      "emailNotifyDesc": "Receive reports via email",
-      "tgNotify": "Telegram Alerts",
-      "tgNotifyDesc": "Real-time alerts via Telegram",
+      "personalData": "個人データ",
+      "fullName": "氏名",
+      "fullNameHint": "法的な氏名",
+      "email": "メールアドレス",
+      "emailHint": "セキュリティアラートの主要連絡先",
+      "locale": "インターフェース言語",
+      "localeHint": "お好みのダッシュボード言語を設定してください",
+      "timezone": "タイムゾーン",
+      "timezoneHint": "スケジュール設定とログに使用されます",
+      "compactMode": "コンパクトモード",
+      "compactModeDesc": "パワーユーザー向けのより高密度なUIです。",
+      "notifications": "通知",
+      "emailNotify": "メール通知",
+      "emailNotifyDesc": "レポートをメールで受信します。",
+      "tgNotify": "Telegramアラート",
+      "tgNotifyDesc": "Telegram経由でリアルタイムアラートを受信します。",
       "password": {
-        "title": "Change Password",
-        "current": "Current Password",
-        "currentHint": "Verify your identity",
-        "new": "New Password",
-        "newHint": "At least 8 characters long"
+        "title": "パスワードの変更",
+        "current": "現在のパスワード",
+        "currentHint": "本人確認を行ってください。",
+        "new": "新しいパスワード",
+        "newHint": "8文字以上で入力してください。"
       },
       "studio": {
-        "title": "Studio Profile",
-        "subtitle": "Public studio identity and contact",
-        "name": "Studio Name",
-        "nameHint": "Displayed in AI interactions",
-        "opsEmail": "Operations Email",
-        "opsEmailHint": "Contact for studio operations",
-        "opsTelegram": "Operations Telegram",
-        "opsTelegramHint": "Telegram handle for studio staff",
-        "refresh": "Data Refresh",
-        "refreshHint": "Manual sync with external systems",
-        "sla": "SLA Tier",
-        "slaHint": "Service level agreement level",
-        "localeHint": "Primary language of your studio members",
-        "timezoneHint": "Studio local time"
+        "title": "スタジオプロフィール",
+        "subtitle": "公開されるスタジオの識別情報と連絡先です。",
+        "name": "スタジオ名",
+        "nameHint": "AIとの対話で表示されます。",
+        "opsEmail": "運用メールアドレス",
+        "opsEmailHint": "スタジオ運用に関する連絡先です。",
+        "opsTelegram": "運用Telegram",
+        "opsTelegramHint": "スタジオスタッフのTelegramハンドルです。",
+        "refresh": "データ更新",
+        "refreshHint": "外部システムとの手動同期です。",
+        "sla": "SLAティア",
+        "slaHint": "サービスレベルアグリーメントのレベルです。",
+        "localeHint": "スタジオメンバーの主要言語です。",
+        "timezoneHint": "スタジオの現地時間です。"
       },
-      "title": "Account Settings",
-      "subtitle": "Manage your personal profile and security",
+      "title": "アカウント設定",
+      "subtitle": "個人のプロフィールとセキュリティを管理します。",
       "placeholders": {
-        "fullName": "John Doe",
-        "locale": "en-US",
+        "fullName": "山田 太郎",
+        "locale": "ja-JP",
         "timezone": "UTC",
         "password": "••••••••",
-        "studioName": "Your Studio Name",
+        "studioName": "貴社スタジオ名",
         "opsEmail": "ops@example.com",
         "opsTelegram": "-100...",
         "sla": "15",
         "refresh": "5"
       }
     },
-    "aiEngine": "AI Engine",
+    "aiEngine": "AIエンジン",
     "general": {
       "privacy": {
-        "title": "Privacy & Compliance",
-        "subtitle": "Manage data retention and PII filtering",
-        "pii": "PII Masking",
-        "piiDesc": "Automatically mask personal data in logs",
-        "retention": "Data Retention",
-        "retentionDesc": "How long to keep interaction history"
+        "title": "プライバシーとコンプライアンス",
+        "subtitle": "データ保持とPIIフィルタリングを管理します。",
+        "pii": "PIIマスキング",
+        "piiDesc": "ログ内の個人データを自動的にマスキングします。",
+        "retention": "データ保持期間",
+        "retentionDesc": "対話履歴の保持期間です。"
       },
       "smtp": {
-        "title": "Email (SMTP)",
-        "subtitle": "Configure outgoing mail server",
-        "host": "SMTP Host",
-        "port": "Port",
-        "user": "Username",
-        "pass": "Password",
-        "senderAddr": "Sender Email",
-        "senderName": "Sender Name",
-        "test": "Send Test Email",
-        "testRecipient": "Recipient for Test"
+        "title": "メール (SMTP)",
+        "subtitle": "送信メールサーバーを設定します。",
+        "host": "SMTPホスト",
+        "port": "ポート",
+        "user": "ユーザー名",
+        "pass": "パスワード",
+        "senderAddr": "送信元メールアドレス",
+        "senderName": "送信者名",
+        "test": "テストメールを送信",
+        "testRecipient": "テスト受信者"
       },
       "system": {
-        "title": "System Governance",
-        "subtitle": "Core engine and security parameters",
-        "audit": "Extended Audit Logs",
-        "auditDesc": "Keep detailed logs of every system change",
-        "maintenance": "Maintenance Mode",
-        "maintenanceDesc": "Restrict access during updates"
+        "title": "システムガバナンス",
+        "subtitle": "コアエンジンとセキュリティパラメータです。",
+        "audit": "拡張監査ログ",
+        "auditDesc": "すべてのシステム変更の詳細なログを保持します。",
+        "maintenance": "メンテナンスモード",
+        "maintenanceDesc": "更新中のアクセスを制限します。"
       },
-      "title": "General Settings",
-      "subtitle": "Core system parameters and governance"
+      "title": "一般設定",
+      "subtitle": "コアシステムパラメータとガバナンスです。"
     },
     "ai": {
-      "title": "AI Configuration",
-      "subtitle": "Manage LLM providers and model parameters",
-      "addProvider": "Add Provider",
-      "editProvider": "Edit Provider",
-      "newProvider": "New AI Provider",
-      "selectProvider": "Select Provider",
-      "provider": "Provider",
-      "apiKey": "API Key",
-      "models": "Available Models",
-      "fetchModels": "Fetch Models",
-      "testConnection": "Test Connection",
-      "latencyTest": "Latency Test",
-      "confirmDelete": "Are you sure you want to remove this provider?",
-      "retry": "Retry",
-      "noModelsFound": "No models found",
+      "title": "AI設定",
+      "subtitle": "LLMプロバイダーとモデルパラメータを管理します。",
+      "addProvider": "プロバイダーを追加",
+      "editProvider": "プロバイダーを編集",
+      "newProvider": "新しいAIプロバイダー",
+      "selectProvider": "プロバイダーを選択",
+      "provider": "プロバイダー",
+      "apiKey": "APIキー",
+      "models": "利用可能なモデル",
+      "fetchModels": "モデルを取得",
+      "testConnection": "接続をテスト",
+      "latencyTest": "レイテンシーテスト",
+      "confirmDelete": "このプロバイダーを削除してもよろしいですか？",
+      "retry": "再試行",
+      "noModelsFound": "モデルが見つかりません",
       "status": {
-        "configured": "Configured",
-        "error": "Error",
-        "fetching": "Fetching..."
+        "configured": "設定済み",
+        "error": "エラー",
+        "fetching": "取得中..."
       },
       "hints": {
-        "storedKey": "Key is securely stored",
-        "refreshNeeded": "Fetch models to see available options",
-        "initialFetch": "Fetching models for the first time...",
-        "clickRefresh": "Click to refresh model list"
+        "storedKey": "キーは安全に保存されています",
+        "refreshNeeded": "利用可能なオプションを表示するにはモデルを取得してください",
+        "initialFetch": "初めてモデルを取得しています...",
+        "clickRefresh": "クリックしてモデルリストを更新"
       },
       "errors": {
-        "loadFailed": "Failed to load AI providers",
-        "saveFailed": "Failed to save provider",
-        "deleteFailed": "Failed to delete provider",
-        "fetchModelsFailed": "Failed to fetch models from provider",
-        "connectionError": "Could not connect to AI engine"
+        "loadFailed": "AIプロバイダーの読み込みに失敗しました",
+        "saveFailed": "プロバイダーの保存に失敗しました",
+        "deleteFailed": "プロバイダーの削除に失敗しました",
+        "fetchModelsFailed": "プロバイダーからモデルの取得に失敗しました",
+        "connectionError": "AIエンジンに接続できませんでした"
       }
     },
-    "language": "Language",
-    "selectLanguage": "Select Language",
+    "language": "言語",
+    "selectLanguage": "言語を選択",
     "billing": {
-      "title": "Billing & Subscription",
-      "subtitle": "Manage your plan and add-ons."
+      "title": "請求とサブスクリプション",
+      "subtitle": "プランとアドオンを管理します。"
     },
     "integrations": {
-      "title": "Integrations",
-      "subtitle": "Connect Magicline, WhatsApp, and more."
+      "title": "連携",
+      "subtitle": "Magicline、WhatsAppなどを接続します。"
     },
     "prompts": {
-      "title": "Custom Prompts",
-      "subtitle": "Configure agent personas and behavior."
+      "title": "カスタムプロンプト",
+      "subtitle": "エージェントのペルソナと行動を設定します。"
     },
-    "automation": "Automation",
-    "branding": "Branding"
+    "automation": "自動化",
+    "branding": "ブランディング"
   },
   "navbar": {
-    "login": "Login",
-    "register": "Register"
+    "login": "ログイン",
+    "register": "登録"
   },
   "hero": {
-    "versionBadge": "Version 2.0 Live",
-    "title": "The intelligent",
+    "versionBadge": "バージョン2.0 稼働中",
+    "title": "インテリジェントな",
     "words": [
-      "AI Assistant",
-      "Studio Manager",
-      "Operations Bot",
-      "Sales Agent"
+      "AIアシスタント",
+      "スタジオマネージャー",
+      "オペレーションボット",
+      "セールスエージェント"
     ],
-    "subtitle": "for your fitness studio",
-    "description": "ARIIA automates customer communication via WhatsApp, Telegram, and Voice. Increase your efficiency with Arnold Prime Orchestration.",
-    "cta": "Get Started"
+    "subtitle": "フィットネススタジオ向け",
+    "description": "ARIIAは、WhatsApp、Telegram、および音声を通じて顧客とのコミュニケーションを自動化します。Arnold Prime Orchestrationで効率を向上させましょう。",
+    "cta": "始める"
   },
   "stats": {
-    "aiResolution": "AI Resolution Rate",
-    "responseTime": "Response Time",
-    "agentsInSwarm": "AI Swarm Agents",
-    "availability": "Availability"
+    "aiResolution": "AI解決率",
+    "responseTime": "応答時間",
+    "agentsInSwarm": "AIスウォームエージェント",
+    "availability": "可用性"
   },
   "features": {
-    "badge": "Features",
-    "title": "Everything your studio",
-    "titleAccent": "needs to succeed",
-    "description": "A complete ecosystem of AI agents seamlessly integrated into your existing systems.",
+    "badge": "機能",
+    "title": "スタジオが成功するために",
+    "titleAccent": "必要なすべて",
+    "description": "既存のシステムにシームレスに統合されたAIエージェントの完全なエコシステム。",
     "swarm": {
-      "title": "Swarm Intelligence",
-      "desc": "Specialized agents (Sales, Medic, Ops) work together to resolve every request."
+      "title": "スウォームインテリジェンス",
+      "desc": "専門エージェント（セールス、メディック、オペレーション）が連携して、あらゆるリクエストを解決します。"
     },
     "omnichannel": {
-      "title": "Omnichannel",
-      "desc": "WhatsApp, Telegram, SMS, and Voice. Reach your members where they are."
+      "title": "オムニチャネル",
+      "desc": "WhatsApp、Telegram、SMS、音声。メンバーがいる場所で彼らにリーチします。"
     },
     "churn": {
-      "title": "Churn Prevention",
-      "desc": "AI-driven analysis identifies cancellation risks before they arise."
+      "title": "チャーン防止",
+      "desc": "AI駆動分析により、解約リスクが発生する前に特定します。"
     },
     "memory": {
-      "title": "Context Memory",
-      "desc": "ARIIA remembers every interaction and builds real relationships with members."
+      "title": "コンテキストメモリ",
+      "desc": "ARIIAはすべてのインタラクションを記憶し、メンバーと真の関係を築きます。"
     },
     "security": {
-      "title": "GDPR & Security",
-      "desc": "Encrypted data storage in Germany and full compliance guarantee."
+      "title": "GDPRとセキュリティ",
+      "desc": "ドイツでの暗号化されたデータストレージと完全なコンプライアンス保証。"
     },
     "connectors": {
-      "title": "Deep Integration",
-      "desc": "Direct connection to Magicline, Shopify, and more for real-time handling."
+      "title": "ディープインテグレーション",
+      "desc": "Magicline、Shopifyなどへの直接接続により、リアルタイム処理を実現します。"
     },
     "page": {
-      "title": "Next-Gen",
-      "titleAccent": "Studio Intelligence",
-      "description": "ARIIA is more than a chatbot. It is a swarm of specialized AI agents that understand your studio and your members.",
-      "techTitle": "Deep",
-      "techSubtitle": "Technology",
-      "techSubtitleAccent": "Stack",
-      "deckTitle": "Studio",
-      "deckSubtitle": "Control",
-      "deckSubtitleAccent": "Deck",
-      "deckDesc": "A central dashboard to monitor every AI interaction and manage your studio settings in real-time.",
-      "securityTitle": "Enterprise",
-      "securitySubtitle": "Security &",
-      "securitySubtitleAccent": "Compliance",
-      "securityDesc": "Your data is hosted in Germany, fully encrypted, and 100% GDPR compliant."
+      "title": "次世代",
+      "titleAccent": "スタジオインテリジェンス",
+      "description": "ARIIAはチャットボット以上です。それはあなたのスタジオとメンバーを理解する専門AIエージェントのスウォームです。",
+      "techTitle": "ディープ",
+      "techSubtitle": "テクノロジー",
+      "techSubtitleAccent": "スタック",
+      "deckTitle": "スタジオ",
+      "deckSubtitle": "コントロール",
+      "deckSubtitleAccent": "デッキ",
+      "deckDesc": "すべてのAIインタラクションを監視し、スタジオ設定をリアルタイムで管理するための中央ダッシュボード。",
+      "securityTitle": "エンタープライズ",
+      "securitySubtitle": "セキュリティと",
+      "securitySubtitleAccent": "コンプライアンス",
+      "securityDesc": "お客様のデータはドイツでホストされ、完全に暗号化されており、100% GDPRに準拠しています。"
     },
     "platform": {
       "live": {
-        "title": "Live Monitor",
-        "desc": "Watch AI interactions in real-time and intervene if necessary."
+        "title": "ライブモニター",
+        "desc": "AIの対話をリアルタイムで監視し、必要に応じて介入します。"
       },
       "members": {
-        "title": "Member Management",
-        "desc": "Deep integration with Magicline to handle bookings and contracts."
+        "title": "会員管理",
+        "desc": "Magiclineとの綿密な連携により、予約や契約を処理します。"
       },
       "knowledge": {
-        "title": "Knowledge Base",
-        "desc": "Upload your studio documents to train the AI on your specific rules."
+        "title": "ナレッジベース",
+        "desc": "スタジオのドキュメントをアップロードし、特定のルールに基づいてAIをトレーニングします。"
       },
       "prompts": {
-        "title": "Persona Control",
-        "desc": "Customize the tone and personality of your studio assistant."
+        "title": "ペルソナ制御",
+        "desc": "スタジオアシスタントのトーンと個性をカスタマイズします。"
       },
       "multi": {
-        "title": "Multi-Tenant",
-        "desc": "Manage multiple studio locations from a single central account."
+        "title": "マルチテナント",
+        "desc": "単一の中央アカウントから複数のスタジオ拠点を管理します。"
       },
       "churn": {
-        "title": "Churn Prevention",
-        "desc": "AI identifies members at risk of canceling based on behavior."
+        "title": "解約防止",
+        "desc": "AIが行動に基づいて解約リスクのある会員を特定します。"
       }
     },
     "details": {
-      "intent": "Intent Classification",
-      "routing": "Dynamic Routing",
-      "fallback": "Human-in-the-Loop",
-      "confidence": "Confidence Scoring",
+      "intent": "意図分類",
+      "routing": "動的ルーティング",
+      "fallback": "ヒューマン・イン・ザ・ループ",
+      "confidence": "信頼度スコアリング",
       "wa": "WhatsApp Cloud",
       "tg": "Telegram Bot",
-      "voice": "Voice STT/TTS",
-      "chat": "Web Widget",
-      "ml": "Magicline Sync",
-      "proactive": "Proactive Outreach",
-      "scoring": "Behavioral Scoring",
-      "behavior": "Engagement Analysis",
-      "session": "Long-Term Sessions",
-      "semantic": "Semantic Search",
-      "episodic": "Episodic Memory",
-      "auto": "Automatic Indexing",
-      "dsgvo": "GDPR Compliance",
-      "rls": "Row Level Security",
-      "pii": "PII Masking",
-      "audit": "Audit Logs",
-      "api": "REST API Access",
-      "shopify": "Shopify Integration",
+      "voice": "音声 STT/TTS",
+      "chat": "ウェブウィジェット",
+      "ml": "Magicline 同期",
+      "proactive": "プロアクティブなアウトリーチ",
+      "scoring": "行動スコアリング",
+      "behavior": "エンゲージメント分析",
+      "session": "長期セッション",
+      "semantic": "セマンティック検索",
+      "episodic": "エピソード記憶",
+      "auto": "自動インデックス作成",
+      "dsgvo": "GDPR準拠",
+      "rls": "行レベルセキュリティ",
+      "pii": "PIIマスキング",
+      "audit": "監査ログ",
+      "api": "REST APIアクセス",
+      "shopify": "Shopify連携",
       "woo": "WooCommerce",
-      "magicline": "Magicline Deep-Link"
+      "magicline": "Magicline ディープリンク"
     },
     "securityLabels": {
       "dsgvo": "GDPR",
       "encryption": "AES-256",
-      "pii": "PII Filter",
-      "audit": "Audit",
+      "pii": "PIIフィルター",
+      "audit": "監査",
       "rbac": "RBAC",
       "rls": "RLS"
     }
   },
   "cta": {
-    "title": "Ready for the future of",
-    "titleAccent": "studio automation",
-    "subtitle": "Join over 50 fitness studios already growing with ARIIA.",
-    "button": "Create Free Account",
-    "compare": "Compare Pricing"
+    "title": "未来の",
+    "titleAccent": "スタジオ自動化",
+    "subtitle": "ARIIAで成長している50以上のフィットネススタジオに参加しませんか。",
+    "button": "無料アカウントを作成",
+    "compare": "料金を比較"
   },
   "footer": {
-    "brandDesc": "The evolution of studio operations. Agentic Multi-Tenant SaaS Platform.",
-    "product": "Product",
-    "company": "Company",
-    "contact": "Contact",
+    "brandDesc": "スタジオ運営の進化。エージェンティック・マルチテナントSaaSプラットフォーム。",
+    "product": "製品",
+    "company": "会社",
+    "contact": "お問い合わせ",
     "links": {
-      "features": "Features",
-      "pricing": "Pricing",
-      "test": "Start Free Trial",
-      "impressum": "Imprint",
-      "datenschutz": "Privacy Policy",
-      "agb": "Terms of Service",
-      "enterprise": "Enterprise Contact"
+      "features": "機能",
+      "pricing": "料金",
+      "test": "無料トライアルを開始",
+      "impressum": "インプリント",
+      "datenschutz": "プライバシーポリシー",
+      "agb": "利用規約",
+      "enterprise": "法人向けお問い合わせ"
     },
-    "rights": "All rights reserved."
+    "rights": "全著作権所有。"
   },
   "tenants": {
     "stats": {
-      "total": "Total Tenants",
-      "users": "Active Users",
-      "avg": "Avg. Users/Tenant"
+      "total": "テナント総数",
+      "users": "アクティブユーザー",
+      "avg": "テナントあたりの平均ユーザー数"
     },
     "create": {
-      "title": "Create New Tenant",
-      "name": "Tenant Name",
-      "slug": "Slug (optional)"
+      "title": "新規テナントを作成",
+      "name": "テナント名",
+      "slug": "スラッグ (任意)"
     },
     "table": {
-      "name": "Name",
-      "users": "Users",
-      "admins": "Admins",
-      "active": "Active"
+      "name": "名前",
+      "users": "ユーザー",
+      "admins": "管理者",
+      "active": "アクティブ"
     },
     "edit": {
-      "title": "Edit Tenant"
+      "title": "テナントを編集"
     },
     "errors": {
-      "nameRequired": "Tenant name is required"
+      "nameRequired": "テナント名は必須です。"
     },
     "bulk": {
-      "hint": "The action will be applied tenant-wide and logged as a governance event."
+      "hint": "この操作はテナント全体に適用され、ガバナンスイベントとしてログに記録されます。"
     },
     "audit": {
-      "title": "Last Audit Events"
+      "title": "最新の監査イベント"
     },
     "footer": {
-      "registration": "Tenant self-registration is still handled via /register."
+      "registration": "テナントの自己登録は引き続き /register 経由で処理されます。"
     }
   },
   "ai": {
-    "actions": "Actions",
+    "actions": "アクション",
     "errors": {
-      "connectionError": "Connection to AI Engine lost",
-      "loadFailed": "Failed to load AI parameters",
-      "saveFailed": "Failed to save AI configuration"
+      "connectionError": "AIエンジンへの接続が失われました。",
+      "loadFailed": "AIパラメーターの読み込みに失敗しました。",
+      "saveFailed": "AI設定の保存に失敗しました。"
     }
   },
   "live": {
-    "title": "Live Monitor",
-    "subtitle": "Real-time AI interaction tracking",
-    "sessions": "Active Sessions",
-    "noSessions": "No active sessions at the moment",
-    "selectSession": "Select a session to view details",
+    "title": "ライブモニター",
+    "subtitle": "リアルタイムAIインタラクション追跡",
+    "sessions": "アクティブなセッション",
+    "noSessions": "現在、アクティブなセッションはありません。",
+    "selectSession": "詳細を表示するセッションを選択してください。",
     "handoff": {
-      "link": "Link to Member",
-      "hint": "Manually associate this session with a member ID",
-      "placeholder": "Enter Member ID"
+      "link": "メンバーへのリンク",
+      "hint": "このセッションをメンバーIDに手動で関連付けます。",
+      "placeholder": "メンバーIDを入力してください"
     }
   },
   "memberMemory": {
-    "title": "Member Memory",
-    "subtitle": "Long-term semantic knowledge base",
-    "files": "Memory Files",
-    "noFiles": "No memory entries found for this member",
-    "selectFile": "Select an entry to view details",
-    "reasonPlaceholder": "Enter reason for manual override",
-    "scheduler": "Analysis Scheduler",
-    "lastRun": "Last analyzed"
+    "title": "メンバーメモリー",
+    "subtitle": "長期的な意味的知識ベース",
+    "files": "メモリーファイル",
+    "noFiles": "このメンバーのメモリーエントリは見つかりませんでした。",
+    "selectFile": "詳細を表示するエントリを選択してください。",
+    "reasonPlaceholder": "手動オーバーライドの理由を入力してください。",
+    "scheduler": "分析スケジューラー",
+    "lastRun": "最終分析日時"
   },
   "members": {
-    "title": "Members",
-    "subtitle": "Manage your studio members and their AI state",
-    "add": "Add Member",
+    "title": "メンバー",
+    "subtitle": "スタジオメンバーとそのAI状態を管理します。",
+    "add": "メンバーを追加",
     "import": {
-      "clickOrDrop": "Click or drag file to this area to upload",
-      "selectFile": "Select File",
-      "hint": "Supports .csv, .xls, .xlsx"
+      "clickOrDrop": "ファイルをアップロードするには、このエリアをクリックまたはドラッグしてください。",
+      "selectFile": "ファイルを選択",
+      "hint": ".csv、.xls、.xlsx形式をサポートしています。"
     },
-    "importTitle": "Member Import",
-    "noMembers": "No members found",
-    "noContact": "No contact information",
-    "confirmDelete": "Are you sure you want to delete this member?",
-    "search": "Search members...",
+    "importTitle": "メンバーのインポート",
+    "noMembers": "メンバーが見つかりませんでした。",
+    "noContact": "連絡先情報がありません。",
+    "confirmDelete": "このメンバーを削除してもよろしいですか？",
+    "search": "メンバーを検索...",
     "stats": {
-      "total": "Total Members",
-      "active": "Active",
-      "paused": "Paused",
-      "manual": "Manual Entries",
-      "external": "Synced (Magicline)",
-      "selected": "selected"
+      "total": "合計メンバー数",
+      "active": "アクティブ",
+      "paused": "一時停止中",
+      "manual": "手動入力",
+      "external": "同期済み (Magicline)",
+      "selected": "選択済み"
     },
     "table": {
-      "member": "Member",
-      "source": "Source",
-      "status": "Status"
+      "member": "メンバー",
+      "source": "ソース",
+      "status": "ステータス"
     },
     "form": {
-      "firstName": "First Name",
-      "lastName": "Last Name",
-      "email": "Email Address"
+      "firstName": "名",
+      "lastName": "姓",
+      "email": "メールアドレス"
     },
     "status": {
-      "active": "Active",
-      "paused": "Paused"
+      "active": "アクティブ",
+      "paused": "一時停止中"
     }
   },
   "pricing": {
-    "title": "Simple Pricing",
-    "titleAccent": "for every studio size",
-    "description": "Choose the plan that fits your studio operations. All plans include 24/7 AI availability and Magicline integration.",
-    "monthly": "Monthly",
-    "yearly": "Yearly",
-    "billedYearly": "billed yearly",
-    "discount": "Save 20%",
-    "enterpriseTitle": "Enterprise",
-    "enterpriseDesc": "Custom solutions for large studio chains with 10+ locations and specific compliance needs.",
-    "enterpriseCta": "Contact Sales",
-    "addonsTitle": "Powerful",
-    "addonsSubtitle": "Addons",
-    "addonsSubtitleAccent": "to scale",
-    "addonsDesc": "Enhance your AI agents with specialized capabilities tailored to your workflow.",
-    "faqTitle": "Frequently Asked Questions",
-    "finalCta": "Ready to transform your studio?",
-    "finalCtaAccent": "Start your trial today.",
-    "finalCtaDesc": "Join 50+ fitness studios already using ARIIA.",
+    "title": "シンプルな料金体系",
+    "titleAccent": "あらゆるスタジオ規模に対応",
+    "description": "スタジオの運営に合ったプランをお選びください。すべてのプランには、24時間365日のAI利用とMagicline連携が含まれています。",
+    "monthly": "月払い",
+    "yearly": "年払い",
+    "billedYearly": "年間請求",
+    "discount": "20%割引",
+    "enterpriseTitle": "エンタープライズ",
+    "enterpriseDesc": "10拠点以上の大規模スタジオチェーンや特定のコンプライアンス要件に対応するカスタムソリューションです。",
+    "enterpriseCta": "営業担当へお問い合わせ",
+    "addonsTitle": "強力な",
+    "addonsSubtitle": "アドオン",
+    "addonsSubtitleAccent": "で拡張",
+    "addonsDesc": "ワークフローに合わせて特化した機能でAIエージェントを強化します。",
+    "faqTitle": "よくある質問",
+    "finalCta": "スタジオを変革する準備はできましたか？",
+    "finalCtaAccent": "今すぐ無料トライアルを開始しましょう。",
+    "finalCtaDesc": "すでにARIIAを利用している50以上のフィットネススタジオに参加しましょう。",
     "plans": {
       "starter": {
-        "name": "Starter",
-        "desc": "Perfect for boutique studios",
-        "cta": "Get Started",
+        "name": "スターター",
+        "desc": "ブティックスタジオに最適",
+        "cta": "始める",
         "features": [
-          "1 AI Agent (Ops)",
-          "WhatsApp Integration",
-          "100 AI Resolutions/mo",
-          "Basic Analytics"
+          "AIエージェント1体（運用）",
+          "WhatsApp連携",
+          "AIによる解決数100件/月",
+          "基本分析"
         ]
       },
       "professional": {
-        "name": "Professional",
-        "badge": "Most Popular",
-        "desc": "For growing fitness studios",
-        "cta": "Start Free Trial",
+        "name": "プロフェッショナル",
+        "badge": "最も人気",
+        "desc": "成長中のフィットネススタジオ向け",
+        "cta": "無料トライアルを開始",
         "features": [
-          "3 AI Agents (Sales, Ops, Medic)",
-          "WhatsApp & Telegram",
-          "500 AI Resolutions/mo",
-          "Advanced Analytics",
-          "Member Memory (1 Tier)"
+          "AIエージェント3体（営業、運用、メディック）",
+          "WhatsApp & Telegram連携",
+          "AIによる解決数500件/月",
+          "高度な分析",
+          "会員記憶（1層）"
         ]
       },
       "business": {
-        "name": "Business",
-        "desc": "Full automation for large studios",
-        "cta": "Go Pro",
+        "name": "ビジネス",
+        "desc": "大規模スタジオ向けの完全自動化",
+        "cta": "プロにアップグレード",
         "features": [
-          "Full Swarm (All Agents)",
-          "Omnichannel (WA, TG, Voice)",
-          "Unlimited Resolutions",
-          "GraphRAG & Full Memory",
-          "Priority Support"
+          "フルスウォーム（全エージェント）",
+          "オムニチャネル（WhatsApp、Telegram、音声）",
+          "無制限の解決数",
+          "GraphRAG & 完全記憶",
+          "優先サポート"
         ]
       }
     },
     "addons": {
       "voice": {
-        "name": "AI Voice Engine",
-        "desc": "Handle incoming calls with natural AI voice interaction."
+        "name": "AI音声エンジン",
+        "desc": "自然なAI音声対話で着信通話を処理します。"
       },
       "vision": {
-        "name": "AI Vision (YOLOv8)",
-        "desc": "Real-time occupancy and safety tracking via camera integration."
+        "name": "AIビジョン (YOLOv8)",
+        "desc": "カメラ連携によるリアルタイムの占有率と安全追跡。"
       },
       "churn": {
-        "name": "Churn Prediction",
-        "desc": "Advanced ML model to identify cancellation risks early."
+        "name": "解約予測",
+        "desc": "解約リスクを早期に特定するための高度な機械学習モデル。"
       },
       "channel": {
-        "name": "Additional Channel",
-        "desc": "Add custom SMS or Email automation to your swarm."
+        "name": "追加チャネル",
+        "desc": "スウォームにカスタムSMSまたはEメール自動化を追加します。"
       }
     },
     "faqs": [
       {
-        "q": "Can I change my plan later?",
-        "a": "Yes, you can upgrade or downgrade your plan at any time from your settings."
+        "q": "後からプランを変更できますか？",
+        "a": "はい、設定からいつでもプランをアップグレードまたはダウングレードできます。"
       },
       {
-        "q": "Is my data secure?",
-        "a": "Absolutely. We use industry-standard encryption and all data is hosted in ISO-certified data centers in Germany."
+        "q": "私のデータは安全ですか？",
+        "a": "もちろんです。業界標準の暗号化を使用しており、すべてのデータはドイツのISO認定データセンターでホストされています。"
       },
       {
-        "q": "Do you offer custom integrations?",
-        "a": "Yes, for Enterprise customers we offer bespoke integration services for your specific CRM or ERP system."
+        "q": "カスタム連携を提供していますか？",
+        "a": "はい、エンタープライズのお客様には、特定のCRMまたはERPシステム向けのオーダーメイドの連携サービスを提供しています。"
       },
       {
-        "q": "How does the Voice AI work?",
-        "a": "Our Voice AI uses advanced STT/TTS models to interact with callers in real-time, just like a human assistant."
+        "q": "音声AIはどのように機能しますか？",
+        "a": "当社の音声AIは、高度なSTT/TTSモデルを使用して、人間のアシスタントのようにリアルタイムで発信者と対話します。"
       }
     ]
   },
   "legal": {
     "impressum": {
-      "title": "Imprint",
-      "tmg5": "Information according to § 5 TMG",
-      "representedBy": "Represented by",
-      "managingDirector": "Managing Director",
-      "contact": "Contact",
-      "phone": "Phone",
-      "email": "Email",
-      "website": "Website",
-      "registerEntry": "Register Entry",
-      "registerCourt": "Register Court",
-      "registerNumber": "Register Number",
-      "vatId": "VAT Identification Number according to § 27 a VAT Act",
-      "responsibleContent": "Responsible for content according to § 55 Abs. 2 RStV",
-      "dispute": "EU Dispute Resolution",
-      "liabilityContent": "Liability for Content",
-      "liabilityLinks": "Liability for Links"
+      "title": "発行者情報",
+      "tmg5": "TMG第5条に基づく情報",
+      "representedBy": "代表者",
+      "managingDirector": "代表取締役",
+      "contact": "連絡先",
+      "phone": "電話番号",
+      "email": "Eメール",
+      "website": "ウェブサイト",
+      "registerEntry": "登記簿登録",
+      "registerCourt": "登記裁判所",
+      "registerNumber": "登記番号",
+      "vatId": "VAT法第27a条に基づくVAT識別番号",
+      "responsibleContent": "RStV第55条第2項に基づくコンテンツ責任者",
+      "dispute": "EU紛争解決",
+      "liabilityContent": "コンテンツに対する責任",
+      "liabilityLinks": "リンクに対する責任"
     },
     "privacy": {
-      "title": "Privacy Policy"
+      "title": "プライバシーポリシー"
     },
     "agb": {
-      "title": "Terms of Service",
-      "status": "Last Update"
+      "title": "利用規約",
+      "status": "最終更新"
     }
   },
   "audit": {
@@ -588,75 +588,75 @@
     "filters": {
       "category": "カテゴリ",
       "allCategories": "すべてのカテゴリ",
-      "actionType": "操作タイプ",
-      "allActions": "すべての操作",
-      "initiatedBy": "実行者",
+      "actionType": "アクションタイプ",
+      "allActions": "すべてのアクション",
+      "initiatedBy": "実行者（アクター）",
       "allUsers": "すべてのユーザー",
       "systemInternal": "システム内部",
       "timeRange": "期間",
       "from": "開始",
       "to": "終了",
-      "clearFilters": "フィルターをクリア",
-      "exportCsv": "CSV出力"
+      "clearFilters": "すべてのフィルターをクリア",
+      "exportCsv": "CSVをエクスポート"
     },
-    "search": "操作、メールで検索...",
+    "search": "アクション、Eメール、またはメタデータコンテンツで検索...",
     "sort": {
-      "newest": "新しい順",
-      "oldest": "古い順"
+      "newest": "最新",
+      "oldest": "最古"
     },
     "table": {
       "timestamp": "タイムスタンプ",
-      "actor": "実行者",
+      "actor": "アクター",
       "operation": "操作",
-      "target": "対象",
+      "target": "ターゲット",
       "details": "詳細",
-      "fetching": "取得中...",
+      "fetching": "監査記録を取得中...",
       "viewDiff": "差分を表示"
     },
     "modal": {
       "title": "監査イベント詳細",
-      "actorIdentity": "実行者の身元",
-      "targetResource": "対象リソース",
+      "actorIdentity": "アクターID",
+      "targetResource": "ターゲットリソース",
       "changeSummary": "変更概要"
     }
   },
   "knowledge": {
     "title": "ナレッジベース",
     "documents": "ドキュメント",
-    "noDocuments": "ドキュメントがありません。",
-    "newDocument": "新規作成",
-    "newDocumentPlaceholder": "new-document.md",
-    "viewTenant": "テナント表示:",
-    "indexChunks": "インデックス数",
-    "lastIngest": "最終更新",
-    "reindex": "再インデックス",
-    "reindexing": "更新中...",
-    "selectFile": "ファイルを選択してください。",
+    "noDocuments": "ナレッジドキュメントはありません。",
+    "newDocument": "新規ドキュメント",
+    "newDocumentPlaceholder": "新規ドキュメント.md",
+    "viewTenant": "テナントを表示:",
+    "indexChunks": "チャンクをインデックス化",
+    "lastIngest": "最終取り込み",
+    "reindex": "再インデックス化",
+    "reindexing": "再インデックス化中...",
+    "selectFile": "ファイルを選択するか、左側で新規作成してください。",
     "save": "保存",
     "saving": "保存中...",
-    "saved": "保存完了",
-    "reasonPlaceholder": "理由(8文字以上)",
-    "reasonError": "Please provide a reason for the change (min. 8 chars).",
-    "conflict": "競合発生",
-    "conflictError": "The file has been modified in the meantime. Please reload or overwrite.",
-    "ingestError": "Ingest Error: {{error}}",
-    "autosaving": "Autosaving...",
-    "autosaved": "Autosave saved",
+    "saved": "保存済み & 同期済み",
+    "reasonPlaceholder": "変更理由（8文字以上）",
+    "reasonError": "変更理由を入力してください（8文字以上）。",
+    "conflict": "競合を検出しました",
+    "conflictError": "ファイルがその間に変更されました。再読み込みまたは上書きしてください。",
+    "ingestError": "取り込みエラー: {{error}}",
+    "autosaving": "自動保存中...",
+    "autosaved": "自動保存済み",
     "loading": "読み込み中...",
-    "loaded": "完了",
-    "draftCreated": "New file created as draft. Please save."
+    "loaded": "読み込み完了",
+    "draftCreated": "新規ファイルを下書きとして作成しました。保存してください。"
   },
   "register": {
-    "title": "新規登録",
-    "subtitle": "テナントと管理者の作成",
-    "tenantName": "テナント名",
-    "tenantSlug": "Tenant Slug (optional)",
+    "title": "登録",
+    "subtitle": "新しいテナントと管理者ユーザーを作成します。",
+    "tenantName": "テナント名（例: テストスタジオ）",
+    "tenantSlug": "テナントスラッグ（オプション）",
     "email": "メールアドレス",
-    "name": "Name (optional)",
-    "password": "パスワード",
-    "button": "登録する",
-    "waiting": "待機中...",
-    "backToLogin": "ログインへ戻る"
+    "name": "名前（オプション）",
+    "password": "パスワード（8文字以上）",
+    "button": "テナントを登録",
+    "waiting": "お待ちください...",
+    "backToLogin": "ログインに戻る"
   },
   "login": {
     "placeholders": {
@@ -665,61 +665,64 @@
     }
   },
   "plans": {
-    "deleteDeadTitle": "Stripe連携のないプランを削除しますか？",
+    "deleteDeadTitle": "Stripe接続のないすべてのプラン（ゴースト）を削除しますか？",
     "newPlan": "新規サブスクリプションプラン",
-    "planName": "名前 (例: プロフェッショナル)",
-    "priceEur": "価格 (EUR)",
+    "planName": "名前（例: プロフェッショナル）",
+    "planSlug": "スラッグ（例: professional）",
+    "priceEur": "価格（ユーロ）",
     "newAddon": "新規Stripeアドオン",
+    "addonName": "アドオン名（例: 音声パイプライン）",
+    "monthlyPrice": "月額料金（ユーロ）",
     "editPlan": "プランを編集"
   },
   "impressum": {
-    "disputeText": "欧州委員会はオンライン紛争解決（OS）のためのプラットフォームを提供しています: https://ec.europa.eu/consumers/odr/。当社のメールアドレスはインプリントの上部に記載されています。当社は、消費者仲裁委員会における紛争解決手続きに参加する意思はなく、またその義務もありません。",
-    "liabilityContentText": "サービスプロバイダーとして、当社はTMG第7条第1項に従い、一般法に基づいてこれらのページ自体のコンテンツに対して責任を負います。TMG第8条から第10条に従い、当社はサービスプロバイダーとして、送信または保存された第三者の情報を監視したり、違法な活動を示す状況を調査したりする義務はありません。",
-    "liabilityLinksText": "当社のサービスには、コンテンツに影響を与えない第三者の外部ウェブサイトへのリンクが含まれています。したがって、これらの外部コンテンツについてはいかなる責任も負いかねます。リンク先のページのコンテンツについては、常に各ページの提供者または運営者が責任を負います。"
+    "disputeText": "欧州委員会は、オンライン紛争解決（OS）のためのプラットフォームを提供しています: https://ec.europa.eu/consumers/odr/。当社のメールアドレスは、インプリントの上部に記載されています。当社は、消費者仲裁委員会における紛争解決手続きに参加する意思も義務もありません。",
+    "liabilityContentText": "サービスプロバイダーとして、当社は、§ 7 Para.1 TMGに従い、これらのページ上の自社コンテンツについて一般法に従って責任を負います。§§ 8から10 TMGに従い、当社はサービスプロバイダーとして、送信または保存された第三者情報を監視したり、違法行為を示す状況を調査したりする義務はありません。",
+    "liabilityLinksText": "当社の提供するサービスには、第三者の外部ウェブサイトへのリンクが含まれており、そのコンテンツについて当社は影響力を持ちません。したがって、これらの外部コンテンツについていかなる責任も負いません。リンク先のページのコンテンツについては、常にそれぞれのプロバイダーまたは運営者が責任を負います。"
   },
   "escalations": {
     "title": "エスカレーションキュー",
-    "subtitle": "有人対応が必要なチケット",
-    "noEscalations": "未対応のエスカレーションはありません。",
-    "memberIdError": "有効なメンバーIDを入力してください。",
+    "subtitle": "人間の介入が必要なチケット",
+    "noEscalations": "未解決のエスカレーションはありません。",
+    "memberIdError": "有効な会員IDを入力してください。",
     "tokenError": "トークン生成エラー。",
     "handoffError": "ハンドオフ解決エラー。",
     "allClear": "すべてクリア",
-    "linkMember": "メンバーを紐付け",
-    "memberId": "メンバーID",
+    "linkMember": "会員をリンク",
+    "memberId": "会員ID",
     "resolveHandoff": "ハンドオフを解決しますか？"
   },
   "magicline": {
-    "syncNotStarted": "同期未開始",
-    "allEnriched": "すべてのメンバーが更新済み",
-    "syncFailed": "同期失敗",
-    "syncDescription": "全メンバーの来店・予約データを読み込む",
-    "enrichAll": "すべて更新",
-    "adoption": "ARIIA利用率",
-    "adoptionSubtitle": "ARIIAを利用したことのあるMagiclineメンバー",
+    "syncNotStarted": "同期はまだ開始されていません",
+    "allEnriched": "すべての会員はすでにエンリッチされています",
+    "syncFailed": "同期に失敗しました",
+    "syncDescription": "すべての会員の訪問および予約データを読み込みます",
+    "enrichAll": "すべてをエンリッチ",
+    "adoption": "ARIIA導入状況",
+    "adoptionSubtitle": "ARIIAを利用したMagicline会員",
     "usersActive": "アクティブユーザー",
-    "platformVerification": "プラットフォームと認証",
-    "platformSubtitle": "チャネル・ステータス別のチャットセッション",
-    "noSessions": "チャットセッションはまだありません。",
+    "platformVerification": "プラットフォームと検証",
+    "platformSubtitle": "チャネルとステータス別のアクティブなチャットセッション",
+    "noSessions": "まだチャットセッションはありません。",
     "languageDistribution": "言語分布",
-    "languageSubtitle": "メンバーの優先言語",
-    "noLanguageData": "言語データなし",
+    "languageSubtitle": "会員の希望言語",
+    "noLanguageData": "言語データはありません。",
     "memberStatus": "会員ステータス",
-    "memberStatusSubtitle": "アクティブ vs 一時停止",
-    "noData": "データなし",
-    "dataCoverage": "データカバー率",
-    "dataCoverageSubtitle": "来店・予約データのあるメンバー"
+    "memberStatusSubtitle": "アクティブな会員と一時停止中の会員",
+    "noData": "データがありません。",
+    "dataCoverage": "データカバレッジ",
+    "dataCoverageSubtitle": "訪問および予約データを持つ会員"
   },
   "analytics": {
     "weeklyOverview": "週間概要",
-    "weeklySubtitle": "過去7日間のチケットと解決率",
-    "satisfaction": "メンバー満足度",
-    "satisfactionSubtitle": "AI対話後のフィードバック",
-    "noFeedback": "フィードバックはまだありません",
+    "weeklySubtitle": "チケットと解決率（過去7日間）",
+    "satisfaction": "会員満足度",
+    "satisfactionSubtitle": "AIインタラクション後のフィードバック",
+    "noFeedback": "まだフィードバックはありません。",
     "avgRating": "平均評価",
-    "basedOn": "{{count}} 件の評価に基づく",
+    "basedOn": "{{count}}件の評価に基づく",
     "channelPerformance": "チャネルパフォーマンス",
-    "channelSubtitle": "サポートチャネルの比較 (30日間)"
+    "channelSubtitle": "サポートチャネルの比較（30日間）"
   },
   "conversations": {
     "search": "会話を検索...",
@@ -728,30 +731,30 @@
     "notHelpful": "役に立たなかった"
   },
   "dashboard": {
-    "governanceMode": "ガバナンスモード",
-    "uptime": "稼働時間",
+    "governanceMode": "プラットフォームガバナンスモード",
+    "uptime": "プラットフォーム稼働時間",
     "distribution": "テナント分布",
-    "distributionSubtitle": "Active vs. Inactive",
-    "infrastructure": "インフラ状態",
-    "coreServices": "コアサービス",
+    "distributionSubtitle": "アクティブ vs. 非アクティブ",
+    "infrastructure": "インフラストラクチャーステータス",
+    "coreServices": "SaaSコアサービス",
     "redis": "Redisキャッシュ",
     "vector": "ベクトルエンジン",
-    "qdrant": "Qdrant稼働中",
+    "qdrant": "Qdrantオンライン",
     "auth": "認証サービス",
-    "events": "最近のイベント",
-    "auditTrail": "監査証跡",
-    "noEvents": "イベントなし",
-    "initializing": "初期化中...",
-    "loadError": "読み込みエラー",
-    "analyticsHint": "詳細はアナリティクスを確認してください。"
+    "events": "最近のプラットフォームイベント",
+    "auditTrail": "監査証跡（システム全体）",
+    "noEvents": "イベントは見つかりませんでした。",
+    "initializing": "ダッシュボードを初期化中...",
+    "loadError": "データの読み込み中にエラーが発生しました。",
+    "analyticsHint": "詳細な評価については、「アナリティクス」メニュー項目をご利用ください。"
   },
   "tiptap": {
-    "toolbar": "テキストエディタツールバー",
+    "toolbar": "テキストエディターツールバー",
     "bold": "太字",
     "italic": "斜体",
     "heading1": "見出し1",
     "heading2": "見出し2",
-    "bulletList": "箇条書き",
+    "bulletList": "箇条書きリスト",
     "orderedList": "番号付きリスト",
     "quote": "引用",
     "undo": "元に戻す",
@@ -759,21 +762,21 @@
   },
   "automation": {
     "title": "自動化",
-    "subtitle": "メンバーメモリー分析のスケジュールとLLM抽出",
+    "subtitle": "日次会員メモリ分析のためのスケジュールとLLM抽出。",
     "lastRun": "最終実行",
-    "schedulerActive": "スケジューラ有効",
-    "schedulerDesc": "cron式に従って毎日実行します。",
+    "schedulerActive": "スケジューラーアクティブ",
+    "schedulerDesc": "cron式に従って日次実行を有効にします。",
     "cronExpression": "Cron式 (UTC)",
     "every12h": "12時間ごと",
-    "extractionDesc": "チャット履歴からのプロフィール作成を有効にします。",
-    "extractionActive": "LLM抽出有効",
-    "noRun": "未実行"
+    "extractionDesc": "チャット履歴からのプロファイル作成を有効にします。",
+    "extractionActive": "LLM抽出アクティブ",
+    "noRun": "まだ実行されていません。"
   },
   "users": {
     "roles": {
       "systemAdmin": "システム管理者",
       "tenantAdmin": "テナント管理者",
-      "tenantUser": "一般ユーザー"
+      "tenantUser": "テナントユーザー"
     },
     "reasonError": "8文字以上の分かりやすい理由を入力してください。",
     "tenantAdmins": "テナント管理者",
@@ -783,21 +786,21 @@
     "password": "パスワード",
     "name": "名前",
     "saving": "保存中...",
-    "searchPlaceholder": "メール、名前、テナントで検索",
+    "searchPlaceholder": "メールアドレス、名前、またはテナントで検索",
     "allRoles": "すべてのロール",
     "allTenants": "すべてのテナント",
     "loading": "ユーザーを読み込み中...",
-    "noUsers": "該当するユーザーはいません。",
-    "selectAll": "すべて選択",
+    "noUsers": "現在のフィルターに該当するユーザーはいません。",
+    "selectAll": "すべて選択済み",
     "running": "実行中...",
     "noAudit": "監査イベントは見つかりませんでした。",
     "ghostMode": "ゴーストモードを開始",
-    "ghostReason": "例: サポート案件 #4812: 用户が設定を保存できない",
+    "ghostReason": "例：サポートケース #4812: ユーザーが設定を保存できません",
     "editUser": "ユーザーを編集",
-    "passwordReset": "パスワードリセット (任意)",
-    "newPassword": "新しいパスワード (任意)"
+    "passwordReset": "パスワードリセット（オプション）",
+    "newPassword": "新しいパスワード（オプション）"
   },
   "ui": {
-    "noData": "データなし"
+    "noData": "データがありません"
   }
 }

@@ -1,608 +1,608 @@
 {
   "common": {
-    "welcome": "Welcome to ARIIA",
-    "dashboard": "Dashboard",
-    "settings": "Settings",
-    "login": "Login",
-    "register": "Register",
-    "logout": "Logout",
-    "save": "Save",
-    "cancel": "Cancel",
-    "loading": "Loading...",
-    "edit": "Edit",
-    "delete": "Delete",
-    "confirmed": "Success",
-    "error": "Error",
-    "active": "Active",
-    "paused": "Paused",
-    "days": "Days",
-    "features": "Features",
-    "featuresTitle": "All Features",
-    "pricing": "Pricing",
-    "dsgvo": "GDPR Compliant",
-    "madeInGermany": "Made in Germany",
-    "enterpriseReady": "Enterprise Ready",
-    "allSystemsOnline": "All systems online",
-    "membersSynced": "Members synced",
-    "details": "Details",
-    "noEntries": "No entries found",
-    "search": "Search",
-    "status": "Status",
-    "noData": "No data available",
-    "never": "Never"
+    "welcome": "欢迎使用 ARIIA",
+    "dashboard": "仪表板",
+    "settings": "设置",
+    "login": "登录",
+    "register": "注册",
+    "logout": "注销",
+    "save": "保存",
+    "cancel": "取消",
+    "loading": "加载中...",
+    "edit": "编辑",
+    "delete": "删除",
+    "confirmed": "成功",
+    "error": "错误",
+    "active": "活跃",
+    "paused": "已暂停",
+    "days": "天",
+    "features": "功能",
+    "featuresTitle": "所有功能",
+    "pricing": "定价",
+    "dsgvo": "符合 GDPR",
+    "madeInGermany": "德国制造",
+    "enterpriseReady": "企业级就绪",
+    "allSystemsOnline": "所有系统在线",
+    "membersSynced": "会员已同步",
+    "details": "详情",
+    "noEntries": "未找到任何条目",
+    "search": "搜索",
+    "status": "状态",
+    "noData": "无可用数据",
+    "never": "从不"
   },
   "sidebar": {
-    "dashboard": "Dashboard",
-    "monitor": "Live Monitor",
-    "escalations": "Escalations",
-    "analytics": "Analytics",
-    "members": "Members",
-    "users": "Users",
-    "knowledge": "Knowledge Base",
-    "memberMemory": "Member Memory",
-    "systemPrompt": "Studio Prompt",
-    "sync": "Sync",
-    "billing": "Subscription",
-    "settings": "Settings",
-    "tenants": "Tenant Manager",
-    "plans": "Billing Plans",
-    "audit": "Audit Log",
-    "health": "Engine Stats",
-    "quickActions": "Quick Actions",
-    "platformControl": "Platform Control",
-    "studioDeck": "Studio Deck",
-    "logout": "Logout",
+    "dashboard": "仪表板",
+    "monitor": "实时监控",
+    "escalations": "升级处理",
+    "analytics": "分析",
+    "members": "会员",
+    "users": "用户",
+    "knowledge": "知识库",
+    "memberMemory": "会员记忆",
+    "systemPrompt": "工作室提示",
+    "sync": "同步",
+    "billing": "订阅",
+    "settings": "设置",
+    "tenants": "租户管理器",
+    "plans": "计费方案",
+    "audit": "审计日志",
+    "health": "引擎状态",
+    "quickActions": "快速操作",
+    "platformControl": "平台控制",
+    "studioDeck": "工作室面板",
+    "logout": "注销",
     "roles": {
-      "systemAdmin": "System Administrator",
-      "tenantAdmin": "Studio Administrator"
+      "systemAdmin": "系统管理员",
+      "tenantAdmin": "工作室管理员"
     },
     "sections": {
-      "operations": "Operations",
-      "customers": "Customers",
-      "knowledge": "Knowledge",
-      "studio": "Studio",
-      "governance": "Governance",
-      "system": "System"
+      "operations": "运营",
+      "customers": "客户",
+      "knowledge": "知识",
+      "studio": "工作室",
+      "governance": "治理",
+      "system": "系统"
     }
   },
   "settings": {
     "overview": {
-      "title": "Overview",
-      "subtitle": "Profile and system parameters."
+      "title": "概览",
+      "subtitle": "个人资料和系统参数。"
     },
     "account": {
-      "personalData": "Personal Data",
-      "fullName": "Full Name",
-      "fullNameHint": "Your legal first and last name",
-      "email": "Email Address",
-      "emailHint": "Primary contact for security alerts",
-      "locale": "Interface Language",
-      "localeHint": "Set your preferred dashboard language",
-      "timezone": "Timezone",
-      "timezoneHint": "Used for scheduling and logs",
-      "compactMode": "Compact Mode",
-      "compactModeDesc": "Denser UI for power users",
-      "notifications": "Notifications",
-      "emailNotify": "Email Notifications",
-      "emailNotifyDesc": "Receive reports via email",
-      "tgNotify": "Telegram Alerts",
-      "tgNotifyDesc": "Real-time alerts via Telegram",
+      "personalData": "个人数据",
+      "fullName": "全名",
+      "fullNameHint": "您的法定姓名",
+      "email": "电子邮件地址",
+      "emailHint": "安全警报的主要联系方式",
+      "locale": "界面语言",
+      "localeHint": "设置您偏好的仪表板语言",
+      "timezone": "时区",
+      "timezoneHint": "用于日程安排和日志",
+      "compactMode": "紧凑模式",
+      "compactModeDesc": "为高级用户提供更紧凑的用户界面",
+      "notifications": "通知",
+      "emailNotify": "电子邮件通知",
+      "emailNotifyDesc": "通过电子邮件接收报告",
+      "tgNotify": "Telegram 提醒",
+      "tgNotifyDesc": "通过 Telegram 接收实时提醒",
       "password": {
-        "title": "Change Password",
-        "current": "Current Password",
-        "currentHint": "Verify your identity",
-        "new": "New Password",
-        "newHint": "At least 8 characters long"
+        "title": "更改密码",
+        "current": "当前密码",
+        "currentHint": "验证您的身份",
+        "new": "新密码",
+        "newHint": "至少8个字符"
       },
       "studio": {
-        "title": "Studio Profile",
-        "subtitle": "Public studio identity and contact",
-        "name": "Studio Name",
-        "nameHint": "Displayed in AI interactions",
-        "opsEmail": "Operations Email",
-        "opsEmailHint": "Contact for studio operations",
-        "opsTelegram": "Operations Telegram",
-        "opsTelegramHint": "Telegram handle for studio staff",
-        "refresh": "Data Refresh",
-        "refreshHint": "Manual sync with external systems",
-        "sla": "SLA Tier",
-        "slaHint": "Service level agreement level",
-        "localeHint": "Primary language of your studio members",
-        "timezoneHint": "Studio local time"
+        "title": "工作室资料",
+        "subtitle": "公开工作室身份和联系方式",
+        "name": "工作室名称",
+        "nameHint": "在AI互动中显示",
+        "opsEmail": "运营邮箱",
+        "opsEmailHint": "工作室运营联系邮箱",
+        "opsTelegram": "运营 Telegram",
+        "opsTelegramHint": "工作室员工的 Telegram 用户名",
+        "refresh": "数据刷新",
+        "refreshHint": "与外部系统手动同步",
+        "sla": "SLA 等级",
+        "slaHint": "服务水平协议等级",
+        "localeHint": "您工作室会员的主要语言",
+        "timezoneHint": "工作室当地时间"
       },
-      "title": "Account Settings",
-      "subtitle": "Manage your personal profile and security",
+      "title": "账户设置",
+      "subtitle": "管理您的个人资料和安全",
       "placeholders": {
-        "fullName": "John Doe",
-        "locale": "en-US",
+        "fullName": "张三",
+        "locale": "zh-CN",
         "timezone": "UTC",
         "password": "••••••••",
-        "studioName": "Your Studio Name",
+        "studioName": "您的工作室名称",
         "opsEmail": "ops@example.com",
         "opsTelegram": "-100...",
         "sla": "15",
         "refresh": "5"
       }
     },
-    "aiEngine": "AI Engine",
+    "aiEngine": "AI 引擎",
     "general": {
       "privacy": {
-        "title": "Privacy & Compliance",
-        "subtitle": "Manage data retention and PII filtering",
-        "pii": "PII Masking",
-        "piiDesc": "Automatically mask personal data in logs",
-        "retention": "Data Retention",
-        "retentionDesc": "How long to keep interaction history"
+        "title": "隐私与合规",
+        "subtitle": "管理数据保留和 PII 过滤",
+        "pii": "PII 遮蔽",
+        "piiDesc": "自动遮蔽日志中的个人数据",
+        "retention": "数据保留",
+        "retentionDesc": "保留互动历史的时长"
       },
       "smtp": {
-        "title": "Email (SMTP)",
-        "subtitle": "Configure outgoing mail server",
-        "host": "SMTP Host",
-        "port": "Port",
-        "user": "Username",
-        "pass": "Password",
-        "senderAddr": "Sender Email",
-        "senderName": "Sender Name",
-        "test": "Send Test Email",
-        "testRecipient": "Recipient for Test"
+        "title": "电子邮件 (SMTP)",
+        "subtitle": "配置发件邮件服务器",
+        "host": "SMTP 主机",
+        "port": "端口",
+        "user": "用户名",
+        "pass": "密码",
+        "senderAddr": "发件人邮箱",
+        "senderName": "发件人姓名",
+        "test": "发送测试邮件",
+        "testRecipient": "测试收件人"
       },
       "system": {
-        "title": "System Governance",
-        "subtitle": "Core engine and security parameters",
-        "audit": "Extended Audit Logs",
-        "auditDesc": "Keep detailed logs of every system change",
-        "maintenance": "Maintenance Mode",
-        "maintenanceDesc": "Restrict access during updates"
+        "title": "系统治理",
+        "subtitle": "核心引擎和安全参数",
+        "audit": "扩展审计日志",
+        "auditDesc": "保留每次系统更改的详细日志",
+        "maintenance": "维护模式",
+        "maintenanceDesc": "更新期间限制访问"
       },
-      "title": "General Settings",
-      "subtitle": "Core system parameters and governance"
+      "title": "通用设置",
+      "subtitle": "核心系统参数和治理"
     },
     "ai": {
-      "title": "AI Configuration",
-      "subtitle": "Manage LLM providers and model parameters",
-      "addProvider": "Add Provider",
-      "editProvider": "Edit Provider",
-      "newProvider": "New AI Provider",
-      "selectProvider": "Select Provider",
-      "provider": "Provider",
-      "apiKey": "API Key",
-      "models": "Available Models",
-      "fetchModels": "Fetch Models",
-      "testConnection": "Test Connection",
-      "latencyTest": "Latency Test",
-      "confirmDelete": "Are you sure you want to remove this provider?",
-      "retry": "Retry",
-      "noModelsFound": "No models found",
+      "title": "AI 配置",
+      "subtitle": "管理大型语言模型提供商和模型参数",
+      "addProvider": "添加提供商",
+      "editProvider": "编辑提供商",
+      "newProvider": "新建 AI 提供商",
+      "selectProvider": "选择提供商",
+      "provider": "提供商",
+      "apiKey": "API 密钥",
+      "models": "可用模型",
+      "fetchModels": "获取模型",
+      "testConnection": "测试连接",
+      "latencyTest": "延迟测试",
+      "confirmDelete": "您确定要移除此提供商吗？",
+      "retry": "重试",
+      "noModelsFound": "未找到模型",
       "status": {
-        "configured": "Configured",
-        "error": "Error",
-        "fetching": "Fetching..."
+        "configured": "已配置",
+        "error": "错误",
+        "fetching": "正在获取..."
       },
       "hints": {
-        "storedKey": "Key is securely stored",
-        "refreshNeeded": "Fetch models to see available options",
-        "initialFetch": "Fetching models for the first time...",
-        "clickRefresh": "Click to refresh model list"
+        "storedKey": "密钥已安全存储",
+        "refreshNeeded": "获取模型以查看可用选项",
+        "initialFetch": "首次获取模型...",
+        "clickRefresh": "点击刷新模型列表"
       },
       "errors": {
-        "loadFailed": "Failed to load AI providers",
-        "saveFailed": "Failed to save provider",
-        "deleteFailed": "Failed to delete provider",
-        "fetchModelsFailed": "Failed to fetch models from provider",
-        "connectionError": "Could not connect to AI engine"
+        "loadFailed": "加载AI提供商失败",
+        "saveFailed": "保存提供商失败",
+        "deleteFailed": "删除提供商失败",
+        "fetchModelsFailed": "从提供商获取模型失败",
+        "connectionError": "无法连接到AI引擎"
       }
     },
-    "language": "Language",
-    "selectLanguage": "Select Language",
+    "language": "语言",
+    "selectLanguage": "选择语言",
     "billing": {
-      "title": "Billing & Subscription",
-      "subtitle": "Manage your plan and add-ons."
+      "title": "账单与订阅",
+      "subtitle": "管理您的计划和附加功能。"
     },
     "integrations": {
-      "title": "Integrations",
-      "subtitle": "Connect Magicline, WhatsApp, and more."
+      "title": "集成",
+      "subtitle": "连接 Magicline、WhatsApp 等。"
     },
     "prompts": {
-      "title": "Custom Prompts",
-      "subtitle": "Configure agent personas and behavior."
+      "title": "自定义提示",
+      "subtitle": "配置代理角色和行为。"
     },
-    "automation": "Automation",
-    "branding": "Branding"
+    "automation": "自动化",
+    "branding": "品牌"
   },
   "navbar": {
-    "login": "Login",
-    "register": "Register"
+    "login": "登录",
+    "register": "注册"
   },
   "hero": {
-    "versionBadge": "Version 2.0 Live",
-    "title": "The intelligent",
+    "versionBadge": "版本 2.0 上线",
+    "title": "智能",
     "words": [
-      "AI Assistant",
-      "Studio Manager",
-      "Operations Bot",
-      "Sales Agent"
+      "AI 助理",
+      "工作室经理",
+      "运营机器人",
+      "销售代理"
     ],
-    "subtitle": "for your fitness studio",
-    "description": "ARIIA automates customer communication via WhatsApp, Telegram, and Voice. Increase your efficiency with Arnold Prime Orchestration.",
-    "cta": "Get Started"
+    "subtitle": "赋能您的健身工作室",
+    "description": "ARIIA 通过 WhatsApp、Telegram 和语音自动化客户沟通。通过 Arnold Prime Orchestration 提高您的效率。",
+    "cta": "开始使用"
   },
   "stats": {
-    "aiResolution": "AI Resolution Rate",
-    "responseTime": "Response Time",
-    "agentsInSwarm": "AI Swarm Agents",
-    "availability": "Availability"
+    "aiResolution": "AI 解决率",
+    "responseTime": "响应时间",
+    "agentsInSwarm": "AI 群体智能代理",
+    "availability": "可用性"
   },
   "features": {
-    "badge": "Features",
-    "title": "Everything your studio",
-    "titleAccent": "needs to succeed",
-    "description": "A complete ecosystem of AI agents seamlessly integrated into your existing systems.",
+    "badge": "功能",
+    "title": "您的工作室",
+    "titleAccent": "成功所需的一切",
+    "description": "一个完整的 AI 代理生态系统，无缝集成到您现有系统中。",
     "swarm": {
-      "title": "Swarm Intelligence",
-      "desc": "Specialized agents (Sales, Medic, Ops) work together to resolve every request."
+      "title": "群体智能",
+      "desc": "专业代理（销售、医疗、运营）协同工作，解决每一个请求。"
     },
     "omnichannel": {
-      "title": "Omnichannel",
-      "desc": "WhatsApp, Telegram, SMS, and Voice. Reach your members where they are."
+      "title": "全渠道",
+      "desc": "WhatsApp、Telegram、短信和语音。在会员所在之处触达他们。"
     },
     "churn": {
-      "title": "Churn Prevention",
-      "desc": "AI-driven analysis identifies cancellation risks before they arise."
+      "title": "客户流失预防",
+      "desc": "AI 驱动的分析在取消风险出现之前识别它们。"
     },
     "memory": {
-      "title": "Context Memory",
-      "desc": "ARIIA remembers every interaction and builds real relationships with members."
+      "title": "上下文记忆",
+      "desc": "ARIIA 记住每一次互动，并与会员建立真正的关系。"
     },
     "security": {
-      "title": "GDPR & Security",
-      "desc": "Encrypted data storage in Germany and full compliance guarantee."
+      "title": "GDPR 与安全",
+      "desc": "德国加密数据存储，并提供全面合规保证。"
     },
     "connectors": {
-      "title": "Deep Integration",
-      "desc": "Direct connection to Magicline, Shopify, and more for real-time handling."
+      "title": "深度集成",
+      "desc": "直接连接 Magicline、Shopify 等，实现实时处理。"
     },
     "page": {
-      "title": "Next-Gen",
-      "titleAccent": "Studio Intelligence",
-      "description": "ARIIA is more than a chatbot. It is a swarm of specialized AI agents that understand your studio and your members.",
-      "techTitle": "Deep",
-      "techSubtitle": "Technology",
-      "techSubtitleAccent": "Stack",
-      "deckTitle": "Studio",
-      "deckSubtitle": "Control",
-      "deckSubtitleAccent": "Deck",
-      "deckDesc": "A central dashboard to monitor every AI interaction and manage your studio settings in real-time.",
-      "securityTitle": "Enterprise",
-      "securitySubtitle": "Security &",
-      "securitySubtitleAccent": "Compliance",
-      "securityDesc": "Your data is hosted in Germany, fully encrypted, and 100% GDPR compliant."
+      "title": "下一代",
+      "titleAccent": "工作室智能",
+      "description": "ARIIA 不仅仅是一个聊天机器人。它是一个由专业 AI 代理组成的群体，了解您的工作室和您的会员。",
+      "techTitle": "深层",
+      "techSubtitle": "技术",
+      "techSubtitleAccent": "堆栈",
+      "deckTitle": "工作室",
+      "deckSubtitle": "控制",
+      "deckSubtitleAccent": "面板",
+      "deckDesc": "一个中央仪表板，用于监控每一次 AI 互动并实时管理您的工作室设置。",
+      "securityTitle": "企业级",
+      "securitySubtitle": "安全与",
+      "securitySubtitleAccent": "合规性",
+      "securityDesc": "您的数据托管在德国，完全加密，并 100% 符合 GDPR 规定。"
     },
     "platform": {
       "live": {
-        "title": "Live Monitor",
-        "desc": "Watch AI interactions in real-time and intervene if necessary."
+        "title": "实时监控",
+        "desc": "实时查看AI互动，并在必要时进行干预。"
       },
       "members": {
-        "title": "Member Management",
-        "desc": "Deep integration with Magicline to handle bookings and contracts."
+        "title": "会员管理",
+        "desc": "与Magicline深度集成，处理预订和合同。"
       },
       "knowledge": {
-        "title": "Knowledge Base",
-        "desc": "Upload your studio documents to train the AI on your specific rules."
+        "title": "知识库",
+        "desc": "上传您的工作室文档，以根据您的特定规则训练AI。"
       },
       "prompts": {
-        "title": "Persona Control",
-        "desc": "Customize the tone and personality of your studio assistant."
+        "title": "角色控制",
+        "desc": "自定义您的工作室助手的语气和个性。"
       },
       "multi": {
-        "title": "Multi-Tenant",
-        "desc": "Manage multiple studio locations from a single central account."
+        "title": "多租户",
+        "desc": "通过一个中央账户管理多个工作室地点。"
       },
       "churn": {
-        "title": "Churn Prevention",
-        "desc": "AI identifies members at risk of canceling based on behavior."
+        "title": "客户流失预防",
+        "desc": "AI根据行为识别有取消风险的会员。"
       }
     },
     "details": {
-      "intent": "Intent Classification",
-      "routing": "Dynamic Routing",
-      "fallback": "Human-in-the-Loop",
-      "confidence": "Confidence Scoring",
+      "intent": "意图分类",
+      "routing": "动态路由",
+      "fallback": "人工干预",
+      "confidence": "置信度评分",
       "wa": "WhatsApp Cloud",
       "tg": "Telegram Bot",
-      "voice": "Voice STT/TTS",
-      "chat": "Web Widget",
-      "ml": "Magicline Sync",
-      "proactive": "Proactive Outreach",
-      "scoring": "Behavioral Scoring",
-      "behavior": "Engagement Analysis",
-      "session": "Long-Term Sessions",
-      "semantic": "Semantic Search",
-      "episodic": "Episodic Memory",
-      "auto": "Automatic Indexing",
-      "dsgvo": "GDPR Compliance",
-      "rls": "Row Level Security",
-      "pii": "PII Masking",
-      "audit": "Audit Logs",
-      "api": "REST API Access",
-      "shopify": "Shopify Integration",
+      "voice": "语音 STT/TTS",
+      "chat": "网页小部件",
+      "ml": "Magicline 同步",
+      "proactive": "主动外联",
+      "scoring": "行为评分",
+      "behavior": "参与度分析",
+      "session": "长期会话",
+      "semantic": "语义搜索",
+      "episodic": "情景记忆",
+      "auto": "自动索引",
+      "dsgvo": "GDPR 合规性",
+      "rls": "行级安全",
+      "pii": "PII 遮蔽",
+      "audit": "审计日志",
+      "api": "REST API 访问",
+      "shopify": "Shopify 集成",
       "woo": "WooCommerce",
-      "magicline": "Magicline Deep-Link"
+      "magicline": "Magicline 深度链接"
     },
     "securityLabels": {
       "dsgvo": "GDPR",
       "encryption": "AES-256",
-      "pii": "PII Filter",
-      "audit": "Audit",
+      "pii": "PII 过滤器",
+      "audit": "审计",
       "rbac": "RBAC",
       "rls": "RLS"
     }
   },
   "cta": {
-    "title": "Ready for the future of",
-    "titleAccent": "studio automation",
-    "subtitle": "Join over 50 fitness studios already growing with ARIIA.",
-    "button": "Create Free Account",
-    "compare": "Compare Pricing"
+    "title": "为工作室自动化的未来做好准备",
+    "titleAccent": "工作室自动化",
+    "subtitle": "加入超过50家已通过ARIIA实现增长的健身工作室。",
+    "button": "创建免费账户",
+    "compare": "比较定价"
   },
   "footer": {
-    "brandDesc": "The evolution of studio operations. Agentic Multi-Tenant SaaS Platform.",
-    "product": "Product",
-    "company": "Company",
-    "contact": "Contact",
+    "brandDesc": "工作室运营的演进。智能多租户SaaS平台。",
+    "product": "产品",
+    "company": "公司",
+    "contact": "联系方式",
     "links": {
-      "features": "Features",
-      "pricing": "Pricing",
-      "test": "Start Free Trial",
-      "impressum": "Imprint",
-      "datenschutz": "Privacy Policy",
-      "agb": "Terms of Service",
-      "enterprise": "Enterprise Contact"
+      "features": "功能",
+      "pricing": "定价",
+      "test": "开始免费试用",
+      "impressum": "版本说明",
+      "datenschutz": "隐私政策",
+      "agb": "服务条款",
+      "enterprise": "企业联系"
     },
-    "rights": "All rights reserved."
+    "rights": "保留所有权利。"
   },
   "tenants": {
     "stats": {
-      "total": "Total Tenants",
-      "users": "Active Users",
-      "avg": "Avg. Users/Tenant"
+      "total": "租户总数",
+      "users": "活跃用户",
+      "avg": "平均用户/租户"
     },
     "create": {
-      "title": "Create New Tenant",
-      "name": "Tenant Name",
-      "slug": "Slug (optional)"
+      "title": "创建新租户",
+      "name": "租户名称",
+      "slug": "别名（可选）"
     },
     "table": {
-      "name": "Name",
-      "users": "Users",
-      "admins": "Admins",
-      "active": "Active"
+      "name": "名称",
+      "users": "用户",
+      "admins": "管理员",
+      "active": "活跃"
     },
     "edit": {
-      "title": "Edit Tenant"
+      "title": "编辑租户"
     },
     "errors": {
-      "nameRequired": "Tenant name is required"
+      "nameRequired": "租户名称为必填项"
     },
     "bulk": {
-      "hint": "The action will be applied tenant-wide and logged as a governance event."
+      "hint": "此操作将应用于整个租户，并作为治理事件记录。"
     },
     "audit": {
-      "title": "Last Audit Events"
+      "title": "最新审计事件"
     },
     "footer": {
-      "registration": "Tenant self-registration is still handled via /register."
+      "registration": "租户自助注册仍通过 /register 处理。"
     }
   },
   "ai": {
-    "actions": "Actions",
+    "actions": "操作",
     "errors": {
-      "connectionError": "Connection to AI Engine lost",
-      "loadFailed": "Failed to load AI parameters",
-      "saveFailed": "Failed to save AI configuration"
+      "connectionError": "与AI引擎的连接丢失",
+      "loadFailed": "加载AI参数失败",
+      "saveFailed": "保存AI配置失败"
     }
   },
   "live": {
-    "title": "Live Monitor",
-    "subtitle": "Real-time AI interaction tracking",
-    "sessions": "Active Sessions",
-    "noSessions": "No active sessions at the moment",
-    "selectSession": "Select a session to view details",
+    "title": "实时监控",
+    "subtitle": "实时AI交互跟踪",
+    "sessions": "活跃会话",
+    "noSessions": "当前没有活跃会话",
+    "selectSession": "选择一个会话以查看详情",
     "handoff": {
-      "link": "Link to Member",
-      "hint": "Manually associate this session with a member ID",
-      "placeholder": "Enter Member ID"
+      "link": "关联会员",
+      "hint": "手动将此会话与会员ID关联",
+      "placeholder": "输入会员ID"
     }
   },
   "memberMemory": {
-    "title": "Member Memory",
-    "subtitle": "Long-term semantic knowledge base",
-    "files": "Memory Files",
-    "noFiles": "No memory entries found for this member",
-    "selectFile": "Select an entry to view details",
-    "reasonPlaceholder": "Enter reason for manual override",
-    "scheduler": "Analysis Scheduler",
-    "lastRun": "Last analyzed"
+    "title": "会员记忆",
+    "subtitle": "长期语义知识库",
+    "files": "记忆文件",
+    "noFiles": "未找到该会员的记忆条目",
+    "selectFile": "选择一个条目以查看详情",
+    "reasonPlaceholder": "输入手动覆盖的原因",
+    "scheduler": "分析调度器",
+    "lastRun": "上次分析时间"
   },
   "members": {
-    "title": "Members",
-    "subtitle": "Manage your studio members and their AI state",
-    "add": "Add Member",
+    "title": "会员",
+    "subtitle": "管理您的健身房会员及其AI状态",
+    "add": "添加会员",
     "import": {
-      "clickOrDrop": "Click or drag file to this area to upload",
-      "selectFile": "Select File",
-      "hint": "Supports .csv, .xls, .xlsx"
+      "clickOrDrop": "点击或拖放文件到此区域上传",
+      "selectFile": "选择文件",
+      "hint": "支持 .csv, .xls, .xlsx 格式"
     },
-    "importTitle": "Member Import",
-    "noMembers": "No members found",
-    "noContact": "No contact information",
-    "confirmDelete": "Are you sure you want to delete this member?",
-    "search": "Search members...",
+    "importTitle": "会员导入",
+    "noMembers": "未找到会员",
+    "noContact": "无联系信息",
+    "confirmDelete": "您确定要删除此会员吗？",
+    "search": "搜索会员...",
     "stats": {
-      "total": "Total Members",
-      "active": "Active",
-      "paused": "Paused",
-      "manual": "Manual Entries",
-      "external": "Synced (Magicline)",
-      "selected": "selected"
+      "total": "会员总数",
+      "active": "活跃",
+      "paused": "暂停",
+      "manual": "手动录入",
+      "external": "已同步 (Magicline)",
+      "selected": "已选择"
     },
     "table": {
-      "member": "Member",
-      "source": "Source",
-      "status": "Status"
+      "member": "会员",
+      "source": "来源",
+      "status": "状态"
     },
     "form": {
-      "firstName": "First Name",
-      "lastName": "Last Name",
-      "email": "Email Address"
+      "firstName": "名",
+      "lastName": "姓",
+      "email": "电子邮件地址"
     },
     "status": {
-      "active": "Active",
-      "paused": "Paused"
+      "active": "活跃",
+      "paused": "暂停"
     }
   },
   "pricing": {
-    "title": "Simple Pricing",
-    "titleAccent": "for every studio size",
-    "description": "Choose the plan that fits your studio operations. All plans include 24/7 AI availability and Magicline integration.",
-    "monthly": "Monthly",
-    "yearly": "Yearly",
-    "billedYearly": "billed yearly",
-    "discount": "Save 20%",
-    "enterpriseTitle": "Enterprise",
-    "enterpriseDesc": "Custom solutions for large studio chains with 10+ locations and specific compliance needs.",
-    "enterpriseCta": "Contact Sales",
-    "addonsTitle": "Powerful",
-    "addonsSubtitle": "Addons",
-    "addonsSubtitleAccent": "to scale",
-    "addonsDesc": "Enhance your AI agents with specialized capabilities tailored to your workflow.",
-    "faqTitle": "Frequently Asked Questions",
-    "finalCta": "Ready to transform your studio?",
-    "finalCtaAccent": "Start your trial today.",
-    "finalCtaDesc": "Join 50+ fitness studios already using ARIIA.",
+    "title": "简单定价",
+    "titleAccent": "适用于各种规模的健身房",
+    "description": "选择适合您健身房运营的计划。所有计划均包含24/7 AI可用性和Magicline集成。",
+    "monthly": "每月",
+    "yearly": "每年",
+    "billedYearly": "按年计费",
+    "discount": "节省20%",
+    "enterpriseTitle": "企业版",
+    "enterpriseDesc": "为拥有10个以上门店和特定合规需求的大型健身房连锁店提供定制解决方案。",
+    "enterpriseCta": "联系销售",
+    "addonsTitle": "强大",
+    "addonsSubtitle": "附加组件",
+    "addonsSubtitleAccent": "助力扩展",
+    "addonsDesc": "通过针对您的工作流程量身定制的专业功能增强您的AI代理。",
+    "faqTitle": "常见问题",
+    "finalCta": "准备好改变您的健身房了吗？",
+    "finalCtaAccent": "立即开始试用。",
+    "finalCtaDesc": "加入50多家已在使用ARIIA的健身房。",
     "plans": {
       "starter": {
-        "name": "Starter",
-        "desc": "Perfect for boutique studios",
-        "cta": "Get Started",
+        "name": "入门版",
+        "desc": "精品健身房的理想选择",
+        "cta": "立即开始",
         "features": [
-          "1 AI Agent (Ops)",
-          "WhatsApp Integration",
-          "100 AI Resolutions/mo",
-          "Basic Analytics"
+          "1 个人工智能代理（运营）",
+          "WhatsApp 集成",
+          "每月 100 次人工智能解决",
+          "基本分析"
         ]
       },
       "professional": {
-        "name": "Professional",
-        "badge": "Most Popular",
-        "desc": "For growing fitness studios",
-        "cta": "Start Free Trial",
+        "name": "专业版",
+        "badge": "最受欢迎",
+        "desc": "适用于成长中的健身工作室",
+        "cta": "开始免费试用",
         "features": [
-          "3 AI Agents (Sales, Ops, Medic)",
-          "WhatsApp & Telegram",
-          "500 AI Resolutions/mo",
-          "Advanced Analytics",
-          "Member Memory (1 Tier)"
+          "3 个人工智能代理（销售、运营、医疗）",
+          "WhatsApp 和 Telegram",
+          "每月 500 次人工智能解决",
+          "高级分析",
+          "会员记忆（1 层）"
         ]
       },
       "business": {
-        "name": "Business",
-        "desc": "Full automation for large studios",
-        "cta": "Go Pro",
+        "name": "商业版",
+        "desc": "为大型工作室提供全面自动化",
+        "cta": "升级专业版",
         "features": [
-          "Full Swarm (All Agents)",
-          "Omnichannel (WA, TG, Voice)",
-          "Unlimited Resolutions",
-          "GraphRAG & Full Memory",
-          "Priority Support"
+          "全面集群（所有代理）",
+          "全渠道（WA、TG、语音）",
+          "无限解决",
+          "GraphRAG 和完整记忆",
+          "优先支持"
         ]
       }
     },
     "addons": {
       "voice": {
-        "name": "AI Voice Engine",
-        "desc": "Handle incoming calls with natural AI voice interaction."
+        "name": "人工智能语音引擎",
+        "desc": "通过自然的人工智能语音交互处理来电。"
       },
       "vision": {
-        "name": "AI Vision (YOLOv8)",
-        "desc": "Real-time occupancy and safety tracking via camera integration."
+        "name": "人工智能视觉 (YOLOv8)",
+        "desc": "通过摄像头集成实现实时占用率和安全跟踪。"
       },
       "churn": {
-        "name": "Churn Prediction",
-        "desc": "Advanced ML model to identify cancellation risks early."
+        "name": "客户流失预测",
+        "desc": "先进的机器学习模型，用于及早识别取消风险。"
       },
       "channel": {
-        "name": "Additional Channel",
-        "desc": "Add custom SMS or Email automation to your swarm."
+        "name": "附加渠道",
+        "desc": "为您的集群添加自定义短信或电子邮件自动化。"
       }
     },
     "faqs": [
       {
-        "q": "Can I change my plan later?",
-        "a": "Yes, you can upgrade or downgrade your plan at any time from your settings."
+        "q": "我以后可以更改我的计划吗？",
+        "a": "是的，您可以随时从您的设置中升级或降级您的计划。"
       },
       {
-        "q": "Is my data secure?",
-        "a": "Absolutely. We use industry-standard encryption and all data is hosted in ISO-certified data centers in Germany."
+        "q": "我的数据安全吗？",
+        "a": "绝对安全。我们使用行业标准加密，所有数据都托管在德国经过 ISO 认证的数据中心。"
       },
       {
-        "q": "Do you offer custom integrations?",
-        "a": "Yes, for Enterprise customers we offer bespoke integration services for your specific CRM or ERP system."
+        "q": "你们提供定制集成吗？",
+        "a": "是的，对于企业客户，我们为您的特定 CRM 或 ERP 系统提供定制集成服务。"
       },
       {
-        "q": "How does the Voice AI work?",
-        "a": "Our Voice AI uses advanced STT/TTS models to interact with callers in real-time, just like a human assistant."
+        "q": "语音人工智能是如何工作的？",
+        "a": "我们的语音人工智能使用先进的 STT/TTS 模型与来电者进行实时交互，就像人类助手一样。"
       }
     ]
   },
   "legal": {
     "impressum": {
-      "title": "Imprint",
-      "tmg5": "Information according to § 5 TMG",
-      "representedBy": "Represented by",
-      "managingDirector": "Managing Director",
-      "contact": "Contact",
-      "phone": "Phone",
-      "email": "Email",
-      "website": "Website",
-      "registerEntry": "Register Entry",
-      "registerCourt": "Register Court",
-      "registerNumber": "Register Number",
-      "vatId": "VAT Identification Number according to § 27 a VAT Act",
-      "responsibleContent": "Responsible for content according to § 55 Abs. 2 RStV",
-      "dispute": "EU Dispute Resolution",
-      "liabilityContent": "Liability for Content",
-      "liabilityLinks": "Liability for Links"
+      "title": "版本说明",
+      "tmg5": "根据 § 5 TMG 的信息",
+      "representedBy": "代表",
+      "managingDirector": "董事总经理",
+      "contact": "联系方式",
+      "phone": "电话",
+      "email": "电子邮件",
+      "website": "网站",
+      "registerEntry": "注册条目",
+      "registerCourt": "注册法院",
+      "registerNumber": "注册号",
+      "vatId": "根据 § 27 a 增值税法规定的增值税识别号",
+      "responsibleContent": "根据 § 55 Abs. 2 RStV 负责内容",
+      "dispute": "欧盟争议解决",
+      "liabilityContent": "内容责任",
+      "liabilityLinks": "链接责任"
     },
     "privacy": {
-      "title": "Privacy Policy"
+      "title": "隐私政策"
     },
     "agb": {
-      "title": "Terms of Service",
-      "status": "Last Update"
+      "title": "服务条款",
+      "status": "上次更新"
     }
   },
   "audit": {
     "title": "审计日志",
-    "subtitle": "合规与审计追踪",
+    "subtitle": "合规性与审计追踪",
     "filters": {
       "category": "类别",
       "allCategories": "所有类别",
       "actionType": "操作类型",
       "allActions": "所有操作",
-      "initiatedBy": "执行者",
+      "initiatedBy": "发起人（执行者）",
       "allUsers": "所有用户",
       "systemInternal": "系统内部",
       "timeRange": "时间范围",
-      "from": "开始",
-      "to": "结束",
-      "clearFilters": "清除过滤器",
+      "from": "从",
+      "to": "到",
+      "clearFilters": "清除所有筛选器",
       "exportCsv": "导出 CSV"
     },
-    "search": "按操作、邮箱搜索...",
+    "search": "按操作、电子邮件或元数据内容搜索...",
     "sort": {
       "newest": "最新",
-      "oldest": "最早"
+      "oldest": "最旧"
     },
     "table": {
       "timestamp": "时间戳",
@@ -610,50 +610,50 @@
       "operation": "操作",
       "target": "目标",
       "details": "详情",
-      "fetching": "正在获取...",
+      "fetching": "正在获取审计记录...",
       "viewDiff": "查看差异"
     },
     "modal": {
       "title": "审计事件详情",
       "actorIdentity": "执行者身份",
       "targetResource": "目标资源",
-      "changeSummary": "变更摘要"
+      "changeSummary": "更改摘要"
     }
   },
   "knowledge": {
     "title": "知识库",
     "documents": "文档",
-    "noDocuments": "无文档。",
-    "newDocument": "新文档",
-    "newDocumentPlaceholder": "new-document.md",
-    "viewTenant": "查看租户:",
-    "indexChunks": "索引分块",
-    "lastIngest": "最后摄取",
+    "noDocuments": "没有可用的知识文档。",
+    "newDocument": "新建文档",
+    "newDocumentPlaceholder": "新文档.md",
+    "viewTenant": "查看租户：",
+    "indexChunks": "索引块",
+    "lastIngest": "上次摄取",
     "reindex": "重新索引",
-    "reindexing": "正在重索引...",
-    "selectFile": "请选择文件。",
+    "reindexing": "正在重新索引...",
+    "selectFile": "选择文件或在左侧创建文件。",
     "save": "保存",
     "saving": "正在保存...",
-    "saved": "已保存",
-    "reasonPlaceholder": "变更原因(至少8字)",
-    "reasonError": "Please provide a reason for the change (min. 8 chars).",
+    "saved": "已保存并同步",
+    "reasonPlaceholder": "更改原因（最少8个字符）",
+    "reasonError": "请提供更改原因（最少8个字符）。",
     "conflict": "检测到冲突",
-    "conflictError": "The file has been modified in the meantime. Please reload or overwrite.",
-    "ingestError": "Ingest Error: {{error}}",
-    "autosaving": "Autosaving...",
-    "autosaved": "Autosave saved",
+    "conflictError": "文件在此期间已被修改。请重新加载或覆盖。",
+    "ingestError": "摄取错误：{{error}}",
+    "autosaving": "正在自动保存...",
+    "autosaved": "自动保存已完成",
     "loading": "正在加载...",
     "loaded": "已加载",
-    "draftCreated": "New file created as draft. Please save."
+    "draftCreated": "新文件已创建为草稿。请保存。"
   },
   "register": {
     "title": "注册",
-    "subtitle": "创建新租户和管理员。",
-    "tenantName": "租户名称",
-    "tenantSlug": "Tenant Slug (optional)",
-    "email": "电子邮箱",
-    "name": "Name (optional)",
-    "password": "密码",
+    "subtitle": "创建新租户和管理员用户。",
+    "tenantName": "租户名称（例如：Test-Studio）",
+    "tenantSlug": "租户标识（可选）",
+    "email": "电子邮件",
+    "name": "姓名（可选）",
+    "password": "密码（最少8个字符）",
     "button": "注册租户",
     "waiting": "请稍候...",
     "backToLogin": "返回登录"
@@ -665,142 +665,142 @@
     }
   },
   "plans": {
-    "deleteDeadTitle": "Delete all plans without Stripe connection (ghosts)?",
-    "newPlan": "New Subscription Plan",
-    "planName": "Name (e.g. Professional)",
-    "planSlug": "Slug (e.g. professional)",
-    "priceEur": "Price in EUR",
-    "newAddon": "New Stripe Add-on",
-    "addonName": "Add-on Name (e.g. Voice Pipeline)",
-    "monthlyPrice": "Monthly Price in EUR",
-    "editPlan": "Edit Plan"
+    "deleteDeadTitle": "删除所有没有 Stripe 连接的计划（幽灵计划）吗？",
+    "newPlan": "新订阅计划",
+    "planName": "名称（例如：专业版）",
+    "planSlug": "标识（例如：professional）",
+    "priceEur": "价格（欧元）",
+    "newAddon": "新 Stripe 附加组件",
+    "addonName": "附加组件名称（例如：语音管道）",
+    "monthlyPrice": "月价格（欧元）",
+    "editPlan": "编辑计划"
   },
   "impressum": {
-    "disputeText": "The European Commission provides a platform for online dispute resolution (OS): https://ec.europa.eu/consumers/odr/. You can find our email address at the top of the imprint. We are not willing or obliged to participate in dispute resolution proceedings before a consumer arbitration board.",
-    "liabilityContentText": "As a service provider, we are responsible for our own content on these pages in accordance with the general laws pursuant to § 7 Para.1 TMG. According to §§ 8 to 10 TMG, we are not obliged as a service provider to monitor transmitted or stored third-party information or to investigate circumstances that indicate illegal activity.",
-    "liabilityLinksText": "Our offer contains links to external websites of third parties, on whose content we have no influence. Therefore, we cannot assume any liability for these external contents. The respective provider or operator of the pages is always responsible for the content of the linked pages."
+    "disputeText": "欧盟委员会提供了一个在线争议解决平台（OS）：https://ec.europa.eu/consumers/odr/。您可以在版本说明顶部找到我们的电子邮件地址。我们不愿意也无义务参与消费者仲裁委员会的争议解决程序。",
+    "liabilityContentText": "作为服务提供商，根据《德国电信媒体法》第7条第1款的规定，我们对这些页面上的自有内容负责。根据《德国电信媒体法》第8至10条的规定，作为服务提供商，我们没有义务监控传输或存储的第三方信息，或调查表明非法活动的情况。",
+    "liabilityLinksText": "我们的服务包含指向第三方外部网站的链接，我们对其内容没有影响力。因此，我们无法对这些外部内容承担任何责任。链接页面的内容始终由各自的提供商或运营商负责。"
   },
   "escalations": {
-    "title": "Escalation Queue",
-    "subtitle": "Tickets requiring human intervention",
-    "noEscalations": "No open escalations.",
-    "memberIdError": "Please provide a valid Member ID.",
-    "tokenError": "Error generating token.",
-    "handoffError": "Error resolving handoff.",
-    "allClear": "All clear",
-    "linkMember": "Link Member",
-    "memberId": "Member ID",
-    "resolveHandoff": "Resolve handoff?"
+    "title": "升级队列",
+    "subtitle": "需要人工干预的工单",
+    "noEscalations": "没有未解决的升级。",
+    "memberIdError": "请提供有效的会员ID。",
+    "tokenError": "生成令牌时出错。",
+    "handoffError": "解决交接时出错。",
+    "allClear": "一切正常",
+    "linkMember": "关联会员",
+    "memberId": "会员ID",
+    "resolveHandoff": "解决交接？"
   },
   "magicline": {
-    "syncNotStarted": "Sync not yet started",
-    "allEnriched": "All members already enriched",
-    "syncFailed": "Sync failed",
-    "syncDescription": "Load visit and booking data for all members",
-    "enrichAll": "Enrich All",
-    "adoption": "ARIIA Adoption",
-    "adoptionSubtitle": "Magicline members who have used ARIIA",
-    "usersActive": "Users active",
-    "platformVerification": "Platform & Verification",
-    "platformSubtitle": "Active chat sessions by channel and status",
-    "noSessions": "No chat sessions available yet.",
-    "languageDistribution": "Language Distribution",
-    "languageSubtitle": "Preferred language of members",
-    "noLanguageData": "No language data available.",
-    "memberStatus": "Member Status",
-    "memberStatusSubtitle": "Active vs. paused members",
-    "noData": "No data.",
-    "dataCoverage": "Data Coverage",
-    "dataCoverageSubtitle": "Members with visit & booking data"
+    "syncNotStarted": "同步尚未开始",
+    "allEnriched": "所有会员已丰富",
+    "syncFailed": "同步失败",
+    "syncDescription": "加载所有会员的访问和预订数据",
+    "enrichAll": "全部丰富",
+    "adoption": "ARIIA 采用情况",
+    "adoptionSubtitle": "已使用 ARIIA 的 Magicline 会员",
+    "usersActive": "活跃用户",
+    "platformVerification": "平台与验证",
+    "platformSubtitle": "按渠道和状态划分的活跃聊天会话",
+    "noSessions": "暂无聊天会话。",
+    "languageDistribution": "语言分布",
+    "languageSubtitle": "会员的首选语言",
+    "noLanguageData": "暂无语言数据。",
+    "memberStatus": "会员状态",
+    "memberStatusSubtitle": "活跃会员与暂停会员",
+    "noData": "无数据。",
+    "dataCoverage": "数据覆盖率",
+    "dataCoverageSubtitle": "拥有访问和预订数据的会员"
   },
   "analytics": {
-    "weeklyOverview": "Weekly Overview",
-    "weeklySubtitle": "Tickets & resolution rate (last 7 days)",
-    "satisfaction": "Member Satisfaction",
-    "satisfactionSubtitle": "Feedback after AI interactions",
-    "noFeedback": "No feedback available yet",
-    "avgRating": "Average Rating",
-    "basedOn": "Based on {{count}} ratings",
-    "channelPerformance": "Channel Performance",
-    "channelSubtitle": "Comparison of support channels (30 days)"
+    "weeklyOverview": "每周概览",
+    "weeklySubtitle": "工单与解决率（过去7天）",
+    "satisfaction": "会员满意度",
+    "satisfactionSubtitle": "AI互动后的反馈",
+    "noFeedback": "暂无反馈",
+    "avgRating": "平均评分",
+    "basedOn": "基于{{count}}个评分",
+    "channelPerformance": "渠道表现",
+    "channelSubtitle": "支持渠道对比（30天）"
   },
   "conversations": {
-    "search": "Search conversations...",
-    "backToList": "Back to list",
-    "helpful": "Helpful",
-    "notHelpful": "Not helpful"
+    "search": "搜索对话...",
+    "backToList": "返回列表",
+    "helpful": "有帮助",
+    "notHelpful": "无帮助"
   },
   "dashboard": {
-    "governanceMode": "治理模式",
-    "uptime": "运行时间",
+    "governanceMode": "平台治理模式",
+    "uptime": "平台正常运行时间",
     "distribution": "租户分布",
-    "distributionSubtitle": "Active vs. Inactive",
+    "distributionSubtitle": "活跃 vs. 非活跃",
     "infrastructure": "基础设施状态",
-    "coreServices": "核心服务",
-    "redis": "Redis 缓存",
+    "coreServices": "SaaS核心服务",
+    "redis": "Redis缓存",
     "vector": "向量引擎",
-    "qdrant": "Qdrant 在线",
+    "qdrant": "Qdrant在线",
     "auth": "认证服务",
-    "events": "最近事件",
-    "auditTrail": "审计追踪",
-    "noEvents": "无事件。",
-    "initializing": "正在初始化...",
-    "loadError": "加载错误。",
-    "analyticsHint": "使用'分析'菜单查看详细信息。"
+    "events": "近期平台事件",
+    "auditTrail": "审计追踪（全系统）",
+    "noEvents": "未找到事件。",
+    "initializing": "正在初始化仪表板...",
+    "loadError": "加载数据时出错。",
+    "analyticsHint": "使用“分析”菜单项进行详细评估。"
   },
   "tiptap": {
-    "toolbar": "Text Editor Toolbar",
-    "bold": "Bold",
-    "italic": "Italic",
-    "heading1": "Heading 1",
-    "heading2": "Heading 2",
-    "bulletList": "Bullet List",
-    "orderedList": "Ordered List",
-    "quote": "Quote",
-    "undo": "Undo",
-    "redo": "Redo"
+    "toolbar": "文本编辑器工具栏",
+    "bold": "粗体",
+    "italic": "斜体",
+    "heading1": "标题 1",
+    "heading2": "标题 2",
+    "bulletList": "无序列表",
+    "orderedList": "有序列表",
+    "quote": "引用",
+    "undo": "撤销",
+    "redo": "重做"
   },
   "automation": {
-    "title": "Automation",
-    "subtitle": "Schedule and LLM extraction for daily Member-Memory analysis.",
-    "lastRun": "Last Run",
-    "schedulerActive": "Scheduler Active",
-    "schedulerDesc": "Enables daily execution according to cron expression.",
-    "cronExpression": "Cron Expression (UTC)",
-    "every12h": "Every 12h",
-    "extractionDesc": "Enables profile creation from chat history.",
-    "extractionActive": "LLM Extraction Active",
-    "noRun": "No run yet."
+    "title": "自动化",
+    "subtitle": "用于每日会员记忆分析的调度和LLM提取。",
+    "lastRun": "上次运行",
+    "schedulerActive": "调度器已激活",
+    "schedulerDesc": "根据cron表达式启用每日执行。",
+    "cronExpression": "Cron表达式 (UTC)",
+    "every12h": "每12小时",
+    "extractionDesc": "启用从聊天历史记录创建档案。",
+    "extractionActive": "LLM提取已激活",
+    "noRun": "尚未运行。"
   },
   "users": {
     "roles": {
-      "systemAdmin": "System Admin",
-      "tenantAdmin": "Tenant Admin",
-      "tenantUser": "Tenant User"
+      "systemAdmin": "系统管理员",
+      "tenantAdmin": "租户管理员",
+      "tenantUser": "租户用户"
     },
-    "reasonError": "Please provide a understandable reason with at least 8 characters.",
-    "tenantAdmins": "Tenant Admins",
-    "systemAdmins": "System Admins",
-    "createUser": "Create New User",
-    "email": "Email",
-    "password": "Password",
-    "name": "Name",
-    "saving": "Saving...",
-    "searchPlaceholder": "Search by email, name or tenant",
-    "allRoles": "All Roles",
-    "allTenants": "All Tenants",
-    "loading": "Loading users...",
-    "noUsers": "No users for the current filter.",
-    "selectAll": "All selected",
-    "running": "Running...",
-    "noAudit": "No audit events found.",
-    "ghostMode": "Start Ghost Mode",
-    "ghostReason": "e.g. Support case #4812: User cannot save settings",
-    "editUser": "Edit User",
-    "passwordReset": "Password Reset (optional)",
-    "newPassword": "New Password (optional)"
+    "reasonError": "请提供一个至少8个字符的易于理解的理由。",
+    "tenantAdmins": "租户管理员",
+    "systemAdmins": "系统管理员",
+    "createUser": "创建新用户",
+    "email": "电子邮件",
+    "password": "密码",
+    "name": "姓名",
+    "saving": "正在保存...",
+    "searchPlaceholder": "按电子邮件、姓名或租户搜索",
+    "allRoles": "所有角色",
+    "allTenants": "所有租户",
+    "loading": "正在加载用户...",
+    "noUsers": "当前筛选条件下无用户。",
+    "selectAll": "全选",
+    "running": "正在运行...",
+    "noAudit": "未找到审计事件。",
+    "ghostMode": "启动幽灵模式",
+    "ghostReason": "例如：支持案例 #4812：用户无法保存设置",
+    "editUser": "编辑用户",
+    "passwordReset": "密码重置（可选）",
+    "newPassword": "新密码（可选）"
   },
   "ui": {
-    "noData": "No data"
+    "noData": "无数据"
   }
 }

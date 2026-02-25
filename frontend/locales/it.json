@@ -1,7 +1,7 @@
 {
   "common": {
-    "welcome": "Benvenuti in ARIIA",
-    "dashboard": "Dashboard",
+    "welcome": "Benvenuto in ARIIA",
+    "dashboard": "Pannello di controllo",
     "settings": "Impostazioni",
     "login": "Accedi",
     "register": "Registrati",
@@ -9,654 +9,654 @@
     "save": "Salva",
     "cancel": "Annulla",
     "loading": "Caricamento...",
-    "edit": "Edit",
-    "delete": "Delete",
-    "confirmed": "Success",
-    "error": "Error",
-    "active": "Active",
-    "paused": "Paused",
-    "days": "Days",
+    "edit": "Modifica",
+    "delete": "Elimina",
+    "confirmed": "Successo",
+    "error": "Errore",
+    "active": "Attivo",
+    "paused": "In pausa",
+    "days": "Giorni",
     "features": "Funzionalità",
-    "featuresTitle": "Scopri le funzioni",
+    "featuresTitle": "Tutte le funzionalità",
     "pricing": "Prezzi",
     "dsgvo": "Conforme al GDPR",
-    "madeInGermany": "Made in Germany",
-    "enterpriseReady": "Enterprise-Ready",
+    "madeInGermany": "Prodotto in Germania",
+    "enterpriseReady": "Pronto per l'impresa",
     "allSystemsOnline": "Tutti i sistemi online",
-    "membersSynced": "180 membri sincronizzati",
-    "details": "Details",
-    "noEntries": "No entries found",
-    "search": "Search",
-    "status": "Status",
-    "noData": "No data available",
-    "never": "Never"
+    "membersSynced": "Membri sincronizzati",
+    "details": "Dettagli",
+    "noEntries": "Nessuna voce trovata",
+    "search": "Cerca",
+    "status": "Stato",
+    "noData": "Nessun dato disponibile",
+    "never": "Mai"
   },
   "sidebar": {
-    "dashboard": "Dashboard",
-    "monitor": "Live Monitor",
-    "escalations": "Escalations",
-    "analytics": "Analytics",
-    "members": "Members",
-    "users": "Users",
-    "knowledge": "Knowledge Base",
-    "memberMemory": "Member Memory",
-    "systemPrompt": "Studio Prompt",
-    "sync": "Sync",
-    "billing": "Subscription",
-    "settings": "Settings",
-    "tenants": "Tenant Manager",
-    "plans": "Billing Plans",
-    "audit": "Audit Log",
-    "health": "Engine Stats",
-    "quickActions": "Quick Actions",
-    "platformControl": "Platform Control",
-    "studioDeck": "Studio Deck",
-    "logout": "Logout",
+    "dashboard": "Pannello di controllo",
+    "monitor": "Monitoraggio in tempo reale",
+    "escalations": "Escalation",
+    "analytics": "Analisi",
+    "members": "Membri",
+    "users": "Utenti",
+    "knowledge": "Base di conoscenza",
+    "memberMemory": "Memoria Membri",
+    "systemPrompt": "Prompt dello Studio",
+    "sync": "Sincronizzazione",
+    "billing": "Abbonamento",
+    "settings": "Impostazioni",
+    "tenants": "Gestione Tenant",
+    "plans": "Piani di fatturazione",
+    "audit": "Registro di controllo",
+    "health": "Statistiche del Motore",
+    "quickActions": "Azioni rapide",
+    "platformControl": "Controllo della Piattaforma",
+    "studioDeck": "Pannello Studio",
+    "logout": "Esci",
     "roles": {
-      "systemAdmin": "System Administrator",
-      "tenantAdmin": "Studio Administrator"
+      "systemAdmin": "Amministratore di sistema",
+      "tenantAdmin": "Amministratore dello Studio"
     },
     "sections": {
-      "operations": "Operations",
-      "customers": "Customers",
-      "knowledge": "Knowledge",
+      "operations": "Operazioni",
+      "customers": "Clienti",
+      "knowledge": "Conoscenza",
       "studio": "Studio",
       "governance": "Governance",
-      "system": "System"
+      "system": "Sistema"
     }
   },
   "settings": {
     "overview": {
-      "title": "Overview",
-      "subtitle": "Profile and system parameters."
+      "title": "Panoramica",
+      "subtitle": "Parametri del profilo e del sistema."
     },
     "account": {
-      "personalData": "Personal Data",
-      "fullName": "Full Name",
-      "fullNameHint": "Your legal first and last name",
-      "email": "Email Address",
-      "emailHint": "Primary contact for security alerts",
-      "locale": "Interface Language",
-      "localeHint": "Set your preferred dashboard language",
-      "timezone": "Timezone",
-      "timezoneHint": "Used for scheduling and logs",
-      "compactMode": "Compact Mode",
-      "compactModeDesc": "Denser UI for power users",
-      "notifications": "Notifications",
-      "emailNotify": "Email Notifications",
-      "emailNotifyDesc": "Receive reports via email",
-      "tgNotify": "Telegram Alerts",
-      "tgNotifyDesc": "Real-time alerts via Telegram",
+      "personalData": "Dati personali",
+      "fullName": "Nome completo",
+      "fullNameHint": "Il Suo nome e cognome legale",
+      "email": "Indirizzo email",
+      "emailHint": "Contatto principale per gli avvisi di sicurezza",
+      "locale": "Lingua dell'interfaccia",
+      "localeHint": "Imposti la Sua lingua preferita per il pannello di controllo",
+      "timezone": "Fuso orario",
+      "timezoneHint": "Utilizzato per la pianificazione e i registri",
+      "compactMode": "Modalità compatta",
+      "compactModeDesc": "Interfaccia utente più densa per utenti esperti",
+      "notifications": "Notifiche",
+      "emailNotify": "Notifiche Email",
+      "emailNotifyDesc": "Ricevi report via email",
+      "tgNotify": "Avvisi Telegram",
+      "tgNotifyDesc": "Avvisi in tempo reale via Telegram",
       "password": {
-        "title": "Change Password",
-        "current": "Current Password",
-        "currentHint": "Verify your identity",
-        "new": "New Password",
-        "newHint": "At least 8 characters long"
+        "title": "Cambia Password",
+        "current": "Password Attuale",
+        "currentHint": "Verifichi la sua identità",
+        "new": "Nuova Password",
+        "newHint": "Almeno 8 caratteri"
       },
       "studio": {
-        "title": "Studio Profile",
-        "subtitle": "Public studio identity and contact",
-        "name": "Studio Name",
-        "nameHint": "Displayed in AI interactions",
-        "opsEmail": "Operations Email",
-        "opsEmailHint": "Contact for studio operations",
-        "opsTelegram": "Operations Telegram",
-        "opsTelegramHint": "Telegram handle for studio staff",
-        "refresh": "Data Refresh",
-        "refreshHint": "Manual sync with external systems",
-        "sla": "SLA Tier",
-        "slaHint": "Service level agreement level",
-        "localeHint": "Primary language of your studio members",
-        "timezoneHint": "Studio local time"
+        "title": "Profilo Studio",
+        "subtitle": "Identità pubblica e contatto dello studio",
+        "name": "Nome Studio",
+        "nameHint": "Visualizzato nelle interazioni AI",
+        "opsEmail": "Email Operativa",
+        "opsEmailHint": "Contatto per le operazioni dello studio",
+        "opsTelegram": "Telegram Operativo",
+        "opsTelegramHint": "Nome utente Telegram per il personale dello studio",
+        "refresh": "Aggiornamento Dati",
+        "refreshHint": "Sincronizzazione manuale con sistemi esterni",
+        "sla": "Livello SLA",
+        "slaHint": "Livello dell'accordo sul livello di servizio",
+        "localeHint": "Lingua principale dei membri del suo studio",
+        "timezoneHint": "Ora locale dello studio"
       },
-      "title": "Account & Profile",
-      "subtitle": "Personal data and security.",
+      "title": "Impostazioni Account",
+      "subtitle": "Gestisca il suo profilo personale e la sicurezza",
       "placeholders": {
-        "fullName": "John Doe",
-        "locale": "en-US",
-        "timezone": "UTC",
+        "fullName": "Mario Rossi",
+        "locale": "it-IT",
+        "timezone": "CET",
         "password": "••••••••",
-        "studioName": "Your Studio Name",
-        "opsEmail": "ops@example.com",
+        "studioName": "Nome del Suo Studio",
+        "opsEmail": "ops@esempio.com",
         "opsTelegram": "-100...",
         "sla": "15",
         "refresh": "5"
       }
     },
-    "aiEngine": "AI Engine",
+    "aiEngine": "Motore AI",
     "general": {
       "privacy": {
-        "title": "Privacy & Compliance",
-        "subtitle": "Manage data retention and PII filtering",
-        "pii": "PII Masking",
-        "piiDesc": "Automatically mask personal data in logs",
-        "retention": "Data Retention",
-        "retentionDesc": "How long to keep interaction history"
+        "title": "Privacy e Conformità",
+        "subtitle": "Gestisca la conservazione dei dati e il filtraggio PII",
+        "pii": "Mascheramento PII",
+        "piiDesc": "Maschera automaticamente i dati personali nei log",
+        "retention": "Conservazione Dati",
+        "retentionDesc": "Per quanto tempo conservare la cronologia delle interazioni"
       },
       "smtp": {
-        "title": "Email (SMTP)",
-        "subtitle": "Configure outgoing mail server",
-        "host": "SMTP Host",
-        "port": "Port",
-        "user": "Username",
+        "title": "E-mail (SMTP)",
+        "subtitle": "Configuri il server di posta in uscita",
+        "host": "Host SMTP",
+        "port": "Porta",
+        "user": "Nome Utente",
         "pass": "Password",
-        "senderAddr": "Sender Email",
-        "senderName": "Sender Name",
-        "test": "Send Test Email",
-        "testRecipient": "Recipient for Test"
+        "senderAddr": "Email del Mittente",
+        "senderName": "Nome del Mittente",
+        "test": "Invia Email di Prova",
+        "testRecipient": "Destinatario per il Test"
       },
       "system": {
-        "title": "System Governance",
-        "subtitle": "Core engine and security parameters",
-        "audit": "Extended Audit Logs",
-        "auditDesc": "Keep detailed logs of every system change",
-        "maintenance": "Maintenance Mode",
-        "maintenanceDesc": "Restrict access during updates"
+        "title": "Governance del Sistema",
+        "subtitle": "Parametri del motore centrale e di sicurezza",
+        "audit": "Log di Audit Estesi",
+        "auditDesc": "Mantenga log dettagliati di ogni modifica del sistema",
+        "maintenance": "Modalità Manutenzione",
+        "maintenanceDesc": "Limiti l'accesso durante gli aggiornamenti"
       },
-      "title": "Platform Core",
-      "subtitle": "Governance and security."
+      "title": "Impostazioni Generali",
+      "subtitle": "Parametri del sistema centrale e governance"
     },
     "ai": {
-      "title": "AI Configuration",
-      "subtitle": "Tweak the behavior of your AI agents",
-      "addProvider": "Add Provider",
-      "editProvider": "Edit Provider",
-      "newProvider": "New AI Provider",
-      "selectProvider": "Select Provider",
-      "provider": "Provider",
-      "apiKey": "API Key",
-      "models": "Available Models",
-      "fetchModels": "Fetch Models",
-      "testConnection": "Test Connection",
-      "latencyTest": "Latency Test",
-      "confirmDelete": "Are you sure you want to remove this provider?",
-      "retry": "Retry",
-      "noModelsFound": "No models found",
+      "title": "Configurazione AI",
+      "subtitle": "Gestisca i fornitori LLM e i parametri del modello",
+      "addProvider": "Aggiungi Fornitore",
+      "editProvider": "Modifica Fornitore",
+      "newProvider": "Nuovo Fornitore AI",
+      "selectProvider": "Seleziona Fornitore",
+      "provider": "Fornitore",
+      "apiKey": "Chiave API",
+      "models": "Modelli Disponibili",
+      "fetchModels": "Recupera Modelli",
+      "testConnection": "Verifica Connessione",
+      "latencyTest": "Test Latenza",
+      "confirmDelete": "È sicuro di voler rimuovere questo fornitore?",
+      "retry": "Riprova",
+      "noModelsFound": "Nessun modello trovato",
       "status": {
-        "configured": "Configured",
-        "error": "Error",
-        "fetching": "Fetching..."
+        "configured": "Configurato",
+        "error": "Errore",
+        "fetching": "Recupero in corso..."
       },
       "hints": {
-        "storedKey": "Key is securely stored",
-        "refreshNeeded": "Fetch models to see available options",
-        "initialFetch": "Fetching models for the first time...",
-        "clickRefresh": "Click to refresh model list"
+        "storedKey": "La chiave è archiviata in modo sicuro",
+        "refreshNeeded": "Recuperi i modelli per visualizzare le opzioni disponibili",
+        "initialFetch": "Recupero dei modelli per la prima volta...",
+        "clickRefresh": "Clicchi per aggiornare l'elenco dei modelli"
       },
       "errors": {
-        "loadFailed": "Failed to load AI providers",
-        "saveFailed": "Failed to save provider",
-        "deleteFailed": "Failed to delete provider",
-        "fetchModelsFailed": "Failed to fetch models from provider",
-        "connectionError": "Could not connect to AI engine"
+        "loadFailed": "Impossibile caricare i fornitori AI",
+        "saveFailed": "Impossibile salvare il fornitore",
+        "deleteFailed": "Impossibile eliminare il fornitore",
+        "fetchModelsFailed": "Impossibile recuperare i modelli dal fornitore",
+        "connectionError": "Impossibile connettersi al motore AI"
       }
     },
     "language": "Lingua",
-    "selectLanguage": "Scegli la tua lingua preferita",
+    "selectLanguage": "Seleziona Lingua",
     "billing": {
-      "title": "Billing & Subscription",
-      "subtitle": "Manage your plan and add-ons."
+      "title": "Fatturazione e Abbonamento",
+      "subtitle": "Gestisca il Suo piano e gli add-on."
     },
     "integrations": {
-      "title": "Integrations",
-      "subtitle": "Connect Magicline, WhatsApp, and more."
+      "title": "Integrazioni",
+      "subtitle": "Connetta Magicline, WhatsApp e altro."
     },
     "prompts": {
-      "title": "Custom Prompts",
-      "subtitle": "Configure agent personas and behavior."
+      "title": "Prompt Personalizzati",
+      "subtitle": "Configuri le personalità e il comportamento degli agenti."
     },
     "automation": "Automazione",
-    "branding": "Branding"
+    "branding": "Personalizzazione"
   },
   "navbar": {
     "login": "Accedi",
-    "register": "Prova gratuita"
+    "register": "Registrati"
   },
   "hero": {
-    "versionBadge": "Living System Agent v2.0",
-    "title": "Il tuo assistente IA per una",
+    "versionBadge": "Versione 2.0 Live",
+    "title": "L'intelligente",
     "words": [
-      "intelligente",
-      "personale",
-      "automatizzata",
-      "scalabile"
+      "Assistente AI",
+      "Gestore Studio",
+      "Bot Operativo",
+      "Agente di Vendita"
     ],
-    "subtitle": "comunicazione clienti",
-    "description": "ARIIA risponde alle richieste dei clienti tramite WhatsApp, Telegram e voce, 24 ore su 24, in modo personale e intelligente. Per palestre e PMI.",
-    "cta": "Prova gratis per 14 giorni"
+    "subtitle": "per il Suo studio fitness",
+    "description": "ARIIA automatizza la comunicazione con i clienti tramite WhatsApp, Telegram e Voce. Aumenti la Sua efficienza con Arnold Prime Orchestration.",
+    "cta": "Inizia Ora"
   },
   "stats": {
-    "aiResolution": "Tasso di risoluzione IA",
-    "responseTime": "Tempo di risposta",
-    "agentsInSwarm": "Agenti IA nello Swarm",
+    "aiResolution": "Tasso di Risoluzione AI",
+    "responseTime": "Tempo di Risposta",
+    "agentsInSwarm": "Agenti Swarm AI",
     "availability": "Disponibilità"
   },
   "features": {
-    "badge": "Funzioni della piattaforma",
-    "title": "Tutto ciò di cui il tuo business ha",
-    "titleAccent": "bisogno",
-    "description": "ARIIA combina una tecnologia IA all'avanguardia con una piattaforma intuitiva, progettata per le aziende che vogliono trasformare la loro comunicazione clienti.",
+    "badge": "Funzionalità",
+    "title": "Tutto ciò di cui il Suo studio",
+    "titleAccent": "ha bisogno per avere successo",
+    "description": "Un ecosistema completo di agenti AI perfettamente integrati nei Suoi sistemi esistenti.",
     "swarm": {
-      "title": "Sciame di agenti IA",
-      "desc": "5 agenti specializzati (Ops, Sales, Medic, Vision, Persona) lavorano in team, orchestrati dal Project Titan."
+      "title": "Intelligenza Swarm",
+      "desc": "Agenti specializzati (Vendite, Medico, Operazioni) collaborano per risolvere ogni richiesta."
     },
     "omnichannel": {
       "title": "Omnicanale",
-      "desc": "WhatsApp, Telegram, voce, chat web: un'unica IA, risposte coerenti su tutti i canali."
+      "desc": "WhatsApp, Telegram, SMS e Voce. Raggiunga i Suoi membri dove si trovano."
     },
     "churn": {
-      "title": "Previsione dell'abbandono",
-      "desc": "La previsione basata su ML rileva i clienti a rischio e suggerisce misure proattive."
+      "title": "Prevenzione dell'Abbandono",
+      "desc": "L'analisi basata sull'AI identifica i rischi di cancellazione prima che si presentino."
     },
     "memory": {
-      "title": "Memoria a 3 livelli",
-      "desc": "Memoria di sessione, semantica ed episodica: ARIIA ricorda ogni cliente e ogni interazione."
+      "title": "Memoria Contestuale",
+      "desc": "ARIIA ricorda ogni interazione e costruisce relazioni reali con i membri."
     },
     "security": {
-      "title": "Sicurezza Enterprise",
-      "desc": "Conforme al GDPR con Row-Level Security, filtri PII, log di audit e comunicazione crittografata."
+      "title": "GDPR e Sicurezza",
+      "desc": "Archiviazione dati crittografata in Germania e garanzia di piena conformità."
     },
     "connectors": {
-      "title": "Connettori aperti",
-      "desc": "Magicline, Shopify, WooCommerce, API: connetti qualsiasi sistema aziendale in pochi minuti."
+      "title": "Integrazione Profonda",
+      "desc": "Connessione diretta a Magicline, Shopify e altro per una gestione in tempo reale."
     },
     "page": {
-      "title": "Funzionalità che trasformano il tuo",
-      "titleAccent": "business",
-      "description": "ARIIA è più di un chatbot. È un Living System Agent con 5 agenti IA specializzati, memoria a 3 livelli e sicurezza di classe enterprise.",
-      "techTitle": "Tecnologia IA Core",
-      "techSubtitle": "Cosa differenzia ARIIA dai",
-      "techSubtitleAccent": "chatbot",
-      "deckTitle": "Studio Deck",
-      "deckSubtitle": "Il tuo",
-      "deckSubtitleAccent": "Centro di Comando",
-      "deckDesc": "La dashboard di Studio Deck ti offre il pieno controllo sui tuoi agenti IA, sui tuoi membri e sulla tua comunicazione.",
-      "securityTitle": "Sicurezza Enterprise",
-      "securitySubtitle": "Sicurezza di livello",
-      "securitySubtitleAccent": "Enterprise",
-      "securityDesc": "Sviluppato da zero per il mercato europeo. Ogni riga di dati è isolata tramite Row-Level Security."
+      "title": "Intelligenza Studio",
+      "titleAccent": "di Nuova Generazione",
+      "description": "ARIIA è più di un chatbot. È uno swarm di agenti AI specializzati che comprendono il Suo studio e i Suoi membri.",
+      "techTitle": "Stack",
+      "techSubtitle": "Tecnologico",
+      "techSubtitleAccent": "Avanzato",
+      "deckTitle": "Pannello di",
+      "deckSubtitle": "Controllo",
+      "deckSubtitleAccent": "Studio",
+      "deckDesc": "Una dashboard centrale per monitorare ogni interazione AI e gestire le impostazioni del Suo studio in tempo reale.",
+      "securityTitle": "Sicurezza",
+      "securitySubtitle": "e Conformità",
+      "securitySubtitleAccent": "Aziendale",
+      "securityDesc": "I Suoi dati sono ospitati in Germania, completamente crittografati e conformi al 100% al GDPR."
     },
     "platform": {
       "live": {
-        "title": "Live Monitor",
-        "desc": "Watch AI interactions in real-time and intervene if necessary."
+        "title": "Monitoraggio in Tempo Reale",
+        "desc": "Osservi le interazioni dell'IA in tempo reale e intervenga se necessario."
       },
       "members": {
-        "title": "Member Management",
-        "desc": "Deep integration with Magicline to handle bookings and contracts."
+        "title": "Gestione Membri",
+        "desc": "Integrazione profonda con Magicline per gestire prenotazioni e contratti."
       },
       "knowledge": {
-        "title": "Knowledge Base",
-        "desc": "Upload your studio documents to train the AI on your specific rules."
+        "title": "Base di Conoscenza",
+        "desc": "Carichi i documenti del Suo studio per addestrare l'IA sulle Sue regole specifiche."
       },
       "prompts": {
-        "title": "Persona Control",
-        "desc": "Customize the tone and personality of your studio assistant."
+        "title": "Controllo della Personalità",
+        "desc": "Personalizzi il tono e la personalità dell'assistente del Suo studio."
       },
       "multi": {
         "title": "Multi-Tenant",
-        "desc": "Manage multiple studio locations from a single central account."
+        "desc": "Gestisca più sedi dello studio da un unico account centrale."
       },
       "churn": {
-        "title": "Churn Prevention",
-        "desc": "AI identifies members at risk of canceling based on behavior."
+        "title": "Prevenzione dell'Abbandono",
+        "desc": "L'IA identifica i membri a rischio di cancellazione in base al comportamento."
       }
     },
     "details": {
-      "intent": "Intent Classification",
-      "routing": "Dynamic Routing",
-      "fallback": "Human-in-the-Loop",
-      "confidence": "Confidence Scoring",
+      "intent": "Classificazione degli Intenti",
+      "routing": "Routing Dinamico",
+      "fallback": "Intervento Umano",
+      "confidence": "Punteggio di Fiducia",
       "wa": "WhatsApp Cloud",
       "tg": "Telegram Bot",
-      "voice": "Voice STT/TTS",
-      "chat": "Web Widget",
-      "ml": "Magicline Sync",
-      "proactive": "Proactive Outreach",
-      "scoring": "Behavioral Scoring",
-      "behavior": "Engagement Analysis",
-      "session": "Long-Term Sessions",
-      "semantic": "Semantic Search",
-      "episodic": "Episodic Memory",
-      "auto": "Automatic Indexing",
-      "dsgvo": "GDPR Compliance",
-      "rls": "Row Level Security",
-      "pii": "PII Masking",
-      "audit": "Audit Logs",
-      "api": "REST API Access",
-      "shopify": "Shopify Integration",
+      "voice": "Voce STT/TTS",
+      "chat": "Widget Web",
+      "ml": "Sincronizzazione Magicline",
+      "proactive": "Comunicazione Proattiva",
+      "scoring": "Punteggio Comportamentale",
+      "behavior": "Analisi dell'Engagement",
+      "session": "Sessioni a Lungo Termine",
+      "semantic": "Ricerca Semantica",
+      "episodic": "Memoria Episodica",
+      "auto": "Indicizzazione Automatica",
+      "dsgvo": "Conformità GDPR",
+      "rls": "Sicurezza a Livello di Riga",
+      "pii": "Mascheramento PII",
+      "audit": "Registri di Audit",
+      "api": "Accesso REST API",
+      "shopify": "Integrazione Shopify",
       "woo": "WooCommerce",
-      "magicline": "Magicline Deep-Link"
+      "magicline": "Deep-Link Magicline"
     },
     "securityLabels": {
       "dsgvo": "GDPR",
       "encryption": "AES-256",
-      "pii": "PII Filter",
+      "pii": "Filtro PII",
       "audit": "Audit",
       "rbac": "RBAC",
       "rls": "RLS"
     }
   },
   "cta": {
-    "title": "Pronto a trasformare la tua comunicazione con il",
-    "titleAccent": "cliente",
-    "subtitle": "Inizia ora la tua prova gratuita di 14 giorni. Nessun rischio, nessuna carta di credito richiesta.",
-    "button": "Inizia gratis ora",
-    "compare": "Confronta i piani"
+    "title": "Pronto per il futuro dell'",
+    "titleAccent": "automazione dello studio",
+    "subtitle": "Si unisca a oltre 50 studi fitness che stanno già crescendo con ARIIA.",
+    "button": "Crea Account Gratuito",
+    "compare": "Confronta Prezzi"
   },
   "footer": {
-    "brandDesc": "Comunicazione clienti assistita dall'IA per palestre, personal trainer e PMI. Made in Germany.",
+    "brandDesc": "L'evoluzione delle operazioni dello studio. Piattaforma SaaS Multi-Tenant Agente.",
     "product": "Prodotto",
     "company": "Azienda",
-    "contact": "Contatto",
+    "contact": "Contatti",
     "links": {
       "features": "Funzionalità",
       "pricing": "Prezzi",
-      "test": "Prova gratuita",
-      "impressum": "Note legali",
-      "datenschutz": "Privacy",
-      "agb": "Condizioni",
-      "enterprise": "Richieste Enterprise"
+      "test": "Inizia Prova Gratuita",
+      "impressum": "Note Legali",
+      "datenschutz": "Informativa sulla Privacy",
+      "agb": "Termini di Servizio",
+      "enterprise": "Contatto Aziendale"
     },
     "rights": "Tutti i diritti riservati."
   },
   "tenants": {
     "stats": {
-      "total": "Total Tenants",
-      "users": "Active Users",
-      "avg": "Avg. Users/Tenant"
+      "total": "Tenant Totali",
+      "users": "Utenti Attivi",
+      "avg": "Media Utenti/Tenant"
     },
     "create": {
-      "title": "Create New Tenant",
-      "name": "Tenant Name",
-      "slug": "Slug (optional)"
+      "title": "Crea Nuovo Tenant",
+      "name": "Nome Tenant",
+      "slug": "Slug (opzionale)"
     },
     "table": {
-      "name": "Name",
-      "users": "Users",
-      "admins": "Admins",
-      "active": "Active"
+      "name": "Nome",
+      "users": "Utenti",
+      "admins": "Amministratori",
+      "active": "Attivo"
     },
     "edit": {
-      "title": "Edit Tenant"
+      "title": "Modifica Tenant"
     },
     "errors": {
-      "nameRequired": "Tenant name is required"
+      "nameRequired": "Il nome del tenant è obbligatorio"
     },
     "bulk": {
-      "hint": "The action will be applied tenant-wide and logged as a governance event."
+      "hint": "L'azione verrà applicata a livello di tenant e registrata come evento di governance."
     },
     "audit": {
-      "title": "Last Audit Events"
+      "title": "Ultimi Eventi di Audit"
     },
     "footer": {
-      "registration": "Tenant self-registration is still handled via /register."
+      "registration": "L'auto-registrazione del tenant è ancora gestita tramite /register."
     }
   },
   "ai": {
-    "actions": "Actions",
+    "actions": "Azioni",
     "errors": {
-      "connectionError": "Connection to AI Engine lost",
-      "loadFailed": "Failed to load AI parameters",
-      "saveFailed": "Failed to save AI configuration"
+      "connectionError": "Connessione al Motore AI persa",
+      "loadFailed": "Caricamento dei parametri AI fallito",
+      "saveFailed": "Salvataggio della configurazione AI fallito"
     }
   },
   "live": {
-    "title": "Live Monitor",
-    "subtitle": "Real-time AI interaction tracking",
-    "sessions": "Active Sessions",
-    "noSessions": "No active sessions at the moment",
-    "selectSession": "Select a session to view details",
+    "title": "Monitoraggio in Tempo Reale",
+    "subtitle": "Tracciamento delle interazioni AI in tempo reale",
+    "sessions": "Sessioni Attive",
+    "noSessions": "Nessuna sessione attiva al momento",
+    "selectSession": "Selezionare una sessione per visualizzare i dettagli",
     "handoff": {
-      "link": "Link to Member",
-      "hint": "Manually associate this session with a member ID",
-      "placeholder": "Enter Member ID"
+      "link": "Collega al Membro",
+      "hint": "Associa manualmente questa sessione a un ID membro",
+      "placeholder": "Inserisci ID Membro"
     }
   },
   "memberMemory": {
-    "title": "Member Memory",
-    "subtitle": "Long-term semantic knowledge base",
-    "files": "Memory Files",
-    "noFiles": "No memory entries found for this member",
-    "selectFile": "Select an entry to view details",
-    "reasonPlaceholder": "Enter reason for manual override",
-    "scheduler": "Analysis Scheduler",
-    "lastRun": "Last analyzed"
+    "title": "Memoria Membro",
+    "subtitle": "Base di conoscenza semantica a lungo termine",
+    "files": "File di Memoria",
+    "noFiles": "Nessuna voce di memoria trovata per questo membro",
+    "selectFile": "Selezionare una voce per visualizzare i dettagli",
+    "reasonPlaceholder": "Inserisci il motivo per l'override manuale",
+    "scheduler": "Pianificatore di Analisi",
+    "lastRun": "Ultima analisi"
   },
   "members": {
-    "title": "Members",
-    "subtitle": "Manage your studio members and their AI state",
-    "add": "Add Member",
+    "title": "Membri",
+    "subtitle": "Gestisci i membri del tuo studio e il loro stato AI",
+    "add": "Aggiungi Membro",
     "import": {
-      "clickOrDrop": "Click or drag file to this area to upload",
-      "selectFile": "Select File",
-      "hint": "Supports .csv, .xls, .xlsx"
+      "clickOrDrop": "Clicca o trascina il file in quest'area per caricarlo",
+      "selectFile": "Seleziona File",
+      "hint": "Supporta .csv, .xls, .xlsx"
     },
-    "importTitle": "Member Import",
-    "noMembers": "No members found",
-    "noContact": "No contact information",
-    "confirmDelete": "Are you sure you want to delete this member?",
-    "search": "Search members...",
+    "importTitle": "Importazione Membri",
+    "noMembers": "Nessun membro trovato",
+    "noContact": "Nessuna informazione di contatto",
+    "confirmDelete": "È sicuro di voler eliminare questo membro?",
+    "search": "Cerca membri...",
     "stats": {
-      "total": "Total Members",
-      "active": "Active",
-      "paused": "Paused",
-      "manual": "Manual Entries",
-      "external": "Synced (Magicline)",
-      "selected": "selected"
+      "total": "Membri Totali",
+      "active": "Attivi",
+      "paused": "In Pausa",
+      "manual": "Inserimenti Manuali",
+      "external": "Sincronizzati (Magicline)",
+      "selected": "selezionati"
     },
     "table": {
-      "member": "Member",
-      "source": "Source",
-      "status": "Status"
+      "member": "Membro",
+      "source": "Fonte",
+      "status": "Stato"
     },
     "form": {
-      "firstName": "First Name",
-      "lastName": "Last Name",
-      "email": "Email Address"
+      "firstName": "Nome",
+      "lastName": "Cognome",
+      "email": "Indirizzo Email"
     },
     "status": {
-      "active": "Active",
-      "paused": "Paused"
+      "active": "Attivo",
+      "paused": "In Pausa"
     }
   },
   "pricing": {
-    "title": "Simple Pricing",
-    "titleAccent": "for every studio size",
-    "description": "Choose the plan that fits your studio operations. All plans include 24/7 AI availability and Magicline integration.",
-    "monthly": "Monthly",
-    "yearly": "Yearly",
-    "billedYearly": "billed yearly",
-    "discount": "Save 20%",
+    "title": "Prezzi Semplici",
+    "titleAccent": "per ogni dimensione di studio",
+    "description": "Scegli il piano più adatto alle operazioni del tuo studio. Tutti i piani includono disponibilità AI 24/7 e integrazione Magicline.",
+    "monthly": "Mensile",
+    "yearly": "Annuale",
+    "billedYearly": "fatturato annualmente",
+    "discount": "Risparmia il 20%",
     "enterpriseTitle": "Enterprise",
-    "enterpriseDesc": "Custom solutions for large studio chains with 10+ locations and specific compliance needs.",
-    "enterpriseCta": "Contact Sales",
-    "addonsTitle": "Powerful",
-    "addonsSubtitle": "Addons",
-    "addonsSubtitleAccent": "to scale",
-    "addonsDesc": "Enhance your AI agents with specialized capabilities tailored to your workflow.",
-    "faqTitle": "Frequently Asked Questions",
-    "finalCta": "Ready to transform your studio?",
-    "finalCtaAccent": "Start your trial today.",
-    "finalCtaDesc": "Join 50+ fitness studios already using ARIIA.",
+    "enterpriseDesc": "Soluzioni personalizzate per grandi catene di studi con oltre 10 sedi e specifiche esigenze di conformità.",
+    "enterpriseCta": "Contatta le Vendite",
+    "addonsTitle": "Potenti",
+    "addonsSubtitle": "Componenti Aggiuntivi",
+    "addonsSubtitleAccent": "per scalare",
+    "addonsDesc": "Migliora i tuoi agenti AI con capacità specializzate su misura per il tuo flusso di lavoro.",
+    "faqTitle": "Domande Frequenti",
+    "finalCta": "Pronto a trasformare il tuo studio?",
+    "finalCtaAccent": "Inizia la tua prova oggi.",
+    "finalCtaDesc": "Unisciti a oltre 50 studi fitness che utilizzano già ARIIA.",
     "plans": {
       "starter": {
         "name": "Starter",
-        "desc": "Perfect for boutique studios",
-        "cta": "Get Started",
+        "desc": "Perfetto per studi boutique",
+        "cta": "Inizia Ora",
         "features": [
-          "1 AI Agent (Ops)",
-          "WhatsApp Integration",
-          "100 AI Resolutions/mo",
-          "Basic Analytics"
+          "1 Agente AI (Operazioni)",
+          "Integrazione WhatsApp",
+          "100 Risoluzioni AI/mese",
+          "Analisi di Base"
         ]
       },
       "professional": {
-        "name": "Professional",
-        "badge": "Most Popular",
-        "desc": "For growing fitness studios",
-        "cta": "Start Free Trial",
+        "name": "Professionale",
+        "badge": "Più Popolare",
+        "desc": "Per studi fitness in crescita",
+        "cta": "Inizia Prova Gratuita",
         "features": [
-          "3 AI Agents (Sales, Ops, Medic)",
+          "3 Agenti AI (Vendite, Operazioni, Medico)",
           "WhatsApp & Telegram",
-          "500 AI Resolutions/mo",
-          "Advanced Analytics",
-          "Member Memory (1 Tier)"
+          "500 Risoluzioni AI/mese",
+          "Analisi Avanzate",
+          "Memoria Membri (1 Livello)"
         ]
       },
       "business": {
-        "name": "Business",
-        "desc": "Full automation for large studios",
-        "cta": "Go Pro",
+        "name": "Aziendale",
+        "desc": "Automazione completa per grandi studi",
+        "cta": "Passa a Pro",
         "features": [
-          "Full Swarm (All Agents)",
-          "Omnichannel (WA, TG, Voice)",
-          "Unlimited Resolutions",
-          "GraphRAG & Full Memory",
-          "Priority Support"
+          "Sciame Completo (Tutti gli Agenti)",
+          "Omnicanale (WA, TG, Voce)",
+          "Risoluzioni Illimitate",
+          "GraphRAG & Memoria Completa",
+          "Supporto Prioritario"
         ]
       }
     },
     "addons": {
       "voice": {
-        "name": "AI Voice Engine",
-        "desc": "Handle incoming calls with natural AI voice interaction."
+        "name": "Motore Vocale AI",
+        "desc": "Gestisce le chiamate in arrivo con interazione vocale AI naturale."
       },
       "vision": {
-        "name": "AI Vision (YOLOv8)",
-        "desc": "Real-time occupancy and safety tracking via camera integration."
+        "name": "Visione AI (YOLOv8)",
+        "desc": "Monitoraggio in tempo reale dell'occupazione e della sicurezza tramite integrazione telecamera."
       },
       "churn": {
-        "name": "Churn Prediction",
-        "desc": "Advanced ML model to identify cancellation risks early."
+        "name": "Previsione Abbandoni",
+        "desc": "Modello ML avanzato per identificare precocemente i rischi di cancellazione."
       },
       "channel": {
-        "name": "Additional Channel",
-        "desc": "Add custom SMS or Email automation to your swarm."
+        "name": "Canale Aggiuntivo",
+        "desc": "Aggiungi automazione SMS o Email personalizzata al tuo sciame."
       }
     },
     "faqs": [
       {
-        "q": "Can I change my plan later?",
-        "a": "Yes, you can upgrade or downgrade your plan at any time from your settings."
+        "q": "Posso cambiare il mio piano in seguito?",
+        "a": "Sì, può aggiornare o declassare il suo piano in qualsiasi momento dalle sue impostazioni."
       },
       {
-        "q": "Is my data secure?",
-        "a": "Absolutely. We use industry-standard encryption and all data is hosted in ISO-certified data centers in Germany."
+        "q": "I miei dati sono sicuri?",
+        "a": "Assolutamente. Utilizziamo la crittografia standard del settore e tutti i dati sono ospitati in data center certificati ISO in Germania."
       },
       {
-        "q": "Do you offer custom integrations?",
-        "a": "Yes, for Enterprise customers we offer bespoke integration services for your specific CRM or ERP system."
+        "q": "Offrite integrazioni personalizzate?",
+        "a": "Sì, per i clienti Enterprise offriamo servizi di integrazione su misura per il suo specifico sistema CRM o ERP."
       },
       {
-        "q": "How does the Voice AI work?",
-        "a": "Our Voice AI uses advanced STT/TTS models to interact with callers in real-time, just like a human assistant."
+        "q": "Come funziona l'AI Vocale?",
+        "a": "La nostra AI Vocale utilizza modelli STT/TTS avanzati per interagire con i chiamanti in tempo reale, proprio come un assistente umano."
       }
     ]
   },
   "legal": {
     "impressum": {
-      "title": "Imprint",
-      "tmg5": "Information according to § 5 TMG",
-      "representedBy": "Represented by",
-      "managingDirector": "Managing Director",
-      "contact": "Contact",
-      "phone": "Phone",
-      "email": "Email",
-      "website": "Website",
-      "registerEntry": "Register Entry",
-      "registerCourt": "Register Court",
-      "registerNumber": "Register Number",
-      "vatId": "VAT Identification Number according to § 27 a VAT Act",
-      "responsibleContent": "Responsible for content according to § 55 Abs. 2 RStV",
-      "dispute": "EU Dispute Resolution",
-      "liabilityContent": "Liability for Content",
-      "liabilityLinks": "Liability for Links"
+      "title": "Impronta",
+      "tmg5": "Informazioni ai sensi del § 5 TMG",
+      "representedBy": "Rappresentato da",
+      "managingDirector": "Amministratore Delegato",
+      "contact": "Contatto",
+      "phone": "Telefono",
+      "email": "E-mail",
+      "website": "Sito Web",
+      "registerEntry": "Iscrizione al Registro",
+      "registerCourt": "Tribunale del Registro",
+      "registerNumber": "Numero di Registro",
+      "vatId": "Numero di identificazione IVA ai sensi del § 27 a Legge IVA",
+      "responsibleContent": "Responsabile per il contenuto ai sensi del § 55 Abs. 2 RStV",
+      "dispute": "Risoluzione delle Controversie UE",
+      "liabilityContent": "Responsabilità per il Contenuto",
+      "liabilityLinks": "Responsabilità per i Link"
     },
     "privacy": {
-      "title": "Privacy Policy"
+      "title": "Informativa sulla Privacy"
     },
     "agb": {
-      "title": "Terms of Service",
-      "status": "Last Update"
+      "title": "Termini di Servizio",
+      "status": "Ultimo Aggiornamento"
     }
   },
   "audit": {
     "title": "Registro di Audit",
-    "subtitle": "Conformità e traccia di audit",
+    "subtitle": "Conformità e Traccia di Audit",
     "filters": {
       "category": "Categoria",
-      "allCategories": "Tutte le categorie",
-      "actionType": "Tipo di azione",
-      "allActions": "Tutte le azioni",
-      "initiatedBy": "Iniziato da",
-      "allUsers": "Tutti gli utenti",
-      "systemInternal": "Interno di sistema",
-      "timeRange": "Intervallo di tempo",
+      "allCategories": "Tutte le Categorie",
+      "actionType": "Tipo di Azione",
+      "allActions": "Tutte le Azioni",
+      "initiatedBy": "Iniziato Da (Attore)",
+      "allUsers": "Tutti gli Utenti",
+      "systemInternal": "Interno al Sistema",
+      "timeRange": "Intervallo di Tempo",
       "from": "Da",
       "to": "A",
-      "clearFilters": "Cancella filtri",
+      "clearFilters": "Cancella Tutti i Filtri",
       "exportCsv": "Esporta CSV"
     },
-    "search": "Cerca per azione, email...",
+    "search": "Cerca per azione, email o contenuto metadati...",
     "sort": {
-      "newest": "Più recente",
-      "oldest": "Meno recente"
+      "newest": "Più Recente",
+      "oldest": "Meno Recente"
     },
     "table": {
-      "timestamp": "Timestamp",
+      "timestamp": "Data/Ora",
       "actor": "Attore",
       "operation": "Operazione",
-      "target": "Destinatario",
+      "target": "Obiettivo",
       "details": "Dettagli",
-      "fetching": "Recupero dati...",
-      "viewDiff": "Visualizza Diff"
+      "fetching": "Recupero record di audit...",
+      "viewDiff": "Visualizza Differenza"
     },
     "modal": {
-      "title": "Audit Event Details",
-      "actorIdentity": "Actor Identity",
-      "targetResource": "Target Resource",
-      "changeSummary": "Change Summary"
+      "title": "Dettagli Evento di Audit",
+      "actorIdentity": "Identità dell'Attore",
+      "targetResource": "Risorsa Obiettivo",
+      "changeSummary": "Riepilogo Modifiche"
     }
   },
   "knowledge": {
     "title": "Base di Conoscenza",
     "documents": "Documenti",
-    "noDocuments": "Nessun documento.",
-    "newDocument": "Nuovo documento",
-    "newDocumentPlaceholder": "new-document.md",
-    "viewTenant": "View Tenant:",
-    "indexChunks": "Index Chunks",
-    "lastIngest": "Last Ingest",
-    "reindex": "Reindex",
-    "reindexing": "Reindexing...",
-    "selectFile": "Select a file or create one on the left.",
+    "noDocuments": "Nessun documento di conoscenza disponibile.",
+    "newDocument": "Nuovo Documento",
+    "newDocumentPlaceholder": "nuovo-documento.md",
+    "viewTenant": "Visualizza Tenant:",
+    "indexChunks": "Indicizza Blocchi",
+    "lastIngest": "Ultima Acquisizione",
+    "reindex": "Reindicizza",
+    "reindexing": "Reindicizzazione...",
+    "selectFile": "Selezioni un file o ne crei uno a sinistra.",
     "save": "Salva",
     "saving": "Salvataggio...",
-    "saved": "Salvato",
-    "reasonPlaceholder": "Reason for change (min. 8 chars)",
-    "reasonError": "Please provide a reason for the change (min. 8 chars).",
-    "conflict": "Conflict detected",
-    "conflictError": "The file has been modified in the meantime. Please reload or overwrite.",
-    "ingestError": "Ingest Error: {{error}}",
-    "autosaving": "Autosaving...",
-    "autosaved": "Autosave saved",
-    "loading": "Loading...",
-    "loaded": "Loaded",
-    "draftCreated": "New file created as draft. Please save."
+    "saved": "Salvato e sincronizzato",
+    "reasonPlaceholder": "Motivo della modifica (min. 8 caratteri)",
+    "reasonError": "Fornisca un motivo per la modifica (min. 8 caratteri).",
+    "conflict": "Conflitto rilevato",
+    "conflictError": "Il file è stato modificato nel frattempo. Ricarichi o sovrascriva.",
+    "ingestError": "Errore di acquisizione: {{error}}",
+    "autosaving": "Salvataggio automatico...",
+    "autosaved": "Salvataggio automatico completato",
+    "loading": "Caricamento...",
+    "loaded": "Caricato",
+    "draftCreated": "Nuovo file creato come bozza. Salvi."
   },
   "register": {
     "title": "Registrazione",
-    "subtitle": "Crea un nuovo tenant e admin.",
-    "tenantName": "Tenant Name (e.g. Test-Studio)",
-    "tenantSlug": "Tenant Slug (optional)",
-    "email": "Email",
-    "name": "Name (optional)",
-    "password": "Password (min. 8 characters)",
-    "button": "Registra",
-    "waiting": "Attendere...",
-    "backToLogin": "Back to Login"
+    "subtitle": "Crea un nuovo tenant e un utente amministratore.",
+    "tenantName": "Nome Tenant (es. Test-Studio)",
+    "tenantSlug": "Slug Tenant (opzionale)",
+    "email": "E-mail",
+    "name": "Nome (opzionale)",
+    "password": "Password (min. 8 caratteri)",
+    "button": "Registra Tenant",
+    "waiting": "Attenda prego...",
+    "backToLogin": "Torna al Login"
   },
   "login": {
     "placeholders": {
@@ -665,142 +665,142 @@
     }
   },
   "plans": {
-    "deleteDeadTitle": "Delete all plans without Stripe connection (ghosts)?",
-    "newPlan": "New Subscription Plan",
-    "planName": "Name (e.g. Professional)",
-    "planSlug": "Slug (e.g. professional)",
-    "priceEur": "Price in EUR",
-    "newAddon": "New Stripe Add-on",
-    "addonName": "Add-on Name (e.g. Voice Pipeline)",
-    "monthlyPrice": "Monthly Price in EUR",
-    "editPlan": "Edit Plan"
+    "deleteDeadTitle": "Eliminare tutti i piani senza connessione Stripe (fantasmi)?",
+    "newPlan": "Nuovo Piano di Abbonamento",
+    "planName": "Nome (es. Professionale)",
+    "planSlug": "Slug (es. professionale)",
+    "priceEur": "Prezzo in EUR",
+    "newAddon": "Nuovo Add-on Stripe",
+    "addonName": "Nome Add-on (es. Pipeline Vocale)",
+    "monthlyPrice": "Prezzo Mensile in EUR",
+    "editPlan": "Modifica Piano"
   },
   "impressum": {
-    "disputeText": "The European Commission provides a platform for online dispute resolution (OS): https://ec.europa.eu/consumers/odr/. You can find our email address at the top of the imprint. We are not willing or obliged to participate in dispute resolution proceedings before a consumer arbitration board.",
-    "liabilityContentText": "As a service provider, we are responsible for our own content on these pages in accordance with the general laws pursuant to § 7 Para.1 TMG. According to §§ 8 to 10 TMG, we are not obliged as a service provider to monitor transmitted or stored third-party information or to investigate circumstances that indicate illegal activity.",
-    "liabilityLinksText": "Our offer contains links to external websites of third parties, on whose content we have no influence. Therefore, we cannot assume any liability for these external contents. The respective provider or operator of the pages is always responsible for the content of the linked pages."
+    "disputeText": "La Commissione Europea fornisce una piattaforma per la risoluzione delle controversie online (OS): https://ec.europa.eu/consumers/odr/. Il nostro indirizzo email si trova in cima all'impronta. Non siamo disposti né obbligati a partecipare a procedure di risoluzione delle controversie dinanzi a un collegio arbitrale dei consumatori.",
+    "liabilityContentText": "In qualità di fornitore di servizi, siamo responsabili dei nostri contenuti su queste pagine in conformità con le leggi generali ai sensi del § 7 Par.1 TMG. Secondo i §§ 8-10 TMG, non siamo obbligati, in qualità di fornitore di servizi, a monitorare le informazioni di terzi trasmesse o memorizzate o a indagare su circostanze che indicano attività illegali.",
+    "liabilityLinksText": "La nostra offerta contiene collegamenti a siti web esterni di terzi, sul cui contenuto non abbiamo alcuna influenza. Pertanto, non possiamo assumerci alcuna responsabilità per questi contenuti esterni. Il rispettivo fornitore o operatore delle pagine è sempre responsabile del contenuto delle pagine collegate."
   },
   "escalations": {
-    "title": "Escalation Queue",
-    "subtitle": "Tickets requiring human intervention",
-    "noEscalations": "No open escalations.",
-    "memberIdError": "Please provide a valid Member ID.",
-    "tokenError": "Error generating token.",
-    "handoffError": "Error resolving handoff.",
-    "allClear": "All clear",
-    "linkMember": "Link Member",
-    "memberId": "Member ID",
-    "resolveHandoff": "Resolve handoff?"
+    "title": "Coda di Escalation",
+    "subtitle": "Ticket che richiedono intervento umano",
+    "noEscalations": "Nessuna escalation aperta.",
+    "memberIdError": "Fornisca un ID Membro valido.",
+    "tokenError": "Errore nella generazione del token.",
+    "handoffError": "Errore nella risoluzione del passaggio di consegne.",
+    "allClear": "Tutto chiaro",
+    "linkMember": "Collega Membro",
+    "memberId": "ID Membro",
+    "resolveHandoff": "Risolvere il passaggio di consegne?"
   },
   "magicline": {
-    "syncNotStarted": "Sync not yet started",
-    "allEnriched": "All members already enriched",
-    "syncFailed": "Sync failed",
-    "syncDescription": "Load visit and booking data for all members",
-    "enrichAll": "Enrich All",
-    "adoption": "ARIIA Adoption",
-    "adoptionSubtitle": "Magicline members who have used ARIIA",
-    "usersActive": "Users active",
-    "platformVerification": "Platform & Verification",
-    "platformSubtitle": "Active chat sessions by channel and status",
-    "noSessions": "No chat sessions available yet.",
-    "languageDistribution": "Language Distribution",
-    "languageSubtitle": "Preferred language of members",
-    "noLanguageData": "No language data available.",
-    "memberStatus": "Member Status",
-    "memberStatusSubtitle": "Active vs. paused members",
-    "noData": "No data.",
-    "dataCoverage": "Data Coverage",
-    "dataCoverageSubtitle": "Members with visit & booking data"
+    "syncNotStarted": "Sincronizzazione non ancora avviata",
+    "allEnriched": "Tutti i membri già arricchiti",
+    "syncFailed": "Sincronizzazione fallita",
+    "syncDescription": "Carica i dati di visita e prenotazione per tutti i membri",
+    "enrichAll": "Arricchisci Tutto",
+    "adoption": "Adozione ARIIA",
+    "adoptionSubtitle": "Membri Magicline che hanno utilizzato ARIIA",
+    "usersActive": "Utenti attivi",
+    "platformVerification": "Piattaforma e Verifica",
+    "platformSubtitle": "Sessioni di chat attive per canale e stato",
+    "noSessions": "Nessuna sessione di chat disponibile ancora.",
+    "languageDistribution": "Distribuzione Linguistica",
+    "languageSubtitle": "Lingua preferita dei membri",
+    "noLanguageData": "Nessun dato linguistico disponibile.",
+    "memberStatus": "Stato Membro",
+    "memberStatusSubtitle": "Membri attivi vs. in pausa",
+    "noData": "Nessun dato.",
+    "dataCoverage": "Copertura Dati",
+    "dataCoverageSubtitle": "Membri con dati di visita e prenotazione"
   },
   "analytics": {
-    "weeklyOverview": "Weekly Overview",
-    "weeklySubtitle": "Tickets & resolution rate (last 7 days)",
-    "satisfaction": "Member Satisfaction",
-    "satisfactionSubtitle": "Feedback after AI interactions",
-    "noFeedback": "No feedback available yet",
-    "avgRating": "Average Rating",
-    "basedOn": "Based on {{count}} ratings",
-    "channelPerformance": "Channel Performance",
-    "channelSubtitle": "Comparison of support channels (30 days)"
+    "weeklyOverview": "Panoramica Settimanale",
+    "weeklySubtitle": "Ticket e tasso di risoluzione (ultimi 7 giorni)",
+    "satisfaction": "Soddisfazione dei Membri",
+    "satisfactionSubtitle": "Feedback dopo le interazioni AI",
+    "noFeedback": "Nessun feedback disponibile ancora",
+    "avgRating": "Valutazione Media",
+    "basedOn": "Basato su {{count}} valutazioni",
+    "channelPerformance": "Performance del Canale",
+    "channelSubtitle": "Confronto dei canali di supporto (30 giorni)"
   },
   "conversations": {
-    "search": "Search conversations...",
-    "backToList": "Back to list",
-    "helpful": "Helpful",
-    "notHelpful": "Not helpful"
+    "search": "Cerca conversazioni...",
+    "backToList": "Torna all'elenco",
+    "helpful": "Utile",
+    "notHelpful": "Non utile"
   },
   "dashboard": {
-    "governanceMode": "Platform Governance Mode",
-    "uptime": "Uptime piattaforma",
-    "distribution": "Tenant Distribution",
-    "distributionSubtitle": "Active vs. Inactive",
-    "infrastructure": "Infrastructure Status",
-    "coreServices": "Servizi Core",
-    "redis": "Redis Cache",
-    "vector": "Vector Engine",
+    "governanceMode": "Modalità di Governance della Piattaforma",
+    "uptime": "Disponibilità della Piattaforma",
+    "distribution": "Distribuzione Tenant",
+    "distributionSubtitle": "Attivi vs. Inattivi",
+    "infrastructure": "Stato dell'Infrastruttura",
+    "coreServices": "Servizi Core SaaS",
+    "redis": "Cache Redis",
+    "vector": "Motore Vettoriale",
     "qdrant": "Qdrant Online",
-    "auth": "Auth Service",
-    "events": "Eventi recenti",
-    "auditTrail": "Traccia di Audit",
-    "noEvents": "No events found.",
-    "initializing": "Initializing Dashboard...",
-    "loadError": "Error loading data.",
-    "analyticsHint": "Use the \"Analytics\" menu item for detailed evaluations."
+    "auth": "Servizio di Autenticazione",
+    "events": "Eventi Recenti della Piattaforma",
+    "auditTrail": "Traccia di Controllo (a livello di Sistema)",
+    "noEvents": "Nessun evento trovato.",
+    "initializing": "Inizializzazione della Dashboard...",
+    "loadError": "Errore durante il caricamento dei dati.",
+    "analyticsHint": "Utilizzi la voce di menu \"Analisi\" per valutazioni dettagliate."
   },
   "tiptap": {
-    "toolbar": "Text Editor Toolbar",
-    "bold": "Bold",
-    "italic": "Italic",
-    "heading1": "Heading 1",
-    "heading2": "Heading 2",
-    "bulletList": "Bullet List",
-    "orderedList": "Ordered List",
-    "quote": "Quote",
-    "undo": "Undo",
-    "redo": "Redo"
+    "toolbar": "Barra degli strumenti dell'editor di testo",
+    "bold": "Grassetto",
+    "italic": "Corsivo",
+    "heading1": "Intestazione 1",
+    "heading2": "Intestazione 2",
+    "bulletList": "Elenco puntato",
+    "orderedList": "Elenco numerato",
+    "quote": "Citazione",
+    "undo": "Annulla",
+    "redo": "Ripeti"
   },
   "automation": {
-    "title": "Automation",
-    "subtitle": "Schedule and LLM extraction for daily Member-Memory analysis.",
-    "lastRun": "Last Run",
-    "schedulerActive": "Scheduler Active",
-    "schedulerDesc": "Enables daily execution according to cron expression.",
-    "cronExpression": "Cron Expression (UTC)",
-    "every12h": "Every 12h",
-    "extractionDesc": "Enables profile creation from chat history.",
-    "extractionActive": "LLM Extraction Active",
-    "noRun": "No run yet."
+    "title": "Automazione",
+    "subtitle": "Pianificazione ed estrazione LLM per l'analisi giornaliera della Memoria Membri.",
+    "lastRun": "Ultima Esecuzione",
+    "schedulerActive": "Scheduler Attivo",
+    "schedulerDesc": "Abilita l'esecuzione giornaliera secondo l'espressione cron.",
+    "cronExpression": "Espressione Cron (UTC)",
+    "every12h": "Ogni 12h",
+    "extractionDesc": "Abilita la creazione del profilo dalla cronologia chat.",
+    "extractionActive": "Estrazione LLM Attiva",
+    "noRun": "Nessuna esecuzione ancora."
   },
   "users": {
     "roles": {
-      "systemAdmin": "System Admin",
-      "tenantAdmin": "Tenant Admin",
-      "tenantUser": "Tenant User"
+      "systemAdmin": "Amministratore di Sistema",
+      "tenantAdmin": "Amministratore Tenant",
+      "tenantUser": "Utente Tenant"
     },
-    "reasonError": "Please provide a understandable reason with at least 8 characters.",
-    "tenantAdmins": "Tenant Admins",
-    "systemAdmins": "System Admins",
-    "createUser": "Create New User",
-    "email": "Email",
+    "reasonError": "Fornisca una motivazione comprensibile di almeno 8 caratteri.",
+    "tenantAdmins": "Amministratori Tenant",
+    "systemAdmins": "Amministratori di Sistema",
+    "createUser": "Crea Nuovo Utente",
+    "email": "E-mail",
     "password": "Password",
-    "name": "Name",
-    "saving": "Saving...",
-    "searchPlaceholder": "Search by email, name or tenant",
-    "allRoles": "All Roles",
-    "allTenants": "All Tenants",
-    "loading": "Loading users...",
-    "noUsers": "No users for the current filter.",
-    "selectAll": "All selected",
-    "running": "Running...",
-    "noAudit": "No audit events found.",
-    "ghostMode": "Start Ghost Mode",
-    "ghostReason": "e.g. Support case #4812: User cannot save settings",
-    "editUser": "Edit User",
-    "passwordReset": "Password Reset (optional)",
-    "newPassword": "New Password (optional)"
+    "name": "Nome",
+    "saving": "Salvataggio...",
+    "searchPlaceholder": "Cerca per email, nome o tenant",
+    "allRoles": "Tutti i Ruoli",
+    "allTenants": "Tutti i Tenant",
+    "loading": "Caricamento utenti...",
+    "noUsers": "Nessun utente per il filtro corrente.",
+    "selectAll": "Tutti selezionati",
+    "running": "In esecuzione...",
+    "noAudit": "Nessun evento di audit trovato.",
+    "ghostMode": "Avvia Modalità Fantasma",
+    "ghostReason": "es. Caso di supporto #4812: L'utente non riesce a salvare le impostazioni",
+    "editUser": "Modifica Utente",
+    "passwordReset": "Reimpostazione Password (opzionale)",
+    "newPassword": "Nuova Password (opzionale)"
   },
   "ui": {
-    "noData": "No data"
+    "noData": "Nessun dato"
   }
 }

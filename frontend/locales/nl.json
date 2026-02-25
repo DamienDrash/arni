@@ -1,7 +1,7 @@
 {
   "common": {
-    "welcome": "Welkom bij het intelligente Living System.",
-    "dashboard": "Dashboard",
+    "welcome": "Welkom bij ARIIA",
+    "dashboard": "Overzicht",
     "settings": "Instellingen",
     "login": "Inloggen",
     "register": "Registreren",
@@ -9,328 +9,328 @@
     "save": "Opslaan",
     "cancel": "Annuleren",
     "loading": "Laden...",
-    "edit": "Edit",
-    "delete": "Delete",
-    "confirmed": "Success",
-    "error": "Error",
-    "active": "Active",
-    "paused": "Paused",
-    "days": "Days",
-    "features": "Functionaliteiten",
-    "featuresTitle": "Functies ontdekken",
-    "pricing": "Tarieven",
+    "edit": "Bewerken",
+    "delete": "Verwijderen",
+    "confirmed": "Succes",
+    "error": "Fout",
+    "active": "Actief",
+    "paused": "Gepauzeerd",
+    "days": "Dagen",
+    "features": "Functies",
+    "featuresTitle": "Alle Functies",
+    "pricing": "Prijzen",
     "dsgvo": "AVG-conform",
-    "madeInGermany": "Made in Germany",
-    "enterpriseReady": "Enterprise-Ready",
+    "madeInGermany": "Gemaakt in Duitsland",
+    "enterpriseReady": "Enterprise-klaar",
     "allSystemsOnline": "Alle systemen online",
-    "membersSynced": "180 leden gesynchroniseerd",
+    "membersSynced": "Leden gesynchroniseerd",
     "details": "Details",
-    "noEntries": "No entries found",
-    "search": "Search",
+    "noEntries": "Geen vermeldingen gevonden",
+    "search": "Zoeken",
     "status": "Status",
-    "noData": "No data available",
-    "never": "Never"
+    "noData": "Geen gegevens beschikbaar",
+    "never": "Nooit"
   },
   "sidebar": {
-    "dashboard": "Dashboard",
-    "monitor": "Live Monitor",
-    "escalations": "Escalations",
-    "analytics": "Analytics",
-    "members": "Members",
-    "users": "Users",
-    "knowledge": "Knowledge Base",
-    "memberMemory": "Member Memory",
-    "systemPrompt": "Studio Prompt",
-    "sync": "Sync",
-    "billing": "Subscription",
-    "settings": "Settings",
-    "tenants": "Tenant Manager",
-    "plans": "Billing Plans",
-    "audit": "Audit Log",
-    "health": "Engine Stats",
-    "quickActions": "Quick Actions",
-    "platformControl": "Platform Control",
-    "studioDeck": "Studio Deck",
-    "logout": "Logout",
+    "dashboard": "Overzicht",
+    "monitor": "Live-monitor",
+    "escalations": "Escalaties",
+    "analytics": "Analyse",
+    "members": "Leden",
+    "users": "Gebruikers",
+    "knowledge": "Kennisbank",
+    "memberMemory": "Leden Geheugen",
+    "systemPrompt": "Studioprompt",
+    "sync": "Synchroniseren",
+    "billing": "Abonnement",
+    "settings": "Instellingen",
+    "tenants": "Tenant Beheerder",
+    "plans": "Factureringsplannen",
+    "audit": "Audit Logboek",
+    "health": "Engine Statistieken",
+    "quickActions": "Snelle Acties",
+    "platformControl": "Platformbeheer",
+    "studioDeck": "Studiopaneel",
+    "logout": "Uitloggen",
     "roles": {
-      "systemAdmin": "System Administrator",
-      "tenantAdmin": "Studio Administrator"
+      "systemAdmin": "Systeembeheerder",
+      "tenantAdmin": "Studiobeheerder"
     },
     "sections": {
-      "operations": "Operations",
-      "customers": "Customers",
-      "knowledge": "Knowledge",
+      "operations": "Operationeel",
+      "customers": "Klanten",
+      "knowledge": "Kennis",
       "studio": "Studio",
-      "governance": "Governance",
-      "system": "System"
+      "governance": "Beheer",
+      "system": "Systeem"
     }
   },
   "settings": {
     "overview": {
-      "title": "Overview",
-      "subtitle": "Profile and system parameters."
+      "title": "Overzicht",
+      "subtitle": "Profiel- en systeemparameters."
     },
     "account": {
-      "personalData": "Personal Data",
-      "fullName": "Full Name",
-      "fullNameHint": "Your legal first and last name",
-      "email": "Email Address",
-      "emailHint": "Primary contact for security alerts",
-      "locale": "Interface Language",
-      "localeHint": "Set your preferred dashboard language",
-      "timezone": "Timezone",
-      "timezoneHint": "Used for scheduling and logs",
-      "compactMode": "Compact Mode",
-      "compactModeDesc": "Denser UI for power users",
-      "notifications": "Notifications",
-      "emailNotify": "Email Notifications",
-      "emailNotifyDesc": "Receive reports via email",
-      "tgNotify": "Telegram Alerts",
-      "tgNotifyDesc": "Real-time alerts via Telegram",
+      "personalData": "Persoonlijke Gegevens",
+      "fullName": "Volledige Naam",
+      "fullNameHint": "Uw wettelijke voor- en achternaam",
+      "email": "E-mailadres",
+      "emailHint": "Primair contact voor beveiligingswaarschuwingen",
+      "locale": "Interfacetaal",
+      "localeHint": "Stel uw voorkeurstaal voor het dashboard in",
+      "timezone": "Tijdzone",
+      "timezoneHint": "Gebruikt voor planning en logboeken",
+      "compactMode": "Compacte Modus",
+      "compactModeDesc": "Compactere gebruikersinterface voor ervaren gebruikers",
+      "notifications": "Meldingen",
+      "emailNotify": "E-mailmeldingen",
+      "emailNotifyDesc": "Ontvang rapporten via e-mail",
+      "tgNotify": "Telegram-waarschuwingen",
+      "tgNotifyDesc": "Realtime waarschuwingen via Telegram",
       "password": {
-        "title": "Change Password",
-        "current": "Current Password",
-        "currentHint": "Verify your identity",
-        "new": "New Password",
-        "newHint": "At least 8 characters long"
+        "title": "Wachtwoord wijzigen",
+        "current": "Huidig wachtwoord",
+        "currentHint": "Verifieer uw identiteit",
+        "new": "Nieuw wachtwoord",
+        "newHint": "Minimaal 8 tekens lang"
       },
       "studio": {
-        "title": "Studio Profile",
-        "subtitle": "Public studio identity and contact",
-        "name": "Studio Name",
-        "nameHint": "Displayed in AI interactions",
-        "opsEmail": "Operations Email",
-        "opsEmailHint": "Contact for studio operations",
-        "opsTelegram": "Operations Telegram",
-        "opsTelegramHint": "Telegram handle for studio staff",
-        "refresh": "Data Refresh",
-        "refreshHint": "Manual sync with external systems",
-        "sla": "SLA Tier",
-        "slaHint": "Service level agreement level",
-        "localeHint": "Primary language of your studio members",
-        "timezoneHint": "Studio local time"
+        "title": "Studioprofiel",
+        "subtitle": "Openbare studio-identiteit en contactgegevens",
+        "name": "Studionaam",
+        "nameHint": "Weergegeven in AI-interacties",
+        "opsEmail": "E-mailadres voor operaties",
+        "opsEmailHint": "Contactpersoon voor studio-operaties",
+        "opsTelegram": "Telegram voor operaties",
+        "opsTelegramHint": "Telegram-gebruikersnaam voor studiopersoneel",
+        "refresh": "Gegevensvernieuwing",
+        "refreshHint": "Handmatige synchronisatie met externe systemen",
+        "sla": "SLA-niveau",
+        "slaHint": "Service Level Agreement-niveau",
+        "localeHint": "Primaire taal van uw studiogebruikers",
+        "timezoneHint": "Lokale tijd van de studio"
       },
-      "title": "Account & Profile",
-      "subtitle": "Personal data and security.",
+      "title": "Accountinstellingen",
+      "subtitle": "Beheer uw persoonlijke profiel en beveiliging",
       "placeholders": {
-        "fullName": "John Doe",
-        "locale": "en-US",
+        "fullName": "Jan Jansen",
+        "locale": "nl-NL",
         "timezone": "UTC",
         "password": "••••••••",
-        "studioName": "Your Studio Name",
-        "opsEmail": "ops@example.com",
+        "studioName": "Uw Studionaam",
+        "opsEmail": "ops@voorbeeld.com",
         "opsTelegram": "-100...",
         "sla": "15",
         "refresh": "5"
       }
     },
-    "aiEngine": "AI Engine",
+    "aiEngine": "AI-engine",
     "general": {
       "privacy": {
-        "title": "Privacy & Compliance",
-        "subtitle": "Manage data retention and PII filtering",
-        "pii": "PII Masking",
-        "piiDesc": "Automatically mask personal data in logs",
-        "retention": "Data Retention",
-        "retentionDesc": "How long to keep interaction history"
+        "title": "Privacy & Naleving",
+        "subtitle": "Beheer gegevensretentie en PII-filtering",
+        "pii": "PII-maskering",
+        "piiDesc": "Maskeer automatisch persoonlijke gegevens in logboeken",
+        "retention": "Gegevensretentie",
+        "retentionDesc": "Hoe lang interactiegeschiedenis bewaren"
       },
       "smtp": {
-        "title": "Email (SMTP)",
-        "subtitle": "Configure outgoing mail server",
-        "host": "SMTP Host",
-        "port": "Port",
-        "user": "Username",
-        "pass": "Password",
-        "senderAddr": "Sender Email",
-        "senderName": "Sender Name",
-        "test": "Send Test Email",
-        "testRecipient": "Recipient for Test"
+        "title": "E-mail (SMTP)",
+        "subtitle": "Configureer uitgaande mailserver",
+        "host": "SMTP-host",
+        "port": "Poort",
+        "user": "Gebruikersnaam",
+        "pass": "Wachtwoord",
+        "senderAddr": "Afzender e-mailadres",
+        "senderName": "Afzender naam",
+        "test": "Verzend test-e-mail",
+        "testRecipient": "Ontvanger voor test"
       },
       "system": {
-        "title": "System Governance",
-        "subtitle": "Core engine and security parameters",
-        "audit": "Extended Audit Logs",
-        "auditDesc": "Keep detailed logs of every system change",
-        "maintenance": "Maintenance Mode",
-        "maintenanceDesc": "Restrict access during updates"
+        "title": "Systeembeheer",
+        "subtitle": "Kernengine en beveiligingsparameters",
+        "audit": "Uitgebreide auditlogboeken",
+        "auditDesc": "Houd gedetailleerde logboeken bij van elke systeemwijziging",
+        "maintenance": "Onderhoudsmodus",
+        "maintenanceDesc": "Beperk toegang tijdens updates"
       },
-      "title": "Platform Core",
-      "subtitle": "Governance and security."
+      "title": "Algemene instellingen",
+      "subtitle": "Kernparameters en beheer van het systeem"
     },
     "ai": {
-      "title": "AI Configuration",
-      "subtitle": "Tweak the behavior of your AI agents",
-      "addProvider": "Add Provider",
-      "editProvider": "Edit Provider",
-      "newProvider": "New AI Provider",
-      "selectProvider": "Select Provider",
-      "provider": "Provider",
-      "apiKey": "API Key",
-      "models": "Available Models",
-      "fetchModels": "Fetch Models",
-      "testConnection": "Test Connection",
-      "latencyTest": "Latency Test",
-      "confirmDelete": "Are you sure you want to remove this provider?",
-      "retry": "Retry",
-      "noModelsFound": "No models found",
+      "title": "AI-configuratie",
+      "subtitle": "Beheer LLM-providers en modelparameters",
+      "addProvider": "Provider toevoegen",
+      "editProvider": "Provider bewerken",
+      "newProvider": "Nieuwe AI-provider",
+      "selectProvider": "Selecteer provider",
+      "provider": "Aanbieder",
+      "apiKey": "API-sleutel",
+      "models": "Beschikbare modellen",
+      "fetchModels": "Modellen Ophalen",
+      "testConnection": "Verbinding Testen",
+      "latencyTest": "Latentietest",
+      "confirmDelete": "Weet u zeker dat u deze provider wilt verwijderen?",
+      "retry": "Opnieuw Proberen",
+      "noModelsFound": "Geen modellen gevonden",
       "status": {
-        "configured": "Configured",
-        "error": "Error",
-        "fetching": "Fetching..."
+        "configured": "Geconfigureerd",
+        "error": "Fout",
+        "fetching": "Ophalen..."
       },
       "hints": {
-        "storedKey": "Key is securely stored",
-        "refreshNeeded": "Fetch models to see available options",
-        "initialFetch": "Fetching models for the first time...",
-        "clickRefresh": "Click to refresh model list"
+        "storedKey": "Sleutel is veilig opgeslagen",
+        "refreshNeeded": "Haal modellen op om beschikbare opties te zien",
+        "initialFetch": "Modellen voor de eerste keer ophalen...",
+        "clickRefresh": "Klik om de modellijst te vernieuwen"
       },
       "errors": {
-        "loadFailed": "Failed to load AI providers",
-        "saveFailed": "Failed to save provider",
-        "deleteFailed": "Failed to delete provider",
-        "fetchModelsFailed": "Failed to fetch models from provider",
-        "connectionError": "Could not connect to AI engine"
+        "loadFailed": "Laden van AI-providers mislukt",
+        "saveFailed": "Opslaan van provider mislukt",
+        "deleteFailed": "Verwijderen van provider mislukt",
+        "fetchModelsFailed": "Ophalen van modellen van provider mislukt",
+        "connectionError": "Kon geen verbinding maken met AI-engine"
       }
     },
     "language": "Taal",
-    "selectLanguage": "Kies je voorkeurstaal",
+    "selectLanguage": "Taal Selecteren",
     "billing": {
-      "title": "Billing & Subscription",
-      "subtitle": "Manage your plan and add-ons."
+      "title": "Facturering & Abonnement",
+      "subtitle": "Beheer uw abonnement en add-ons."
     },
     "integrations": {
-      "title": "Integrations",
-      "subtitle": "Connect Magicline, WhatsApp, and more."
+      "title": "Integraties",
+      "subtitle": "Verbind Magicline, WhatsApp en meer."
     },
     "prompts": {
-      "title": "Custom Prompts",
-      "subtitle": "Configure agent personas and behavior."
+      "title": "Aangepaste Prompts",
+      "subtitle": "Configureer agentpersona's en gedrag."
     },
-    "automation": "Automatisierung",
-    "branding": "Branding"
+    "automation": "Automatisering",
+    "branding": "Huisstijl"
   },
   "navbar": {
     "login": "Inloggen",
-    "register": "Gratis proberen"
+    "register": "Registreren"
   },
   "hero": {
-    "versionBadge": "Living System Agent v2.0",
-    "title": "Je AI-assistent voor een",
+    "versionBadge": "Versie 2.0 Live",
+    "title": "De intelligente",
     "words": [
-      "intelligente",
-      "persoonlijke",
-      "geautomatiseerde",
-      "schaalbare"
+      "AI Assistent",
+      "Studiomanager",
+      "Operations Bot",
+      "Verkoopagent"
     ],
-    "subtitle": "klantcommunicatie",
-    "description": "ARIIA beantwoordt klantvragen via WhatsApp, Telegram en spraak, 24 uur per dag, persoonlijk en intelligent. Voor sportscholen en het mkb.",
-    "cta": "14 dagen gratis proberen"
+    "subtitle": "voor uw fitnessstudio",
+    "description": "ARIIA automatiseert klantcommunicatie via WhatsApp, Telegram en Voice. Verhoog uw efficiëntie met Arnold Prime Orchestration.",
+    "cta": "Begin Nu"
   },
   "stats": {
-    "aiResolution": "AI-oplossingspercentage",
+    "aiResolution": "AI Oplossingspercentage",
     "responseTime": "Responstijd",
-    "agentsInSwarm": "AI-agents in de Swarm",
+    "agentsInSwarm": "AI Zwerm Agenten",
     "availability": "Beschikbaarheid"
   },
   "features": {
-    "badge": "Platformfuncties",
-    "title": "Alles wat je business",
-    "titleAccent": "nodig heeft",
-    "description": "ARIIA combineert de nieuwste AI-technologie met een intuïtief platform, gebouwd voor bedrijven die hun klantcommunicatie willen transformeren.",
+    "badge": "Functies",
+    "title": "Alles wat uw studio",
+    "titleAccent": "nodig heeft om te slagen",
+    "description": "Een compleet ecosysteem van AI-agenten naadloos geïntegreerd in uw bestaande systemen.",
     "swarm": {
-      "title": "AI Agent Swarm",
-      "desc": "5 gespecialiseerde agents (Ops, Sales, Medic, Vision, Persona) werken als een team, georkestreerd door Project Titan."
+      "title": "Zwermintelligentie",
+      "desc": "Gespecialiseerde agenten (Verkoop, Medic, Operaties) werken samen om elk verzoek op te lossen."
     },
     "omnichannel": {
       "title": "Omnichannel",
-      "desc": "WhatsApp, Telegram, spraak, webchat: één AI, consistente antwoorden op alle kanalen."
+      "desc": "WhatsApp, Telegram, SMS en Voice. Bereik uw leden waar ze zijn."
     },
     "churn": {
-      "title": "Churn Prediction",
-      "desc": "Op ML gebaseerde voorspellingen detecteren klanten die dreigen te vertrekken en stellen maatregelen voor."
+      "title": "Churn Preventie",
+      "desc": "AI-gestuurde analyse identificeert annuleringsrisico's voordat ze zich voordoen."
     },
     "memory": {
-      "title": "3-Tier Memory",
-      "desc": "Session, Semantic en Episodic Memory: ARIIA onthoudt elke klant en elke interactie."
+      "title": "Contextgeheugen",
+      "desc": "ARIIA onthoudt elke interactie en bouwt echte relaties op met leden."
     },
     "security": {
-      "title": "Enterprise Security",
-      "desc": "AVG-conform met Row-Level Security, PII-filters, audit logs en versleutelde communicatie."
+      "title": "AVG & Beveiliging",
+      "desc": "Versleutelde gegevensopslag in Duitsland en volledige compliance-garantie."
     },
     "connectors": {
-      "title": "Open Connectors",
-      "desc": "Magicline, Shopify, WooCommerce, API: verbind elk bedrijfssysteem binnen enkele minuten."
+      "title": "Diepe Integratie",
+      "desc": "Directe verbinding met Magicline, Shopify en meer voor real-time afhandeling."
     },
     "page": {
-      "title": "Functies die je business",
-      "titleAccent": "transformeren",
-      "description": "ARIIA is meer dan een chatbot. Het is een Living System Agent met 5 gespecialiseerde AI-agents en enterprise-grade beveiliging.",
-      "techTitle": "AI Core Technologie",
-      "techSubtitle": "Wat ARIIA onderscheidt van",
-      "techSubtitleAccent": "chatbots",
-      "deckTitle": "Studio Deck",
-      "deckSubtitle": "Je",
-      "deckSubtitleAccent": "Command Center",
-      "deckDesc": "Het Studio Deck dashboard geeft je volledige controle over je AI-agents, leden en communicatie.",
-      "securityTitle": "Enterprise Security",
-      "securitySubtitle": "Beveiliging op",
-      "securitySubtitleAccent": "Enterprise-niveau",
-      "securityDesc": "Vanaf de basis ontwikkeld voor de Europese markt. Elke gegevensrij is geïsoleerd door Row-Level Security."
+      "title": "Volgende Generatie",
+      "titleAccent": "Studio Intelligentie",
+      "description": "ARIIA is meer dan een chatbot. Het is een zwerm van gespecialiseerde AI-agenten die uw studio en uw leden begrijpen.",
+      "techTitle": "Diepe",
+      "techSubtitle": "Technologie",
+      "techSubtitleAccent": "Stack",
+      "deckTitle": "Studio",
+      "deckSubtitle": "Controle",
+      "deckSubtitleAccent": "Deck",
+      "deckDesc": "Een centraal dashboard om elke AI-interactie te monitoren en uw studio-instellingen in real-time te beheren.",
+      "securityTitle": "Enterprise",
+      "securitySubtitle": "Beveiliging &",
+      "securitySubtitleAccent": "Compliance",
+      "securityDesc": "Uw gegevens worden gehost in Duitsland, volledig versleuteld en 100% AVG-conform."
     },
     "platform": {
       "live": {
-        "title": "Live Monitor",
-        "desc": "Watch AI interactions in real-time and intervene if necessary."
+        "title": "Live-monitor",
+        "desc": "Bekijk AI-interacties in realtime en grijp in indien nodig."
       },
       "members": {
-        "title": "Member Management",
-        "desc": "Deep integration with Magicline to handle bookings and contracts."
+        "title": "Ledenbeheer",
+        "desc": "Diepe integratie met Magicline voor het afhandelen van boekingen en contracten."
       },
       "knowledge": {
-        "title": "Knowledge Base",
-        "desc": "Upload your studio documents to train the AI on your specific rules."
+        "title": "Kennisbank",
+        "desc": "Upload uw studiodocumenten om de AI te trainen op uw specifieke regels."
       },
       "prompts": {
-        "title": "Persona Control",
-        "desc": "Customize the tone and personality of your studio assistant."
+        "title": "Persona Beheer",
+        "desc": "Pas de toon en persoonlijkheid van uw studio-assistent aan."
       },
       "multi": {
         "title": "Multi-Tenant",
-        "desc": "Manage multiple studio locations from a single central account."
+        "desc": "Beheer meerdere studiolocaties vanuit één centraal account."
       },
       "churn": {
-        "title": "Churn Prevention",
-        "desc": "AI identifies members at risk of canceling based on behavior."
+        "title": "Churn Preventie",
+        "desc": "AI identificeert leden die risico lopen op opzegging op basis van gedrag."
       }
     },
     "details": {
-      "intent": "Intent Classification",
-      "routing": "Dynamic Routing",
-      "fallback": "Human-in-the-Loop",
-      "confidence": "Confidence Scoring",
+      "intent": "Intentieclassificatie",
+      "routing": "Dynamische Routering",
+      "fallback": "Mens-in-de-lus",
+      "confidence": "Betrouwbaarheidsscore",
       "wa": "WhatsApp Cloud",
       "tg": "Telegram Bot",
-      "voice": "Voice STT/TTS",
-      "chat": "Web Widget",
-      "ml": "Magicline Sync",
-      "proactive": "Proactive Outreach",
-      "scoring": "Behavioral Scoring",
-      "behavior": "Engagement Analysis",
-      "session": "Long-Term Sessions",
-      "semantic": "Semantic Search",
-      "episodic": "Episodic Memory",
-      "auto": "Automatic Indexing",
-      "dsgvo": "GDPR Compliance",
-      "rls": "Row Level Security",
-      "pii": "PII Masking",
-      "audit": "Audit Logs",
-      "api": "REST API Access",
-      "shopify": "Shopify Integration",
+      "voice": "Spraak STT/TTS",
+      "chat": "Webwidget",
+      "ml": "Magicline Synchronisatie",
+      "proactive": "Proactieve Benadering",
+      "scoring": "Gedragsscore",
+      "behavior": "Betrokkenheidsanalyse",
+      "session": "Langdurige Sessies",
+      "semantic": "Semantisch Zoeken",
+      "episodic": "Episodisch Geheugen",
+      "auto": "Automatische Indexering",
+      "dsgvo": "AVG-conformiteit",
+      "rls": "Rijbeveiliging",
+      "pii": "PII Maskering",
+      "audit": "Auditlogboeken",
+      "api": "REST API Toegang",
+      "shopify": "Shopify Integratie",
       "woo": "WooCommerce",
       "magicline": "Magicline Deep-Link"
     },
     "securityLabels": {
-      "dsgvo": "GDPR",
+      "dsgvo": "AVG",
       "encryption": "AES-256",
       "pii": "PII Filter",
       "audit": "Audit",
@@ -339,324 +339,324 @@
     }
   },
   "cta": {
-    "title": "Klaar om je klantcommunicatie te",
-    "titleAccent": "transformeren",
-    "subtitle": "Begin nu met je gratis proefperiode van 14 dagen. Geen risico, geen creditcard nodig.",
-    "button": "Nu gratis beginnen",
-    "compare": "Plannen vergelijken"
+    "title": "Klaar voor de toekomst van",
+    "titleAccent": "studio-automatisering",
+    "subtitle": "Sluit u aan bij meer dan 50 fitnessstudio's die al groeien met ARIIA.",
+    "button": "Maak Gratis Account Aan",
+    "compare": "Vergelijk Prijzen"
   },
   "footer": {
-    "brandDesc": "AI-gestuurde klantcommunicatie voor sportscholen, personal trainers en het mkb. Made in Germany.",
+    "brandDesc": "De evolutie van studio-activiteiten. Agentic Multi-Tenant SaaS Platform.",
     "product": "Product",
     "company": "Bedrijf",
     "contact": "Contact",
     "links": {
-      "features": "Functionaliteiten",
-      "pricing": "Tarieven",
-      "test": "Gratis proberen",
-      "impressum": "Colofon",
-      "datenschutz": "Privacy",
-      "agb": "Voorwaarden",
-      "enterprise": "Enterprise aanvragen"
+      "features": "Functies",
+      "pricing": "Prijzen",
+      "test": "Start Gratis Proefperiode",
+      "impressum": "Impressum",
+      "datenschutz": "Privacybeleid",
+      "agb": "Algemene Voorwaarden",
+      "enterprise": "Zakelijk Contact"
     },
     "rights": "Alle rechten voorbehouden."
   },
   "tenants": {
     "stats": {
-      "total": "Total Tenants",
-      "users": "Active Users",
-      "avg": "Avg. Users/Tenant"
+      "total": "Totaal Aantal Tenants",
+      "users": "Actieve Gebruikers",
+      "avg": "Gem. Gebruikers/Tenant"
     },
     "create": {
-      "title": "Create New Tenant",
-      "name": "Tenant Name",
-      "slug": "Slug (optional)"
+      "title": "Nieuwe Tenant Aanmaken",
+      "name": "Tenant Naam",
+      "slug": "Slug (optioneel)"
     },
     "table": {
-      "name": "Name",
-      "users": "Users",
-      "admins": "Admins",
-      "active": "Active"
+      "name": "Naam",
+      "users": "Gebruikers",
+      "admins": "Beheerders",
+      "active": "Actief"
     },
     "edit": {
-      "title": "Edit Tenant"
+      "title": "Tenant Bewerken"
     },
     "errors": {
-      "nameRequired": "Tenant name is required"
+      "nameRequired": "Tenantnaam is verplicht"
     },
     "bulk": {
-      "hint": "The action will be applied tenant-wide and logged as a governance event."
+      "hint": "De actie wordt tenantbreed toegepast en vastgelegd als een governance-gebeurtenis."
     },
     "audit": {
-      "title": "Last Audit Events"
+      "title": "Laatste Auditgebeurtenissen"
     },
     "footer": {
-      "registration": "Tenant self-registration is still handled via /register."
+      "registration": "Tenant zelfregistratie wordt nog steeds afgehandeld via /register."
     }
   },
   "ai": {
-    "actions": "Actions",
+    "actions": "Acties",
     "errors": {
-      "connectionError": "Connection to AI Engine lost",
-      "loadFailed": "Failed to load AI parameters",
-      "saveFailed": "Failed to save AI configuration"
+      "connectionError": "Verbinding met AI-engine verloren",
+      "loadFailed": "Laden van AI-parameters mislukt",
+      "saveFailed": "Opslaan van AI-configuratie mislukt"
     }
   },
   "live": {
-    "title": "Live Monitor",
-    "subtitle": "Real-time AI interaction tracking",
-    "sessions": "Active Sessions",
-    "noSessions": "No active sessions at the moment",
-    "selectSession": "Select a session to view details",
+    "title": "Live-monitor",
+    "subtitle": "Realtime AI-interactie volgen",
+    "sessions": "Actieve Sessies",
+    "noSessions": "Momenteel geen actieve sessies",
+    "selectSession": "Selecteer een sessie om details te bekijken",
     "handoff": {
-      "link": "Link to Member",
-      "hint": "Manually associate this session with a member ID",
-      "placeholder": "Enter Member ID"
+      "link": "Koppelen aan Lid",
+      "hint": "Koppel deze sessie handmatig aan een lid-ID",
+      "placeholder": "Voer Lid-ID in"
     }
   },
   "memberMemory": {
-    "title": "Member Memory",
-    "subtitle": "Long-term semantic knowledge base",
-    "files": "Memory Files",
-    "noFiles": "No memory entries found for this member",
-    "selectFile": "Select an entry to view details",
-    "reasonPlaceholder": "Enter reason for manual override",
-    "scheduler": "Analysis Scheduler",
-    "lastRun": "Last analyzed"
+    "title": "Lidgeheugen",
+    "subtitle": "Semantische kennisbank voor de lange termijn",
+    "files": "Geheugenbestanden",
+    "noFiles": "Geen geheugenitems gevonden voor dit lid",
+    "selectFile": "Selecteer een item om details te bekijken",
+    "reasonPlaceholder": "Voer reden in voor handmatige overschrijving",
+    "scheduler": "Analyseplanner",
+    "lastRun": "Laatst geanalyseerd"
   },
   "members": {
-    "title": "Members",
-    "subtitle": "Manage your studio members and their AI state",
-    "add": "Add Member",
+    "title": "Leden",
+    "subtitle": "Beheer uw studiolleden en hun AI-status",
+    "add": "Lid Toevoegen",
     "import": {
-      "clickOrDrop": "Click or drag file to this area to upload",
-      "selectFile": "Select File",
-      "hint": "Supports .csv, .xls, .xlsx"
+      "clickOrDrop": "Klik of sleep bestand naar dit gebied om te uploaden",
+      "selectFile": "Bestand Selecteren",
+      "hint": "Ondersteunt .csv, .xls, .xlsx"
     },
-    "importTitle": "Member Import",
-    "noMembers": "No members found",
-    "noContact": "No contact information",
-    "confirmDelete": "Are you sure you want to delete this member?",
-    "search": "Search members...",
+    "importTitle": "Leden importeren",
+    "noMembers": "Geen leden gevonden",
+    "noContact": "Geen contactinformatie",
+    "confirmDelete": "Weet u zeker dat u dit lid wilt verwijderen?",
+    "search": "Leden zoeken...",
     "stats": {
-      "total": "Total Members",
-      "active": "Active",
-      "paused": "Paused",
-      "manual": "Manual Entries",
-      "external": "Synced (Magicline)",
-      "selected": "selected"
+      "total": "Totaal aantal Leden",
+      "active": "Actief",
+      "paused": "Gepauzeerd",
+      "manual": "Handmatige Invoer",
+      "external": "Gesynchroniseerd (Magicline)",
+      "selected": "geselecteerd"
     },
     "table": {
-      "member": "Member",
-      "source": "Source",
+      "member": "Lid",
+      "source": "Bron",
       "status": "Status"
     },
     "form": {
-      "firstName": "First Name",
-      "lastName": "Last Name",
-      "email": "Email Address"
+      "firstName": "Voornaam",
+      "lastName": "Achternaam",
+      "email": "E-mailadres"
     },
     "status": {
-      "active": "Active",
-      "paused": "Paused"
+      "active": "Actief",
+      "paused": "Gepauzeerd"
     }
   },
   "pricing": {
-    "title": "Simple Pricing",
-    "titleAccent": "for every studio size",
-    "description": "Choose the plan that fits your studio operations. All plans include 24/7 AI availability and Magicline integration.",
-    "monthly": "Monthly",
-    "yearly": "Yearly",
-    "billedYearly": "billed yearly",
-    "discount": "Save 20%",
+    "title": "Eenvoudige Prijzen",
+    "titleAccent": "voor elke studiogrootte",
+    "description": "Kies het abonnement dat past bij uw studiowerkzaamheden. Alle abonnementen omvatten 24/7 AI-beschikbaarheid en Magicline-integratie.",
+    "monthly": "Maandelijks",
+    "yearly": "Jaarlijks",
+    "billedYearly": "jaarlijks gefactureerd",
+    "discount": "Bespaar 20%",
     "enterpriseTitle": "Enterprise",
-    "enterpriseDesc": "Custom solutions for large studio chains with 10+ locations and specific compliance needs.",
-    "enterpriseCta": "Contact Sales",
-    "addonsTitle": "Powerful",
-    "addonsSubtitle": "Addons",
-    "addonsSubtitleAccent": "to scale",
-    "addonsDesc": "Enhance your AI agents with specialized capabilities tailored to your workflow.",
-    "faqTitle": "Frequently Asked Questions",
-    "finalCta": "Ready to transform your studio?",
-    "finalCtaAccent": "Start your trial today.",
-    "finalCtaDesc": "Join 50+ fitness studios already using ARIIA.",
+    "enterpriseDesc": "Maatwerkoplossingen voor grote studioketens met 10+ locaties en specifieke compliance-eisen.",
+    "enterpriseCta": "Neem contact op met Verkoop",
+    "addonsTitle": "Krachtige",
+    "addonsSubtitle": "Add-ons",
+    "addonsSubtitleAccent": "om te schalen",
+    "addonsDesc": "Verbeter uw AI-agenten met gespecialiseerde mogelijkheden die zijn afgestemd op uw workflow.",
+    "faqTitle": "Veelgestelde Vragen",
+    "finalCta": "Klaar om uw studio te transformeren?",
+    "finalCtaAccent": "Start vandaag nog uw proefperiode.",
+    "finalCtaDesc": "Sluit u aan bij meer dan 50 fitnessstudio's die ARIIA al gebruiken.",
     "plans": {
       "starter": {
         "name": "Starter",
-        "desc": "Perfect for boutique studios",
-        "cta": "Get Started",
+        "desc": "Perfect voor boetiekstudio's",
+        "cta": "Beginnen",
         "features": [
-          "1 AI Agent (Ops)",
-          "WhatsApp Integration",
-          "100 AI Resolutions/mo",
-          "Basic Analytics"
+          "1 AI Agent (Operaties)",
+          "WhatsApp Integratie",
+          "100 AI Oplossingen/maand",
+          "Basis Analyses"
         ]
       },
       "professional": {
-        "name": "Professional",
-        "badge": "Most Popular",
-        "desc": "For growing fitness studios",
-        "cta": "Start Free Trial",
+        "name": "Professioneel",
+        "badge": "Meest Populair",
+        "desc": "Voor groeiende fitnessstudio's",
+        "cta": "Start Gratis Proefperiode",
         "features": [
-          "3 AI Agents (Sales, Ops, Medic)",
+          "3 AI Agents (Verkoop, Operaties, Medic)",
           "WhatsApp & Telegram",
-          "500 AI Resolutions/mo",
-          "Advanced Analytics",
-          "Member Memory (1 Tier)"
+          "500 AI Oplossingen/maand",
+          "Geavanceerde Analyses",
+          "Leden Geheugen (1 Niveau)"
         ]
       },
       "business": {
-        "name": "Business",
-        "desc": "Full automation for large studios",
-        "cta": "Go Pro",
+        "name": "Zakelijk",
+        "desc": "Volledige automatisering voor grote studio's",
+        "cta": "Ga Pro",
         "features": [
-          "Full Swarm (All Agents)",
+          "Volledige Zwerm (Alle Agents)",
           "Omnichannel (WA, TG, Voice)",
-          "Unlimited Resolutions",
-          "GraphRAG & Full Memory",
-          "Priority Support"
+          "Onbeperkte Oplossingen",
+          "GraphRAG & Volledig Geheugen",
+          "Prioritaire Ondersteuning"
         ]
       }
     },
     "addons": {
       "voice": {
-        "name": "AI Voice Engine",
-        "desc": "Handle incoming calls with natural AI voice interaction."
+        "name": "AI-spraakengine",
+        "desc": "Behandel inkomende oproepen met natuurlijke AI-steminteractie."
       },
       "vision": {
-        "name": "AI Vision (YOLOv8)",
-        "desc": "Real-time occupancy and safety tracking via camera integration."
+        "name": "AI-visie (YOLOv8)",
+        "desc": "Realtime bezettings- en veiligheidsbewaking via camera-integratie."
       },
       "churn": {
-        "name": "Churn Prediction",
-        "desc": "Advanced ML model to identify cancellation risks early."
+        "name": "Churn Voorspelling",
+        "desc": "Geavanceerd ML-model om annuleringsrisico's vroegtijdig te identificeren."
       },
       "channel": {
-        "name": "Additional Channel",
-        "desc": "Add custom SMS or Email automation to your swarm."
+        "name": "Extra Kanaal",
+        "desc": "Voeg aangepaste SMS- of E-mailautomatisering toe aan uw zwerm."
       }
     },
     "faqs": [
       {
-        "q": "Can I change my plan later?",
-        "a": "Yes, you can upgrade or downgrade your plan at any time from your settings."
+        "q": "Kan ik mijn abonnement later wijzigen?",
+        "a": "Ja, u kunt uw abonnement op elk moment upgraden of downgraden via uw instellingen."
       },
       {
-        "q": "Is my data secure?",
-        "a": "Absolutely. We use industry-standard encryption and all data is hosted in ISO-certified data centers in Germany."
+        "q": "Zijn mijn gegevens veilig?",
+        "a": "Absoluut. We gebruiken industriestandaard encryptie en alle gegevens worden gehost in ISO-gecertificeerde datacenters in Duitsland."
       },
       {
-        "q": "Do you offer custom integrations?",
-        "a": "Yes, for Enterprise customers we offer bespoke integration services for your specific CRM or ERP system."
+        "q": "Bieden jullie maatwerk integraties aan?",
+        "a": "Ja, voor Enterprise-klanten bieden we op maat gemaakte integratiediensten voor uw specifieke CRM- of ERP-systeem."
       },
       {
-        "q": "How does the Voice AI work?",
-        "a": "Our Voice AI uses advanced STT/TTS models to interact with callers in real-time, just like a human assistant."
+        "q": "Hoe werkt de Voice AI?",
+        "a": "Onze Voice AI gebruikt geavanceerde STT/TTS-modellen om in realtime met bellers te communiceren, net als een menselijke assistent."
       }
     ]
   },
   "legal": {
     "impressum": {
-      "title": "Imprint",
-      "tmg5": "Information according to § 5 TMG",
-      "representedBy": "Represented by",
-      "managingDirector": "Managing Director",
+      "title": "Colofon",
+      "tmg5": "Informatie volgens § 5 TMG",
+      "representedBy": "Vertegenwoordigd door",
+      "managingDirector": "Directeur",
       "contact": "Contact",
-      "phone": "Phone",
-      "email": "Email",
+      "phone": "Telefoon",
+      "email": "E-mail",
       "website": "Website",
-      "registerEntry": "Register Entry",
-      "registerCourt": "Register Court",
-      "registerNumber": "Register Number",
-      "vatId": "VAT Identification Number according to § 27 a VAT Act",
-      "responsibleContent": "Responsible for content according to § 55 Abs. 2 RStV",
-      "dispute": "EU Dispute Resolution",
-      "liabilityContent": "Liability for Content",
-      "liabilityLinks": "Liability for Links"
+      "registerEntry": "Inschrijving Handelsregister",
+      "registerCourt": "Rechtbank van Registratie",
+      "registerNumber": "Registratienummer",
+      "vatId": "Btw-identificatienummer volgens § 27 a Wet op de omzetbelasting",
+      "responsibleContent": "Verantwoordelijk voor de inhoud volgens § 55 Abs. 2 RStV",
+      "dispute": "EU Geschillenbeslechting",
+      "liabilityContent": "Aansprakelijkheid voor Inhoud",
+      "liabilityLinks": "Aansprakelijkheid voor Links"
     },
     "privacy": {
-      "title": "Privacy Policy"
+      "title": "Privacybeleid"
     },
     "agb": {
-      "title": "Terms of Service",
-      "status": "Last Update"
+      "title": "Algemene Voorwaarden",
+      "status": "Laatste Update"
     }
   },
   "audit": {
-    "title": "Auditlog",
-    "subtitle": "Compliance & audittrail",
+    "title": "Auditlogboek",
+    "subtitle": "Naleving & Auditspoor",
     "filters": {
       "category": "Categorie",
-      "allCategories": "Alle categorieën",
+      "allCategories": "Alle Categorieën",
       "actionType": "Actietype",
-      "allActions": "Alle acties",
-      "initiatedBy": "Gestart door",
-      "allUsers": "Alle gebruikers",
-      "systemInternal": "Systeem intern",
+      "allActions": "Alle Acties",
+      "initiatedBy": "Geïnitieerd door (Actor)",
+      "allUsers": "Alle Gebruikers",
+      "systemInternal": "Systeem Intern",
       "timeRange": "Tijdsbereik",
       "from": "Van",
       "to": "Tot",
-      "clearFilters": "Filters wissen",
-      "exportCsv": "Exporteer CSV"
+      "clearFilters": "Alle Filters Wissen",
+      "exportCsv": "CSV Exporteren"
     },
-    "search": "Zoek op actie, e-mail...",
+    "search": "Zoeken op actie, e-mail of metadatainhoud...",
     "sort": {
       "newest": "Nieuwste",
       "oldest": "Oudste"
     },
     "table": {
       "timestamp": "Tijdstempel",
-      "actor": "Actor",
+      "actor": "Uitvoerder",
       "operation": "Operatie",
       "target": "Doel",
       "details": "Details",
-      "fetching": "Ophalen...",
-      "viewDiff": "Bekijk Diff"
+      "fetching": "Auditrecords ophalen...",
+      "viewDiff": "Verschil Bekijken"
     },
     "modal": {
-      "title": "Audit Event Details",
-      "actorIdentity": "Actor Identity",
-      "targetResource": "Target Resource",
-      "changeSummary": "Change Summary"
+      "title": "Details Auditgebeurtenis",
+      "actorIdentity": "Actor Identiteit",
+      "targetResource": "Doelbron",
+      "changeSummary": "Wijzigingsoverzicht"
     }
   },
   "knowledge": {
     "title": "Kennisbank",
     "documents": "Documenten",
-    "noDocuments": "Geen documenten.",
-    "newDocument": "Nieuw document",
-    "newDocumentPlaceholder": "new-document.md",
-    "viewTenant": "View Tenant:",
-    "indexChunks": "Index Chunks",
-    "lastIngest": "Last Ingest",
-    "reindex": "Reindex",
-    "reindexing": "Reindexing...",
-    "selectFile": "Select a file or create one on the left.",
+    "noDocuments": "Geen kennisdocumenten beschikbaar.",
+    "newDocument": "Nieuw Document",
+    "newDocumentPlaceholder": "nieuw-document.md",
+    "viewTenant": "Tenant bekijken:",
+    "indexChunks": "Brokken indexeren",
+    "lastIngest": "Laatste opname",
+    "reindex": "Herindexeren",
+    "reindexing": "Bezig met herindexeren...",
+    "selectFile": "Selecteer een bestand of maak er een aan de linkerkant.",
     "save": "Opslaan",
-    "saving": "Opslaan...",
-    "saved": "Opgeslagen",
-    "reasonPlaceholder": "Reason for change (min. 8 chars)",
-    "reasonError": "Please provide a reason for the change (min. 8 chars).",
-    "conflict": "Conflict detected",
-    "conflictError": "The file has been modified in the meantime. Please reload or overwrite.",
-    "ingestError": "Ingest Error: {{error}}",
-    "autosaving": "Autosaving...",
-    "autosaved": "Autosave saved",
-    "loading": "Loading...",
-    "loaded": "Loaded",
-    "draftCreated": "New file created as draft. Please save."
+    "saving": "Bezig met opslaan...",
+    "saved": "Opgeslagen & gesynchroniseerd",
+    "reasonPlaceholder": "Reden voor wijziging (min. 8 tekens)",
+    "reasonError": "Geef een reden op voor de wijziging (min. 8 tekens).",
+    "conflict": "Conflict gedetecteerd",
+    "conflictError": "Het bestand is in de tussentijd gewijzigd. Gelieve te herladen of te overschrijven.",
+    "ingestError": "Opnamefout: {{error}}",
+    "autosaving": "Automatisch opslaan...",
+    "autosaved": "Automatisch opslaan voltooid",
+    "loading": "Laden...",
+    "loaded": "Geladen",
+    "draftCreated": "Nieuw bestand aangemaakt als concept. Gelieve op te slaan."
   },
   "register": {
     "title": "Registratie",
-    "subtitle": "Maak een nieuwe tenant en admin aan.",
-    "tenantName": "Tenant Name (e.g. Test-Studio)",
-    "tenantSlug": "Tenant Slug (optional)",
-    "email": "Email",
-    "name": "Name (optional)",
-    "password": "Password (min. 8 characters)",
-    "button": "Registreer",
-    "waiting": "Even geduld...",
-    "backToLogin": "Back to Login"
+    "subtitle": "Maak een nieuwe tenant en beheerdersgebruiker aan.",
+    "tenantName": "Tenantnaam (bijv. Test-Studio)",
+    "tenantSlug": "Tenant Slug (optioneel)",
+    "email": "E-mail",
+    "name": "Naam (optioneel)",
+    "password": "Wachtwoord (min. 8 tekens)",
+    "button": "Tenant registreren",
+    "waiting": "Even geduld alstublieft...",
+    "backToLogin": "Terug naar inloggen"
   },
   "login": {
     "placeholders": {
@@ -665,142 +665,142 @@
     }
   },
   "plans": {
-    "deleteDeadTitle": "Delete all plans without Stripe connection (ghosts)?",
-    "newPlan": "New Subscription Plan",
-    "planName": "Name (e.g. Professional)",
-    "planSlug": "Slug (e.g. professional)",
-    "priceEur": "Price in EUR",
-    "newAddon": "New Stripe Add-on",
-    "addonName": "Add-on Name (e.g. Voice Pipeline)",
-    "monthlyPrice": "Monthly Price in EUR",
-    "editPlan": "Edit Plan"
+    "deleteDeadTitle": "Alle abonnementen zonder Stripe-koppeling (spookabonnementen) verwijderen?",
+    "newPlan": "Nieuw abonnementsplan",
+    "planName": "Naam (bijv. Professioneel)",
+    "planSlug": "Slug (bijv. professioneel)",
+    "priceEur": "Prijs in EUR",
+    "newAddon": "Nieuwe Stripe Add-on",
+    "addonName": "Add-on naam (bijv. Voice Pipeline)",
+    "monthlyPrice": "Maandelijkse prijs in EUR",
+    "editPlan": "Plan bewerken"
   },
   "impressum": {
-    "disputeText": "The European Commission provides a platform for online dispute resolution (OS): https://ec.europa.eu/consumers/odr/. You can find our email address at the top of the imprint. We are not willing or obliged to participate in dispute resolution proceedings before a consumer arbitration board.",
-    "liabilityContentText": "As a service provider, we are responsible for our own content on these pages in accordance with the general laws pursuant to § 7 Para.1 TMG. According to §§ 8 to 10 TMG, we are not obliged as a service provider to monitor transmitted or stored third-party information or to investigate circumstances that indicate illegal activity.",
-    "liabilityLinksText": "Our offer contains links to external websites of third parties, on whose content we have no influence. Therefore, we cannot assume any liability for these external contents. The respective provider or operator of the pages is always responsible for the content of the linked pages."
+    "disputeText": "De Europese Commissie biedt een platform voor online geschillenbeslechting (OS): https://ec.europa.eu/consumers/odr/. Ons e-mailadres vindt u bovenaan het impressum. Wij zijn niet bereid of verplicht deel te nemen aan geschillenbeslechtingsprocedures voor een consumentenarbitragecommissie.",
+    "liabilityContentText": "Als dienstverlener zijn wij volgens § 7 lid 1 TMG verantwoordelijk voor onze eigen inhoud op deze pagina's volgens de algemene wetten. Volgens §§ 8 tot 10 TMG zijn wij als dienstverlener niet verplicht om overgedragen of opgeslagen informatie van derden te controleren of om omstandigheden te onderzoeken die duiden op illegale activiteiten.",
+    "liabilityLinksText": "Ons aanbod bevat links naar externe websites van derden, op de inhoud waarvan wij geen invloed hebben. Daarom kunnen wij geen aansprakelijkheid aanvaarden voor deze externe inhoud. De betreffende aanbieder of exploitant van de pagina's is altijd verantwoordelijk voor de inhoud van de gelinkte pagina's."
   },
   "escalations": {
-    "title": "Escalation Queue",
-    "subtitle": "Tickets requiring human intervention",
-    "noEscalations": "No open escalations.",
-    "memberIdError": "Please provide a valid Member ID.",
-    "tokenError": "Error generating token.",
-    "handoffError": "Error resolving handoff.",
-    "allClear": "All clear",
-    "linkMember": "Link Member",
-    "memberId": "Member ID",
-    "resolveHandoff": "Resolve handoff?"
+    "title": "Escalatie Wachtrij",
+    "subtitle": "Tickets die menselijke tussenkomst vereisen",
+    "noEscalations": "Geen open escalaties.",
+    "memberIdError": "Gelieve een geldig lid-ID op te geven.",
+    "tokenError": "Fout bij het genereren van token.",
+    "handoffError": "Fout bij het oplossen van overdracht.",
+    "allClear": "Alles in orde",
+    "linkMember": "Lid koppelen",
+    "memberId": "Lid-ID",
+    "resolveHandoff": "Overdracht oplossen?"
   },
   "magicline": {
-    "syncNotStarted": "Sync not yet started",
-    "allEnriched": "All members already enriched",
-    "syncFailed": "Sync failed",
-    "syncDescription": "Load visit and booking data for all members",
-    "enrichAll": "Enrich All",
-    "adoption": "ARIIA Adoption",
-    "adoptionSubtitle": "Magicline members who have used ARIIA",
-    "usersActive": "Users active",
-    "platformVerification": "Platform & Verification",
-    "platformSubtitle": "Active chat sessions by channel and status",
-    "noSessions": "No chat sessions available yet.",
-    "languageDistribution": "Language Distribution",
-    "languageSubtitle": "Preferred language of members",
-    "noLanguageData": "No language data available.",
-    "memberStatus": "Member Status",
-    "memberStatusSubtitle": "Active vs. paused members",
-    "noData": "No data.",
-    "dataCoverage": "Data Coverage",
-    "dataCoverageSubtitle": "Members with visit & booking data"
+    "syncNotStarted": "Synchronisatie nog niet gestart",
+    "allEnriched": "Alle leden zijn al verrijkt",
+    "syncFailed": "Synchronisatie mislukt",
+    "syncDescription": "Laad bezoek- en boekingsgegevens voor alle leden",
+    "enrichAll": "Alles verrijken",
+    "adoption": "ARIIA Adoptie",
+    "adoptionSubtitle": "Magicline-leden die ARIIA hebben gebruikt",
+    "usersActive": "Actieve gebruikers",
+    "platformVerification": "Platform & Verificatie",
+    "platformSubtitle": "Actieve chatsessies per kanaal en status",
+    "noSessions": "Nog geen chatsessies beschikbaar.",
+    "languageDistribution": "Taalverdeling",
+    "languageSubtitle": "Voorkeurstaal van leden",
+    "noLanguageData": "Geen taalgegevens beschikbaar.",
+    "memberStatus": "Lidstatus",
+    "memberStatusSubtitle": "Actieve versus gepauzeerde leden",
+    "noData": "Geen gegevens.",
+    "dataCoverage": "Gegevensdekking",
+    "dataCoverageSubtitle": "Leden met bezoek- & boekingsgegevens"
   },
   "analytics": {
-    "weeklyOverview": "Weekly Overview",
-    "weeklySubtitle": "Tickets & resolution rate (last 7 days)",
-    "satisfaction": "Member Satisfaction",
-    "satisfactionSubtitle": "Feedback after AI interactions",
-    "noFeedback": "No feedback available yet",
-    "avgRating": "Average Rating",
-    "basedOn": "Based on {{count}} ratings",
-    "channelPerformance": "Channel Performance",
-    "channelSubtitle": "Comparison of support channels (30 days)"
+    "weeklyOverview": "Wekelijks Overzicht",
+    "weeklySubtitle": "Tickets & oplossingspercentage (laatste 7 dagen)",
+    "satisfaction": "Leden Tevredenheid",
+    "satisfactionSubtitle": "Feedback na AI-interacties",
+    "noFeedback": "Nog geen feedback beschikbaar",
+    "avgRating": "Gemiddelde Beoordeling",
+    "basedOn": "Gebaseerd op {{count}} beoordelingen",
+    "channelPerformance": "Kanaalprestaties",
+    "channelSubtitle": "Vergelijking van ondersteuningskanalen (30 dagen)"
   },
   "conversations": {
-    "search": "Search conversations...",
-    "backToList": "Back to list",
-    "helpful": "Helpful",
-    "notHelpful": "Not helpful"
+    "search": "Gesprekken zoeken...",
+    "backToList": "Terug naar lijst",
+    "helpful": "Behulpzaam",
+    "notHelpful": "Niet behulpzaam"
   },
   "dashboard": {
-    "governanceMode": "Platform Governance Mode",
-    "uptime": "Platform uptime",
-    "distribution": "Tenant Distribution",
-    "distributionSubtitle": "Active vs. Inactive",
-    "infrastructure": "Infrastructure Status",
-    "coreServices": "Core-services",
+    "governanceMode": "Platform Bestuursmodus",
+    "uptime": "Platform Beschikbaarheid",
+    "distribution": "Tenant Distributie",
+    "distributionSubtitle": "Actief vs. Inactief",
+    "infrastructure": "Infrastructuurstatus",
+    "coreServices": "SaaS Kernservices",
     "redis": "Redis Cache",
-    "vector": "Vector Engine",
+    "vector": "Vectorengine",
     "qdrant": "Qdrant Online",
-    "auth": "Auth Service",
-    "events": "Recente evenementen",
-    "auditTrail": "Audittrail",
-    "noEvents": "No events found.",
-    "initializing": "Initializing Dashboard...",
-    "loadError": "Error loading data.",
-    "analyticsHint": "Use the \"Analytics\" menu item for detailed evaluations."
+    "auth": "Authenticatieservice",
+    "events": "Recente Platformgebeurtenissen",
+    "auditTrail": "Auditlogboek (Systeembreed)",
+    "noEvents": "Geen gebeurtenissen gevonden.",
+    "initializing": "Dashboard initialiseren...",
+    "loadError": "Fout bij het laden van gegevens.",
+    "analyticsHint": "Gebruik het menu-item \"Analyses\" voor gedetailleerde evaluaties."
   },
   "tiptap": {
-    "toolbar": "Text Editor Toolbar",
-    "bold": "Bold",
-    "italic": "Italic",
-    "heading1": "Heading 1",
-    "heading2": "Heading 2",
-    "bulletList": "Bullet List",
-    "orderedList": "Ordered List",
-    "quote": "Quote",
-    "undo": "Undo",
-    "redo": "Redo"
+    "toolbar": "Teksteditor Werkbalk",
+    "bold": "Vet",
+    "italic": "Cursief",
+    "heading1": "Kop 1",
+    "heading2": "Kop 2",
+    "bulletList": "Opsomming",
+    "orderedList": "Genummerde lijst",
+    "quote": "Citaat",
+    "undo": "Ongedaan maken",
+    "redo": "Opnieuw uitvoeren"
   },
   "automation": {
-    "title": "Automation",
-    "subtitle": "Schedule and LLM extraction for daily Member-Memory analysis.",
-    "lastRun": "Last Run",
-    "schedulerActive": "Scheduler Active",
-    "schedulerDesc": "Enables daily execution according to cron expression.",
-    "cronExpression": "Cron Expression (UTC)",
-    "every12h": "Every 12h",
-    "extractionDesc": "Enables profile creation from chat history.",
-    "extractionActive": "LLM Extraction Active",
-    "noRun": "No run yet."
+    "title": "Automatisering",
+    "subtitle": "Planning en LLM-extractie voor dagelijkse Leden-Geheugen analyse.",
+    "lastRun": "Laatste Uitvoering",
+    "schedulerActive": "Planner Actief",
+    "schedulerDesc": "Schakelt dagelijkse uitvoering in volgens cron-expressie.",
+    "cronExpression": "Cron-expressie (UTC)",
+    "every12h": "Elke 12 uur",
+    "extractionDesc": "Maakt profielaanmaak vanuit chatgeschiedenis mogelijk.",
+    "extractionActive": "LLM-extractie Actief",
+    "noRun": "Nog geen uitvoering."
   },
   "users": {
     "roles": {
-      "systemAdmin": "System Admin",
-      "tenantAdmin": "Tenant Admin",
-      "tenantUser": "Tenant User"
+      "systemAdmin": "Systeembeheerder",
+      "tenantAdmin": "Tenantbeheerder",
+      "tenantUser": "Tenantgebruiker"
     },
-    "reasonError": "Please provide a understandable reason with at least 8 characters.",
-    "tenantAdmins": "Tenant Admins",
-    "systemAdmins": "System Admins",
-    "createUser": "Create New User",
-    "email": "Email",
-    "password": "Password",
-    "name": "Name",
-    "saving": "Saving...",
-    "searchPlaceholder": "Search by email, name or tenant",
-    "allRoles": "All Roles",
-    "allTenants": "All Tenants",
-    "loading": "Loading users...",
-    "noUsers": "No users for the current filter.",
-    "selectAll": "All selected",
-    "running": "Running...",
-    "noAudit": "No audit events found.",
-    "ghostMode": "Start Ghost Mode",
-    "ghostReason": "e.g. Support case #4812: User cannot save settings",
-    "editUser": "Edit User",
-    "passwordReset": "Password Reset (optional)",
-    "newPassword": "New Password (optional)"
+    "reasonError": "Geef een begrijpelijke reden op met minimaal 8 tekens.",
+    "tenantAdmins": "Tenantbeheerders",
+    "systemAdmins": "Systeembeheerders",
+    "createUser": "Nieuwe gebruiker aanmaken",
+    "email": "E-mail",
+    "password": "Wachtwoord",
+    "name": "Naam",
+    "saving": "Opslaan...",
+    "searchPlaceholder": "Zoeken op e-mail, naam of tenant",
+    "allRoles": "Alle rollen",
+    "allTenants": "Alle tenants",
+    "loading": "Gebruikers laden...",
+    "noUsers": "Geen gebruikers voor het huidige filter.",
+    "selectAll": "Alles geselecteerd",
+    "running": "Actief...",
+    "noAudit": "Geen auditgebeurtenissen gevonden.",
+    "ghostMode": "Start Spookmodus",
+    "ghostReason": "bijv. Supportcase #4812: Gebruiker kan instellingen niet opslaan",
+    "editUser": "Gebruiker bewerken",
+    "passwordReset": "Wachtwoord opnieuw instellen (optioneel)",
+    "newPassword": "Nieuw wachtwoord (optioneel)"
   },
   "ui": {
-    "noData": "No data"
+    "noData": "Geen gegevens"
   }
 }

@@ -1,661 +1,661 @@
 {
   "common": {
-    "welcome": "Welcome to ARIIA",
-    "dashboard": "Dashboard",
-    "settings": "Settings",
-    "login": "Login",
-    "register": "Register",
-    "logout": "Logout",
-    "save": "Save",
-    "cancel": "Cancel",
-    "loading": "Loading...",
-    "edit": "Edit",
-    "delete": "Delete",
-    "confirmed": "Success",
-    "error": "Error",
-    "active": "Active",
-    "paused": "Paused",
-    "days": "Days",
-    "features": "Features",
-    "featuresTitle": "All Features",
-    "pricing": "Pricing",
-    "dsgvo": "GDPR Compliant",
-    "madeInGermany": "Made in Germany",
-    "enterpriseReady": "Enterprise Ready",
-    "allSystemsOnline": "All systems online",
-    "membersSynced": "Members synced",
-    "details": "Details",
-    "noEntries": "No entries found",
-    "search": "Search",
-    "status": "Status",
-    "noData": "No data available",
-    "never": "Never"
+    "welcome": "ARIIA에 오신 것을 환영합니다",
+    "dashboard": "대시보드",
+    "settings": "설정",
+    "login": "로그인",
+    "register": "회원가입",
+    "logout": "로그아웃",
+    "save": "저장",
+    "cancel": "취소",
+    "loading": "로딩 중...",
+    "edit": "편집",
+    "delete": "삭제",
+    "confirmed": "성공",
+    "error": "오류",
+    "active": "활성",
+    "paused": "일시 중지됨",
+    "days": "일",
+    "features": "기능",
+    "featuresTitle": "모든 기능",
+    "pricing": "가격 정책",
+    "dsgvo": "GDPR 준수",
+    "madeInGermany": "독일에서 제작",
+    "enterpriseReady": "엔터프라이즈 준비 완료",
+    "allSystemsOnline": "모든 시스템 온라인",
+    "membersSynced": "회원 동기화됨",
+    "details": "세부 정보",
+    "noEntries": "항목을 찾을 수 없습니다",
+    "search": "검색",
+    "status": "상태",
+    "noData": "데이터 없음",
+    "never": "없음"
   },
   "sidebar": {
-    "dashboard": "Dashboard",
-    "monitor": "Live Monitor",
-    "escalations": "Escalations",
-    "analytics": "Analytics",
-    "members": "Members",
-    "users": "Users",
-    "knowledge": "Knowledge Base",
-    "memberMemory": "Member Memory",
-    "systemPrompt": "Studio Prompt",
-    "sync": "Sync",
-    "billing": "Subscription",
-    "settings": "Settings",
-    "tenants": "Tenant Manager",
-    "plans": "Billing Plans",
-    "audit": "Audit Log",
-    "health": "Engine Stats",
-    "quickActions": "Quick Actions",
-    "platformControl": "Platform Control",
-    "studioDeck": "Studio Deck",
-    "logout": "Logout",
+    "dashboard": "대시보드",
+    "monitor": "실시간 모니터",
+    "escalations": "에스컬레이션",
+    "analytics": "분석",
+    "members": "회원",
+    "users": "사용자",
+    "knowledge": "지식 기반",
+    "memberMemory": "회원 메모리",
+    "systemPrompt": "스튜디오 프롬프트",
+    "sync": "동기화",
+    "billing": "구독",
+    "settings": "설정",
+    "tenants": "테넌트 관리자",
+    "plans": "청구 계획",
+    "audit": "감사 로그",
+    "health": "엔진 통계",
+    "quickActions": "빠른 작업",
+    "platformControl": "플랫폼 제어",
+    "studioDeck": "스튜디오 덱",
+    "logout": "로그아웃",
     "roles": {
-      "systemAdmin": "System Administrator",
-      "tenantAdmin": "Studio Administrator"
+      "systemAdmin": "시스템 관리자",
+      "tenantAdmin": "스튜디오 관리자"
     },
     "sections": {
-      "operations": "Operations",
-      "customers": "Customers",
-      "knowledge": "Knowledge",
-      "studio": "Studio",
-      "governance": "Governance",
-      "system": "System"
+      "operations": "운영",
+      "customers": "고객",
+      "knowledge": "지식",
+      "studio": "스튜디오",
+      "governance": "거버넌스",
+      "system": "시스템"
     }
   },
   "settings": {
     "overview": {
-      "title": "Overview",
-      "subtitle": "Profile and system parameters."
+      "title": "개요",
+      "subtitle": "프로필 및 시스템 매개변수입니다."
     },
     "account": {
-      "personalData": "Personal Data",
-      "fullName": "Full Name",
-      "fullNameHint": "Your legal first and last name",
-      "email": "Email Address",
-      "emailHint": "Primary contact for security alerts",
-      "locale": "Interface Language",
-      "localeHint": "Set your preferred dashboard language",
-      "timezone": "Timezone",
-      "timezoneHint": "Used for scheduling and logs",
-      "compactMode": "Compact Mode",
-      "compactModeDesc": "Denser UI for power users",
-      "notifications": "Notifications",
-      "emailNotify": "Email Notifications",
-      "emailNotifyDesc": "Receive reports via email",
-      "tgNotify": "Telegram Alerts",
-      "tgNotifyDesc": "Real-time alerts via Telegram",
+      "personalData": "개인 데이터",
+      "fullName": "전체 이름",
+      "fullNameHint": "법적 성명입니다",
+      "email": "이메일 주소",
+      "emailHint": "보안 알림을 위한 기본 연락처입니다",
+      "locale": "인터페이스 언어",
+      "localeHint": "선호하는 대시보드 언어를 설정합니다",
+      "timezone": "시간대",
+      "timezoneHint": "일정 및 로그에 사용됩니다",
+      "compactMode": "콤팩트 모드",
+      "compactModeDesc": "전문 사용자를 위한 더 조밀한 UI",
+      "notifications": "알림",
+      "emailNotify": "이메일 알림",
+      "emailNotifyDesc": "이메일로 보고서를 받습니다",
+      "tgNotify": "Telegram 알림",
+      "tgNotifyDesc": "Telegram을 통한 실시간 알림",
       "password": {
-        "title": "Change Password",
-        "current": "Current Password",
-        "currentHint": "Verify your identity",
-        "new": "New Password",
-        "newHint": "At least 8 characters long"
+        "title": "비밀번호 변경",
+        "current": "현재 비밀번호",
+        "currentHint": "본인 확인",
+        "new": "새 비밀번호",
+        "newHint": "최소 8자 이상"
       },
       "studio": {
-        "title": "Studio Profile",
-        "subtitle": "Public studio identity and contact",
-        "name": "Studio Name",
-        "nameHint": "Displayed in AI interactions",
-        "opsEmail": "Operations Email",
-        "opsEmailHint": "Contact for studio operations",
-        "opsTelegram": "Operations Telegram",
-        "opsTelegramHint": "Telegram handle for studio staff",
-        "refresh": "Data Refresh",
-        "refreshHint": "Manual sync with external systems",
-        "sla": "SLA Tier",
-        "slaHint": "Service level agreement level",
-        "localeHint": "Primary language of your studio members",
-        "timezoneHint": "Studio local time"
+        "title": "스튜디오 프로필",
+        "subtitle": "공개 스튜디오 정보 및 연락처",
+        "name": "스튜디오 이름",
+        "nameHint": "AI 상호작용에 표시됩니다",
+        "opsEmail": "운영 이메일",
+        "opsEmailHint": "스튜디오 운영을 위한 연락처",
+        "opsTelegram": "운영 Telegram",
+        "opsTelegramHint": "스튜디오 직원을 위한 Telegram 핸들",
+        "refresh": "데이터 새로고침",
+        "refreshHint": "외부 시스템과 수동 동기화",
+        "sla": "SLA 등급",
+        "slaHint": "서비스 수준 협약 등급",
+        "localeHint": "스튜디오 회원의 기본 언어",
+        "timezoneHint": "스튜디오 현지 시간"
       },
-      "title": "Account Settings",
-      "subtitle": "Manage your personal profile and security",
+      "title": "계정 설정",
+      "subtitle": "개인 프로필 및 보안을 관리합니다",
       "placeholders": {
-        "fullName": "John Doe",
-        "locale": "en-US",
+        "fullName": "홍길동",
+        "locale": "ko-KR",
         "timezone": "UTC",
         "password": "••••••••",
-        "studioName": "Your Studio Name",
+        "studioName": "귀하의 스튜디오 이름",
         "opsEmail": "ops@example.com",
         "opsTelegram": "-100...",
         "sla": "15",
         "refresh": "5"
       }
     },
-    "aiEngine": "AI Engine",
+    "aiEngine": "AI 엔진",
     "general": {
       "privacy": {
-        "title": "Privacy & Compliance",
-        "subtitle": "Manage data retention and PII filtering",
-        "pii": "PII Masking",
-        "piiDesc": "Automatically mask personal data in logs",
-        "retention": "Data Retention",
-        "retentionDesc": "How long to keep interaction history"
+        "title": "개인 정보 보호 및 규정 준수",
+        "subtitle": "데이터 보존 및 PII 필터링을 관리합니다",
+        "pii": "PII 마스킹",
+        "piiDesc": "로그에서 개인 데이터를 자동으로 마스킹합니다",
+        "retention": "데이터 보존",
+        "retentionDesc": "상호작용 기록을 보관할 기간"
       },
       "smtp": {
-        "title": "Email (SMTP)",
-        "subtitle": "Configure outgoing mail server",
-        "host": "SMTP Host",
-        "port": "Port",
-        "user": "Username",
-        "pass": "Password",
-        "senderAddr": "Sender Email",
-        "senderName": "Sender Name",
-        "test": "Send Test Email",
-        "testRecipient": "Recipient for Test"
+        "title": "이메일 (SMTP)",
+        "subtitle": "발신 메일 서버를 구성합니다",
+        "host": "SMTP 호스트",
+        "port": "포트",
+        "user": "사용자 이름",
+        "pass": "비밀번호",
+        "senderAddr": "보낸 사람 이메일",
+        "senderName": "보낸 사람 이름",
+        "test": "테스트 이메일 보내기",
+        "testRecipient": "테스트 수신자"
       },
       "system": {
-        "title": "System Governance",
-        "subtitle": "Core engine and security parameters",
-        "audit": "Extended Audit Logs",
-        "auditDesc": "Keep detailed logs of every system change",
-        "maintenance": "Maintenance Mode",
-        "maintenanceDesc": "Restrict access during updates"
+        "title": "시스템 거버넌스",
+        "subtitle": "핵심 엔진 및 보안 매개변수",
+        "audit": "확장 감사 로그",
+        "auditDesc": "모든 시스템 변경 사항에 대한 상세 로그를 유지합니다",
+        "maintenance": "유지보수 모드",
+        "maintenanceDesc": "업데이트 중 접근을 제한합니다"
       },
-      "title": "General Settings",
-      "subtitle": "Core system parameters and governance"
+      "title": "일반 설정",
+      "subtitle": "핵심 시스템 매개변수 및 거버넌스"
     },
     "ai": {
-      "title": "AI Configuration",
-      "subtitle": "Manage LLM providers and model parameters",
-      "addProvider": "Add Provider",
-      "editProvider": "Edit Provider",
-      "newProvider": "New AI Provider",
-      "selectProvider": "Select Provider",
-      "provider": "Provider",
-      "apiKey": "API Key",
-      "models": "Available Models",
-      "fetchModels": "Fetch Models",
-      "testConnection": "Test Connection",
-      "latencyTest": "Latency Test",
-      "confirmDelete": "Are you sure you want to remove this provider?",
-      "retry": "Retry",
-      "noModelsFound": "No models found",
+      "title": "AI 구성",
+      "subtitle": "LLM 공급자 및 모델 매개변수를 관리합니다",
+      "addProvider": "공급자 추가",
+      "editProvider": "공급자 편집",
+      "newProvider": "새 AI 공급자",
+      "selectProvider": "공급자 선택",
+      "provider": "공급자",
+      "apiKey": "API 키",
+      "models": "사용 가능한 모델",
+      "fetchModels": "모델 가져오기",
+      "testConnection": "연결 테스트",
+      "latencyTest": "지연 시간 테스트",
+      "confirmDelete": "이 공급자를 제거하시겠습니까?",
+      "retry": "다시 시도",
+      "noModelsFound": "모델을 찾을 수 없습니다",
       "status": {
-        "configured": "Configured",
-        "error": "Error",
-        "fetching": "Fetching..."
+        "configured": "구성됨",
+        "error": "오류",
+        "fetching": "가져오는 중..."
       },
       "hints": {
-        "storedKey": "Key is securely stored",
-        "refreshNeeded": "Fetch models to see available options",
-        "initialFetch": "Fetching models for the first time...",
-        "clickRefresh": "Click to refresh model list"
+        "storedKey": "키가 안전하게 저장되었습니다",
+        "refreshNeeded": "사용 가능한 옵션을 보려면 모델을 가져오세요",
+        "initialFetch": "처음으로 모델을 가져오는 중...",
+        "clickRefresh": "모델 목록을 새로 고치려면 클릭하세요"
       },
       "errors": {
-        "loadFailed": "Failed to load AI providers",
-        "saveFailed": "Failed to save provider",
-        "deleteFailed": "Failed to delete provider",
-        "fetchModelsFailed": "Failed to fetch models from provider",
-        "connectionError": "Could not connect to AI engine"
+        "loadFailed": "AI 공급자를 로드하지 못했습니다",
+        "saveFailed": "공급자를 저장하지 못했습니다",
+        "deleteFailed": "공급자를 삭제하지 못했습니다",
+        "fetchModelsFailed": "공급자로부터 모델을 가져오지 못했습니다",
+        "connectionError": "AI 엔진에 연결할 수 없습니다"
       }
     },
-    "language": "Language",
-    "selectLanguage": "Select Language",
+    "language": "언어",
+    "selectLanguage": "언어 선택",
     "billing": {
-      "title": "Billing & Subscription",
-      "subtitle": "Manage your plan and add-ons."
+      "title": "결제 및 구독",
+      "subtitle": "요금제 및 추가 기능을 관리합니다."
     },
     "integrations": {
-      "title": "Integrations",
-      "subtitle": "Connect Magicline, WhatsApp, and more."
+      "title": "통합",
+      "subtitle": "Magicline, WhatsApp 등을 연결합니다."
     },
     "prompts": {
-      "title": "Custom Prompts",
-      "subtitle": "Configure agent personas and behavior."
+      "title": "맞춤형 프롬프트",
+      "subtitle": "에이전트 페르소나 및 행동을 구성합니다."
     },
-    "automation": "Automation",
-    "branding": "Branding"
+    "automation": "자동화",
+    "branding": "브랜딩"
   },
   "navbar": {
-    "login": "Login",
-    "register": "Register"
+    "login": "로그인",
+    "register": "회원가입"
   },
   "hero": {
-    "versionBadge": "Version 2.0 Live",
-    "title": "The intelligent",
+    "versionBadge": "버전 2.0 출시",
+    "title": "지능형",
     "words": [
-      "AI Assistant",
-      "Studio Manager",
-      "Operations Bot",
-      "Sales Agent"
+      "AI 비서",
+      "스튜디오 관리자",
+      "운영 봇",
+      "영업 에이전트"
     ],
-    "subtitle": "for your fitness studio",
-    "description": "ARIIA automates customer communication via WhatsApp, Telegram, and Voice. Increase your efficiency with Arnold Prime Orchestration.",
-    "cta": "Get Started"
+    "subtitle": "귀하의 피트니스 스튜디오를 위한",
+    "description": "ARIIA는 WhatsApp, Telegram 및 음성을 통해 고객 커뮤니케이션을 자동화합니다. Arnold Prime Orchestration으로 효율성을 높이세요.",
+    "cta": "시작하기"
   },
   "stats": {
-    "aiResolution": "AI Resolution Rate",
-    "responseTime": "Response Time",
-    "agentsInSwarm": "AI Swarm Agents",
-    "availability": "Availability"
+    "aiResolution": "AI 해결률",
+    "responseTime": "응답 시간",
+    "agentsInSwarm": "AI 스웜 에이전트",
+    "availability": "가용성"
   },
   "features": {
-    "badge": "Features",
-    "title": "Everything your studio",
-    "titleAccent": "needs to succeed",
-    "description": "A complete ecosystem of AI agents seamlessly integrated into your existing systems.",
+    "badge": "기능",
+    "title": "귀하의 스튜디오가",
+    "titleAccent": "성공하는 데 필요한 모든 것",
+    "description": "기존 시스템에 완벽하게 통합된 AI 에이전트의 완전한 생태계입니다.",
     "swarm": {
-      "title": "Swarm Intelligence",
-      "desc": "Specialized agents (Sales, Medic, Ops) work together to resolve every request."
+      "title": "스웜 인텔리전스",
+      "desc": "전문 에이전트(영업, 의료, 운영)가 협력하여 모든 요청을 해결합니다."
     },
     "omnichannel": {
-      "title": "Omnichannel",
-      "desc": "WhatsApp, Telegram, SMS, and Voice. Reach your members where they are."
+      "title": "옴니채널",
+      "desc": "WhatsApp, Telegram, SMS 및 음성. 회원들이 있는 곳에서 소통하세요."
     },
     "churn": {
-      "title": "Churn Prevention",
-      "desc": "AI-driven analysis identifies cancellation risks before they arise."
+      "title": "이탈 방지",
+      "desc": "AI 기반 분석은 이탈 위험을 사전에 식별합니다."
     },
     "memory": {
-      "title": "Context Memory",
-      "desc": "ARIIA remembers every interaction and builds real relationships with members."
+      "title": "컨텍스트 메모리",
+      "desc": "ARIIA는 모든 상호 작용을 기억하고 회원들과 진정한 관계를 구축합니다."
     },
     "security": {
-      "title": "GDPR & Security",
-      "desc": "Encrypted data storage in Germany and full compliance guarantee."
+      "title": "GDPR 및 보안",
+      "desc": "독일 내 암호화된 데이터 저장 및 완벽한 규정 준수 보장."
     },
     "connectors": {
-      "title": "Deep Integration",
-      "desc": "Direct connection to Magicline, Shopify, and more for real-time handling."
+      "title": "심층 통합",
+      "desc": "Magicline, Shopify 등과의 직접 연결로 실시간 처리가 가능합니다."
     },
     "page": {
-      "title": "Next-Gen",
-      "titleAccent": "Studio Intelligence",
-      "description": "ARIIA is more than a chatbot. It is a swarm of specialized AI agents that understand your studio and your members.",
-      "techTitle": "Deep",
-      "techSubtitle": "Technology",
-      "techSubtitleAccent": "Stack",
-      "deckTitle": "Studio",
-      "deckSubtitle": "Control",
-      "deckSubtitleAccent": "Deck",
-      "deckDesc": "A central dashboard to monitor every AI interaction and manage your studio settings in real-time.",
-      "securityTitle": "Enterprise",
-      "securitySubtitle": "Security &",
-      "securitySubtitleAccent": "Compliance",
-      "securityDesc": "Your data is hosted in Germany, fully encrypted, and 100% GDPR compliant."
+      "title": "차세대",
+      "titleAccent": "스튜디오 인텔리전스",
+      "description": "ARIIA는 챗봇 그 이상입니다. 스튜디오와 회원을 이해하는 전문 AI 에이전트의 스웜입니다.",
+      "techTitle": "심층",
+      "techSubtitle": "기술",
+      "techSubtitleAccent": "스택",
+      "deckTitle": "스튜디오",
+      "deckSubtitle": "제어",
+      "deckSubtitleAccent": "덱",
+      "deckDesc": "모든 AI 상호 작용을 모니터링하고 스튜디오 설정을 실시간으로 관리하는 중앙 대시보드입니다.",
+      "securityTitle": "엔터프라이즈",
+      "securitySubtitle": "보안 및",
+      "securitySubtitleAccent": "규정 준수",
+      "securityDesc": "귀하의 데이터는 독일에 호스팅되며, 완벽하게 암호화되고 100% GDPR을 준수합니다."
     },
     "platform": {
       "live": {
-        "title": "Live Monitor",
-        "desc": "Watch AI interactions in real-time and intervene if necessary."
+        "title": "실시간 모니터",
+        "desc": "AI 상호작용을 실시간으로 확인하고 필요한 경우 개입합니다."
       },
       "members": {
-        "title": "Member Management",
-        "desc": "Deep integration with Magicline to handle bookings and contracts."
+        "title": "회원 관리",
+        "desc": "예약 및 계약 처리를 위한 Magicline과의 심층 통합입니다."
       },
       "knowledge": {
-        "title": "Knowledge Base",
-        "desc": "Upload your studio documents to train the AI on your specific rules."
+        "title": "지식 기반",
+        "desc": "스튜디오 문서를 업로드하여 특정 규칙에 따라 AI를 훈련시킵니다."
       },
       "prompts": {
-        "title": "Persona Control",
-        "desc": "Customize the tone and personality of your studio assistant."
+        "title": "페르소나 제어",
+        "desc": "스튜디오 어시스턴트의 어조와 개성을 맞춤 설정합니다."
       },
       "multi": {
-        "title": "Multi-Tenant",
-        "desc": "Manage multiple studio locations from a single central account."
+        "title": "다중 테넌트",
+        "desc": "단일 중앙 계정에서 여러 스튜디오 지점을 관리합니다."
       },
       "churn": {
-        "title": "Churn Prevention",
-        "desc": "AI identifies members at risk of canceling based on behavior."
+        "title": "이탈 방지",
+        "desc": "AI가 행동을 기반으로 취소 위험이 있는 회원을 식별합니다."
       }
     },
     "details": {
-      "intent": "Intent Classification",
-      "routing": "Dynamic Routing",
-      "fallback": "Human-in-the-Loop",
-      "confidence": "Confidence Scoring",
-      "wa": "WhatsApp Cloud",
-      "tg": "Telegram Bot",
-      "voice": "Voice STT/TTS",
-      "chat": "Web Widget",
-      "ml": "Magicline Sync",
-      "proactive": "Proactive Outreach",
-      "scoring": "Behavioral Scoring",
-      "behavior": "Engagement Analysis",
-      "session": "Long-Term Sessions",
-      "semantic": "Semantic Search",
-      "episodic": "Episodic Memory",
-      "auto": "Automatic Indexing",
-      "dsgvo": "GDPR Compliance",
-      "rls": "Row Level Security",
-      "pii": "PII Masking",
-      "audit": "Audit Logs",
-      "api": "REST API Access",
-      "shopify": "Shopify Integration",
+      "intent": "의도 분류",
+      "routing": "동적 라우팅",
+      "fallback": "휴먼 인 더 루프",
+      "confidence": "신뢰도 점수",
+      "wa": "WhatsApp 클라우드",
+      "tg": "Telegram 봇",
+      "voice": "음성 STT/TTS",
+      "chat": "웹 위젯",
+      "ml": "Magicline 동기화",
+      "proactive": "사전 예방적 아웃리치",
+      "scoring": "행동 점수화",
+      "behavior": "참여도 분석",
+      "session": "장기 세션",
+      "semantic": "의미론적 검색",
+      "episodic": "에피소드 기억",
+      "auto": "자동 색인 생성",
+      "dsgvo": "GDPR 준수",
+      "rls": "행 수준 보안",
+      "pii": "PII 마스킹",
+      "audit": "감사 로그",
+      "api": "REST API 접근",
+      "shopify": "Shopify 통합",
       "woo": "WooCommerce",
-      "magicline": "Magicline Deep-Link"
+      "magicline": "Magicline 딥링크"
     },
     "securityLabels": {
       "dsgvo": "GDPR",
       "encryption": "AES-256",
-      "pii": "PII Filter",
-      "audit": "Audit",
+      "pii": "PII 필터",
+      "audit": "감사",
       "rbac": "RBAC",
       "rls": "RLS"
     }
   },
   "cta": {
-    "title": "Ready for the future of",
-    "titleAccent": "studio automation",
-    "subtitle": "Join over 50 fitness studios already growing with ARIIA.",
-    "button": "Create Free Account",
-    "compare": "Compare Pricing"
+    "title": "미래를 위한 준비",
+    "titleAccent": "스튜디오 자동화",
+    "subtitle": "ARIIA와 함께 성장하고 있는 50개 이상의 피트니스 스튜디오에 합류하세요.",
+    "button": "무료 계정 생성",
+    "compare": "가격 비교"
   },
   "footer": {
-    "brandDesc": "The evolution of studio operations. Agentic Multi-Tenant SaaS Platform.",
-    "product": "Product",
-    "company": "Company",
-    "contact": "Contact",
+    "brandDesc": "스튜디오 운영의 진화. 에이전트 기반 다중 테넌트 SaaS 플랫폼입니다.",
+    "product": "제품",
+    "company": "회사",
+    "contact": "문의",
     "links": {
-      "features": "Features",
-      "pricing": "Pricing",
-      "test": "Start Free Trial",
-      "impressum": "Imprint",
-      "datenschutz": "Privacy Policy",
-      "agb": "Terms of Service",
-      "enterprise": "Enterprise Contact"
+      "features": "기능",
+      "pricing": "가격",
+      "test": "무료 체험 시작",
+      "impressum": "임프린트",
+      "datenschutz": "개인정보처리방침",
+      "agb": "서비스 약관",
+      "enterprise": "기업 문의"
     },
-    "rights": "All rights reserved."
+    "rights": "모든 권리 보유."
   },
   "tenants": {
     "stats": {
-      "total": "Total Tenants",
-      "users": "Active Users",
-      "avg": "Avg. Users/Tenant"
+      "total": "총 테넌트",
+      "users": "활성 사용자",
+      "avg": "평균 사용자/테넌트"
     },
     "create": {
-      "title": "Create New Tenant",
-      "name": "Tenant Name",
-      "slug": "Slug (optional)"
+      "title": "새 테넌트 생성",
+      "name": "테넌트 이름",
+      "slug": "슬러그 (선택 사항)"
     },
     "table": {
-      "name": "Name",
-      "users": "Users",
-      "admins": "Admins",
-      "active": "Active"
+      "name": "이름",
+      "users": "사용자",
+      "admins": "관리자",
+      "active": "활성"
     },
     "edit": {
-      "title": "Edit Tenant"
+      "title": "테넌트 편집"
     },
     "errors": {
-      "nameRequired": "Tenant name is required"
+      "nameRequired": "테넌트 이름은 필수입니다."
     },
     "bulk": {
-      "hint": "The action will be applied tenant-wide and logged as a governance event."
+      "hint": "이 작업은 테넌트 전체에 적용되며 거버넌스 이벤트로 기록됩니다."
     },
     "audit": {
-      "title": "Last Audit Events"
+      "title": "최근 감사 이벤트"
     },
     "footer": {
-      "registration": "Tenant self-registration is still handled via /register."
+      "registration": "테넌트 자체 등록은 여전히 /register를 통해 처리됩니다."
     }
   },
   "ai": {
-    "actions": "Actions",
+    "actions": "작업",
     "errors": {
-      "connectionError": "Connection to AI Engine lost",
-      "loadFailed": "Failed to load AI parameters",
-      "saveFailed": "Failed to save AI configuration"
+      "connectionError": "AI 엔진 연결이 끊겼습니다.",
+      "loadFailed": "AI 매개변수 로드에 실패했습니다.",
+      "saveFailed": "AI 구성 저장에 실패했습니다."
     }
   },
   "live": {
-    "title": "Live Monitor",
-    "subtitle": "Real-time AI interaction tracking",
-    "sessions": "Active Sessions",
-    "noSessions": "No active sessions at the moment",
-    "selectSession": "Select a session to view details",
+    "title": "실시간 모니터",
+    "subtitle": "실시간 AI 상호작용 추적",
+    "sessions": "활성 세션",
+    "noSessions": "현재 활성 세션이 없습니다.",
+    "selectSession": "세부 정보를 보려면 세션을 선택하십시오.",
     "handoff": {
-      "link": "Link to Member",
-      "hint": "Manually associate this session with a member ID",
-      "placeholder": "Enter Member ID"
+      "link": "회원에게 연결",
+      "hint": "이 세션을 회원 ID와 수동으로 연결합니다.",
+      "placeholder": "회원 ID를 입력하십시오."
     }
   },
   "memberMemory": {
-    "title": "Member Memory",
-    "subtitle": "Long-term semantic knowledge base",
-    "files": "Memory Files",
-    "noFiles": "No memory entries found for this member",
-    "selectFile": "Select an entry to view details",
-    "reasonPlaceholder": "Enter reason for manual override",
-    "scheduler": "Analysis Scheduler",
-    "lastRun": "Last analyzed"
+    "title": "회원 메모리",
+    "subtitle": "장기적인 의미론적 지식 기반",
+    "files": "메모리 파일",
+    "noFiles": "이 회원의 메모리 항목을 찾을 수 없습니다.",
+    "selectFile": "세부 정보를 보려면 항목을 선택하십시오.",
+    "reasonPlaceholder": "수동 재정의 사유를 입력하십시오.",
+    "scheduler": "분석 스케줄러",
+    "lastRun": "마지막 분석"
   },
   "members": {
-    "title": "Members",
-    "subtitle": "Manage your studio members and their AI state",
-    "add": "Add Member",
+    "title": "회원",
+    "subtitle": "스튜디오 회원 및 AI 상태를 관리합니다.",
+    "add": "회원 추가",
     "import": {
-      "clickOrDrop": "Click or drag file to this area to upload",
-      "selectFile": "Select File",
-      "hint": "Supports .csv, .xls, .xlsx"
+      "clickOrDrop": "파일을 업로드하려면 이 영역을 클릭하거나 드래그하십시오.",
+      "selectFile": "파일 선택",
+      "hint": ".csv, .xls, .xlsx를 지원합니다."
     },
-    "importTitle": "Member Import",
-    "noMembers": "No members found",
-    "noContact": "No contact information",
-    "confirmDelete": "Are you sure you want to delete this member?",
-    "search": "Search members...",
+    "importTitle": "회원 가져오기",
+    "noMembers": "회원을 찾을 수 없습니다.",
+    "noContact": "연락처 정보 없음",
+    "confirmDelete": "이 회원을 삭제하시겠습니까?",
+    "search": "회원 검색...",
     "stats": {
-      "total": "Total Members",
-      "active": "Active",
-      "paused": "Paused",
-      "manual": "Manual Entries",
-      "external": "Synced (Magicline)",
-      "selected": "selected"
+      "total": "총 회원",
+      "active": "활성",
+      "paused": "일시 중지됨",
+      "manual": "수동 항목",
+      "external": "동기화됨 (Magicline)",
+      "selected": "선택됨"
     },
     "table": {
-      "member": "Member",
-      "source": "Source",
-      "status": "Status"
+      "member": "회원",
+      "source": "출처",
+      "status": "상태"
     },
     "form": {
-      "firstName": "First Name",
-      "lastName": "Last Name",
-      "email": "Email Address"
+      "firstName": "이름",
+      "lastName": "성",
+      "email": "이메일 주소"
     },
     "status": {
-      "active": "Active",
-      "paused": "Paused"
+      "active": "활성",
+      "paused": "일시 중지됨"
     }
   },
   "pricing": {
-    "title": "Simple Pricing",
-    "titleAccent": "for every studio size",
-    "description": "Choose the plan that fits your studio operations. All plans include 24/7 AI availability and Magicline integration.",
-    "monthly": "Monthly",
-    "yearly": "Yearly",
-    "billedYearly": "billed yearly",
-    "discount": "Save 20%",
-    "enterpriseTitle": "Enterprise",
-    "enterpriseDesc": "Custom solutions for large studio chains with 10+ locations and specific compliance needs.",
-    "enterpriseCta": "Contact Sales",
-    "addonsTitle": "Powerful",
-    "addonsSubtitle": "Addons",
-    "addonsSubtitleAccent": "to scale",
-    "addonsDesc": "Enhance your AI agents with specialized capabilities tailored to your workflow.",
-    "faqTitle": "Frequently Asked Questions",
-    "finalCta": "Ready to transform your studio?",
-    "finalCtaAccent": "Start your trial today.",
-    "finalCtaDesc": "Join 50+ fitness studios already using ARIIA.",
+    "title": "간단한 가격 정책",
+    "titleAccent": "모든 스튜디오 규모에 적합",
+    "description": "스튜디오 운영에 적합한 요금제를 선택하십시오. 모든 요금제에는 연중무휴 AI 가용성 및 Magicline 통합이 포함됩니다.",
+    "monthly": "월간",
+    "yearly": "연간",
+    "billedYearly": "연간 청구",
+    "discount": "20% 절약",
+    "enterpriseTitle": "엔터프라이즈",
+    "enterpriseDesc": "10개 이상의 지점과 특정 규정 준수 요구 사항을 가진 대규모 스튜디오 체인을 위한 맞춤형 솔루션입니다.",
+    "enterpriseCta": "영업팀에 문의",
+    "addonsTitle": "강력한",
+    "addonsSubtitle": "애드온",
+    "addonsSubtitleAccent": "확장",
+    "addonsDesc": "워크플로우에 맞춰 특화된 기능으로 AI 에이전트를 강화하십시오.",
+    "faqTitle": "자주 묻는 질문",
+    "finalCta": "스튜디오를 변화시킬 준비가 되셨습니까?",
+    "finalCtaAccent": "오늘 체험을 시작하십시오.",
+    "finalCtaDesc": "이미 ARIIA를 사용하는 50개 이상의 피트니스 스튜디오에 합류하십시오.",
     "plans": {
       "starter": {
-        "name": "Starter",
-        "desc": "Perfect for boutique studios",
-        "cta": "Get Started",
+        "name": "스타터",
+        "desc": "부티크 스튜디오에 완벽합니다.",
+        "cta": "시작하기",
         "features": [
-          "1 AI Agent (Ops)",
-          "WhatsApp Integration",
-          "100 AI Resolutions/mo",
-          "Basic Analytics"
+          "AI 에이전트 1개 (운영)",
+          "WhatsApp 연동",
+          "월 100회 AI 해결",
+          "기본 분석"
         ]
       },
       "professional": {
-        "name": "Professional",
-        "badge": "Most Popular",
-        "desc": "For growing fitness studios",
-        "cta": "Start Free Trial",
+        "name": "프로페셔널",
+        "badge": "가장 인기 많음",
+        "desc": "성장하는 피트니스 스튜디오를 위한 플랜",
+        "cta": "무료 체험 시작",
         "features": [
-          "3 AI Agents (Sales, Ops, Medic)",
-          "WhatsApp & Telegram",
-          "500 AI Resolutions/mo",
-          "Advanced Analytics",
-          "Member Memory (1 Tier)"
+          "AI 에이전트 3개 (영업, 운영, 지원)",
+          "WhatsApp 및 Telegram",
+          "월 500회 AI 해결",
+          "고급 분석",
+          "회원 기억 (1단계)"
         ]
       },
       "business": {
-        "name": "Business",
-        "desc": "Full automation for large studios",
-        "cta": "Go Pro",
+        "name": "비즈니스",
+        "desc": "대규모 스튜디오를 위한 완전 자동화",
+        "cta": "프로로 전환",
         "features": [
-          "Full Swarm (All Agents)",
-          "Omnichannel (WA, TG, Voice)",
-          "Unlimited Resolutions",
-          "GraphRAG & Full Memory",
-          "Priority Support"
+          "전체 스웜 (모든 에이전트)",
+          "옴니채널 (WA, TG, 음성)",
+          "무제한 해결",
+          "GraphRAG 및 전체 기억",
+          "우선 지원"
         ]
       }
     },
     "addons": {
       "voice": {
-        "name": "AI Voice Engine",
-        "desc": "Handle incoming calls with natural AI voice interaction."
+        "name": "AI 음성 엔진",
+        "desc": "자연스러운 AI 음성 상호작용으로 걸려오는 전화를 처리합니다."
       },
       "vision": {
-        "name": "AI Vision (YOLOv8)",
-        "desc": "Real-time occupancy and safety tracking via camera integration."
+        "name": "AI 비전 (YOLOv8)",
+        "desc": "카메라 연동을 통한 실시간 점유율 및 안전 추적."
       },
       "churn": {
-        "name": "Churn Prediction",
-        "desc": "Advanced ML model to identify cancellation risks early."
+        "name": "이탈 예측",
+        "desc": "취소 위험을 조기에 식별하는 고급 ML 모델입니다."
       },
       "channel": {
-        "name": "Additional Channel",
-        "desc": "Add custom SMS or Email automation to your swarm."
+        "name": "추가 채널",
+        "desc": "스웜에 맞춤형 SMS 또는 이메일 자동화를 추가합니다."
       }
     },
     "faqs": [
       {
-        "q": "Can I change my plan later?",
-        "a": "Yes, you can upgrade or downgrade your plan at any time from your settings."
+        "q": "나중에 플랜을 변경할 수 있나요?",
+        "a": "네, 설정에서 언제든지 플랜을 업그레이드하거나 다운그레이드할 수 있습니다."
       },
       {
-        "q": "Is my data secure?",
-        "a": "Absolutely. We use industry-standard encryption and all data is hosted in ISO-certified data centers in Germany."
+        "q": "제 데이터는 안전한가요?",
+        "a": "물론입니다. 당사는 업계 표준 암호화를 사용하며 모든 데이터는 독일의 ISO 인증 데이터 센터에 호스팅됩니다."
       },
       {
-        "q": "Do you offer custom integrations?",
-        "a": "Yes, for Enterprise customers we offer bespoke integration services for your specific CRM or ERP system."
+        "q": "맞춤형 연동을 제공하나요?",
+        "a": "네, 엔터프라이즈 고객을 위해 특정 CRM 또는 ERP 시스템에 대한 맞춤형 연동 서비스를 제공합니다."
       },
       {
-        "q": "How does the Voice AI work?",
-        "a": "Our Voice AI uses advanced STT/TTS models to interact with callers in real-time, just like a human assistant."
+        "q": "음성 AI는 어떻게 작동하나요?",
+        "a": "당사의 음성 AI는 고급 STT/TTS 모델을 사용하여 사람 비서처럼 발신자와 실시간으로 상호작용합니다."
       }
     ]
   },
   "legal": {
     "impressum": {
-      "title": "Imprint",
-      "tmg5": "Information according to § 5 TMG",
-      "representedBy": "Represented by",
-      "managingDirector": "Managing Director",
-      "contact": "Contact",
-      "phone": "Phone",
-      "email": "Email",
-      "website": "Website",
-      "registerEntry": "Register Entry",
-      "registerCourt": "Register Court",
-      "registerNumber": "Register Number",
-      "vatId": "VAT Identification Number according to § 27 a VAT Act",
-      "responsibleContent": "Responsible for content according to § 55 Abs. 2 RStV",
-      "dispute": "EU Dispute Resolution",
-      "liabilityContent": "Liability for Content",
-      "liabilityLinks": "Liability for Links"
+      "title": "임프린트",
+      "tmg5": "§ 5 TMG에 따른 정보",
+      "representedBy": "대표자",
+      "managingDirector": "상무이사",
+      "contact": "연락처",
+      "phone": "전화",
+      "email": "이메일",
+      "website": "웹사이트",
+      "registerEntry": "등기 항목",
+      "registerCourt": "등기 법원",
+      "registerNumber": "등기 번호",
+      "vatId": "§ 27 a 부가가치세법에 따른 부가가치세 식별 번호",
+      "responsibleContent": "§ 55 Abs. 2 RStV에 따른 콘텐츠 책임자",
+      "dispute": "EU 분쟁 해결",
+      "liabilityContent": "콘텐츠에 대한 책임",
+      "liabilityLinks": "링크에 대한 책임"
     },
     "privacy": {
-      "title": "Privacy Policy"
+      "title": "개인정보처리방침"
     },
     "agb": {
-      "title": "Terms of Service",
-      "status": "Last Update"
+      "title": "서비스 약관",
+      "status": "최종 업데이트"
     }
   },
   "audit": {
     "title": "감사 로그",
-    "subtitle": "규정 준수 및 감사 내역",
+    "subtitle": "규정 준수 및 감사 추적",
     "filters": {
       "category": "카테고리",
       "allCategories": "모든 카테고리",
       "actionType": "작업 유형",
       "allActions": "모든 작업",
-      "initiatedBy": "수행자",
+      "initiatedBy": "시작자 (행위자)",
       "allUsers": "모든 사용자",
       "systemInternal": "시스템 내부",
       "timeRange": "시간 범위",
       "from": "시작",
       "to": "종료",
-      "clearFilters": "필터 초기화",
+      "clearFilters": "모든 필터 지우기",
       "exportCsv": "CSV 내보내기"
     },
-    "search": "작업, 이메일 검색...",
+    "search": "작업, 이메일 또는 메타데이터 내용으로 검색...",
     "sort": {
       "newest": "최신순",
       "oldest": "오래된순"
     },
     "table": {
       "timestamp": "타임스탬프",
-      "actor": "수행자",
+      "actor": "행위자",
       "operation": "작업",
       "target": "대상",
-      "details": "상세 정보",
-      "fetching": "가져오는 중...",
-      "viewDiff": "변경사항 보기"
+      "details": "세부 정보",
+      "fetching": "감사 기록을 가져오는 중...",
+      "viewDiff": "차이점 보기"
     },
     "modal": {
-      "title": "감사 이벤트 상세",
-      "actorIdentity": "수행자 식별",
+      "title": "감사 이벤트 세부 정보",
+      "actorIdentity": "행위자 신원",
       "targetResource": "대상 리소스",
       "changeSummary": "변경 요약"
     }
   },
   "knowledge": {
-    "title": "지식 베이스",
+    "title": "지식 기반",
     "documents": "문서",
-    "noDocuments": "문서가 없습니다.",
+    "noDocuments": "사용 가능한 지식 문서가 없습니다.",
     "newDocument": "새 문서",
-    "newDocumentPlaceholder": "new-document.md",
+    "newDocumentPlaceholder": "새 문서.md",
     "viewTenant": "테넌트 보기:",
-    "indexChunks": "인덱스 청크",
+    "indexChunks": "청크 색인 생성",
     "lastIngest": "마지막 수집",
-    "reindex": "재인덱싱",
-    "reindexing": "재인덱싱 중...",
-    "selectFile": "파일을 선택하세요.",
+    "reindex": "재색인",
+    "reindexing": "재색인 중...",
+    "selectFile": "파일을 선택하거나 왼쪽에 새 파일을 생성하십시오.",
     "save": "저장",
     "saving": "저장 중...",
-    "saved": "저장됨",
-    "reasonPlaceholder": "사유(8자 이상)",
-    "reasonError": "Please provide a reason for the change (min. 8 chars).",
-    "conflict": "충돌 감지",
-    "conflictError": "The file has been modified in the meantime. Please reload or overwrite.",
-    "ingestError": "Ingest Error: {{error}}",
-    "autosaving": "Autosaving...",
-    "autosaved": "Autosave saved",
-    "loading": "로딩 중...",
+    "saved": "저장 및 동기화 완료",
+    "reasonPlaceholder": "변경 사유 (최소 8자)",
+    "reasonError": "변경 사유를 입력하십시오 (최소 8자).",
+    "conflict": "충돌 감지됨",
+    "conflictError": "파일이 그 사이에 수정되었습니다. 다시 로드하거나 덮어쓰십시오.",
+    "ingestError": "수집 오류: {{error}}",
+    "autosaving": "자동 저장 중...",
+    "autosaved": "자동 저장 완료",
+    "loading": "로드 중...",
     "loaded": "로드됨",
-    "draftCreated": "New file created as draft. Please save."
+    "draftCreated": "새 파일이 초안으로 생성되었습니다. 저장하십시오."
   },
   "register": {
-    "title": "회원가입",
-    "subtitle": "새 테넌트 및 관리자 생성",
-    "tenantName": "테넌트 이름",
-    "tenantSlug": "Tenant Slug (optional)",
+    "title": "등록",
+    "subtitle": "새 테넌트와 관리자 사용자를 생성하십시오.",
+    "tenantName": "테넌트 이름 (예: Test-Studio)",
+    "tenantSlug": "테넌트 슬러그 (선택 사항)",
     "email": "이메일",
-    "name": "Name (optional)",
-    "password": "비밀번호",
+    "name": "이름 (선택 사항)",
+    "password": "비밀번호 (최소 8자)",
     "button": "테넌트 등록",
-    "waiting": "잠시만 기다려주세요...",
+    "waiting": "잠시 기다려 주십시오...",
     "backToLogin": "로그인으로 돌아가기"
   },
   "login": {
@@ -665,142 +665,142 @@
     }
   },
   "plans": {
-    "deleteDeadTitle": "Delete all plans without Stripe connection (ghosts)?",
-    "newPlan": "New Subscription Plan",
-    "planName": "Name (e.g. Professional)",
-    "planSlug": "Slug (e.g. professional)",
-    "priceEur": "Price in EUR",
-    "newAddon": "New Stripe Add-on",
-    "addonName": "Add-on Name (e.g. Voice Pipeline)",
-    "monthlyPrice": "Monthly Price in EUR",
-    "editPlan": "Edit Plan"
+    "deleteDeadTitle": "Stripe 연결이 없는 모든 플랜(고스트)을 삭제하시겠습니까?",
+    "newPlan": "새 구독 플랜",
+    "planName": "이름 (예: Professional)",
+    "planSlug": "슬러그 (예: professional)",
+    "priceEur": "EUR 기준 가격",
+    "newAddon": "새 Stripe 애드온",
+    "addonName": "애드온 이름 (예: Voice Pipeline)",
+    "monthlyPrice": "월별 가격 (EUR)",
+    "editPlan": "플랜 편집"
   },
   "impressum": {
-    "disputeText": "The European Commission provides a platform for online dispute resolution (OS): https://ec.europa.eu/consumers/odr/. You can find our email address at the top of the imprint. We are not willing or obliged to participate in dispute resolution proceedings before a consumer arbitration board.",
-    "liabilityContentText": "As a service provider, we are responsible for our own content on these pages in accordance with the general laws pursuant to § 7 Para.1 TMG. According to §§ 8 to 10 TMG, we are not obliged as a service provider to monitor transmitted or stored third-party information or to investigate circumstances that indicate illegal activity.",
-    "liabilityLinksText": "Our offer contains links to external websites of third parties, on whose content we have no influence. Therefore, we cannot assume any liability for these external contents. The respective provider or operator of the pages is always responsible for the content of the linked pages."
+    "disputeText": "유럽 위원회는 온라인 분쟁 해결(OS)을 위한 플랫폼을 제공합니다: https://ec.europa.eu/consumers/odr/. 당사의 이메일 주소는 임프린트 상단에서 찾을 수 있습니다. 당사는 소비자 중재 위원회 앞에서 분쟁 해결 절차에 참여할 의사가 없으며 의무도 없습니다.",
+    "liabilityContentText": "서비스 제공자로서 당사는 § 7 Para.1 TMG에 따라 일반 법률에 의거하여 이 페이지의 자체 콘텐츠에 대한 책임이 있습니다. §§ 8부터 10 TMG에 따라 당사는 서비스 제공자로서 전송되거나 저장된 제3자 정보를 모니터링하거나 불법 활동을 나타내는 상황을 조사할 의무가 없습니다.",
+    "liabilityLinksText": "당사의 서비스는 제3자의 외부 웹사이트 링크를 포함하며, 당사는 해당 콘텐츠에 영향을 미치지 않습니다. 따라서 당사는 이러한 외부 콘텐츠에 대해 어떠한 책임도 지지 않습니다. 링크된 페이지의 콘텐츠에 대한 책임은 항상 해당 제공자 또는 운영자에게 있습니다."
   },
   "escalations": {
-    "title": "Escalation Queue",
-    "subtitle": "Tickets requiring human intervention",
-    "noEscalations": "No open escalations.",
-    "memberIdError": "Please provide a valid Member ID.",
-    "tokenError": "Error generating token.",
-    "handoffError": "Error resolving handoff.",
-    "allClear": "All clear",
-    "linkMember": "Link Member",
-    "memberId": "Member ID",
-    "resolveHandoff": "Resolve handoff?"
+    "title": "에스컬레이션 대기열",
+    "subtitle": "사람의 개입이 필요한 티켓",
+    "noEscalations": "열린 에스컬레이션이 없습니다.",
+    "memberIdError": "유효한 회원 ID를 제공하십시오.",
+    "tokenError": "토큰 생성 오류.",
+    "handoffError": "핸드오프 해결 오류.",
+    "allClear": "모두 해결됨",
+    "linkMember": "회원 연결",
+    "memberId": "회원 ID",
+    "resolveHandoff": "핸드오프를 해결하시겠습니까?"
   },
   "magicline": {
-    "syncNotStarted": "Sync not yet started",
-    "allEnriched": "All members already enriched",
-    "syncFailed": "Sync failed",
-    "syncDescription": "Load visit and booking data for all members",
-    "enrichAll": "Enrich All",
-    "adoption": "ARIIA Adoption",
-    "adoptionSubtitle": "Magicline members who have used ARIIA",
-    "usersActive": "Users active",
-    "platformVerification": "Platform & Verification",
-    "platformSubtitle": "Active chat sessions by channel and status",
-    "noSessions": "No chat sessions available yet.",
-    "languageDistribution": "Language Distribution",
-    "languageSubtitle": "Preferred language of members",
-    "noLanguageData": "No language data available.",
-    "memberStatus": "Member Status",
-    "memberStatusSubtitle": "Active vs. paused members",
-    "noData": "No data.",
-    "dataCoverage": "Data Coverage",
-    "dataCoverageSubtitle": "Members with visit & booking data"
+    "syncNotStarted": "동기화가 아직 시작되지 않았습니다.",
+    "allEnriched": "모든 회원이 이미 풍부화되었습니다.",
+    "syncFailed": "동기화 실패",
+    "syncDescription": "모든 회원의 방문 및 예약 데이터를 로드합니다.",
+    "enrichAll": "모두 풍부화",
+    "adoption": "ARIIA 채택률",
+    "adoptionSubtitle": "ARIIA를 사용한 Magicline 회원",
+    "usersActive": "활성 사용자",
+    "platformVerification": "플랫폼 및 인증",
+    "platformSubtitle": "채널 및 상태별 활성 채팅 세션",
+    "noSessions": "아직 채팅 세션이 없습니다.",
+    "languageDistribution": "언어 분포",
+    "languageSubtitle": "회원 선호 언어",
+    "noLanguageData": "언어 데이터를 사용할 수 없습니다.",
+    "memberStatus": "회원 상태",
+    "memberStatusSubtitle": "활성 회원 대 일시 중지된 회원",
+    "noData": "데이터가 없습니다.",
+    "dataCoverage": "데이터 범위",
+    "dataCoverageSubtitle": "방문 및 예약 데이터가 있는 회원"
   },
   "analytics": {
-    "weeklyOverview": "Weekly Overview",
-    "weeklySubtitle": "Tickets & resolution rate (last 7 days)",
-    "satisfaction": "Member Satisfaction",
-    "satisfactionSubtitle": "Feedback after AI interactions",
-    "noFeedback": "No feedback available yet",
-    "avgRating": "Average Rating",
-    "basedOn": "Based on {{count}} ratings",
-    "channelPerformance": "Channel Performance",
-    "channelSubtitle": "Comparison of support channels (30 days)"
+    "weeklyOverview": "주간 개요",
+    "weeklySubtitle": "티켓 및 해결률 (지난 7일)",
+    "satisfaction": "회원 만족도",
+    "satisfactionSubtitle": "AI 상호작용 후 피드백",
+    "noFeedback": "아직 피드백이 없습니다.",
+    "avgRating": "평균 평점",
+    "basedOn": "{{count}}개의 평점 기준",
+    "channelPerformance": "채널 성과",
+    "channelSubtitle": "지원 채널 비교 (30일)"
   },
   "conversations": {
-    "search": "Search conversations...",
-    "backToList": "Back to list",
-    "helpful": "Helpful",
-    "notHelpful": "Not helpful"
+    "search": "대화 검색...",
+    "backToList": "목록으로 돌아가기",
+    "helpful": "유용함",
+    "notHelpful": "유용하지 않음"
   },
   "dashboard": {
-    "governanceMode": "거버넌스 모드",
-    "uptime": "가동 시간",
+    "governanceMode": "플랫폼 거버넌스 모드",
+    "uptime": "플랫폼 가동 시간",
     "distribution": "테넌트 분포",
-    "distributionSubtitle": "Active vs. Inactive",
+    "distributionSubtitle": "활성 vs. 비활성",
     "infrastructure": "인프라 상태",
-    "coreServices": "코어 서비스",
+    "coreServices": "SaaS 핵심 서비스",
     "redis": "Redis 캐시",
     "vector": "벡터 엔진",
     "qdrant": "Qdrant 온라인",
     "auth": "인증 서비스",
-    "events": "최근 이벤트",
-    "auditTrail": "감사 추적",
-    "noEvents": "이벤트 없음",
+    "events": "최근 플랫폼 이벤트",
+    "auditTrail": "감사 추적 (시스템 전체)",
+    "noEvents": "이벤트가 없습니다.",
     "initializing": "대시보드 초기화 중...",
-    "loadError": "데이터 로드 실패",
-    "analyticsHint": "상세 분석은 'Analytics' 메뉴를 이용하세요."
+    "loadError": "데이터 로드 오류가 발생했습니다.",
+    "analyticsHint": "자세한 평가는 \"분석\" 메뉴 항목을 사용하십시오."
   },
   "tiptap": {
-    "toolbar": "Text Editor Toolbar",
-    "bold": "Bold",
-    "italic": "Italic",
-    "heading1": "Heading 1",
-    "heading2": "Heading 2",
-    "bulletList": "Bullet List",
-    "orderedList": "Ordered List",
-    "quote": "Quote",
-    "undo": "Undo",
-    "redo": "Redo"
+    "toolbar": "텍스트 편집기 도구 모음",
+    "bold": "굵게",
+    "italic": "기울임꼴",
+    "heading1": "제목 1",
+    "heading2": "제목 2",
+    "bulletList": "글머리 기호 목록",
+    "orderedList": "번호 매기기 목록",
+    "quote": "인용",
+    "undo": "실행 취소",
+    "redo": "다시 실행"
   },
   "automation": {
-    "title": "Automation",
-    "subtitle": "Schedule and LLM extraction for daily Member-Memory analysis.",
-    "lastRun": "Last Run",
-    "schedulerActive": "Scheduler Active",
-    "schedulerDesc": "Enables daily execution according to cron expression.",
-    "cronExpression": "Cron Expression (UTC)",
-    "every12h": "Every 12h",
-    "extractionDesc": "Enables profile creation from chat history.",
-    "extractionActive": "LLM Extraction Active",
-    "noRun": "No run yet."
+    "title": "자동화",
+    "subtitle": "일일 회원 기억 분석을 위한 스케줄 및 LLM 추출.",
+    "lastRun": "마지막 실행",
+    "schedulerActive": "스케줄러 활성",
+    "schedulerDesc": "크론 표현식에 따라 매일 실행을 활성화합니다.",
+    "cronExpression": "크론 표현식 (UTC)",
+    "every12h": "12시간마다",
+    "extractionDesc": "채팅 기록에서 프로필 생성을 활성화합니다.",
+    "extractionActive": "LLM 추출 활성",
+    "noRun": "아직 실행되지 않았습니다."
   },
   "users": {
     "roles": {
-      "systemAdmin": "System Admin",
-      "tenantAdmin": "Tenant Admin",
-      "tenantUser": "Tenant User"
+      "systemAdmin": "시스템 관리자",
+      "tenantAdmin": "테넌트 관리자",
+      "tenantUser": "테넌트 사용자"
     },
-    "reasonError": "Please provide a understandable reason with at least 8 characters.",
-    "tenantAdmins": "Tenant Admins",
-    "systemAdmins": "System Admins",
-    "createUser": "Create New User",
-    "email": "Email",
-    "password": "Password",
-    "name": "Name",
-    "saving": "Saving...",
-    "searchPlaceholder": "Search by email, name or tenant",
-    "allRoles": "All Roles",
-    "allTenants": "All Tenants",
-    "loading": "Loading users...",
-    "noUsers": "No users for the current filter.",
-    "selectAll": "All selected",
-    "running": "Running...",
-    "noAudit": "No audit events found.",
-    "ghostMode": "Start Ghost Mode",
-    "ghostReason": "e.g. Support case #4812: User cannot save settings",
-    "editUser": "Edit User",
-    "passwordReset": "Password Reset (optional)",
-    "newPassword": "New Password (optional)"
+    "reasonError": "최소 8자 이상의 이해하기 쉬운 사유를 제공하십시오.",
+    "tenantAdmins": "테넌트 관리자",
+    "systemAdmins": "시스템 관리자",
+    "createUser": "새 사용자 생성",
+    "email": "이메일",
+    "password": "비밀번호",
+    "name": "이름",
+    "saving": "저장 중...",
+    "searchPlaceholder": "이메일, 이름 또는 테넌트로 검색",
+    "allRoles": "모든 역할",
+    "allTenants": "모든 테넌트",
+    "loading": "사용자 로드 중...",
+    "noUsers": "현재 필터에 해당하는 사용자가 없습니다.",
+    "selectAll": "모두 선택됨",
+    "running": "실행 중...",
+    "noAudit": "감사 이벤트가 없습니다.",
+    "ghostMode": "고스트 모드 시작",
+    "ghostReason": "예: 지원 사례 #4812: 사용자가 설정을 저장할 수 없습니다.",
+    "editUser": "사용자 편집",
+    "passwordReset": "비밀번호 재설정 (선택 사항)",
+    "newPassword": "새 비밀번호 (선택 사항)"
   },
   "ui": {
-    "noData": "No data"
+    "noData": "데이터 없음"
   }
 }

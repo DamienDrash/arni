@@ -1,35 +1,35 @@
 {
   "common": {
-    "welcome": "Добре дошли в Intelligent Living System.",
+    "welcome": "Добре дошли в ARIIA",
     "dashboard": "Табло",
     "settings": "Настройки",
     "login": "Вход",
     "register": "Регистрация",
     "logout": "Изход",
-    "save": "Запази",
+    "save": "Запазване",
     "cancel": "Отказ",
     "loading": "Зареждане...",
     "edit": "Редактиране",
     "delete": "Изтриване",
-    "confirmed": "Успешно",
+    "confirmed": "Успех",
     "error": "Грешка",
     "active": "Активен",
-    "paused": "Пауза",
+    "paused": "Паузиран",
     "days": "Дни",
-    "features": "Функции",
-    "featuresTitle": "All Features",
+    "features": "Функционалности",
+    "featuresTitle": "Всички функционалности",
     "pricing": "Цени",
-    "dsgvo": "GDPR Compliant",
-    "madeInGermany": "Made in Germany",
-    "enterpriseReady": "Enterprise Ready",
+    "dsgvo": "Съвместим с GDPR",
+    "madeInGermany": "Произведено в Германия",
+    "enterpriseReady": "Готов за корпоративни нужди",
     "allSystemsOnline": "Всички системи са онлайн",
-    "membersSynced": "Members synced",
-    "details": "Details",
-    "noEntries": "No entries found",
-    "search": "Търсене...",
+    "membersSynced": "Членовете са синхронизирани",
+    "details": "Детайли",
+    "noEntries": "Няма намерени записи",
+    "search": "Търсене",
     "status": "Статус",
-    "noData": "No data available",
-    "never": "Never"
+    "noData": "Няма налични данни",
+    "never": "Никога"
   },
   "sidebar": {
     "dashboard": "Табло",
@@ -39,26 +39,26 @@
     "members": "Членове",
     "users": "Потребители",
     "knowledge": "База знания",
-    "memberMemory": "Памет на членовете",
-    "systemPrompt": "Промпт на студиото",
+    "memberMemory": "Памет за членове",
+    "systemPrompt": "Подкана за студио",
     "sync": "Синхронизация",
     "billing": "Абонамент",
     "settings": "Настройки",
-    "tenants": "Управление на клиенти",
-    "plans": "Планове",
-    "audit": "Одит лог",
-    "health": "Статистика",
-    "quickActions": "Бърз достъп",
-    "platformControl": "Управление на платформата",
-    "studioDeck": "Studio Deck",
+    "tenants": "Управление на наематели",
+    "plans": "Планове за таксуване",
+    "audit": "Одитен дневник",
+    "health": "Статистика на двигателя",
+    "quickActions": "Бързи действия",
+    "platformControl": "Контрол на платформата",
+    "studioDeck": "Панел на студиото",
     "logout": "Изход",
     "roles": {
-      "systemAdmin": "SYSTEM ADMIN",
-      "tenantAdmin": "STUDIO ADMIN"
+      "systemAdmin": "Системен администратор",
+      "tenantAdmin": "Администратор на студио"
     },
     "sections": {
       "operations": "Операции",
-      "customers": "Клиенти и екип",
+      "customers": "Клиенти",
       "knowledge": "Знания",
       "studio": "Студио",
       "governance": "Управление",
@@ -67,265 +67,265 @@
   },
   "settings": {
     "overview": {
-      "title": "Overview",
-      "subtitle": "Profile and system parameters."
+      "title": "Преглед",
+      "subtitle": "Профил и системни параметри."
     },
     "account": {
-      "personalData": "Personal Data",
-      "fullName": "Full Name",
-      "fullNameHint": "Your legal first and last name",
-      "email": "Email Address",
-      "emailHint": "Primary contact for security alerts",
-      "locale": "Interface Language",
-      "localeHint": "Set your preferred dashboard language",
-      "timezone": "Timezone",
-      "timezoneHint": "Used for scheduling and logs",
-      "compactMode": "Compact Mode",
-      "compactModeDesc": "Denser UI for power users",
-      "notifications": "Notifications",
-      "emailNotify": "Email Notifications",
-      "emailNotifyDesc": "Receive reports via email",
-      "tgNotify": "Telegram Alerts",
-      "tgNotifyDesc": "Real-time alerts via Telegram",
+      "personalData": "Лични данни",
+      "fullName": "Пълно име",
+      "fullNameHint": "Вашето законно име и фамилия",
+      "email": "Имейл адрес",
+      "emailHint": "Основен контакт за сигнали за сигурност",
+      "locale": "Език на интерфейса",
+      "localeHint": "Задайте предпочитания от вас език на таблото",
+      "timezone": "Часова зона",
+      "timezoneHint": "Използва се за планиране и дневници",
+      "compactMode": "Компактен режим",
+      "compactModeDesc": "По-плътен потребителски интерфейс за напреднали потребители",
+      "notifications": "Известия",
+      "emailNotify": "Известия по имейл",
+      "emailNotifyDesc": "Получаване на отчети по имейл",
+      "tgNotify": "Telegram сигнали",
+      "tgNotifyDesc": "Известия в реално време чрез Telegram",
       "password": {
-        "title": "Change Password",
-        "current": "Current Password",
-        "currentHint": "Verify your identity",
-        "new": "New Password",
-        "newHint": "At least 8 characters long"
+        "title": "Смяна на парола",
+        "current": "Текуща парола",
+        "currentHint": "Потвърдете самоличността си",
+        "new": "Нова парола",
+        "newHint": "Поне 8 знака"
       },
       "studio": {
-        "title": "Studio Profile",
-        "subtitle": "Public studio identity and contact",
-        "name": "Studio Name",
-        "nameHint": "Displayed in AI interactions",
-        "opsEmail": "Operations Email",
-        "opsEmailHint": "Contact for studio operations",
-        "opsTelegram": "Operations Telegram",
-        "opsTelegramHint": "Telegram handle for studio staff",
-        "refresh": "Data Refresh",
-        "refreshHint": "Manual sync with external systems",
-        "sla": "SLA Tier",
-        "slaHint": "Service level agreement level",
-        "localeHint": "Primary language of your studio members",
-        "timezoneHint": "Studio local time"
+        "title": "Профил на студиото",
+        "subtitle": "Публична идентичност и контакт на студиото",
+        "name": "Име на студиото",
+        "nameHint": "Показва се при AI взаимодействия",
+        "opsEmail": "Имейл за операции",
+        "opsEmailHint": "Контакт за операции на студиото",
+        "opsTelegram": "Telegram за операции",
+        "opsTelegramHint": "Telegram потребителско име за персонала на студиото",
+        "refresh": "Обновяване на данни",
+        "refreshHint": "Ръчна синхронизация с външни системи",
+        "sla": "Ниво на SLA",
+        "slaHint": "Ниво на споразумение за ниво на обслужване",
+        "localeHint": "Основен език на членовете на вашето студио",
+        "timezoneHint": "Местно време на студиото"
       },
-      "title": "Профил и предпочитания",
-      "subtitle": "Лични настройки и сигурност.",
+      "title": "Настройки на акаунта",
+      "subtitle": "Управление на личния профил и сигурността",
       "placeholders": {
-        "fullName": "John Doe",
+        "fullName": "Иван Петров",
         "locale": "en-US",
         "timezone": "UTC",
         "password": "••••••••",
-        "studioName": "Your Studio Name",
+        "studioName": "Име на вашето студио",
         "opsEmail": "ops@example.com",
         "opsTelegram": "-100...",
         "sla": "15",
         "refresh": "5"
       }
     },
-    "aiEngine": "AI Engine",
+    "aiEngine": "AI двигател",
     "general": {
       "privacy": {
-        "title": "Privacy & Compliance",
-        "subtitle": "Manage data retention and PII filtering",
-        "pii": "PII Masking",
-        "piiDesc": "Automatically mask personal data in logs",
-        "retention": "Data Retention",
-        "retentionDesc": "How long to keep interaction history"
+        "title": "Поверителност и съответствие",
+        "subtitle": "Управление на запазването на данни и филтрирането на PII",
+        "pii": "Маскиране на PII",
+        "piiDesc": "Автоматично маскиране на лични данни в логове",
+        "retention": "Запазване на данни",
+        "retentionDesc": "Колко дълго да се съхранява историята на взаимодействията"
       },
       "smtp": {
-        "title": "Email (SMTP)",
-        "subtitle": "Configure outgoing mail server",
-        "host": "SMTP Host",
-        "port": "Port",
-        "user": "Username",
-        "pass": "Password",
-        "senderAddr": "Sender Email",
-        "senderName": "Sender Name",
-        "test": "Send Test Email",
-        "testRecipient": "Recipient for Test"
+        "title": "Имейл (SMTP)",
+        "subtitle": "Конфигуриране на изходящ пощенски сървър",
+        "host": "SMTP хост",
+        "port": "Порт",
+        "user": "Потребителско име",
+        "pass": "Парола",
+        "senderAddr": "Имейл на подател",
+        "senderName": "Име на подател",
+        "test": "Изпращане на тестов имейл",
+        "testRecipient": "Получател за тест"
       },
       "system": {
-        "title": "System Governance",
-        "subtitle": "Core engine and security parameters",
-        "audit": "Extended Audit Logs",
-        "auditDesc": "Keep detailed logs of every system change",
-        "maintenance": "Maintenance Mode",
-        "maintenanceDesc": "Restrict access during updates"
+        "title": "Управление на системата",
+        "subtitle": "Основни параметри на двигателя и сигурността",
+        "audit": "Разширени одиторски логове",
+        "auditDesc": "Съхраняване на подробни логове за всяка системна промяна",
+        "maintenance": "Режим на поддръжка",
+        "maintenanceDesc": "Ограничаване на достъпа по време на актуализации"
       },
-      "title": "Ядро на платформата",
-      "subtitle": "Глобално управление и сигурност."
+      "title": "Общи настройки",
+      "subtitle": "Основни системни параметри и управление"
     },
     "ai": {
-      "title": "AI Configuration",
-      "subtitle": "Tweak the behavior of your AI agents",
-      "addProvider": "Add Provider",
-      "editProvider": "Edit Provider",
-      "newProvider": "New AI Provider",
-      "selectProvider": "Select Provider",
-      "provider": "Provider",
-      "apiKey": "API Key",
-      "models": "Available Models",
-      "fetchModels": "Fetch Models",
-      "testConnection": "Test Connection",
-      "latencyTest": "Latency Test",
-      "confirmDelete": "Are you sure you want to remove this provider?",
-      "retry": "Retry",
-      "noModelsFound": "No models found",
+      "title": "AI конфигурация",
+      "subtitle": "Управление на доставчици на LLM и параметри на модела",
+      "addProvider": "Добавяне на доставчик",
+      "editProvider": "Редактиране на доставчик",
+      "newProvider": "Нов AI доставчик",
+      "selectProvider": "Изберете доставчик",
+      "provider": "Доставчик",
+      "apiKey": "API ключ",
+      "models": "Налични модели",
+      "fetchModels": "Извличане на модели",
+      "testConnection": "Тестване на връзка",
+      "latencyTest": "Тест за латентност",
+      "confirmDelete": "Сигурни ли сте, че искате да премахнете този доставчик?",
+      "retry": "Повторен опит",
+      "noModelsFound": "Не са намерени модели",
       "status": {
-        "configured": "Configured",
-        "error": "Error",
-        "fetching": "Fetching..."
+        "configured": "Конфигуриран",
+        "error": "Грешка",
+        "fetching": "Извличане..."
       },
       "hints": {
-        "storedKey": "Key is securely stored",
-        "refreshNeeded": "Fetch models to see available options",
-        "initialFetch": "Fetching models for the first time...",
-        "clickRefresh": "Click to refresh model list"
+        "storedKey": "Ключът е сигурно съхранен",
+        "refreshNeeded": "Извлечете модели, за да видите наличните опции",
+        "initialFetch": "Извличане на модели за първи път...",
+        "clickRefresh": "Кликнете за опресняване на списъка с модели"
       },
       "errors": {
-        "loadFailed": "Failed to load AI providers",
-        "saveFailed": "Failed to save provider",
-        "deleteFailed": "Failed to delete provider",
-        "fetchModelsFailed": "Failed to fetch models from provider",
-        "connectionError": "Could not connect to AI engine"
+        "loadFailed": "Неуспешно зареждане на доставчици на ИИ",
+        "saveFailed": "Неуспешно запазване на доставчик",
+        "deleteFailed": "Неуспешно изтриване на доставчик",
+        "fetchModelsFailed": "Неуспешно извличане на модели от доставчик",
+        "connectionError": "Неуспешно свързване с ИИ двигателя"
       }
     },
-    "language": "Language",
-    "selectLanguage": "Select Language",
+    "language": "Език",
+    "selectLanguage": "Изберете език",
     "billing": {
-      "title": "Billing & Subscription",
-      "subtitle": "Manage your plan and add-ons."
+      "title": "Таксуване и абонамент",
+      "subtitle": "Управлявайте своя план и добавки."
     },
     "integrations": {
-      "title": "Integrations",
-      "subtitle": "Connect Magicline, WhatsApp, and more."
+      "title": "Интеграции",
+      "subtitle": "Свържете Magicline, WhatsApp и други."
     },
     "prompts": {
-      "title": "Custom Prompts",
-      "subtitle": "Configure agent personas and behavior."
+      "title": "Персонализирани подкани",
+      "subtitle": "Конфигурирайте персони и поведение на агенти."
     },
-    "automation": "Automation",
-    "branding": "Branding"
+    "automation": "Автоматизация",
+    "branding": "Брандиране"
   },
   "navbar": {
-    "login": "Login",
-    "register": "Register"
+    "login": "Вход",
+    "register": "Регистрация"
   },
   "hero": {
-    "versionBadge": "Version 2.0 Live",
-    "title": "The intelligent",
+    "versionBadge": "Версия 2.0 на живо",
+    "title": "Интелигентният",
     "words": [
-      "AI Assistant",
-      "Studio Manager",
-      "Operations Bot",
-      "Sales Agent"
+      "ИИ Асистент",
+      "Мениджър на студио",
+      "Операционен бот",
+      "Търговски агент"
     ],
-    "subtitle": "for your fitness studio",
-    "description": "ARIIA automates customer communication via WhatsApp, Telegram, and Voice. Increase your efficiency with Arnold Prime Orchestration.",
-    "cta": "Get Started"
+    "subtitle": "за вашето фитнес студио",
+    "description": "ARIIA автоматизира комуникацията с клиенти чрез WhatsApp, Telegram и глас. Увеличете ефективността си с Arnold Prime Orchestration.",
+    "cta": "Започнете"
   },
   "stats": {
-    "aiResolution": "AI Resolution Rate",
-    "responseTime": "Response Time",
-    "agentsInSwarm": "AI Swarm Agents",
-    "availability": "Availability"
+    "aiResolution": "Процент на разрешаване от ИИ",
+    "responseTime": "Време за отговор",
+    "agentsInSwarm": "ИИ Агенти в рояк",
+    "availability": "Наличност"
   },
   "features": {
-    "badge": "Features",
-    "title": "Everything your studio",
-    "titleAccent": "needs to succeed",
-    "description": "A complete ecosystem of AI agents seamlessly integrated into your existing systems.",
+    "badge": "Функции",
+    "title": "Всичко, от което вашето студио",
+    "titleAccent": "се нуждае за успех",
+    "description": "Цялостна екосистема от ИИ агенти, безпроблемно интегрирани във вашите съществуващи системи.",
     "swarm": {
-      "title": "Swarm Intelligence",
-      "desc": "Specialized agents (Sales, Medic, Ops) work together to resolve every request."
+      "title": "Роева интелигентност",
+      "desc": "Специализирани агенти (Продажби, Медик, Операции) работят заедно за разрешаване на всяка заявка."
     },
     "omnichannel": {
-      "title": "Omnichannel",
-      "desc": "WhatsApp, Telegram, SMS, and Voice. Reach your members where they are."
+      "title": "Омни-канал",
+      "desc": "WhatsApp, Telegram, SMS и глас. Достигнете до членовете си, където и да са."
     },
     "churn": {
-      "title": "Churn Prevention",
-      "desc": "AI-driven analysis identifies cancellation risks before they arise."
+      "title": "Предотвратяване на отлив",
+      "desc": "Анализ, задвижван от ИИ, идентифицира рисковете от анулиране, преди да възникнат."
     },
     "memory": {
-      "title": "Context Memory",
-      "desc": "ARIIA remembers every interaction and builds real relationships with members."
+      "title": "Контекстна памет",
+      "desc": "ARIIA помни всяко взаимодействие и изгражда истински взаимоотношения с членовете."
     },
     "security": {
-      "title": "GDPR & Security",
-      "desc": "Encrypted data storage in Germany and full compliance guarantee."
+      "title": "GDPR и сигурност",
+      "desc": "Криптирано съхранение на данни в Германия и пълна гаранция за съответствие."
     },
     "connectors": {
-      "title": "Deep Integration",
-      "desc": "Direct connection to Magicline, Shopify, and more for real-time handling."
+      "title": "Дълбока интеграция",
+      "desc": "Директна връзка с Magicline, Shopify и други за обработка в реално време."
     },
     "page": {
-      "title": "Next-Gen",
-      "titleAccent": "Studio Intelligence",
-      "description": "ARIIA is more than a chatbot. It is a swarm of specialized AI agents that understand your studio and your members.",
-      "techTitle": "Deep",
-      "techSubtitle": "Technology",
-      "techSubtitleAccent": "Stack",
-      "deckTitle": "Studio",
-      "deckSubtitle": "Control",
-      "deckSubtitleAccent": "Deck",
-      "deckDesc": "A central dashboard to monitor every AI interaction and manage your studio settings in real-time.",
-      "securityTitle": "Enterprise",
-      "securitySubtitle": "Security &",
-      "securitySubtitleAccent": "Compliance",
-      "securityDesc": "Your data is hosted in Germany, fully encrypted, and 100% GDPR compliant."
+      "title": "Следващо поколение",
+      "titleAccent": "Студийна интелигентност",
+      "description": "ARIIA е повече от чатбот. Тя е рояк от специализирани ИИ агенти, които разбират вашето студио и вашите членове.",
+      "techTitle": "Дълбок",
+      "techSubtitle": "Технологичен",
+      "techSubtitleAccent": "Стек",
+      "deckTitle": "Студиен",
+      "deckSubtitle": "Контролен",
+      "deckSubtitleAccent": "Панел",
+      "deckDesc": "Централно табло за наблюдение на всяко ИИ взаимодействие и управление на настройките на вашето студио в реално време.",
+      "securityTitle": "Корпоративна",
+      "securitySubtitle": "Сигурност и",
+      "securitySubtitleAccent": "Съответствие",
+      "securityDesc": "Вашите данни се хостват в Германия, напълно криптирани и 100% съвместими с GDPR."
     },
     "platform": {
       "live": {
-        "title": "Live Monitor",
-        "desc": "Watch AI interactions in real-time and intervene if necessary."
+        "title": "Монитор на живо",
+        "desc": "Наблюдавайте AI взаимодействията в реално време и се намесвайте при необходимост."
       },
       "members": {
-        "title": "Member Management",
-        "desc": "Deep integration with Magicline to handle bookings and contracts."
+        "title": "Управление на членове",
+        "desc": "Дълбока интеграция с Magicline за обработка на резервации и договори."
       },
       "knowledge": {
-        "title": "Knowledge Base",
-        "desc": "Upload your studio documents to train the AI on your specific rules."
+        "title": "База знания",
+        "desc": "Качете документите на вашето студио, за да обучите AI по вашите специфични правила."
       },
       "prompts": {
-        "title": "Persona Control",
-        "desc": "Customize the tone and personality of your studio assistant."
+        "title": "Контрол на персоналността",
+        "desc": "Персонализирайте тона и личността на асистента на вашето студио."
       },
       "multi": {
-        "title": "Multi-Tenant",
-        "desc": "Manage multiple studio locations from a single central account."
+        "title": "Многопотребителска система",
+        "desc": "Управлявайте множество локации на студиа от един централен акаунт."
       },
       "churn": {
-        "title": "Churn Prevention",
-        "desc": "AI identifies members at risk of canceling based on behavior."
+        "title": "Предотвратяване на отлив",
+        "desc": "AI идентифицира членове, изложени на риск от анулиране въз основа на поведението им."
       }
     },
     "details": {
-      "intent": "Intent Classification",
-      "routing": "Dynamic Routing",
-      "fallback": "Human-in-the-Loop",
-      "confidence": "Confidence Scoring",
+      "intent": "Класификация на намеренията",
+      "routing": "Динамично маршрутизиране",
+      "fallback": "Човек в цикъла",
+      "confidence": "Оценка на достоверността",
       "wa": "WhatsApp Cloud",
       "tg": "Telegram Bot",
-      "voice": "Voice STT/TTS",
-      "chat": "Web Widget",
-      "ml": "Magicline Sync",
-      "proactive": "Proactive Outreach",
-      "scoring": "Behavioral Scoring",
-      "behavior": "Engagement Analysis",
-      "session": "Long-Term Sessions",
-      "semantic": "Semantic Search",
-      "episodic": "Episodic Memory",
-      "auto": "Automatic Indexing",
-      "dsgvo": "GDPR Compliance",
-      "rls": "Row Level Security",
-      "pii": "PII Masking",
-      "audit": "Audit Logs",
-      "api": "REST API Access",
-      "shopify": "Shopify Integration",
+      "voice": "Гласов STT/TTS",
+      "chat": "Уеб джаджа",
+      "ml": "Синхронизация с Magicline",
+      "proactive": "Проактивно достигане",
+      "scoring": "Поведенческо оценяване",
+      "behavior": "Анализ на ангажираността",
+      "session": "Дългосрочни сесии",
+      "semantic": "Семантично търсене",
+      "episodic": "Епизодична памет",
+      "auto": "Автоматично индексиране",
+      "dsgvo": "Съответствие с GDPR",
+      "rls": "Сигурност на ниво ред",
+      "pii": "Маскиране на лични данни",
+      "audit": "Одиторски дневници",
+      "api": "REST API достъп",
+      "shopify": "Shopify интеграция",
       "woo": "WooCommerce",
       "magicline": "Magicline Deep-Link"
     },
@@ -333,330 +333,330 @@
       "dsgvo": "GDPR",
       "encryption": "AES-256",
       "pii": "PII Filter",
-      "audit": "Audit",
+      "audit": "Одит",
       "rbac": "RBAC",
       "rls": "RLS"
     }
   },
   "cta": {
-    "title": "Ready for the future of",
-    "titleAccent": "studio automation",
-    "subtitle": "Join over 50 fitness studios already growing with ARIIA.",
-    "button": "Create Free Account",
-    "compare": "Compare Pricing"
+    "title": "Готови за бъдещето на",
+    "titleAccent": "автоматизацията на студиа",
+    "subtitle": "Присъединете се към над 50 фитнес студиа, които вече растат с ARIIA.",
+    "button": "Създайте безплатен акаунт",
+    "compare": "Сравнете цените"
   },
   "footer": {
-    "brandDesc": "The evolution of studio operations. Agentic Multi-Tenant SaaS Platform.",
-    "product": "Product",
-    "company": "Company",
-    "contact": "Contact",
+    "brandDesc": "Еволюцията на студийните операции. Агентна многопотребителска SaaS платформа.",
+    "product": "Продукт",
+    "company": "Компания",
+    "contact": "Контакт",
     "links": {
-      "features": "Features",
-      "pricing": "Pricing",
-      "test": "Start Free Trial",
-      "impressum": "Imprint",
-      "datenschutz": "Privacy Policy",
-      "agb": "Terms of Service",
-      "enterprise": "Enterprise Contact"
+      "features": "Функции",
+      "pricing": "Цени",
+      "test": "Започнете безплатен пробен период",
+      "impressum": "Импресум",
+      "datenschutz": "Политика за поверителност",
+      "agb": "Условия за ползване",
+      "enterprise": "Контакт за корпоративни клиенти"
     },
-    "rights": "All rights reserved."
+    "rights": "Всички права запазени."
   },
   "tenants": {
     "stats": {
-      "total": "Total Tenants",
-      "users": "Active Users",
-      "avg": "Avg. Users/Tenant"
+      "total": "Общо наематели",
+      "users": "Активни потребители",
+      "avg": "Средно потребители/наемател"
     },
     "create": {
-      "title": "Create New Tenant",
-      "name": "Tenant Name",
-      "slug": "Slug (optional)"
+      "title": "Създаване на нов наемател",
+      "name": "Име на наемател",
+      "slug": "Псевдоним (по избор)"
     },
     "table": {
-      "name": "Name",
-      "users": "Users",
-      "admins": "Admins",
-      "active": "Active"
+      "name": "Име",
+      "users": "Потребители",
+      "admins": "Администратори",
+      "active": "Активен"
     },
     "edit": {
-      "title": "Edit Tenant"
+      "title": "Редактиране на наемател"
     },
     "errors": {
-      "nameRequired": "Tenant name is required"
+      "nameRequired": "Името на наемателя е задължително"
     },
     "bulk": {
-      "hint": "The action will be applied tenant-wide and logged as a governance event."
+      "hint": "Действието ще бъде приложено за целия наемател и ще бъде записано като събитие за управление."
     },
     "audit": {
-      "title": "Last Audit Events"
+      "title": "Последни събития от одита"
     },
     "footer": {
-      "registration": "Tenant self-registration is still handled via /register."
+      "registration": "Самостоятелната регистрация на наематели все още се извършва чрез /register."
     }
   },
   "ai": {
-    "actions": "Actions",
+    "actions": "Действия",
     "errors": {
-      "connectionError": "Connection to AI Engine lost",
-      "loadFailed": "Failed to load AI parameters",
-      "saveFailed": "Failed to save AI configuration"
+      "connectionError": "Връзката с AI Engine е загубена",
+      "loadFailed": "Неуспешно зареждане на AI параметри",
+      "saveFailed": "Неуспешно запазване на AI конфигурация"
     }
   },
   "live": {
-    "title": "Live Monitor",
-    "subtitle": "Real-time AI interaction tracking",
-    "sessions": "Active Sessions",
-    "noSessions": "No active sessions at the moment",
-    "selectSession": "Select a session to view details",
+    "title": "Монитор на живо",
+    "subtitle": "Проследяване на AI взаимодействия в реално време",
+    "sessions": "Активни сесии",
+    "noSessions": "В момента няма активни сесии",
+    "selectSession": "Изберете сесия, за да видите подробности",
     "handoff": {
-      "link": "Link to Member",
-      "hint": "Manually associate this session with a member ID",
-      "placeholder": "Enter Member ID"
+      "link": "Връзка към член",
+      "hint": "Ръчно свържете тази сесия с ID на член",
+      "placeholder": "Въведете ID на член"
     }
   },
   "memberMemory": {
-    "title": "Member Memory",
-    "subtitle": "Long-term semantic knowledge base",
-    "files": "Memory Files",
-    "noFiles": "No memory entries found for this member",
-    "selectFile": "Select an entry to view details",
-    "reasonPlaceholder": "Enter reason for manual override",
-    "scheduler": "Analysis Scheduler",
-    "lastRun": "Last analyzed"
+    "title": "Памет на членовете",
+    "subtitle": "Дългосрочна семантична база от знания",
+    "files": "Файлове с памет",
+    "noFiles": "Няма намерени записи в паметта за този член",
+    "selectFile": "Изберете запис, за да видите подробности",
+    "reasonPlaceholder": "Въведете причина за ръчно презаписване",
+    "scheduler": "Планировчик за анализ",
+    "lastRun": "Последно анализирано"
   },
   "members": {
-    "title": "Members",
-    "subtitle": "Manage your studio members and their AI state",
-    "add": "Add Member",
+    "title": "Членове",
+    "subtitle": "Управлявайте членовете на вашето студио и тяхното AI състояние",
+    "add": "Добавяне на член",
     "import": {
-      "clickOrDrop": "Click or drag file to this area to upload",
-      "selectFile": "Select File",
-      "hint": "Supports .csv, .xls, .xlsx"
+      "clickOrDrop": "Кликнете или плъзнете файл в тази област за качване",
+      "selectFile": "Изберете файл",
+      "hint": "Поддържа .csv, .xls, .xlsx"
     },
-    "importTitle": "Member Import",
-    "noMembers": "No members found",
-    "noContact": "No contact information",
-    "confirmDelete": "Are you sure you want to delete this member?",
-    "search": "Search members...",
+    "importTitle": "Импортиране на членове",
+    "noMembers": "Няма намерени членове",
+    "noContact": "Няма информация за контакт",
+    "confirmDelete": "Сигурни ли сте, че искате да изтриете този член?",
+    "search": "Търсене на членове...",
     "stats": {
-      "total": "Total Members",
-      "active": "Active",
-      "paused": "Paused",
-      "manual": "Manual Entries",
-      "external": "Synced (Magicline)",
-      "selected": "selected"
+      "total": "Общо членове",
+      "active": "Активни",
+      "paused": "Паузирани",
+      "manual": "Ръчни записи",
+      "external": "Синхронизирани (Magicline)",
+      "selected": "избрани"
     },
     "table": {
-      "member": "Member",
-      "source": "Source",
-      "status": "Status"
+      "member": "Член",
+      "source": "Източник",
+      "status": "Статус"
     },
     "form": {
-      "firstName": "First Name",
-      "lastName": "Last Name",
-      "email": "Email Address"
+      "firstName": "Име",
+      "lastName": "Фамилия",
+      "email": "Имейл адрес"
     },
     "status": {
-      "active": "Active",
-      "paused": "Paused"
+      "active": "Активен",
+      "paused": "Паузиран"
     }
   },
   "pricing": {
-    "title": "Simple Pricing",
-    "titleAccent": "for every studio size",
-    "description": "Choose the plan that fits your studio operations. All plans include 24/7 AI availability and Magicline integration.",
-    "monthly": "Monthly",
-    "yearly": "Yearly",
-    "billedYearly": "billed yearly",
-    "discount": "Save 20%",
-    "enterpriseTitle": "Enterprise",
-    "enterpriseDesc": "Custom solutions for large studio chains with 10+ locations and specific compliance needs.",
-    "enterpriseCta": "Contact Sales",
-    "addonsTitle": "Powerful",
-    "addonsSubtitle": "Addons",
-    "addonsSubtitleAccent": "to scale",
-    "addonsDesc": "Enhance your AI agents with specialized capabilities tailored to your workflow.",
-    "faqTitle": "Frequently Asked Questions",
-    "finalCta": "Ready to transform your studio?",
-    "finalCtaAccent": "Start your trial today.",
-    "finalCtaDesc": "Join 50+ fitness studios already using ARIIA.",
+    "title": "Лесно ценообразуване",
+    "titleAccent": "за всяко студио",
+    "description": "Изберете плана, който отговаря на операциите на вашето студио. Всички планове включват 24/7 AI наличност и интеграция с Magicline.",
+    "monthly": "Месечно",
+    "yearly": "Годишно",
+    "billedYearly": "таксувани годишно",
+    "discount": "Спестете 20%",
+    "enterpriseTitle": "Корпоративен",
+    "enterpriseDesc": "Персонализирани решения за големи вериги студия с над 10 локации и специфични нужди за съответствие.",
+    "enterpriseCta": "Свържете се с отдела за продажби",
+    "addonsTitle": "Мощни",
+    "addonsSubtitle": "Добавки",
+    "addonsSubtitleAccent": "за мащабиране",
+    "addonsDesc": "Подобрете вашите AI агенти със специализирани възможности, съобразени с вашия работен процес.",
+    "faqTitle": "Често задавани въпроси",
+    "finalCta": "Готови ли сте да трансформирате вашето студио?",
+    "finalCtaAccent": "Започнете своя пробен период днес.",
+    "finalCtaDesc": "Присъединете се към над 50 фитнес студия, които вече използват ARIIA.",
     "plans": {
       "starter": {
-        "name": "Starter",
-        "desc": "Perfect for boutique studios",
-        "cta": "Get Started",
+        "name": "Стартов",
+        "desc": "Идеален за бутикови студия",
+        "cta": "Започнете",
         "features": [
-          "1 AI Agent (Ops)",
-          "WhatsApp Integration",
-          "100 AI Resolutions/mo",
-          "Basic Analytics"
+          "1 AI Агент (Операции)",
+          "WhatsApp Интеграция",
+          "100 AI Решения/месец",
+          "Базов Анализ"
         ]
       },
       "professional": {
-        "name": "Professional",
-        "badge": "Most Popular",
-        "desc": "For growing fitness studios",
-        "cta": "Start Free Trial",
+        "name": "Професионален",
+        "badge": "Най-популярен",
+        "desc": "За развиващи се фитнес студия",
+        "cta": "Започнете безплатен пробен период",
         "features": [
-          "3 AI Agents (Sales, Ops, Medic)",
-          "WhatsApp & Telegram",
-          "500 AI Resolutions/mo",
-          "Advanced Analytics",
-          "Member Memory (1 Tier)"
+          "3 AI Агента (Продажби, Операции, Медик)",
+          "WhatsApp и Telegram",
+          "500 AI Решения/месец",
+          "Разширен Анализ",
+          "Памет за Членове (1 Ниво)"
         ]
       },
       "business": {
-        "name": "Business",
-        "desc": "Full automation for large studios",
-        "cta": "Go Pro",
+        "name": "Бизнес",
+        "desc": "Пълна автоматизация за големи студия",
+        "cta": "Станете Професионалист",
         "features": [
-          "Full Swarm (All Agents)",
-          "Omnichannel (WA, TG, Voice)",
-          "Unlimited Resolutions",
-          "GraphRAG & Full Memory",
-          "Priority Support"
+          "Пълно Рояково Разузнаване (Всички Агенти)",
+          "Омниканал (WA, TG, Глас)",
+          "Неограничени Решения",
+          "GraphRAG и Пълна Памет",
+          "Приоритетна Поддръжка"
         ]
       }
     },
     "addons": {
       "voice": {
-        "name": "AI Voice Engine",
-        "desc": "Handle incoming calls with natural AI voice interaction."
+        "name": "AI Гласов Двигател",
+        "desc": "Обработвайте входящи повиквания с естествено AI гласово взаимодействие."
       },
       "vision": {
-        "name": "AI Vision (YOLOv8)",
-        "desc": "Real-time occupancy and safety tracking via camera integration."
+        "name": "AI Зрение (YOLOv8)",
+        "desc": "Проследяване в реално време на заетостта и безопасността чрез интеграция на камера."
       },
       "churn": {
-        "name": "Churn Prediction",
-        "desc": "Advanced ML model to identify cancellation risks early."
+        "name": "Прогнозиране на Отлив",
+        "desc": "Разширен ML модел за ранно идентифициране на рискове от анулиране."
       },
       "channel": {
-        "name": "Additional Channel",
-        "desc": "Add custom SMS or Email automation to your swarm."
+        "name": "Допълнителен Канал",
+        "desc": "Добавете персонализирана SMS или имейл автоматизация към вашия рояк."
       }
     },
     "faqs": [
       {
-        "q": "Can I change my plan later?",
-        "a": "Yes, you can upgrade or downgrade your plan at any time from your settings."
+        "q": "Мога ли да променя плана си по-късно?",
+        "a": "Да, можете да надстроите или понижите плана си по всяко време от вашите настройки."
       },
       {
-        "q": "Is my data secure?",
-        "a": "Absolutely. We use industry-standard encryption and all data is hosted in ISO-certified data centers in Germany."
+        "q": "Сигурни ли са моите данни?",
+        "a": "Абсолютно. Използваме стандартно за индустрията криптиране и всички данни се хостват в ISO-сертифицирани центрове за данни в Германия."
       },
       {
-        "q": "Do you offer custom integrations?",
-        "a": "Yes, for Enterprise customers we offer bespoke integration services for your specific CRM or ERP system."
+        "q": "Предлагате ли персонализирани интеграции?",
+        "a": "Да, за корпоративни клиенти предлагаме индивидуални услуги за интеграция за вашата специфична CRM или ERP система."
       },
       {
-        "q": "How does the Voice AI work?",
-        "a": "Our Voice AI uses advanced STT/TTS models to interact with callers in real-time, just like a human assistant."
+        "q": "Как работи Гласовият AI?",
+        "a": "Нашият Гласов AI използва усъвършенствани STT/TTS модели за взаимодействие с обаждащите се в реално време, точно като човешки асистент."
       }
     ]
   },
   "legal": {
     "impressum": {
-      "title": "Imprint",
-      "tmg5": "Information according to § 5 TMG",
-      "representedBy": "Represented by",
-      "managingDirector": "Managing Director",
-      "contact": "Contact",
-      "phone": "Phone",
-      "email": "Email",
-      "website": "Website",
-      "registerEntry": "Register Entry",
-      "registerCourt": "Register Court",
-      "registerNumber": "Register Number",
-      "vatId": "VAT Identification Number according to § 27 a VAT Act",
-      "responsibleContent": "Responsible for content according to § 55 Abs. 2 RStV",
-      "dispute": "EU Dispute Resolution",
-      "liabilityContent": "Liability for Content",
-      "liabilityLinks": "Liability for Links"
+      "title": "Импресум",
+      "tmg5": "Информация съгласно § 5 TMG",
+      "representedBy": "Представляван от",
+      "managingDirector": "Управляващ директор",
+      "contact": "Контакт",
+      "phone": "Телефон",
+      "email": "Имейл",
+      "website": "Уебсайт",
+      "registerEntry": "Вписване в регистъра",
+      "registerCourt": "Регистриращ съд",
+      "registerNumber": "Регистрационен номер",
+      "vatId": "Идентификационен номер по ДДС съгласно § 27 a от Закона за ДДС",
+      "responsibleContent": "Отговорен за съдържанието съгласно § 55, ал. 2 RStV",
+      "dispute": "ЕС Разрешаване на спорове",
+      "liabilityContent": "Отговорност за съдържанието",
+      "liabilityLinks": "Отговорност за връзки"
     },
     "privacy": {
-      "title": "Privacy Policy"
+      "title": "Политика за поверителност"
     },
     "agb": {
-      "title": "Terms of Service",
-      "status": "Last Update"
+      "title": "Общи условия",
+      "status": "Последна актуализация"
     }
   },
   "audit": {
     "title": "Одитен дневник",
-    "subtitle": "Съответствие и одитна пътека",
+    "subtitle": "Съответствие и одитен запис",
     "filters": {
       "category": "Категория",
       "allCategories": "Всички категории",
       "actionType": "Тип действие",
       "allActions": "Всички действия",
-      "initiatedBy": "Инициирано от",
+      "initiatedBy": "Инициирано от (Актьор)",
       "allUsers": "Всички потребители",
-      "systemInternal": "Системни",
-      "timeRange": "Времеви обхват",
+      "systemInternal": "Вътрешна система",
+      "timeRange": "Времеви диапазон",
       "from": "От",
       "to": "До",
-      "clearFilters": "Изчисти филтрите",
-      "exportCsv": "Експорт в CSV"
+      "clearFilters": "Изчистване на всички филтри",
+      "exportCsv": "Експортиране на CSV"
     },
-    "search": "Търсене по действие, имейл...",
+    "search": "Търсене по действие, имейл или съдържание на метаданни...",
     "sort": {
       "newest": "Най-нови",
       "oldest": "Най-стари"
     },
     "table": {
-      "timestamp": "Време",
-      "actor": "Субект",
+      "timestamp": "Времеви печат",
+      "actor": "Актьор",
       "operation": "Операция",
       "target": "Цел",
       "details": "Детайли",
-      "fetching": "Зареждане...",
-      "viewDiff": "Виж разликата"
+      "fetching": "Извличане на одитни записи...",
+      "viewDiff": "Преглед на разликите"
     },
     "modal": {
-      "title": "Audit Event Details",
-      "actorIdentity": "Actor Identity",
-      "targetResource": "Target Resource",
-      "changeSummary": "Change Summary"
+      "title": "Детайли за одитно събитие",
+      "actorIdentity": "Идентичност на актьора",
+      "targetResource": "Целеви ресурс",
+      "changeSummary": "Резюме на промените"
     }
   },
   "knowledge": {
     "title": "База знания",
     "documents": "Документи",
-    "noDocuments": "Няма документи.",
+    "noDocuments": "Няма налични документи в базата знания.",
     "newDocument": "Нов документ",
-    "newDocumentPlaceholder": "new-document.md",
-    "viewTenant": "View Tenant:",
-    "indexChunks": "Index Chunks",
-    "lastIngest": "Last Ingest",
-    "reindex": "Reindex",
-    "reindexing": "Reindexing...",
-    "selectFile": "Select a file or create one on the left.",
-    "save": "Запази",
+    "newDocumentPlaceholder": "ново-документ.md",
+    "viewTenant": "Преглед на наемател:",
+    "indexChunks": "Индексиране на части",
+    "lastIngest": "Последно поглъщане",
+    "reindex": "Преиндексиране",
+    "reindexing": "Преиндексиране...",
+    "selectFile": "Изберете файл или създайте нов отляво.",
+    "save": "Запазване",
     "saving": "Запазване...",
-    "saved": "Запазено",
-    "reasonPlaceholder": "Reason for change (min. 8 chars)",
-    "reasonError": "Please provide a reason for the change (min. 8 chars).",
-    "conflict": "Conflict detected",
-    "conflictError": "The file has been modified in the meantime. Please reload or overwrite.",
-    "ingestError": "Ingest Error: {{error}}",
-    "autosaving": "Autosaving...",
-    "autosaved": "Autosave saved",
-    "loading": "Loading...",
-    "loaded": "Loaded",
-    "draftCreated": "New file created as draft. Please save."
+    "saved": "Запазено и синхронизирано",
+    "reasonPlaceholder": "Причина за промяна (мин. 8 символа)",
+    "reasonError": "Моля, посочете причина за промяната (мин. 8 символа).",
+    "conflict": "Открит е конфликт",
+    "conflictError": "Файлът е променен междувременно. Моля, презаредете или презапишете.",
+    "ingestError": "Грешка при поглъщане: {{error}}",
+    "autosaving": "Автоматично запазване...",
+    "autosaved": "Автоматично запазване",
+    "loading": "Зареждане...",
+    "loaded": "Заредено",
+    "draftCreated": "Нов файл е създаден като чернова. Моля, запазете."
   },
   "register": {
     "title": "Регистрация",
-    "subtitle": "Създаване на нов тенант и администратор.",
-    "tenantName": "Tenant Name (e.g. Test-Studio)",
-    "tenantSlug": "Tenant Slug (optional)",
-    "email": "Email",
-    "name": "Name (optional)",
-    "password": "Password (min. 8 characters)",
-    "button": "Регистрирай",
+    "subtitle": "Създайте нов наемател и администраторски потребител.",
+    "tenantName": "Име на наемател (напр. Test-Studio)",
+    "tenantSlug": "Идентификатор на наемател (по избор)",
+    "email": "Имейл",
+    "name": "Име (по избор)",
+    "password": "Парола (мин. 8 символа)",
+    "button": "Регистриране на наемател",
     "waiting": "Моля, изчакайте...",
-    "backToLogin": "Back to Login"
+    "backToLogin": "Обратно към вход"
   },
   "login": {
     "placeholders": {
@@ -665,142 +665,142 @@
     }
   },
   "plans": {
-    "deleteDeadTitle": "Delete all plans without Stripe connection (ghosts)?",
-    "newPlan": "New Subscription Plan",
-    "planName": "Name (e.g. Professional)",
-    "planSlug": "Slug (e.g. professional)",
-    "priceEur": "Price in EUR",
-    "newAddon": "New Stripe Add-on",
-    "addonName": "Add-on Name (e.g. Voice Pipeline)",
-    "monthlyPrice": "Monthly Price in EUR",
-    "editPlan": "Edit Plan"
+    "deleteDeadTitle": "Изтриване на всички планове без връзка със Stripe (призраци)?",
+    "newPlan": "Нов абонаментен план",
+    "planName": "Име (напр. Професионален)",
+    "planSlug": "Идентификатор (напр. professional)",
+    "priceEur": "Цена в EUR",
+    "newAddon": "Нова добавка за Stripe",
+    "addonName": "Име на добавка (напр. Гласова линия)",
+    "monthlyPrice": "Месечна цена в EUR",
+    "editPlan": "Редактиране на план"
   },
   "impressum": {
-    "disputeText": "The European Commission provides a platform for online dispute resolution (OS): https://ec.europa.eu/consumers/odr/. You can find our email address at the top of the imprint. We are not willing or obliged to participate in dispute resolution proceedings before a consumer arbitration board.",
-    "liabilityContentText": "As a service provider, we are responsible for our own content on these pages in accordance with the general laws pursuant to § 7 Para.1 TMG. According to §§ 8 to 10 TMG, we are not obliged as a service provider to monitor transmitted or stored third-party information or to investigate circumstances that indicate illegal activity.",
-    "liabilityLinksText": "Our offer contains links to external websites of third parties, on whose content we have no influence. Therefore, we cannot assume any liability for these external contents. The respective provider or operator of the pages is always responsible for the content of the linked pages."
+    "disputeText": "Европейската комисия предоставя платформа за онлайн разрешаване на спорове (ОРС): https://ec.europa.eu/consumers/odr/. Нашият имейл адрес може да намерите в горната част на импресума. Ние не желаем и не сме задължени да участваме в процедури за разрешаване на спорове пред потребителски арбитражен съвет.",
+    "liabilityContentText": "Като доставчик на услуги, ние сме отговорни за собственото си съдържание на тези страници в съответствие с общите закони съгласно § 7, параграф 1 от TMG. Съгласно §§ 8 до 10 от TMG, ние не сме задължени като доставчик на услуги да наблюдаваме предадена или съхранявана информация от трети страни или да разследваме обстоятелства, които показват незаконна дейност.",
+    "liabilityLinksText": "Нашата оферта съдържа връзки към външни уебсайтове на трети страни, върху чието съдържание нямаме влияние. Следователно, не можем да поемем никаква отговорност за това външно съдържание. Съответният доставчик или оператор на страниците винаги е отговорен за съдържанието на свързаните страници."
   },
   "escalations": {
-    "title": "Escalation Queue",
-    "subtitle": "Tickets requiring human intervention",
-    "noEscalations": "No open escalations.",
-    "memberIdError": "Please provide a valid Member ID.",
-    "tokenError": "Error generating token.",
-    "handoffError": "Error resolving handoff.",
-    "allClear": "All clear",
-    "linkMember": "Link Member",
-    "memberId": "Member ID",
-    "resolveHandoff": "Resolve handoff?"
+    "title": "Опашка за ескалации",
+    "subtitle": "Билети, изискващи човешка намеса",
+    "noEscalations": "Няма отворени ескалации.",
+    "memberIdError": "Моля, предоставете валиден ИД на член.",
+    "tokenError": "Грешка при генериране на токен.",
+    "handoffError": "Грешка при разрешаване на предаване.",
+    "allClear": "Всичко е наред",
+    "linkMember": "Свързване на член",
+    "memberId": "ИД на член",
+    "resolveHandoff": "Разрешаване на предаване?"
   },
   "magicline": {
-    "syncNotStarted": "Sync not yet started",
-    "allEnriched": "All members already enriched",
-    "syncFailed": "Sync failed",
-    "syncDescription": "Load visit and booking data for all members",
-    "enrichAll": "Enrich All",
-    "adoption": "ARIIA Adoption",
-    "adoptionSubtitle": "Magicline members who have used ARIIA",
-    "usersActive": "Users active",
-    "platformVerification": "Platform & Verification",
-    "platformSubtitle": "Active chat sessions by channel and status",
-    "noSessions": "No chat sessions available yet.",
-    "languageDistribution": "Language Distribution",
-    "languageSubtitle": "Preferred language of members",
-    "noLanguageData": "No language data available.",
-    "memberStatus": "Member Status",
-    "memberStatusSubtitle": "Active vs. paused members",
-    "noData": "No data.",
-    "dataCoverage": "Data Coverage",
-    "dataCoverageSubtitle": "Members with visit & booking data"
+    "syncNotStarted": "Синхронизацията все още не е стартирана",
+    "allEnriched": "Всички членове вече са обогатени",
+    "syncFailed": "Синхронизацията е неуспешна",
+    "syncDescription": "Зареждане на данни за посещения и резервации за всички членове",
+    "enrichAll": "Обогатяване на всички",
+    "adoption": "Приемане на ARIIA",
+    "adoptionSubtitle": "Членове на Magicline, които са използвали ARIIA",
+    "usersActive": "Активни потребители",
+    "platformVerification": "Платформа и проверка",
+    "platformSubtitle": "Активни чат сесии по канал и статус",
+    "noSessions": "Все още няма налични чат сесии.",
+    "languageDistribution": "Разпределение по езици",
+    "languageSubtitle": "Предпочитан език на членовете",
+    "noLanguageData": "Няма налични данни за език.",
+    "memberStatus": "Статус на член",
+    "memberStatusSubtitle": "Активни срещу паузирани членове",
+    "noData": "Няма данни.",
+    "dataCoverage": "Покритие на данните",
+    "dataCoverageSubtitle": "Членове с данни за посещения и резервации"
   },
   "analytics": {
-    "weeklyOverview": "Weekly Overview",
-    "weeklySubtitle": "Tickets & resolution rate (last 7 days)",
-    "satisfaction": "Member Satisfaction",
-    "satisfactionSubtitle": "Feedback after AI interactions",
-    "noFeedback": "No feedback available yet",
-    "avgRating": "Average Rating",
-    "basedOn": "Based on {{count}} ratings",
-    "channelPerformance": "Channel Performance",
-    "channelSubtitle": "Comparison of support channels (30 days)"
+    "weeklyOverview": "Седмичен преглед",
+    "weeklySubtitle": "Билети и процент на разрешаване (последните 7 дни)",
+    "satisfaction": "Удовлетвореност на членовете",
+    "satisfactionSubtitle": "Обратна връзка след взаимодействия с ИИ",
+    "noFeedback": "Все още няма налична обратна връзка",
+    "avgRating": "Средна оценка",
+    "basedOn": "Въз основа на {{count}} оценки",
+    "channelPerformance": "Производителност на канала",
+    "channelSubtitle": "Сравнение на каналите за поддръжка (30 дни)"
   },
   "conversations": {
-    "search": "Search conversations...",
-    "backToList": "Back to list",
-    "helpful": "Helpful",
-    "notHelpful": "Not helpful"
+    "search": "Търсене в разговори...",
+    "backToList": "Обратно към списъка",
+    "helpful": "Полезно",
+    "notHelpful": "Не е полезно"
   },
   "dashboard": {
-    "governanceMode": "Platform Governance Mode",
-    "uptime": "Време на работа",
-    "distribution": "Tenant Distribution",
-    "distributionSubtitle": "Active vs. Inactive",
-    "infrastructure": "Infrastructure Status",
-    "coreServices": "Основни услуги",
-    "redis": "Redis Cache",
-    "vector": "Vector Engine",
-    "qdrant": "Qdrant Online",
-    "auth": "Auth Service",
-    "events": "Последни събития",
-    "auditTrail": "Одитна пътека",
-    "noEvents": "No events found.",
-    "initializing": "Initializing Dashboard...",
-    "loadError": "Error loading data.",
-    "analyticsHint": "Use the \"Analytics\" menu item for detailed evaluations."
+    "governanceMode": "Режим на управление на платформата",
+    "uptime": "Време на работа на платформата",
+    "distribution": "Разпределение на наемателите",
+    "distributionSubtitle": "Активни срещу неактивни",
+    "infrastructure": "Състояние на инфраструктурата",
+    "coreServices": "Основни SaaS услуги",
+    "redis": "Redis кеш",
+    "vector": "Векторен двигател",
+    "qdrant": "Qdrant онлайн",
+    "auth": "Услуга за удостоверяване",
+    "events": "Скорошни събития на платформата",
+    "auditTrail": "Одитен дневник (системно)",
+    "noEvents": "Няма намерени събития.",
+    "initializing": "Инициализиране на таблото...",
+    "loadError": "Грешка при зареждане на данни.",
+    "analyticsHint": "Използвайте елемента от менюто „Анализи“ за подробни оценки."
   },
   "tiptap": {
-    "toolbar": "Text Editor Toolbar",
-    "bold": "Bold",
-    "italic": "Italic",
-    "heading1": "Heading 1",
-    "heading2": "Heading 2",
-    "bulletList": "Bullet List",
-    "orderedList": "Ordered List",
-    "quote": "Quote",
-    "undo": "Undo",
-    "redo": "Redo"
+    "toolbar": "Лента с инструменти на текстовия редактор",
+    "bold": "Удебелен",
+    "italic": "Курсив",
+    "heading1": "Заглавие 1",
+    "heading2": "Заглавие 2",
+    "bulletList": "Списък с водещи символи",
+    "orderedList": "Номериран списък",
+    "quote": "Цитат",
+    "undo": "Отмени",
+    "redo": "Повтори"
   },
   "automation": {
-    "title": "Automation",
-    "subtitle": "Schedule and LLM extraction for daily Member-Memory analysis.",
-    "lastRun": "Last Run",
-    "schedulerActive": "Scheduler Active",
-    "schedulerDesc": "Enables daily execution according to cron expression.",
-    "cronExpression": "Cron Expression (UTC)",
-    "every12h": "Every 12h",
-    "extractionDesc": "Enables profile creation from chat history.",
-    "extractionActive": "LLM Extraction Active",
-    "noRun": "No run yet."
+    "title": "Автоматизация",
+    "subtitle": "Планиране и извличане от LLM за ежедневен анализ на паметта на членовете.",
+    "lastRun": "Последно изпълнение",
+    "schedulerActive": "Планировчикът е активен",
+    "schedulerDesc": "Позволява ежедневно изпълнение според cron израз.",
+    "cronExpression": "Cron израз (UTC)",
+    "every12h": "На всеки 12 часа",
+    "extractionDesc": "Позволява създаване на профил от историята на чата.",
+    "extractionActive": "LLM извличането е активно",
+    "noRun": "Все още не е стартирано."
   },
   "users": {
     "roles": {
-      "systemAdmin": "System Admin",
-      "tenantAdmin": "Tenant Admin",
-      "tenantUser": "Tenant User"
+      "systemAdmin": "Системен администратор",
+      "tenantAdmin": "Администратор на наемател",
+      "tenantUser": "Потребител на наемател"
     },
-    "reasonError": "Please provide a understandable reason with at least 8 characters.",
-    "tenantAdmins": "Tenant Admins",
-    "systemAdmins": "System Admins",
-    "createUser": "Create New User",
-    "email": "Email",
-    "password": "Password",
-    "name": "Name",
-    "saving": "Saving...",
-    "searchPlaceholder": "Search by email, name or tenant",
-    "allRoles": "All Roles",
-    "allTenants": "All Tenants",
-    "loading": "Loading users...",
-    "noUsers": "No users for the current filter.",
-    "selectAll": "All selected",
-    "running": "Running...",
-    "noAudit": "No audit events found.",
-    "ghostMode": "Start Ghost Mode",
-    "ghostReason": "e.g. Support case #4812: User cannot save settings",
-    "editUser": "Edit User",
-    "passwordReset": "Password Reset (optional)",
-    "newPassword": "New Password (optional)"
+    "reasonError": "Моля, предоставете разбираема причина с поне 8 знака.",
+    "tenantAdmins": "Администратори на наематели",
+    "systemAdmins": "Системни администратори",
+    "createUser": "Създаване на нов потребител",
+    "email": "Имейл",
+    "password": "Парола",
+    "name": "Име",
+    "saving": "Запазване...",
+    "searchPlaceholder": "Търсене по имейл, име или наемател",
+    "allRoles": "Всички роли",
+    "allTenants": "Всички наематели",
+    "loading": "Зареждане на потребители...",
+    "noUsers": "Няма потребители за текущия филтър.",
+    "selectAll": "Всички избрани",
+    "running": "Изпълнява се...",
+    "noAudit": "Няма намерени събития за одит.",
+    "ghostMode": "Стартиране на режим „Призрак“",
+    "ghostReason": "напр. Случай за поддръжка #4812: Потребителят не може да запази настройките",
+    "editUser": "Редактиране на потребител",
+    "passwordReset": "Нулиране на парола (по избор)",
+    "newPassword": "Нова парола (по избор)"
   },
   "ui": {
-    "noData": "No data"
+    "noData": "Няма данни"
   }
 }
