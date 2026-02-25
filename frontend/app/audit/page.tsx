@@ -11,6 +11,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { T } from "@/lib/tokens";
 import { apiFetch } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/LanguageContext";
 
 type AuditRow = {
   id: number;
@@ -52,6 +53,7 @@ const customSelectStyle: React.CSSProperties = {
 };
 
 export default function AuditPage() {
+  const { t } = useI18n();
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -147,33 +149,33 @@ export default function AuditPage() {
               <ShieldCheck size={18} />
             </div>
             <div>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: "#1E293B", margin: 0 }}>Governance</h2>
-              <p style={{ fontSize: 11, color: "#64748B", margin: 0 }}>Compliance & Audit Trail</p>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: "#1E293B", margin: 0 }}>{t("audit.title")}</h2>
+              <p style={{ fontSize: 11, color: "#64748B", margin: 0 }}>{t("audit.subtitle")}</p>
             </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
-              <label style={filterHeaderStyle}><Tag size={12} /> Category</label>
+              <label style={filterHeaderStyle}><Tag size={12} /> {t("audit.filters.category")}</label>
               <select style={customSelectStyle} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
-                <option value="all">All Categories</option>
+                <option value="all">{t("audit.filters.allCategories")}</option>
                 {options.categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
 
             <div>
-              <label style={filterHeaderStyle}><Activity size={12} /> Action Type</label>
+              <label style={filterHeaderStyle}><Activity size={12} /> {t("audit.filters.actionType")}</label>
               <select style={customSelectStyle} value={actionFilter} onChange={e => setActionFilter(e.target.value)}>
-                <option value="all">All Actions</option>
+                <option value="all">{t("audit.filters.allActions")}</option>
                 {options.actions.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
 
             <div>
-              <label style={filterHeaderStyle}><User size={12} /> Initiated By (Actor)</label>
+              <label style={filterHeaderStyle}><User size={12} /> {t("audit.filters.initiatedBy")}</label>
               <select style={customSelectStyle} value={actorFilter} onChange={e => setActorFilter(e.target.value)}>
-                <option value="all">All Users</option>
-                <option value="system">System Internal</option>
+                <option value="all">{t("audit.filters.allUsers")}</option>
+                <option value="system">{t("audit.filters.systemInternal")}</option>
                 {options.actors.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
@@ -181,10 +183,10 @@ export default function AuditPage() {
             <div style={{ height: 1, background: "#F1F5F9", margin: "8px 0" }} />
 
             <div>
-              <label style={filterHeaderStyle}><Calendar size={12} /> Time Range</label>
+              <label style={filterHeaderStyle}><Calendar size={12} /> {t("audit.filters.timeRange")}</label>
               <div style={{ display: "grid", gap: 8 }}>
-                <input type="date" style={inputStyle} value={startDate} onChange={e => setStartDate(e.target.value)} placeholder="From" />
-                <input type="date" style={inputStyle} value={endDate} onChange={e => setEndDate(e.target.value)} placeholder="To" />
+                <input type="date" style={inputStyle} value={startDate} onChange={e => setStartDate(e.target.value)} placeholder={t("audit.filters.from")} />
+                <input type="date" style={inputStyle} value={endDate} onChange={e => setEndDate(e.target.value)} placeholder={t("audit.filters.to")} />
               </div>
             </div>
 
@@ -193,10 +195,10 @@ export default function AuditPage() {
                 setCategoryFilter("all"); setActionFilter("all"); setActorFilter("all");
                 setStartDate(""); setEndDate(""); setQuery("");
               }} className="btn btn-sm btn-ghost gap-2 text-xs">
-                <X size={14} /> Clear All Filters
+                <X size={14} /> {t("audit.filters.clearFilters")}
               </button>
               <button onClick={downloadCsv} className="btn btn-sm btn-outline gap-2 text-xs">
-                <Download size={14} /> Export CSV
+                <Download size={14} /> {t("audit.filters.exportCsv")}
               </button>
             </div>
           </div>
@@ -210,13 +212,13 @@ export default function AuditPage() {
             <Search size={16} color="#94A3B8" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
             <input 
               style={{ ...inputStyle, paddingLeft: 40, height: 44, fontSize: 14 }}
-              placeholder="Search by action, email, or metadata content..."
+              placeholder={t("audit.search")}
               value={query}
               onChange={e => setQuery(e.target.value)}
             />
           </div>
           <button onClick={() => setSortDir(s => s === "desc" ? "asc" : "desc")} className="btn h-[44px] bg-white border-slate-200 gap-2">
-            <Clock size={16} /> {sortDir === "desc" ? "Newest" : "Oldest"}
+            <Clock size={16} /> {sortDir === "desc" ? t("audit.sort.newest") : t("audit.sort.oldest")}
           </button>
         </div>
 
@@ -224,14 +226,14 @@ export default function AuditPage() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead style={{ background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
               <tr>
-                {["Timestamp", "Actor", "Operation", "Target", "Details"].map(h => (
+                {[t("audit.table.timestamp"), t("audit.table.actor"), t("audit.table.operation"), t("audit.table.target"), t("audit.table.details")].map(h => (
                   <th key={h} style={{ textAlign: "left", padding: "12px 16px", fontSize: 10, fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} style={{ padding: 40, textAlign: "center", color: "#94A3B8" }}>Fetching audit records...</td></tr>
+                <tr><td colSpan={5} style={{ padding: 40, textAlign: "center", color: "#94A3B8" }}>{t("audit.table.fetching")}</td></tr>
               ) : filteredRows.map(r => (
                 <tr key={r.id} style={{ borderBottom: "1px solid #F1F5F9" }} className="hover:bg-slate-50 transition-colors">
                   <td style={{ padding: "14px 16px", fontSize: 12, color: "#64748B", whiteSpace: "nowrap" }}>
@@ -260,7 +262,7 @@ export default function AuditPage() {
                   </td>
                   <td style={{ padding: "14px 16px", textAlign: "right" }}>
                     <button onClick={() => setSelectedRow(r)} className="btn btn-xs btn-ghost gap-1 font-bold text-accent">
-                      <Eye size={12} /> View Diff
+                      <Eye size={12} /> {t("audit.table.viewDiff")}
                     </button>
                   </td>
                 </tr>
@@ -273,7 +275,7 @@ export default function AuditPage() {
       <Modal
         open={!!selectedRow}
         onClose={() => setSelectedRow(null)}
-        title="Audit Event Details"
+        title={t("audit.modal.title")}
         subtitle={selectedRow ? `${selectedRow.action} @ ${selectedRow.created_at}` : ""}
         width="min(800px, 100%)"
       >
@@ -281,17 +283,17 @@ export default function AuditPage() {
           <div style={{ display: "grid", gap: 20 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                <div style={{ padding: 16, borderRadius: 12, background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
-                  <label style={labelStyle}>Actor Identity</label>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#1E293B" }}>{selectedRow.actor_email || "System Internal"}</div>
+                  <label style={labelStyle}>{t("audit.modal.actorIdentity")}</label>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#1E293B" }}>{selectedRow.actor_email || t("audit.filters.systemInternal")}</div>
                </div>
                <div style={{ padding: 16, borderRadius: 12, background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
-                  <label style={labelStyle}>Target Resource</label>
+                  <label style={labelStyle}>{t("audit.modal.targetResource")}</label>
                   <div style={{ fontSize: 14, fontWeight: 700, color: "#1E293B" }}>{selectedRow.target_type || "None"} ({selectedRow.target_id || "-"})</div>
                </div>
             </div>
 
             <div>
-              <label style={labelStyle}>Change Summary</label>
+              <label style={labelStyle}>{t("audit.modal.changeSummary")}</label>
               <div style={{ padding: 16, borderRadius: 12, background: "#0F172A", color: "#F8FAFC", fontSize: 12, fontFamily: "monospace", overflowX: "auto" }}>
                 <pre>{formatJson(selectedRow.details_json)}</pre>
               </div>

@@ -10,11 +10,15 @@ import it from "../../locales/it.json";
 import pt from "../../locales/pt.json";
 import nl from "../../locales/nl.json";
 import ru from "../../locales/ru.json";
+import bg from "../../locales/bg.json";
+import ja from "../../locales/ja.json";
+import ko from "../../locales/ko.json";
+import zh from "../../locales/zh.json";
 
-const dictionaries: Record<string, any> = { de, en, fr, es, it, pt, nl, ru };
+const dictionaries: Record<string, any> = { de, en, fr, es, it, pt, nl, ru, bg, ja, ko, zh };
 
-type Language = "de" | "en" | "fr" | "es" | "it" | "pt" | "nl" | "ru";
-const ALLOWED_LANGUAGES: Language[] = ["de", "en", "fr", "es", "it", "pt", "nl", "ru"];
+type Language = "de" | "en" | "fr" | "es" | "it" | "pt" | "nl" | "ru" | "bg" | "ja" | "ko" | "zh";
+const ALLOWED_LANGUAGES: Language[] = ["de", "en", "fr", "es", "it", "pt", "nl", "ru", "bg", "ja", "ko", "zh"];
 
 // GLOBAL SINGLETON: This survives even if the component remounts or parents re-render
 let globalLanguage: Language = "en";

@@ -35,7 +35,7 @@
     "dashboard": "Dashboard",
     "monitor": "Live Monitor",
     "escalations": "Eskalationen",
-    "analytics": "Analytics",
+    "analytics": "Analysen",
     "members": "Mitglieder",
     "users": "Benutzer",
     "knowledge": "Wissensbasis",
@@ -47,7 +47,7 @@
     "tenants": "Tenant Manager",
     "plans": "Abo-Modelle",
     "audit": "Audit Log",
-    "health": "Engine Stats",
+    "health": "Systemstatus",
     "quickActions": "Schnellzugriff",
     "platformControl": "Platform Control",
     "studioDeck": "Studio Deck",
@@ -209,98 +209,6 @@
     "automation": "Automatisierung",
     "branding": "Branding"
   },
-  "tenants": {
-    "stats": {
-      "total": "Mandanten gesamt",
-      "users": "Aktive Nutzer",
-      "avg": "Ø Nutzer/Mandant"
-    },
-    "create": {
-      "title": "Neuen Mandanten anlegen",
-      "name": "Mandantenname",
-      "slug": "Slug (optional)"
-    },
-    "table": {
-      "name": "Name",
-      "users": "Nutzer",
-      "admins": "Admins",
-      "active": "Aktiv"
-    },
-    "edit": {
-      "title": "Mandant bearbeiten"
-    },
-    "errors": {
-      "nameRequired": "Mandantenname ist erforderlich"
-    },
-    "bulk": {
-      "hint": "Die Aktion wird tenantweit angewendet und als Governance-Ereignis protokolliert."
-    },
-    "audit": {
-      "title": "Letzte Audit-Events"
-    },
-    "footer": {
-      "registration": "Mandanten-Self-Registration läuft weiterhin über /register."
-    }
-  },
-  "live": {
-    "title": "Live Monitor",
-    "subtitle": "Echtzeit-Verfolgung der KI-Interaktionen",
-    "sessions": "Aktive Sitzungen",
-    "noSessions": "Momentan keine aktiven Sitzungen",
-    "selectSession": "Sitzung auswählen, um Details anzuzeigen",
-    "handoff": {
-      "link": "Mit Mitglied verknüpfen",
-      "hint": "Diese Sitzung manuell einer Mitglieds-ID zuordnen",
-      "placeholder": "Mitglieds-ID eingeben"
-    }
-  },
-  "members": {
-    "title": "Mitglieder",
-    "subtitle": "Verwalten Sie Ihre Studiomitglieder und deren KI-Status",
-    "add": "Mitglied hinzufügen",
-    "import": {
-      "clickOrDrop": "Klicken oder Datei hierher ziehen zum Hochladen",
-      "selectFile": "Datei auswählen",
-      "hint": "Unterstützt .csv, .xls, .xlsx"
-    },
-    "importTitle": "Mitglieder-Import",
-    "noMembers": "Keine Mitglieder gefunden",
-    "noContact": "Keine Kontaktinformationen",
-    "confirmDelete": "Sind Sie sicher, dass Sie dieses Mitglied löschen möchten?",
-    "search": "Mitglieder suchen...",
-    "stats": {
-      "total": "Mitglieder gesamt",
-      "active": "Aktiv",
-      "paused": "Pausiert",
-      "manual": "Manuelle Einträge",
-      "external": "Synchronisiert (Magicline)",
-      "selected": "ausgewählt"
-    },
-    "table": {
-      "member": "Mitglied",
-      "source": "Quelle",
-      "status": "Status"
-    },
-    "form": {
-      "firstName": "Vorname",
-      "lastName": "Nachname",
-      "email": "E-Mail Adresse"
-    },
-    "status": {
-      "active": "Aktiv",
-      "paused": "Pausiert"
-    }
-  },
-  "memberMemory": {
-    "title": "Member Memory",
-    "subtitle": "Langzeit-Wissensbasis der Mitglieder",
-    "files": "Speicher-Dateien",
-    "noFiles": "Keine Einträge für dieses Mitglied gefunden",
-    "selectFile": "Eintrag auswählen, um Details anzuzeigen",
-    "reasonPlaceholder": "Grund für manuelles Eingreifen",
-    "scheduler": "Analyse-Planer",
-    "lastRun": "Zuletzt analysiert"
-  },
   "navbar": {
     "login": "Anmelden",
     "register": "Registrieren"
@@ -452,5 +360,447 @@
       "enterprise": "Enterprise Kontakt"
     },
     "rights": "Alle Rechte vorbehalten."
+  },
+  "tenants": {
+    "stats": {
+      "total": "Mandanten gesamt",
+      "users": "Aktive Nutzer",
+      "avg": "Ø Nutzer/Mandant"
+    },
+    "create": {
+      "title": "Neuen Mandanten anlegen",
+      "name": "Mandantenname",
+      "slug": "Slug (optional)"
+    },
+    "table": {
+      "name": "Name",
+      "users": "Nutzer",
+      "admins": "Admins",
+      "active": "Aktiv"
+    },
+    "edit": {
+      "title": "Mandant bearbeiten"
+    },
+    "errors": {
+      "nameRequired": "Mandantenname ist erforderlich"
+    },
+    "bulk": {
+      "hint": "Die Aktion wird tenantweit angewendet und als Governance-Ereignis protokolliert."
+    },
+    "audit": {
+      "title": "Letzte Audit-Events"
+    },
+    "footer": {
+      "registration": "Mandanten-Self-Registration läuft weiterhin über /register."
+    }
+  },
+  "ai": {
+    "actions": "Actions",
+    "errors": {
+      "connectionError": "Connection to AI Engine lost",
+      "loadFailed": "Failed to load AI parameters",
+      "saveFailed": "Failed to save AI configuration"
+    }
+  },
+  "live": {
+    "title": "Live Monitor",
+    "subtitle": "Echtzeit-Verfolgung der KI-Interaktionen",
+    "sessions": "Aktive Sitzungen",
+    "noSessions": "Momentan keine aktiven Sitzungen",
+    "selectSession": "Sitzung auswählen, um Details anzuzeigen",
+    "handoff": {
+      "link": "Mit Mitglied verknüpfen",
+      "hint": "Diese Sitzung manuell einer Mitglieds-ID zuordnen",
+      "placeholder": "Mitglieds-ID eingeben"
+    }
+  },
+  "memberMemory": {
+    "title": "Member Memory",
+    "subtitle": "Langzeit-Wissensbasis der Mitglieder",
+    "files": "Speicher-Dateien",
+    "noFiles": "Keine Einträge für dieses Mitglied gefunden",
+    "selectFile": "Eintrag auswählen, um Details anzuzeigen",
+    "reasonPlaceholder": "Grund für manuelles Eingreifen",
+    "scheduler": "Analyse-Planer",
+    "lastRun": "Zuletzt analysiert"
+  },
+  "members": {
+    "title": "Mitglieder",
+    "subtitle": "Verwalten Sie Ihre Studiomitglieder und deren KI-Status",
+    "add": "Mitglied hinzufügen",
+    "import": {
+      "clickOrDrop": "Klicken oder Datei hierher ziehen zum Hochladen",
+      "selectFile": "Datei auswählen",
+      "hint": "Unterstützt .csv, .xls, .xlsx"
+    },
+    "importTitle": "Mitglieder-Import",
+    "noMembers": "Keine Mitglieder gefunden",
+    "noContact": "Keine Kontaktinformationen",
+    "confirmDelete": "Sind Sie sicher, dass Sie dieses Mitglied löschen möchten?",
+    "search": "Mitglieder suchen...",
+    "stats": {
+      "total": "Mitglieder gesamt",
+      "active": "Aktiv",
+      "paused": "Pausiert",
+      "manual": "Manuelle Einträge",
+      "external": "Synchronisiert (Magicline)",
+      "selected": "ausgewählt"
+    },
+    "table": {
+      "member": "Mitglied",
+      "source": "Quelle",
+      "status": "Status"
+    },
+    "form": {
+      "firstName": "Vorname",
+      "lastName": "Nachname",
+      "email": "E-Mail Adresse"
+    },
+    "status": {
+      "active": "Aktiv",
+      "paused": "Pausiert"
+    }
+  },
+  "pricing": {
+    "title": "Simple Pricing",
+    "titleAccent": "for every studio size",
+    "description": "Choose the plan that fits your studio operations. All plans include 24/7 AI availability and Magicline integration.",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "billedYearly": "billed yearly",
+    "discount": "Save 20%",
+    "enterpriseTitle": "Enterprise",
+    "enterpriseDesc": "Custom solutions for large studio chains with 10+ locations and specific compliance needs.",
+    "enterpriseCta": "Contact Sales",
+    "addonsTitle": "Powerful",
+    "addonsSubtitle": "Addons",
+    "addonsSubtitleAccent": "to scale",
+    "addonsDesc": "Enhance your AI agents with specialized capabilities tailored to your workflow.",
+    "faqTitle": "Frequently Asked Questions",
+    "finalCta": "Ready to transform your studio?",
+    "finalCtaAccent": "Start your trial today.",
+    "finalCtaDesc": "Join 50+ fitness studios already using ARIIA.",
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "desc": "Perfect for boutique studios",
+        "cta": "Get Started",
+        "features": [
+          "1 AI Agent (Ops)",
+          "WhatsApp Integration",
+          "100 AI Resolutions/mo",
+          "Basic Analytics"
+        ]
+      },
+      "professional": {
+        "name": "Professional",
+        "badge": "Most Popular",
+        "desc": "For growing fitness studios",
+        "cta": "Start Free Trial",
+        "features": [
+          "3 AI Agents (Sales, Ops, Medic)",
+          "WhatsApp & Telegram",
+          "500 AI Resolutions/mo",
+          "Advanced Analytics",
+          "Member Memory (1 Tier)"
+        ]
+      },
+      "business": {
+        "name": "Business",
+        "desc": "Full automation for large studios",
+        "cta": "Go Pro",
+        "features": [
+          "Full Swarm (All Agents)",
+          "Omnichannel (WA, TG, Voice)",
+          "Unlimited Resolutions",
+          "GraphRAG & Full Memory",
+          "Priority Support"
+        ]
+      }
+    },
+    "addons": {
+      "voice": {
+        "name": "AI Voice Engine",
+        "desc": "Handle incoming calls with natural AI voice interaction."
+      },
+      "vision": {
+        "name": "AI Vision (YOLOv8)",
+        "desc": "Real-time occupancy and safety tracking via camera integration."
+      },
+      "churn": {
+        "name": "Churn Prediction",
+        "desc": "Advanced ML model to identify cancellation risks early."
+      },
+      "channel": {
+        "name": "Additional Channel",
+        "desc": "Add custom SMS or Email automation to your swarm."
+      }
+    },
+    "faqs": [
+      {
+        "q": "Can I change my plan later?",
+        "a": "Yes, you can upgrade or downgrade your plan at any time from your settings."
+      },
+      {
+        "q": "Is my data secure?",
+        "a": "Absolutely. We use industry-standard encryption and all data is hosted in ISO-certified data centers in Germany."
+      },
+      {
+        "q": "Do you offer custom integrations?",
+        "a": "Yes, for Enterprise customers we offer bespoke integration services for your specific CRM or ERP system."
+      },
+      {
+        "q": "How does the Voice AI work?",
+        "a": "Our Voice AI uses advanced STT/TTS models to interact with callers in real-time, just like a human assistant."
+      }
+    ]
+  },
+  "legal": {
+    "impressum": {
+      "title": "Imprint",
+      "tmg5": "Information according to § 5 TMG",
+      "representedBy": "Represented by",
+      "managingDirector": "Managing Director",
+      "contact": "Contact",
+      "phone": "Phone",
+      "email": "Email",
+      "website": "Website",
+      "registerEntry": "Register Entry",
+      "registerCourt": "Register Court",
+      "registerNumber": "Register Number",
+      "vatId": "VAT Identification Number according to § 27 a VAT Act",
+      "responsibleContent": "Responsible for content according to § 55 Abs. 2 RStV",
+      "dispute": "EU Dispute Resolution",
+      "liabilityContent": "Liability for Content",
+      "liabilityLinks": "Liability for Links"
+    },
+    "privacy": {
+      "title": "Privacy Policy"
+    },
+    "agb": {
+      "title": "Terms of Service",
+      "status": "Last Update"
+    }
+  },
+  "audit": {
+    "title": "Audit Log",
+    "subtitle": "Compliance & Audit-Trail",
+    "filters": {
+      "category": "Kategorie",
+      "allCategories": "Alle Kategorien",
+      "actionType": "Aktionstyp",
+      "allActions": "Alle Aktionen",
+      "initiatedBy": "Initiiert von (Akteur)",
+      "allUsers": "Alle Benutzer",
+      "systemInternal": "System-intern",
+      "timeRange": "Zeitraum",
+      "from": "Von",
+      "to": "Bis",
+      "clearFilters": "Alle Filter löschen",
+      "exportCsv": "CSV exportieren"
+    },
+    "search": "Suche nach Aktion, E-Mail oder Metadaten...",
+    "sort": {
+      "newest": "Neueste",
+      "oldest": "Älteste"
+    },
+    "table": {
+      "timestamp": "Zeitstempel",
+      "actor": "Akteur",
+      "operation": "Operation",
+      "target": "Ziel",
+      "details": "Details",
+      "fetching": "Lade Audit-Einträge...",
+      "viewDiff": "Diff ansehen"
+    },
+    "modal": {
+      "title": "Audit-Ereignis Details",
+      "actorIdentity": "Akteur Identität",
+      "targetResource": "Ziel Ressource",
+      "changeSummary": "Änderungs-Zusammenfassung"
+    }
+  },
+  "knowledge": {
+    "title": "Wissensdatenbank",
+    "documents": "Dokumente",
+    "noDocuments": "Keine Wissensdokumente vorhanden.",
+    "newDocument": "Neues Dokument",
+    "newDocumentPlaceholder": "neues-dokument.md",
+    "viewTenant": "Tenant ansehen:",
+    "indexChunks": "Index Chunks",
+    "lastIngest": "Letzter Import",
+    "reindex": "Reindex",
+    "reindexing": "Reindex läuft...",
+    "selectFile": "Bitte links eine Datei auswählen oder erstellen.",
+    "save": "Speichern",
+    "saving": "Speichere...",
+    "saved": "Gespeichert & synchronisiert",
+    "reasonPlaceholder": "Änderungsgrund (mind. 8 Zeichen)",
+    "reasonError": "Bitte begründe die Änderung (mind. 8 Zeichen).",
+    "conflict": "Konflikt erkannt",
+    "conflictError": "Datei wurde zwischenzeitlich geändert. Bitte neu laden oder überschreiben.",
+    "ingestError": "Import Fehler: {{error}}",
+    "autosaving": "Autosave...",
+    "autosaved": "Autosave gespeichert",
+    "loading": "Lade...",
+    "loaded": "Geladen",
+    "draftCreated": "Neue Datei als Draft erstellt. Bitte speichern."
+  },
+  "register": {
+    "title": "Registrierung",
+    "subtitle": "Neuen Tenant und Admin-User anlegen.",
+    "tenantName": "Tenant Name (z. B. Test-Studio)",
+    "tenantSlug": "Tenant Slug (optional)",
+    "email": "E-Mail",
+    "name": "Name (optional)",
+    "password": "Passwort (mind. 8 Zeichen)",
+    "button": "Tenant registrieren",
+    "waiting": "Bitte warten...",
+    "backToLogin": "Zurück zu Login"
+  },
+  "login": {
+    "placeholders": {
+      "email": "admin@ariia.io",
+      "password": "••••••••"
+    }
+  },
+  "plans": {
+    "deleteDeadTitle": "Alle Pläne ohne Stripe-Anbindung (Leichen) löschen?",
+    "newPlan": "Neuer Abonnement-Plan",
+    "planName": "Name (z.B. Professional)",
+    "planSlug": "Slug (z.B. professional)",
+    "priceEur": "Preis in EUR",
+    "newAddon": "Neues Stripe Add-on",
+    "addonName": "Add-on Name (z.B. Voice Pipeline)",
+    "monthlyPrice": "Monatlicher Preis in EUR",
+    "editPlan": "Plan bearbeiten"
+  },
+  "impressum": {
+    "disputeText": "Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: https://ec.europa.eu/consumers/odr/. Unsere E-Mail-Adresse finden Sie oben im Impressum. Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.",
+    "liabilityContentText": "Als Diensteanbieter sind wir gemäß § 7 Abs.1 TMG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen.",
+    "liabilityLinksText": "Unser Angebot enthält Links zu externen Webseiten Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich."
+  },
+  "escalations": {
+    "title": "Eskalations-Queue",
+    "subtitle": "Tickets die menschliche Bearbeitung benötigen",
+    "noEscalations": "Keine offenen Eskalationen.",
+    "memberIdError": "Bitte eine gültige Member ID angeben.",
+    "tokenError": "Fehler bei der Token-Generierung.",
+    "handoffError": "Fehler beim Auflösen des Handoffs.",
+    "allClear": "Alles klar",
+    "linkMember": "Member verknüpfen",
+    "memberId": "Member ID",
+    "resolveHandoff": "Handoff auflösen?"
+  },
+  "magicline": {
+    "syncNotStarted": "Noch kein Sync gestartet",
+    "allEnriched": "Alle Mitglieder bereits angereichert",
+    "syncFailed": "Sync fehlgeschlagen",
+    "syncDescription": "Besuchs- und Buchungsdaten für alle Mitglieder laden",
+    "enrichAll": "Alle anreichern",
+    "adoption": "ARIIA-Adoption",
+    "adoptionSubtitle": "Magicline-Mitglieder die ARIIA je genutzt haben",
+    "usersActive": "Nutzer aktiv",
+    "platformVerification": "Plattform & Verifikation",
+    "platformSubtitle": "Aktive Chat-Sessions nach Kanal und Status",
+    "noSessions": "Noch keine Chat-Sessions vorhanden.",
+    "languageDistribution": "Sprachverteilung",
+    "languageSubtitle": "Bevorzugte Sprache der Mitglieder",
+    "noLanguageData": "Keine Sprachdaten verfügbar.",
+    "memberStatus": "Mitgliederstatus",
+    "memberStatusSubtitle": "Aktive vs. pausierte Mitglieder",
+    "noData": "Keine Daten.",
+    "dataCoverage": "Daten-Abdeckung",
+    "dataCoverageSubtitle": "Mitglieder mit Besuchs- & Buchungsdaten"
+  },
+  "analytics": {
+    "weeklyOverview": "Wochenübersicht",
+    "weeklySubtitle": "Tickets & Lösungsrate (letzte 7 Tage)",
+    "satisfaction": "Mitglieder-Zufriedenheit",
+    "satisfactionSubtitle": "Feedback nach KI-Interaktionen",
+    "noFeedback": "Noch kein Feedback vorhanden",
+    "avgRating": "Durchschnittliche Bewertung",
+    "basedOn": "Basierend auf {{count}} Bewertungen",
+    "channelPerformance": "Kanal-Performance",
+    "channelSubtitle": "Vergleich der Support-Kanäle (30 Tage)"
+  },
+  "conversations": {
+    "search": "Konversationen durchsuchen…",
+    "backToList": "Zurück zur Liste",
+    "helpful": "Hilfreich",
+    "notHelpful": "Nicht hilfreich"
+  },
+  "dashboard": {
+    "governanceMode": "Platform Governance Mode",
+    "uptime": "Plattform-Uptime",
+    "distribution": "Tenant-Verteilung",
+    "distributionSubtitle": "Aktiv vs. Inaktiv",
+    "infrastructure": "Infrastruktur-Status",
+    "coreServices": "SaaS Core Services",
+    "redis": "Redis Cache",
+    "vector": "Vector Engine",
+    "qdrant": "Qdrant Online",
+    "auth": "Auth Service",
+    "events": "Aktuelle Plattform-Ereignisse",
+    "auditTrail": "Audit Trail (Systemweit)",
+    "noEvents": "Keine Ereignisse vorhanden.",
+    "initializing": "Initialisiere Dashboard…",
+    "loadError": "Fehler beim Laden der Daten.",
+    "analyticsHint": "Nutze den Menüpunkt \"Analytics\" für detaillierte Auswertungen."
+  },
+  "tiptap": {
+    "toolbar": "Text-Editor Toolbar",
+    "bold": "Fett",
+    "italic": "Kursiv",
+    "heading1": "Überschrift 1",
+    "heading2": "Überschrift 2",
+    "bulletList": "Aufzählung",
+    "orderedList": "Nummerierte Liste",
+    "quote": "Zitat",
+    "undo": "Rückgängig",
+    "redo": "Wiederholen"
+  },
+  "automation": {
+    "title": "Automatisierung",
+    "subtitle": "Zeitplan und LLM-Extraktion für tägliche Member-Memory Analyse.",
+    "lastRun": "Letzter Lauf",
+    "schedulerActive": "Scheduler aktiv",
+    "schedulerDesc": "Aktiviert tägliche Ausführung gemäß Cron-Ausdruck.",
+    "cronExpression": "Cron Ausdruck (UTC)",
+    "every12h": "Alle 12h",
+    "extractionDesc": "Aktiviert die Profilerstellung aus Chatverläufen.",
+    "extractionActive": "LLM Extraktion aktiv",
+    "noRun": "Noch kein Lauf."
+  },
+  "users": {
+    "roles": {
+      "systemAdmin": "System Admin",
+      "tenantAdmin": "Tenant Admin",
+      "tenantUser": "Tenant User"
+    },
+    "reasonError": "Bitte gib einen nachvollziehbaren Grund mit mindestens 8 Zeichen an.",
+    "tenantAdmins": "Tenant Admins",
+    "systemAdmins": "System Admins",
+    "createUser": "Neuen Benutzer anlegen",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "name": "Name",
+    "saving": "Speichern...",
+    "searchPlaceholder": "Suche nach E-Mail, Name oder Tenant",
+    "allRoles": "Alle Rollen",
+    "allTenants": "Alle Tenants",
+    "loading": "Lade Benutzer...",
+    "noUsers": "Keine Benutzer für den aktuellen Filter.",
+    "selectAll": "Alle auswählen",
+    "running": "Läuft...",
+    "noAudit": "Keine Audit-Events gefunden.",
+    "ghostMode": "Ghost Mode starten",
+    "ghostReason": "z. B. Supportfall #4812: Nutzer kann Einstellungen nicht speichern",
+    "editUser": "Benutzer bearbeiten",
+    "passwordReset": "Passwort Reset (optional)",
+    "newPassword": "Neues Passwort (optional)"
+  },
+  "ui": {
+    "noData": "Keine Daten"
   }
 }

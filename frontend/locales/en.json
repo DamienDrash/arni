@@ -581,5 +581,226 @@
       "title": "Terms of Service",
       "status": "Last Update"
     }
+  },
+  "audit": {
+    "title": "Audit Log",
+    "subtitle": "Compliance & Audit Trail",
+    "filters": {
+      "category": "Category",
+      "allCategories": "All Categories",
+      "actionType": "Action Type",
+      "allActions": "All Actions",
+      "initiatedBy": "Initiated By (Actor)",
+      "allUsers": "All Users",
+      "systemInternal": "System Internal",
+      "timeRange": "Time Range",
+      "from": "From",
+      "to": "To",
+      "clearFilters": "Clear All Filters",
+      "exportCsv": "Export CSV"
+    },
+    "search": "Search by action, email, or metadata content...",
+    "sort": {
+      "newest": "Newest",
+      "oldest": "Oldest"
+    },
+    "table": {
+      "timestamp": "Timestamp",
+      "actor": "Actor",
+      "operation": "Operation",
+      "target": "Target",
+      "details": "Details",
+      "fetching": "Fetching audit records...",
+      "viewDiff": "View Diff"
+    },
+    "modal": {
+      "title": "Audit Event Details",
+      "actorIdentity": "Actor Identity",
+      "targetResource": "Target Resource",
+      "changeSummary": "Change Summary"
+    }
+  },
+  "knowledge": {
+    "title": "Knowledge Base",
+    "documents": "Documents",
+    "noDocuments": "No knowledge documents available.",
+    "newDocument": "New Document",
+    "newDocumentPlaceholder": "new-document.md",
+    "viewTenant": "View Tenant:",
+    "indexChunks": "Index Chunks",
+    "lastIngest": "Last Ingest",
+    "reindex": "Reindex",
+    "reindexing": "Reindexing...",
+    "selectFile": "Select a file or create one on the left.",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Saved & synchronized",
+    "reasonPlaceholder": "Reason for change (min. 8 chars)",
+    "reasonError": "Please provide a reason for the change (min. 8 chars).",
+    "conflict": "Conflict detected",
+    "conflictError": "The file has been modified in the meantime. Please reload or overwrite.",
+    "ingestError": "Ingest Error: {{error}}",
+    "autosaving": "Autosaving...",
+    "autosaved": "Autosave saved",
+    "loading": "Loading...",
+    "loaded": "Loaded",
+    "draftCreated": "New file created as draft. Please save."
+  },
+  "register": {
+    "title": "Registration",
+    "subtitle": "Create a new tenant and admin user.",
+    "tenantName": "Tenant Name (e.g. Test-Studio)",
+    "tenantSlug": "Tenant Slug (optional)",
+    "email": "Email",
+    "name": "Name (optional)",
+    "password": "Password (min. 8 characters)",
+    "button": "Register Tenant",
+    "waiting": "Please wait...",
+    "backToLogin": "Back to Login"
+  },
+  "login": {
+    "placeholders": {
+      "email": "admin@ariia.io",
+      "password": "••••••••"
+    }
+  },
+  "plans": {
+    "deleteDeadTitle": "Delete all plans without Stripe connection (ghosts)?",
+    "newPlan": "New Subscription Plan",
+    "planName": "Name (e.g. Professional)",
+    "planSlug": "Slug (e.g. professional)",
+    "priceEur": "Price in EUR",
+    "newAddon": "New Stripe Add-on",
+    "addonName": "Add-on Name (e.g. Voice Pipeline)",
+    "monthlyPrice": "Monthly Price in EUR",
+    "editPlan": "Edit Plan"
+  },
+  "impressum": {
+    "disputeText": "The European Commission provides a platform for online dispute resolution (OS): https://ec.europa.eu/consumers/odr/. You can find our email address at the top of the imprint. We are not willing or obliged to participate in dispute resolution proceedings before a consumer arbitration board.",
+    "liabilityContentText": "As a service provider, we are responsible for our own content on these pages in accordance with the general laws pursuant to § 7 Para.1 TMG. According to §§ 8 to 10 TMG, we are not obliged as a service provider to monitor transmitted or stored third-party information or to investigate circumstances that indicate illegal activity.",
+    "liabilityLinksText": "Our offer contains links to external websites of third parties, on whose content we have no influence. Therefore, we cannot assume any liability for these external contents. The respective provider or operator of the pages is always responsible for the content of the linked pages."
+  },
+  "escalations": {
+    "title": "Escalation Queue",
+    "subtitle": "Tickets requiring human intervention",
+    "noEscalations": "No open escalations.",
+    "memberIdError": "Please provide a valid Member ID.",
+    "tokenError": "Error generating token.",
+    "handoffError": "Error resolving handoff.",
+    "allClear": "All clear",
+    "linkMember": "Link Member",
+    "memberId": "Member ID",
+    "resolveHandoff": "Resolve handoff?"
+  },
+  "magicline": {
+    "syncNotStarted": "Sync not yet started",
+    "allEnriched": "All members already enriched",
+    "syncFailed": "Sync failed",
+    "syncDescription": "Load visit and booking data for all members",
+    "enrichAll": "Enrich All",
+    "adoption": "ARIIA Adoption",
+    "adoptionSubtitle": "Magicline members who have used ARIIA",
+    "usersActive": "Users active",
+    "platformVerification": "Platform & Verification",
+    "platformSubtitle": "Active chat sessions by channel and status",
+    "noSessions": "No chat sessions available yet.",
+    "languageDistribution": "Language Distribution",
+    "languageSubtitle": "Preferred language of members",
+    "noLanguageData": "No language data available.",
+    "memberStatus": "Member Status",
+    "memberStatusSubtitle": "Active vs. paused members",
+    "noData": "No data.",
+    "dataCoverage": "Data Coverage",
+    "dataCoverageSubtitle": "Members with visit & booking data"
+  },
+  "analytics": {
+    "weeklyOverview": "Weekly Overview",
+    "weeklySubtitle": "Tickets & resolution rate (last 7 days)",
+    "satisfaction": "Member Satisfaction",
+    "satisfactionSubtitle": "Feedback after AI interactions",
+    "noFeedback": "No feedback available yet",
+    "avgRating": "Average Rating",
+    "basedOn": "Based on {{count}} ratings",
+    "channelPerformance": "Channel Performance",
+    "channelSubtitle": "Comparison of support channels (30 days)"
+  },
+  "conversations": {
+    "search": "Search conversations...",
+    "backToList": "Back to list",
+    "helpful": "Helpful",
+    "notHelpful": "Not helpful"
+  },
+  "dashboard": {
+    "governanceMode": "Platform Governance Mode",
+    "uptime": "Platform Uptime",
+    "distribution": "Tenant Distribution",
+    "distributionSubtitle": "Active vs. Inactive",
+    "infrastructure": "Infrastructure Status",
+    "coreServices": "SaaS Core Services",
+    "redis": "Redis Cache",
+    "vector": "Vector Engine",
+    "qdrant": "Qdrant Online",
+    "auth": "Auth Service",
+    "events": "Recent Platform Events",
+    "auditTrail": "Audit Trail (System-wide)",
+    "noEvents": "No events found.",
+    "initializing": "Initializing Dashboard...",
+    "loadError": "Error loading data.",
+    "analyticsHint": "Use the \"Analytics\" menu item for detailed evaluations."
+  },
+  "tiptap": {
+    "toolbar": "Text Editor Toolbar",
+    "bold": "Bold",
+    "italic": "Italic",
+    "heading1": "Heading 1",
+    "heading2": "Heading 2",
+    "bulletList": "Bullet List",
+    "orderedList": "Ordered List",
+    "quote": "Quote",
+    "undo": "Undo",
+    "redo": "Redo"
+  },
+  "automation": {
+    "title": "Automation",
+    "subtitle": "Schedule and LLM extraction for daily Member-Memory analysis.",
+    "lastRun": "Last Run",
+    "schedulerActive": "Scheduler Active",
+    "schedulerDesc": "Enables daily execution according to cron expression.",
+    "cronExpression": "Cron Expression (UTC)",
+    "every12h": "Every 12h",
+    "extractionDesc": "Enables profile creation from chat history.",
+    "extractionActive": "LLM Extraction Active",
+    "noRun": "No run yet."
+  },
+  "users": {
+    "roles": {
+      "systemAdmin": "System Admin",
+      "tenantAdmin": "Tenant Admin",
+      "tenantUser": "Tenant User"
+    },
+    "reasonError": "Please provide a understandable reason with at least 8 characters.",
+    "tenantAdmins": "Tenant Admins",
+    "systemAdmins": "System Admins",
+    "createUser": "Create New User",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "saving": "Saving...",
+    "searchPlaceholder": "Search by email, name or tenant",
+    "allRoles": "All Roles",
+    "allTenants": "All Tenants",
+    "loading": "Loading users...",
+    "noUsers": "No users for the current filter.",
+    "selectAll": "All selected",
+    "running": "Running...",
+    "noAudit": "No audit events found.",
+    "ghostMode": "Start Ghost Mode",
+    "ghostReason": "e.g. Support case #4812: User cannot save settings",
+    "editUser": "Edit User",
+    "passwordReset": "Password Reset (optional)",
+    "newPassword": "New Password (optional)"
+  },
+  "ui": {
+    "noData": "No data"
   }
 }

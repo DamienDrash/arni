@@ -18,6 +18,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { MiniButton } from "@/components/ui/MiniButton";
 import { getStoredUser } from "@/lib/auth";
 import { buildChatAnalyticsFromHistory, buildSystemAnalytics } from "@/lib/chat-analytics";
+import { useI18n } from "@/lib/i18n/LanguageContext";
 
 // ── Shared UI Components ───────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ function KpiCard({ label, value, icon, color, trend }: any) {
 // ── System Admin Dashboard View ───────────────────────────────────────────────
 
 function SystemDashboard({ data, onRefresh, refreshing }: any) {
+  const { t } = useI18n();
   const tenantData = [
     { name: "Aktiv", value: data.activeTenants, color: T.success },
     { name: "Inaktiv", value: data.totalTenants - data.activeTenants, color: T.danger },
@@ -56,24 +58,24 @@ function SystemDashboard({ data, onRefresh, refreshing }: any) {
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderRadius: 12, background: `${T.accent}15`, border: `1px solid ${T.accent}33` }}>
         <ShieldCheck size={18} color={T.accent} />
         <div style={{ flex: 1 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Platform Governance Mode</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{t("dashboard.governanceMode")}</span>
           <span style={{ fontSize: 12, color: T.textMuted, marginLeft: 16 }}>
-            Version {data.engineVersion} · {data.totalTenants} Tenants registriert
+            Version {data.engineVersion} · {data.totalTenants} {t("sidebar.tenants")} registriert
           </span>
         </div>
         <Badge variant="info">SYSTEM</Badge>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Total Tenants" value={data.totalTenants} icon={<Building2 size={18}/>} color={T.accent} />
-        <KpiCard label="Total Users" value={data.totalUsers} icon={<Users size={18}/>} color={T.info} />
-        <KpiCard label="Platform Uptime" value="99.9%" icon={<Activity size={18}/>} color={T.success} />
-        <KpiCard label="System Status" value="Healthy" icon={<Server size={18}/>} color={T.success} />
+        <KpiCard label={t("tenants.stats.total")} value={data.totalTenants} icon={<Building2 size={18}/>} color={T.accent} />
+        <KpiCard label={t("tenants.stats.users")} value={data.totalUsers} icon={<Users size={18}/>} color={T.info} />
+        <KpiCard label={t("dashboard.uptime")} value="99.9%" icon={<Activity size={18}/>} color={T.success} />
+        <KpiCard label={t("common.status")} value="Healthy" icon={<Server size={18}/>} color={T.success} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card style={{ padding: 24 }}>
-          <SectionHeader title="Tenant Distribution" subtitle="Active vs. Inactive" />
+          <SectionHeader title={t("dashboard.distribution")} subtitle={t("dashboard.distributionSubtitle")} />
           <div style={{ height: 200 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -95,7 +97,7 @@ function SystemDashboard({ data, onRefresh, refreshing }: any) {
         </Card>
 
         <Card style={{ padding: 24, flex: 1 }} className="lg:col-span-2">
-          <SectionHeader title="Infrastructure Status" subtitle="SaaS Core Services" />
+          <SectionHeader title={t("dashboard.infrastructure")} subtitle={t("dashboard.coreServices")} />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 10 }}>
              <div style={{ padding: 16, borderRadius: 12, background: T.surfaceAlt, border: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 12 }}>
                 <Database size={20} color={T.success} />
@@ -107,21 +109,21 @@ function SystemDashboard({ data, onRefresh, refreshing }: any) {
              <div style={{ padding: 16, borderRadius: 12, background: T.surfaceAlt, border: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 12 }}>
                 <Activity size={20} color={T.success} />
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Redis Cache</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{t("dashboard.redis")}</div>
                   <div style={{ fontSize: 11, color: T.success }}>Connected · 2ms lat.</div>
                 </div>
              </div>
              <div style={{ padding: 16, borderRadius: 12, background: T.surfaceAlt, border: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 12 }}>
                 <Cpu size={20} color={T.info} />
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Vector Engine</div>
-                  <div style={{ fontSize: 11, color: T.info }}>Qdrant Online</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{t("dashboard.vector")}</div>
+                  <div style={{ fontSize: 11, color: T.info }}>{t("dashboard.qdrant")}</div>
                 </div>
              </div>
              <div style={{ padding: 16, borderRadius: 12, background: T.surfaceAlt, border: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 12 }}>
                 <ShieldCheck size={20} color={T.success} />
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Auth Service</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{t("dashboard.auth")}</div>
                   <div style={{ fontSize: 11, color: T.success }}>JWKS Active</div>
                 </div>
              </div>
@@ -131,8 +133,8 @@ function SystemDashboard({ data, onRefresh, refreshing }: any) {
 
       <Card style={{ padding: 24 }}>
         <SectionHeader 
-          title="Recent Platform Events" 
-          subtitle="Audit Trail (System-wide)" 
+          title={t("dashboard.events")} 
+          subtitle={t("dashboard.auditTrail")} 
           action={
             <MiniButton onClick={onRefresh}>
               <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} /> Update
@@ -141,7 +143,7 @@ function SystemDashboard({ data, onRefresh, refreshing }: any) {
         />
         <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
           {data.recentAudit.length === 0 ? (
-            <div style={{ padding: 20, textAlign: "center", color: T.textDim, fontSize: 13 }}>Keine Ereignisse vorhanden.</div>
+            <div style={{ padding: 20, textAlign: "center", color: T.textDim, fontSize: 13 }}>{t("dashboard.noEvents")}</div>
           ) : data.recentAudit.map((row: any) => (
             <div key={row.id} style={{ padding: "12px 16px", borderRadius: 10, background: T.surfaceAlt, border: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -160,6 +162,7 @@ function SystemDashboard({ data, onRefresh, refreshing }: any) {
 // ── Main Dashboard Page ───────────────────────────────────────────────────────
 
 export function DashboardPage() {
+  const { t } = useI18n();
   const [tenantData, setTenantData] = useState<any>(null);
   const [systemData, setSystemData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -190,7 +193,7 @@ export function DashboardPage() {
   useEffect(() => { void load(); }, [load]);
 
   if (loading) {
-    return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: T.textDim, fontSize: 13 }}>Initialisiere Dashboard…</div>;
+    return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: T.textDim, fontSize: 13 }}>{t("dashboard.initializing")}</div>;
   }
 
   if (isSystemAdmin && systemData) {
@@ -205,12 +208,13 @@ export function DashboardPage() {
     );
   }
 
-  return <div style={{ padding: 40, textAlign: "center", color: T.textDim }}>Fehler beim Laden der Daten.</div>;
+  return <div style={{ padding: 40, textAlign: "center", color: T.textDim }}>{t("dashboard.loadError")}</div>;
 }
 
 // ── Sub-view for Tenant Dashboard (The original implementation) ────────────────
 
 function TenantDashboardView({ data, onRefresh, refreshing }: any) {
+  const { t } = useI18n();
   const overview = data.overview;
   const kpis = [
     { label: "Tickets (24h)", value: String(overview.tickets_24h), color: T.info, icon: <MessageSquare size={18}/> },
@@ -223,7 +227,7 @@ function TenantDashboardView({ data, onRefresh, refreshing }: any) {
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderRadius: 12, background: T.successDim, border: `1px solid rgba(0,214,143,0.2)` }}>
         <div style={{ width: 8, height: 8, borderRadius: 4, background: T.success }} />
-        <div style={{ flex: 1 }}><span style={{ fontSize: 13, fontWeight: 600, color: T.success }}>Alle Systeme online</span></div>
+        <div style={{ flex: 1 }}><span style={{ fontSize: 13, fontWeight: 600, color: T.success }}>{t("common.allSystemsOnline")}</span></div>
         <Badge variant="success">LIVE</Badge>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -231,7 +235,7 @@ function TenantDashboardView({ data, onRefresh, refreshing }: any) {
       </div>
       <Card style={{ padding: 24 }}>
         <SectionHeader title="Letzte Tickets" subtitle="Kürzliche Konversationen" action={<MiniButton onClick={onRefresh}><RefreshCw size={12} className={refreshing ? "animate-spin" : ""}/> Update</MiniButton>} />
-        <div style={{ fontSize: 12, color: T.textDim, marginTop: 10 }}>Nutze den Menüpunkt "Analytics" für detaillierte Auswertungen.</div>
+        <div style={{ fontSize: 12, color: T.textDim, marginTop: 10 }}>{t("dashboard.analyticsHint")}</div>
       </Card>
     </div>
   );

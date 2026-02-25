@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Stat } from "@/components/ui/Stat";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { useI18n } from "@/lib/i18n/LanguageContext";
 
 type MembersStats = {
   total_members: number;
@@ -51,6 +52,7 @@ const LANG_COLORS: Record<string, string> = {
 };
 
 export function MagiclinePage() {
+  const { t } = useI18n();
   const [stats, setStats] = useState<MembersStats | null>(null);
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
   const [chats, setChats] = useState<ChatSession[]>([]);
@@ -177,7 +179,7 @@ export function MagiclinePage() {
           </h3>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, color: T.textMuted }}>
-              {lastSync ? `Letzter Sync: ${lastSync}` : "Noch kein Sync gestartet"}
+              {lastSync ? `${t("magicline.lastSync")}: ${lastSync}` : t("magicline.syncNotStarted")}
             </span>
             {syncResult && (
               <>
@@ -190,16 +192,16 @@ export function MagiclinePage() {
               <Badge variant="accent" size="xs">{enrichEnqueued} zur Anreicherung eingereiht (~{enrichMinutes} Min)</Badge>
             )}
             {enrichAllDone && enrichEnqueued === 0 && (
-              <Badge variant="success" size="xs">Alle Mitglieder bereits angereichert</Badge>
+              <Badge variant="success" size="xs">{t("magicline.allEnriched")}</Badge>
             )}
-            {syncError && <Badge variant="danger" size="xs">Sync fehlgeschlagen</Badge>}
+            {syncError && <Badge variant="danger" size="xs">{t("magicline.syncFailed")}</Badge>}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           <button
             onClick={triggerEnrichAll}
             disabled={isEnrichingAll || !connected}
-            title="Besuchs- und Buchungsdaten für alle Mitglieder laden"
+            title={t("magicline.syncDescription")}
             style={{
               display: "flex", alignItems: "center", gap: 7,
               padding: "9px 16px", borderRadius: 9, border: `1px solid ${T.border}`,
@@ -211,7 +213,7 @@ export function MagiclinePage() {
             }}
           >
             <Zap size={13} style={{ animation: isEnrichingAll ? "spin 1s linear infinite" : "none" }} />
-            {isEnrichingAll ? "Anreichern…" : enrichAllDone ? "Gestartet" : "Alle anreichern"}
+            {isEnrichingAll ? "Anreichern…" : enrichAllDone ? "Gestartet" : t("magicline.enrichAll")}
           </button>
           <button
             onClick={triggerSync}
@@ -227,7 +229,7 @@ export function MagiclinePage() {
             }}
           >
             <RefreshCw size={13} style={{ animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
-            {isSyncing ? "Syncing…" : "Synchronisieren"}
+            {isSyncing ? "Syncing…" : t("sidebar.sync")}
           </button>
         </div>
       </div>
@@ -257,8 +259,8 @@ export function MagiclinePage() {
         {/* Left: ARIIA Adoption */}
         <Card style={{ padding: 24 }}>
           <SectionHeader
-            title="ARIIA-Adoption"
-            subtitle="Magicline-Mitglieder die ARIIA je genutzt haben"
+            title={t("magicline.adoption")}
+            subtitle={t("magicline.adoptionSubtitle")}
           />
           <div style={{ marginTop: 12 }}>
             {/* Big numbers */}
@@ -267,7 +269,7 @@ export function MagiclinePage() {
                 <div style={{ fontSize: 28, fontWeight: 800, color: T.accent, letterSpacing: "-0.03em", lineHeight: 1 }}>
                   {isLoading ? "–" : activeUsers.toLocaleString("de")}
                 </div>
-                <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>Nutzer aktiv</div>
+                <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>{t("magicline.usersActive")}</div>
               </div>
               <div style={{ width: 1, background: T.border }} />
               <div>
@@ -295,13 +297,13 @@ export function MagiclinePage() {
         {/* Right: Platform & Verification */}
         <Card style={{ padding: 24 }}>
           <SectionHeader
-            title="Plattform & Verifikation"
-            subtitle="Aktive Chat-Sessions nach Kanal und Status"
+            title={t("magicline.platformVerification")}
+            subtitle={t("magicline.platformSubtitle")}
           />
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 16 }}>
 
             {total === 0 && !isLoading ? (
-              <div style={{ fontSize: 13, color: T.textDim, padding: "12px 0" }}>Noch keine Chat-Sessions vorhanden.</div>
+              <div style={{ fontSize: 13, color: T.textDim, padding: "12px 0" }}>{t("magicline.noSessions")}</div>
             ) : (
               <>
                 {/* Platform breakdown */}
@@ -353,7 +355,7 @@ export function MagiclinePage() {
 
         {/* Language distribution */}
         <Card style={{ padding: 24 }}>
-          <SectionHeader title="Sprachverteilung" subtitle="Bevorzugte Sprache der Mitglieder" />
+          <SectionHeader title={t("magicline.languageDistribution")} subtitle={t("magicline.languageSubtitle")} />
           <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
             {enrichmentStats && enrichmentStats.total > 0 ? (() => {
               const langs = enrichmentStats.languages;
@@ -379,7 +381,7 @@ export function MagiclinePage() {
               });
             })() : (
               <div style={{ fontSize: 13, color: T.textDim, padding: "12px 0" }}>
-                {isLoading ? "Laden…" : "Keine Sprachdaten verfügbar."}
+                {isLoading ? t("common.loading") : t("magicline.noLanguageData")}
               </div>
             )}
           </div>
@@ -387,7 +389,7 @@ export function MagiclinePage() {
 
         {/* Member status: paused */}
         <Card style={{ padding: 24 }}>
-          <SectionHeader title="Mitgliederstatus" subtitle="Aktive vs. pausierte Mitglieder" />
+          <SectionHeader title={t("magicline.memberStatus")} subtitle={t("magicline.memberStatusSubtitle")} />
           <div style={{ marginTop: 14 }}>
             {enrichmentStats ? (() => {
               const total = enrichmentStats.total;
@@ -400,12 +402,12 @@ export function MagiclinePage() {
                   <div style={{ display: "flex", gap: 12, marginBottom: 18 }}>
                     <div style={{ flex: 1, padding: "12px 14px", borderRadius: 10, background: T.successDim, border: `1px solid ${T.success}30` }}>
                       <div style={{ fontSize: 22, fontWeight: 800, color: T.success, lineHeight: 1 }}>{active.toLocaleString("de")}</div>
-                      <div style={{ fontSize: 11, color: T.textMuted, marginTop: 3 }}>Aktiv</div>
+                      <div style={{ fontSize: 11, color: T.textMuted, marginTop: 3 }}>{t("common.active")}</div>
                       <div style={{ fontSize: 11, color: T.success, fontWeight: 600, marginTop: 1 }}>{activePct}%</div>
                     </div>
                     <div style={{ flex: 1, padding: "12px 14px", borderRadius: 10, background: T.warningDim, border: `1px solid ${T.warning}30` }}>
                       <div style={{ fontSize: 22, fontWeight: 800, color: T.warning, lineHeight: 1 }}>{paused.toLocaleString("de")}</div>
-                      <div style={{ fontSize: 11, color: T.textMuted, marginTop: 3 }}>Pausiert</div>
+                      <div style={{ fontSize: 11, color: T.textMuted, marginTop: 3 }}>{t("common.paused")}</div>
                       <div style={{ fontSize: 11, color: T.warning, fontWeight: 600, marginTop: 1 }}>{pausedPct}%</div>
                     </div>
                   </div>
@@ -414,7 +416,7 @@ export function MagiclinePage() {
               );
             })() : (
               <div style={{ fontSize: 13, color: T.textDim, padding: "12px 0" }}>
-                {isLoading ? "Laden…" : "Keine Daten."}
+                {isLoading ? t("common.loading") : t("magicline.noData")}
               </div>
             )}
           </div>
@@ -422,7 +424,7 @@ export function MagiclinePage() {
 
         {/* Enrichment coverage */}
         <Card style={{ padding: 24 }}>
-          <SectionHeader title="Daten-Abdeckung" subtitle="Mitglieder mit Besuchs- & Buchungsdaten" />
+          <SectionHeader title={t("magicline.dataCoverage")} subtitle={t("magicline.dataCoverageSubtitle")} />
           <div style={{ marginTop: 14 }}>
             {enrichmentStats ? (() => {
               const total = enrichmentStats.total;
@@ -454,7 +456,7 @@ export function MagiclinePage() {
               );
             })() : (
               <div style={{ fontSize: 13, color: T.textDim, padding: "12px 0" }}>
-                {isLoading ? "Laden…" : "Keine Daten."}
+                {isLoading ? t("common.loading") : t("magicline.noData")}
               </div>
             )}
           </div>

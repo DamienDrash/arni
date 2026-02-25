@@ -9,6 +9,7 @@ import { T } from "@/lib/tokens";
 import { getStoredUser, setStoredUser, type AuthUser } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import { withBasePath } from "@/lib/base-path";
+import { useI18n } from "@/lib/i18n/LanguageContext";
 
 type UserRow = {
   id: number;
@@ -54,13 +55,14 @@ const inputStyle: React.CSSProperties = {
   outline: "none",
 };
 
-function roleBadge(role: UserRow["role"]) {
-  if (role === "system_admin") return <Badge variant="danger" size="xs">System Admin</Badge>;
-  if (role === "tenant_admin") return <Badge variant="accent" size="xs">Tenant Admin</Badge>;
-  return <Badge size="xs">Tenant User</Badge>;
+function roleBadge(role: UserRow["role"], t: any) {
+  if (role === "system_admin") return <Badge variant="danger" size="xs">{t("users.roles.systemAdmin")}</Badge>;
+  if (role === "tenant_admin") return <Badge variant="accent" size="xs">{t("users.roles.tenantAdmin")}</Badge>;
+  return <Badge size="xs">{t("users.roles.tenantUser")}</Badge>;
 }
 
 export default function UsersPage() {
+  const { t } = useI18n();
   const [rows, setRows] = useState<UserRow[]>([]);
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [error, setError] = useState("");
@@ -318,21 +320,21 @@ export default function UsersPage() {
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12 }}>
-        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>Gesamt</div><div style={{ fontSize: 26, color: T.text, fontWeight: 800 }}>{stats.total}</div></Card>
-        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>Aktiv</div><div style={{ fontSize: 26, color: T.success, fontWeight: 800 }}>{stats.active}</div></Card>
-        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>Tenant Admins</div><div style={{ fontSize: 26, color: T.accent, fontWeight: 800 }}>{stats.tenantAdmins}</div></Card>
-        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>System Admins</div><div style={{ fontSize: 26, color: T.warning, fontWeight: 800 }}>{stats.systemAdmins}</div></Card>
+        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>{t("common.details")}</div><div style={{ fontSize: 26, color: T.text, fontWeight: 800 }}>{stats.total}</div></Card>
+        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>{t("common.active")}</div><div style={{ fontSize: 26, color: T.success, fontWeight: 800 }}>{stats.active}</div></Card>
+        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>{t("users.tenantAdmins")}</div><div style={{ fontSize: 26, color: T.accent, fontWeight: 800 }}>{stats.tenantAdmins}</div></Card>
+        <Card style={{ padding: 14 }}><div style={{ fontSize: 11, color: T.textDim }}>{t("users.systemAdmins")}</div><div style={{ fontSize: 26, color: T.warning, fontWeight: 800 }}>{stats.systemAdmins}</div></Card>
       </div>
 
       <Card style={{ padding: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <UserPlus size={15} color={T.accent} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Neuen Benutzer anlegen</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{t("users.createUser")}</span>
         </div>
         <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
-          <input style={inputStyle} placeholder="E-Mail" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input style={inputStyle} placeholder="Passwort" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <input style={inputStyle} placeholder="Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          <input style={inputStyle} placeholder={t("users.email")} value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input style={inputStyle} placeholder={t("users.password")} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input style={inputStyle} placeholder={t("users.name")} value={fullName} onChange={(e) => setFullName(e.target.value)} />
           <select style={inputStyle} value={role} onChange={(e) => setRole(e.target.value as UserRow["role"])}>
             <option value="tenant_user">tenant_user</option>
             <option value="tenant_admin">tenant_admin</option>
@@ -344,7 +346,7 @@ export default function UsersPage() {
             </select>
           )}
           <button onClick={createUser} disabled={saving} style={{ borderRadius: 10, border: "none", background: T.accent, color: "#061018", fontWeight: 700, padding: "10px 12px", cursor: "pointer" }}>
-            {saving ? "Speichern..." : "User anlegen"}
+            {saving ? t("users.saving") : t("users.createUser")}
           </button>
         </div>
         {error && <div style={{ marginTop: 8, fontSize: 12, color: T.danger }}>{error}</div>}
@@ -422,7 +424,7 @@ export default function UsersPage() {
                     </div>
                   </div>
                 </td>
-                <td style={{ padding: "10px 12px" }}>{roleBadge(r.role)}</td>
+                <td style={{ padding: "10px 12px" }}>{roleBadge(r.role, t)}</td>
                 <td style={{ padding: "10px 12px", fontSize: 12, color: T.text }}>{r.tenant_name || r.tenant_slug || r.tenant_id}</td>
                 <td style={{ padding: "10px 12px" }}>{r.is_active ? <Badge variant="success" size="xs">active</Badge> : <Badge variant="warning" size="xs">inactive</Badge>}</td>
                 <td style={{ padding: "10px 12px", fontSize: 12, color: T.textDim }}>{r.created_at ? new Date(r.created_at).toLocaleString("de-DE") : "-"}</td>
@@ -488,7 +490,7 @@ export default function UsersPage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 <div>
                   <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase" }}>Rolle</div>
-                  <div style={{ marginTop: 4 }}>{roleBadge(r.role)}</div>
+                  <div style={{ marginTop: 4 }}>{roleBadge(r.role, t)}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase" }}>Tenant</div>

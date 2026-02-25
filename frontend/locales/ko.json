@@ -1,14 +1,14 @@
 {
   "common": {
-    "welcome": "Bem-vindo à ARIIA",
-    "dashboard": "Painel",
-    "settings": "Configurações",
-    "login": "Entrar",
-    "register": "Registrar",
-    "logout": "Sair",
-    "save": "Salvar",
-    "cancel": "Cancelar",
-    "loading": "Carregando...",
+    "welcome": "Welcome to ARIIA",
+    "dashboard": "Dashboard",
+    "settings": "Settings",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading...",
     "edit": "Edit",
     "delete": "Delete",
     "confirmed": "Success",
@@ -16,14 +16,14 @@
     "active": "Active",
     "paused": "Paused",
     "days": "Days",
-    "features": "Funcionalidades",
-    "featuresTitle": "Descobrir funções",
-    "pricing": "Preços",
-    "dsgvo": "Conforme RGPD",
+    "features": "Features",
+    "featuresTitle": "All Features",
+    "pricing": "Pricing",
+    "dsgvo": "GDPR Compliant",
     "madeInGermany": "Made in Germany",
-    "enterpriseReady": "Enterprise-Ready",
-    "allSystemsOnline": "Todos os sistemas online",
-    "membersSynced": "180 membros sincronizados",
+    "enterpriseReady": "Enterprise Ready",
+    "allSystemsOnline": "All systems online",
+    "membersSynced": "Members synced",
     "details": "Details",
     "noEntries": "No entries found",
     "search": "Search",
@@ -110,8 +110,8 @@
         "localeHint": "Primary language of your studio members",
         "timezoneHint": "Studio local time"
       },
-      "title": "Account & Profile",
-      "subtitle": "Personal data and security.",
+      "title": "Account Settings",
+      "subtitle": "Manage your personal profile and security",
       "placeholders": {
         "fullName": "John Doe",
         "locale": "en-US",
@@ -154,12 +154,12 @@
         "maintenance": "Maintenance Mode",
         "maintenanceDesc": "Restrict access during updates"
       },
-      "title": "Platform Core",
-      "subtitle": "Governance and security."
+      "title": "General Settings",
+      "subtitle": "Core system parameters and governance"
     },
     "ai": {
       "title": "AI Configuration",
-      "subtitle": "Tweak the behavior of your AI agents",
+      "subtitle": "Manage LLM providers and model parameters",
       "addProvider": "Add Provider",
       "editProvider": "Edit Provider",
       "newProvider": "New AI Provider",
@@ -192,8 +192,8 @@
         "connectionError": "Could not connect to AI engine"
       }
     },
-    "language": "Idioma",
-    "selectLanguage": "Escolha o seu idioma preferido",
+    "language": "Language",
+    "selectLanguage": "Select Language",
     "billing": {
       "title": "Billing & Subscription",
       "subtitle": "Manage your plan and add-ons."
@@ -206,76 +206,76 @@
       "title": "Custom Prompts",
       "subtitle": "Configure agent personas and behavior."
     },
-    "automation": "Automação",
+    "automation": "Automation",
     "branding": "Branding"
   },
   "navbar": {
-    "login": "Entrar",
-    "register": "Teste grátis"
+    "login": "Login",
+    "register": "Register"
   },
   "hero": {
-    "versionBadge": "Living System Agent v2.0",
-    "title": "O seu assistente de IA para uma",
+    "versionBadge": "Version 2.0 Live",
+    "title": "The intelligent",
     "words": [
-      "inteligente",
-      "pessoal",
-      "automatizada",
-      "escalável"
+      "AI Assistant",
+      "Studio Manager",
+      "Operations Bot",
+      "Sales Agent"
     ],
-    "subtitle": "comunicação com o cliente",
-    "description": "ARIIA responde às solicitações dos clientes via WhatsApp, Telegram e voz, 24 horas por dia, de forma pessoal e inteligente. Para ginásios e PMEs.",
-    "cta": "Teste grátis por 14 dias"
+    "subtitle": "for your fitness studio",
+    "description": "ARIIA automates customer communication via WhatsApp, Telegram, and Voice. Increase your efficiency with Arnold Prime Orchestration.",
+    "cta": "Get Started"
   },
   "stats": {
-    "aiResolution": "Taxa de resolução IA",
-    "responseTime": "Tempo de resposta",
-    "agentsInSwarm": "Agentes IA no Swarm",
-    "availability": "Disponibilidade"
+    "aiResolution": "AI Resolution Rate",
+    "responseTime": "Response Time",
+    "agentsInSwarm": "AI Swarm Agents",
+    "availability": "Availability"
   },
   "features": {
-    "badge": "Funções da plataforma",
-    "title": "Tudo o que o seu negócio",
-    "titleAccent": "precisa",
-    "description": "ARIIA combina tecnologia de IA de ponta com uma plataforma intuitiva, projetada para empresas que desejam transformar a sua comunicação com o cliente.",
+    "badge": "Features",
+    "title": "Everything your studio",
+    "titleAccent": "needs to succeed",
+    "description": "A complete ecosystem of AI agents seamlessly integrated into your existing systems.",
     "swarm": {
-      "title": "Enxame de agentes IA",
-      "desc": "5 agentes especializados (Ops, Sales, Medic, Vision, Persona) trabalham em equipa, orquestrados pelo Project Titan."
+      "title": "Swarm Intelligence",
+      "desc": "Specialized agents (Sales, Medic, Ops) work together to resolve every request."
     },
     "omnichannel": {
-      "title": "Omnicanal",
-      "desc": "WhatsApp, Telegram, voz, chat web: uma única IA, respostas coerentes em todos os canais."
+      "title": "Omnichannel",
+      "desc": "WhatsApp, Telegram, SMS, and Voice. Reach your members where they are."
     },
     "churn": {
-      "title": "Previsão de cancelamento",
-      "desc": "A previsão baseada em ML deteta clientes em risco e sugere medidas proativas."
+      "title": "Churn Prevention",
+      "desc": "AI-driven analysis identifies cancellation risks before they arise."
     },
     "memory": {
-      "title": "Memória de 3 níveis",
-      "desc": "Memória de sessão, semântica e episódica: ARIIA lembra-se de cada cliente e cada interação."
+      "title": "Context Memory",
+      "desc": "ARIIA remembers every interaction and builds real relationships with members."
     },
     "security": {
-      "title": "Segurança Enterprise",
-      "desc": "Conforme o RGPD com Row-Level Security, filtros PII, logs de auditoria e comunicação encriptada."
+      "title": "GDPR & Security",
+      "desc": "Encrypted data storage in Germany and full compliance guarantee."
     },
     "connectors": {
-      "title": "Conectores abertos",
-      "desc": "Magicline, Shopify, WooCommerce, API: conecte qualquer sistema empresarial em minutos."
+      "title": "Deep Integration",
+      "desc": "Direct connection to Magicline, Shopify, and more for real-time handling."
     },
     "page": {
-      "title": "Funcionalidades que transformam o seu",
-      "titleAccent": "negócio",
-      "description": "ARIIA é mais do que um chatbot. É um Living System Agent com 5 agentes IA especializados e segurança de classe empresarial.",
-      "techTitle": "Tecnologia IA Core",
-      "techSubtitle": "O que diferencia a ARIIA dos",
-      "techSubtitleAccent": "chatbots",
-      "deckTitle": "Studio Deck",
-      "deckSubtitle": "O seu",
-      "deckSubtitleAccent": "Centro de Comando",
-      "deckDesc": "O painel Studio Deck oferece controlo total sobre os seus agentes IA, membros e comunicação.",
-      "securityTitle": "Segurança Enterprise",
-      "securitySubtitle": "Segurança de nível",
-      "securitySubtitleAccent": "Enterprise",
-      "securityDesc": "Desenvolvido de raiz para o mercado europeu. Cada linha de dados é isolada por Row-Level Security."
+      "title": "Next-Gen",
+      "titleAccent": "Studio Intelligence",
+      "description": "ARIIA is more than a chatbot. It is a swarm of specialized AI agents that understand your studio and your members.",
+      "techTitle": "Deep",
+      "techSubtitle": "Technology",
+      "techSubtitleAccent": "Stack",
+      "deckTitle": "Studio",
+      "deckSubtitle": "Control",
+      "deckSubtitleAccent": "Deck",
+      "deckDesc": "A central dashboard to monitor every AI interaction and manage your studio settings in real-time.",
+      "securityTitle": "Enterprise",
+      "securitySubtitle": "Security &",
+      "securitySubtitleAccent": "Compliance",
+      "securityDesc": "Your data is hosted in Germany, fully encrypted, and 100% GDPR compliant."
     },
     "platform": {
       "live": {
@@ -339,27 +339,27 @@
     }
   },
   "cta": {
-    "title": "Pronto para transformar a sua comunicação com o",
-    "titleAccent": "cliente",
-    "subtitle": "Comece agora o seu teste grátis de 14 dias. Sem riscos, sem cartão de crédito.",
-    "button": "Começar grátis agora",
-    "compare": "Comparar planos"
+    "title": "Ready for the future of",
+    "titleAccent": "studio automation",
+    "subtitle": "Join over 50 fitness studios already growing with ARIIA.",
+    "button": "Create Free Account",
+    "compare": "Compare Pricing"
   },
   "footer": {
-    "brandDesc": "Comunicação com o cliente assistida por IA para ginásios, treinadores e PMEs. Made in Germany.",
-    "product": "Produto",
-    "company": "Empresa",
-    "contact": "Contacto",
+    "brandDesc": "The evolution of studio operations. Agentic Multi-Tenant SaaS Platform.",
+    "product": "Product",
+    "company": "Company",
+    "contact": "Contact",
     "links": {
-      "features": "Funcionalidades",
-      "pricing": "Preços",
-      "test": "Teste grátis",
-      "impressum": "Aviso legal",
-      "datenschutz": "Privacidade",
-      "agb": "Termos",
-      "enterprise": "Consultas Enterprise"
+      "features": "Features",
+      "pricing": "Pricing",
+      "test": "Start Free Trial",
+      "impressum": "Imprint",
+      "datenschutz": "Privacy Policy",
+      "agb": "Terms of Service",
+      "enterprise": "Enterprise Contact"
     },
-    "rights": "Todos os direitos reservados."
+    "rights": "All rights reserved."
   },
   "tenants": {
     "stats": {
@@ -583,80 +583,80 @@
     }
   },
   "audit": {
-    "title": "Log de Auditoria",
-    "subtitle": "Conformidade e trilha de auditoria",
+    "title": "감사 로그",
+    "subtitle": "규정 준수 및 감사 내역",
     "filters": {
-      "category": "Categoria",
-      "allCategories": "Todas as categorias",
-      "actionType": "Tipo de ação",
-      "allActions": "Todas as ações",
-      "initiatedBy": "Iniciado por",
-      "allUsers": "Todos os usuários",
-      "systemInternal": "Interno do sistema",
-      "timeRange": "Intervalo de tempo",
-      "from": "De",
-      "to": "Até",
-      "clearFilters": "Limpar filtros",
-      "exportCsv": "Exportar CSV"
+      "category": "카테고리",
+      "allCategories": "모든 카테고리",
+      "actionType": "작업 유형",
+      "allActions": "모든 작업",
+      "initiatedBy": "수행자",
+      "allUsers": "모든 사용자",
+      "systemInternal": "시스템 내부",
+      "timeRange": "시간 범위",
+      "from": "시작",
+      "to": "종료",
+      "clearFilters": "필터 초기화",
+      "exportCsv": "CSV 내보내기"
     },
-    "search": "Buscar por ação, e-mail...",
+    "search": "작업, 이메일 검색...",
     "sort": {
-      "newest": "Mais recente",
-      "oldest": "Mais antigo"
+      "newest": "최신순",
+      "oldest": "오래된순"
     },
     "table": {
-      "timestamp": "Timestamp",
-      "actor": "Ator",
-      "operation": "Operação",
-      "target": "Alvo",
-      "details": "Detalhes",
-      "fetching": "Buscando...",
-      "viewDiff": "Ver Diff"
+      "timestamp": "타임스탬프",
+      "actor": "수행자",
+      "operation": "작업",
+      "target": "대상",
+      "details": "상세 정보",
+      "fetching": "가져오는 중...",
+      "viewDiff": "변경사항 보기"
     },
     "modal": {
-      "title": "Audit Event Details",
-      "actorIdentity": "Actor Identity",
-      "targetResource": "Target Resource",
-      "changeSummary": "Change Summary"
+      "title": "감사 이벤트 상세",
+      "actorIdentity": "수행자 식별",
+      "targetResource": "대상 리소스",
+      "changeSummary": "변경 요약"
     }
   },
   "knowledge": {
-    "title": "Base de Conhecimento",
-    "documents": "Documentos",
-    "noDocuments": "Nenhum documento.",
-    "newDocument": "Novo documento",
+    "title": "지식 베이스",
+    "documents": "문서",
+    "noDocuments": "문서가 없습니다.",
+    "newDocument": "새 문서",
     "newDocumentPlaceholder": "new-document.md",
-    "viewTenant": "View Tenant:",
-    "indexChunks": "Index Chunks",
-    "lastIngest": "Last Ingest",
-    "reindex": "Reindex",
-    "reindexing": "Reindexing...",
-    "selectFile": "Select a file or create one on the left.",
-    "save": "Salvar",
-    "saving": "Salvando...",
-    "saved": "Salvo",
-    "reasonPlaceholder": "Reason for change (min. 8 chars)",
+    "viewTenant": "테넌트 보기:",
+    "indexChunks": "인덱스 청크",
+    "lastIngest": "마지막 수집",
+    "reindex": "재인덱싱",
+    "reindexing": "재인덱싱 중...",
+    "selectFile": "파일을 선택하세요.",
+    "save": "저장",
+    "saving": "저장 중...",
+    "saved": "저장됨",
+    "reasonPlaceholder": "사유(8자 이상)",
     "reasonError": "Please provide a reason for the change (min. 8 chars).",
-    "conflict": "Conflict detected",
+    "conflict": "충돌 감지",
     "conflictError": "The file has been modified in the meantime. Please reload or overwrite.",
     "ingestError": "Ingest Error: {{error}}",
     "autosaving": "Autosaving...",
     "autosaved": "Autosave saved",
-    "loading": "Loading...",
-    "loaded": "Loaded",
+    "loading": "로딩 중...",
+    "loaded": "로드됨",
     "draftCreated": "New file created as draft. Please save."
   },
   "register": {
-    "title": "Registro",
-    "subtitle": "Criar novo tenant e administrador.",
-    "tenantName": "Tenant Name (e.g. Test-Studio)",
+    "title": "회원가입",
+    "subtitle": "새 테넌트 및 관리자 생성",
+    "tenantName": "테넌트 이름",
     "tenantSlug": "Tenant Slug (optional)",
-    "email": "Email",
+    "email": "이메일",
     "name": "Name (optional)",
-    "password": "Password (min. 8 characters)",
-    "button": "Registrar",
-    "waiting": "Aguarde...",
-    "backToLogin": "Back to Login"
+    "password": "비밀번호",
+    "button": "테넌트 등록",
+    "waiting": "잠시만 기다려주세요...",
+    "backToLogin": "로그인으로 돌아가기"
   },
   "login": {
     "placeholders": {
@@ -731,22 +731,22 @@
     "notHelpful": "Not helpful"
   },
   "dashboard": {
-    "governanceMode": "Platform Governance Mode",
-    "uptime": "Uptime da plataforma",
-    "distribution": "Tenant Distribution",
+    "governanceMode": "거버넌스 모드",
+    "uptime": "가동 시간",
+    "distribution": "테넌트 분포",
     "distributionSubtitle": "Active vs. Inactive",
-    "infrastructure": "Infrastructure Status",
-    "coreServices": "Serviços Core",
-    "redis": "Redis Cache",
-    "vector": "Vector Engine",
-    "qdrant": "Qdrant Online",
-    "auth": "Auth Service",
-    "events": "Eventos recentes",
-    "auditTrail": "Trilha de Auditoria",
-    "noEvents": "No events found.",
-    "initializing": "Initializing Dashboard...",
-    "loadError": "Error loading data.",
-    "analyticsHint": "Use the \"Analytics\" menu item for detailed evaluations."
+    "infrastructure": "인프라 상태",
+    "coreServices": "코어 서비스",
+    "redis": "Redis 캐시",
+    "vector": "벡터 엔진",
+    "qdrant": "Qdrant 온라인",
+    "auth": "인증 서비스",
+    "events": "최근 이벤트",
+    "auditTrail": "감사 추적",
+    "noEvents": "이벤트 없음",
+    "initializing": "대시보드 초기화 중...",
+    "loadError": "데이터 로드 실패",
+    "analyticsHint": "상세 분석은 'Analytics' 메뉴를 이용하세요."
   },
   "tiptap": {
     "toolbar": "Text Editor Toolbar",

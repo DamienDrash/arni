@@ -73,7 +73,7 @@ export default function LoginPage() {
                   type="email"
                   required
                   className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-11 pr-4 py-3.5 text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all"
-                  placeholder="admin@ariia.io"
+                  placeholder={t("login.placeholders.email")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -88,7 +88,7 @@ export default function LoginPage() {
                   type="password"
                   required
                   className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-11 pr-4 py-3.5 text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all"
-                  placeholder="••••••••"
+                  placeholder={t("login.placeholders.password")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
