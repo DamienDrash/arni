@@ -104,7 +104,36 @@ export default function BillingPage() {
     }
   }
 
-  useEffect(() => { loadData(); }, []);
+  // Verify Stripe session on return from checkout
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    const isCheckout = searchParams.get("checkout") === "success";
+
+    if (sessionId && isCheckout) {
+      (async () => {
+        try {
+          const res = await apiFetch("/admin/billing/verify-session", {
+            method: "POST",
+            body: JSON.stringify({ session_id: sessionId }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.plan_activated) {
+              // Plan was activated – reload data to reflect new plan
+              await loadData();
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("verify-session failed", e);
+        }
+        // Fallback: just load data normally
+        loadData();
+      })();
+    } else {
+      loadData();
+    }
+  }, []);
 
   const handleUpgrade = async (slug: string) => {
     setCheckoutLoading(slug);

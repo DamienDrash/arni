@@ -340,6 +340,139 @@ async def create_customer_portal(
     return {"url": portal["url"]}
 
 
+# ── Verify Session (Fallback for Webhook) ────────────────────────────────────
+
+class VerifySessionRequest(BaseModel):
+    session_id: str
+
+@router.post("/billing/verify-session")
+async def verify_checkout_session(
+    req: VerifySessionRequest,
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Verify a Stripe Checkout Session and activate the plan if payment succeeded.
+    
+    This is a fallback mechanism for when the Stripe webhook hasn't fired yet
+    (or is misconfigured). Called by the frontend when the user returns from
+    Stripe Checkout with a session_id in the URL.
+    """
+    _require_billing_access(user)
+    stripe = _get_stripe(user.tenant_id)
+
+    try:
+        session = stripe.checkout.Session.retrieve(req.session_id)
+    except Exception as exc:
+        logger.error("billing.verify_session_failed", error=str(exc))
+        raise HTTPException(status_code=502, detail=f"Stripe-Fehler: {exc}")
+
+    # Verify the session belongs to this tenant
+    meta = session.get("metadata", {})
+    session_tenant_id = meta.get("tenant_id")
+    if session_tenant_id and int(session_tenant_id) != user.tenant_id:
+        raise HTTPException(status_code=403, detail="Session gehört nicht zu diesem Tenant")
+
+    payment_status = session.get("payment_status", "")
+    status = session.get("status", "")
+    session_type = meta.get("type", "plan_upgrade")
+
+    result = {
+        "session_id": req.session_id,
+        "status": status,
+        "payment_status": payment_status,
+        "plan_activated": False,
+    }
+
+    # Only process completed sessions
+    if status != "complete" or payment_status != "paid":
+        result["message"] = "Zahlung noch nicht abgeschlossen"
+        return result
+
+    if session_type == "plan_upgrade":
+        plan_id = meta.get("ariia_plan_id")
+        plan_slug = meta.get("plan_slug")
+        stripe_sub_id = session.get("subscription")
+        stripe_cid = session.get("customer")
+
+        db = SessionLocal()
+        try:
+            sub = db.query(Subscription).filter(
+                Subscription.tenant_id == user.tenant_id
+            ).first()
+
+            if sub:
+                # Check if already activated (by webhook)
+                if sub.stripe_subscription_id == stripe_sub_id and sub.status == "active":
+                    result["plan_activated"] = True
+                    result["message"] = "Plan bereits aktiviert"
+                    return result
+
+                # Activate the plan
+                if plan_id:
+                    sub.plan_id = int(plan_id)
+                sub.status = "active"
+                sub.stripe_subscription_id = stripe_sub_id
+                sub.stripe_customer_id = stripe_cid
+                # Clear trial fields if present
+                if hasattr(sub, 'trial_ends_at'):
+                    sub.trial_ends_at = None
+            else:
+                db.add(Subscription(
+                    tenant_id=user.tenant_id,
+                    plan_id=int(plan_id) if plan_id else 1,
+                    status="active",
+                    stripe_subscription_id=stripe_sub_id,
+                    stripe_customer_id=stripe_cid,
+                ))
+
+            db.commit()
+            result["plan_activated"] = True
+            result["message"] = f"Plan '{plan_slug}' erfolgreich aktiviert"
+            logger.info("billing.verify_session.plan_activated",
+                       tenant_id=user.tenant_id, plan_slug=plan_slug)
+        except Exception as exc:
+            db.rollback()
+            logger.error("billing.verify_session.db_failed", error=str(exc))
+            raise HTTPException(status_code=500, detail="Datenbankfehler bei Plan-Aktivierung")
+        finally:
+            db.close()
+
+    elif session_type == "addon_purchase":
+        addon_slug = meta.get("addon_slug")
+        stripe_sub_id = session.get("subscription")
+        if addon_slug:
+            db = SessionLocal()
+            try:
+                existing = db.query(TenantAddon).filter(
+                    TenantAddon.tenant_id == user.tenant_id,
+                    TenantAddon.addon_slug == addon_slug,
+                    TenantAddon.status == "active",
+                ).first()
+                if not existing:
+                    db.add(TenantAddon(
+                        tenant_id=user.tenant_id,
+                        addon_slug=addon_slug,
+                        stripe_subscription_item_id=stripe_sub_id,
+                        quantity=1,
+                        status="active",
+                    ))
+                    db.commit()
+                result["plan_activated"] = True
+                result["message"] = f"Add-on '{addon_slug}' erfolgreich aktiviert"
+            except Exception as exc:
+                db.rollback()
+                logger.error("billing.verify_session.addon_failed", error=str(exc))
+            finally:
+                db.close()
+
+    _audit(user, "billing.session_verified", {
+        "session_id": req.session_id,
+        "type": session_type,
+        "plan_activated": result["plan_activated"],
+    })
+
+    return result
+
+
 # ── Webhook (raw body, HMAC verification) ─────────────────────────────────────
 
 def _ts_to_dt(ts: int | None) -> datetime | None:
