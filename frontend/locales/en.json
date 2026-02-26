@@ -924,7 +924,7 @@
       "noResults": "No integrations found matching your search."
     },
     "onboarding": {
-      "setupTitle": "Setup {name}",
+      "setupTitle": "Setup {{name}}",
       "next": "Continue",
       "back": "Back",
       "optional": "optional",
