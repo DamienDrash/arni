@@ -1122,8 +1122,9 @@ export default function MembersPage() {
                   />
                 </div>
               </Card>
-            </motion.div>
+            </>
           )}
+          </motion.div>
         </AnimatePresence>
       </motion.div>
     );
