@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import Sidebar from "./Sidebar";
@@ -11,9 +11,34 @@ import styles from "./NavShell.module.css";
 
 export default function NavShell({ children }: { children: React.ReactNode }) {
     const { t, language } = useI18n();
-    const [open, setOpen] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
+
+    // Close mobile drawer on route change
+    useEffect(() => {
+        setMobileOpen(false);
+    }, [pathname]);
+
+    // Prevent body scroll when mobile drawer is open
+    useEffect(() => {
+        if (mobileOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [mobileOpen]);
+
+    const toggleMobile = useCallback(() => {
+        setMobileOpen((prev) => !prev);
+    }, []);
+
+    const closeMobile = useCallback(() => {
+        setMobileOpen(false);
+    }, []);
 
     // DYNAMIC META: Re-evaluates every time the language changes!
     const pageMeta = useMemo(() => ({
@@ -64,14 +89,44 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
 
     return (
         <div className={styles.root}>
+            {/* Desktop Sidebar – hidden on mobile via CSS */}
             <div className={styles.desktopSidebar}>
                 <Sidebar />
             </div>
+
+            {/* Mobile Top Bar – visible only on mobile */}
+            <div className={styles.mobileTopbar}>
+                <button
+                    className={styles.menuButton}
+                    onClick={toggleMobile}
+                    aria-label="Toggle navigation"
+                >
+                    {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+                </button>
+                <span className={styles.brand}>
+                    ARIIA<span className={styles.brandDot}>.</span>
+                </span>
+                <div style={{ width: 34 }} /> {/* Spacer for centering */}
+            </div>
+
+            {/* Mobile Backdrop – click to close */}
+            {mobileOpen && (
+                <div
+                    className={styles.mobileBackdrop}
+                    onClick={closeMobile}
+                    aria-hidden="true"
+                />
+            )}
+
+            {/* Mobile Drawer – slides in from left */}
+            <div
+                className={`${styles.mobileDrawer} ${mobileOpen ? styles.mobileDrawerOpen : styles.mobileDrawerClosed}`}
+            >
+                <Sidebar />
+            </div>
+
+            {/* Main Content */}
             <main className={styles.appMain}>
-                <div className={styles.pageHead}>
-                    <h1 className={styles.pageTitle}>{currentMeta.title}</h1>
-                    <p className={styles.pageSubtitle}>{currentMeta.subtitle}</p>
-                </div>
                 {children}
             </main>
         </div>

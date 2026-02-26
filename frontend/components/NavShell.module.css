@@ -1,3 +1,10 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ─── Desktop Sidebar ─── */
 .desktopSidebar {
   position: fixed;
   left: 0;
@@ -7,26 +14,7 @@
   width: 16rem;
 }
 
-.mobileBackdrop {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: rgba(0, 0, 0, 0.6);
-  transition: opacity 0.3s ease;
-}
-
-.mobileDrawer {
-  display: none;
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  z-index: 50;
-  width: 16rem;
-  transition: transform 0.3s ease;
-}
-
+/* ─── Mobile Top Bar ─── */
 .mobileTopbar {
   display: none;
   position: sticky;
@@ -58,10 +46,64 @@
   cursor: pointer;
   color: var(--ariia-text-muted);
   display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 6px;
   border-radius: 8px;
+  transition: background 0.15s ease;
 }
 
+.menuButton:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.menuButton:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ─── Mobile Backdrop ─── */
+.mobileBackdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ─── Mobile Drawer ─── */
+.mobileDrawer {
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 50;
+  width: 17rem;
+  background: var(--ariia-surface);
+  border-right: 1px solid var(--ariia-border);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobileDrawerOpen {
+  transform: translateX(0);
+}
+
+.mobileDrawerClosed {
+  transform: translateX(-100%);
+}
+
+/* ─── Main Content ─── */
 .appMain {
   margin-left: 16rem;
   min-height: 100vh;
@@ -69,10 +111,7 @@
   padding: 1rem;
 }
 
-.pageHead {
-  margin-bottom: 18px;
-}
-
+/* ─── Ghost Banner (tenant impersonation) ─── */
 .ghostBanner {
   display: flex;
   align-items: center;
@@ -122,15 +161,25 @@
   font-size: 12px;
 }
 
+/* ─── Desktop breakpoint ─── */
 @media (min-width: 768px) {
   .appMain {
     padding: 2rem;
   }
 }
 
+/* ─── Mobile breakpoint ─── */
 @media (max-width: 767px) {
+  .root {
+    flex-direction: column;
+  }
+
   .desktopSidebar {
     display: none;
+  }
+
+  .mobileTopbar {
+    display: flex;
   }
 
   .mobileBackdrop {
@@ -141,16 +190,33 @@
     display: block;
   }
 
-  .mobileTopbar {
-    display: flex;
-  }
-
   .appMain {
     margin-left: 0;
+    padding: 0.75rem;
   }
 
   .ghostBanner {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .pageTitle {
+    font-size: 20px;
+  }
+}
+
+/* ─── Small mobile ─── */
+@media (max-width: 480px) {
+  .mobileTopbar {
+    height: 3rem;
+    padding: 0 0.75rem;
+  }
+
+  .brand {
+    font-size: 18px;
+  }
+
+  .appMain {
+    padding: 0.5rem;
   }
 }
