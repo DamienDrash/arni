@@ -30,7 +30,7 @@ export default function SettingsSubnav() {
       ? tabs.filter((tab) => ["/settings", "/settings/account", "/settings/ai", "/settings/general"].includes(tab.href))
       : role === "tenant_admin"
         ? tabs.filter((tab) =>
-            ["/settings", "/settings/integrations", "/settings/account", "/settings/prompts", "/settings/billing", "/settings/branding"].includes(tab.href)
+            ["/settings", "/settings/integrations", "/settings/account", "/settings/prompts", "/settings/billing", "/settings/branding", "/settings/ai"].includes(tab.href)
           )
         : tabs.filter((tab) => tab.href === "/settings" || tab.href === "/settings/account");
 

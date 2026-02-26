@@ -284,6 +284,19 @@ async def sync_plans_from_stripe(db: Session) -> dict:
             if ariia_type != "plan" or not ariia_slug:
                 continue
 
+            # ── Slug normalization: map common Stripe names to local slugs ──
+            SLUG_ALIASES = {
+                "professional": "pro",
+                "prof": "pro",
+                "starter-plan": "starter",
+                "business-plan": "business",
+                "enterprise-plan": "enterprise",
+            }
+            ariia_slug = SLUG_ALIASES.get(ariia_slug, ariia_slug)
+
+            # Skip if we already processed this slug (prevents duplicates)
+            if ariia_slug in seen_slugs:
+                continue
             seen_slugs.add(ariia_slug)
 
             # Fetch active prices
@@ -297,7 +310,11 @@ async def sync_plans_from_stripe(db: Session) -> dict:
                 elif interval == "year" and not yearly_price:
                     yearly_price = p
 
-            plan = db.query(Plan).filter(Plan.slug == ariia_slug).first()
+            # Also try to find by stripe_product_id first (most reliable)
+            plan = db.query(Plan).filter(Plan.stripe_product_id == prod.id).first()
+            if not plan:
+                plan = db.query(Plan).filter(Plan.slug == ariia_slug).first()
+
             if plan:
                 # Update existing
                 plan.stripe_product_id = prod.id
@@ -308,28 +325,39 @@ async def sync_plans_from_stripe(db: Session) -> dict:
                     plan.stripe_price_yearly_id = yearly_price.id
                     plan.price_yearly_cents = yearly_price.unit_amount or 0
                 plan.is_active = prod.active
-                # Update name only if it was set from Stripe naming convention
-                clean_name = prod.name.replace("ARIIA Plan: ", "").replace("ARIIA ", "").strip()
-                if clean_name:
-                    plan.name = clean_name
-                if prod.description:
+                # Do NOT overwrite name if plan already has a good name from seed
+                # Only update name for plans that were created from Stripe (no seed)
+                if not plan.features_json:
+                    clean_name = prod.name.replace("ARIIA Plan: ", "").replace("ARIIA ", "").strip()
+                    if clean_name:
+                        plan.name = clean_name
+                if prod.description and not plan.description:
                     plan.description = prod.description
                 result["updated"] += 1
             else:
-                # Create new plan from Stripe
-                new_plan = Plan(
-                    name=prod.name.replace("ARIIA Plan: ", "").replace("ARIIA ", "").strip(),
-                    slug=ariia_slug,
-                    description=prod.description or "",
-                    stripe_product_id=prod.id,
-                    stripe_price_id=monthly_price.id if monthly_price else None,
-                    stripe_price_yearly_id=yearly_price.id if yearly_price else None,
-                    price_monthly_cents=monthly_price.unit_amount if monthly_price else 0,
-                    price_yearly_cents=yearly_price.unit_amount if yearly_price else None,
-                    is_active=True,
-                )
-                db.add(new_plan)
-                result["created"] += 1
+                # Create new plan from Stripe — only if slug is not already taken
+                existing_by_slug = db.query(Plan).filter(Plan.slug == ariia_slug).first()
+                if existing_by_slug:
+                    # Update the existing one instead of creating a duplicate
+                    existing_by_slug.stripe_product_id = prod.id
+                    if monthly_price:
+                        existing_by_slug.stripe_price_id = monthly_price.id
+                        existing_by_slug.price_monthly_cents = monthly_price.unit_amount or 0
+                    result["updated"] += 1
+                else:
+                    new_plan = Plan(
+                        name=prod.name.replace("ARIIA Plan: ", "").replace("ARIIA ", "").strip(),
+                        slug=ariia_slug,
+                        description=prod.description or "",
+                        stripe_product_id=prod.id,
+                        stripe_price_id=monthly_price.id if monthly_price else None,
+                        stripe_price_yearly_id=yearly_price.id if yearly_price else None,
+                        price_monthly_cents=monthly_price.unit_amount if monthly_price else 0,
+                        price_yearly_cents=yearly_price.unit_amount if yearly_price else None,
+                        is_active=True,
+                    )
+                    db.add(new_plan)
+                    result["created"] += 1
 
         db.commit()
         logger.info("billing.sync_plans_from_stripe_ok", **result)

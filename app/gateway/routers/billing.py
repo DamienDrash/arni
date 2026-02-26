@@ -352,6 +352,11 @@ def _on_checkout_completed(obj: dict) -> None:
     meta = obj.get("metadata", {})
     tenant_id = meta.get("tenant_id")
     type_ = meta.get("type", "plan_upgrade")
+
+    # Handle token purchases
+    if type_ == "token_purchase" and tenant_id:
+        _on_token_purchase_completed(obj, meta)
+        return
     stripe_sub_id = obj.get("subscription")
     stripe_cid    = obj.get("customer")
     
@@ -645,3 +650,69 @@ async def stripe_webhook(request: Request) -> Response:
         status_code=200,
         media_type="application/json",
     )
+
+
+def _on_token_purchase_completed(obj: dict, meta: dict) -> None:
+    """Handle completed token purchase checkout."""
+    tenant_id = int(meta.get("tenant_id", 0))
+    tokens_amount = int(meta.get("tokens_amount", 0))
+    session_id = obj.get("id")
+
+    if not tenant_id or not tokens_amount:
+        return
+
+    db = SessionLocal()
+    try:
+        from app.core.models import TokenPurchase, UsageRecord
+        from sqlalchemy import text
+        from app.core.db import engine
+        from datetime import datetime, timezone
+
+        # Update purchase record
+        purchase = db.query(TokenPurchase).filter(
+            TokenPurchase.stripe_checkout_session_id == session_id
+        ).first()
+        if purchase:
+            purchase.status = "completed"
+        else:
+            db.add(TokenPurchase(
+                tenant_id=tenant_id,
+                tokens_amount=tokens_amount,
+                price_cents=0,
+                stripe_checkout_session_id=session_id,
+                status="completed",
+            ))
+
+        # Add tokens to usage record
+        now = datetime.now(timezone.utc)
+        dialect = engine.dialect.name
+        if dialect == "postgresql":
+            db.execute(text(
+                "INSERT INTO usage_records (tenant_id, period_year, period_month, llm_tokens_purchased) "
+                "VALUES (:tid, :yr, :mo, :amt) "
+                "ON CONFLICT (tenant_id, period_year, period_month) "
+                "DO UPDATE SET llm_tokens_purchased = usage_records.llm_tokens_purchased + :amt"
+            ), {"tid": tenant_id, "yr": now.year, "mo": now.month, "amt": tokens_amount})
+        else:
+            rec = db.query(UsageRecord).filter(
+                UsageRecord.tenant_id == tenant_id,
+                UsageRecord.period_year == now.year,
+                UsageRecord.period_month == now.month,
+            ).first()
+            if rec:
+                rec.llm_tokens_purchased = (getattr(rec, 'llm_tokens_purchased', 0) or 0) + tokens_amount
+            else:
+                db.add(UsageRecord(
+                    tenant_id=tenant_id,
+                    period_year=now.year,
+                    period_month=now.month,
+                    llm_tokens_purchased=tokens_amount,
+                ))
+
+        db.commit()
+        logger.info("billing.webhook.token_purchase_completed", tenant_id=tenant_id, tokens=tokens_amount)
+    except Exception as exc:
+        db.rollback()
+        logger.error("billing.webhook.token_purchase_failed", error=str(exc))
+    finally:
+        db.close()

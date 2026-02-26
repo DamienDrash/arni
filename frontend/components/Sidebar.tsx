@@ -75,6 +75,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
       title: t("sidebar.sections.studio"),
       items: [
         { name: t("sidebar.sync"), href: "/magicline", icon: Database },
+        { name: "AI-Modelle", href: "/settings/ai", icon: Bot },
         { name: t("sidebar.billing"), href: "/settings/billing", icon: CreditCard },
         { name: t("sidebar.settings"), href: "/settings", icon: Settings },
       ],
@@ -94,6 +95,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
       title: t("sidebar.sections.system"),
       items: [
         { name: t("sidebar.plans"), href: "/plans", icon: CreditCard },
+        { name: "Revenue Analytics", href: "/revenue", icon: BarChart3 },
         { name: t("sidebar.audit"), href: "/audit", icon: ScrollText },
         { name: t("sidebar.settings"), href: "/settings", icon: ShieldCheck },
         { name: t("sidebar.health"), href: "/health", icon: Server },

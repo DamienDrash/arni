@@ -256,6 +256,11 @@ class Plan(Base):
     overage_connector_cents = Column(Integer, default=4900)
     overage_channel_cents = Column(Integer, default=2900)
 
+    # LLM Provider/Model restrictions per plan
+    allowed_llm_providers_json = Column(Text, nullable=True)  # JSON list of provider IDs
+    allowed_llm_models_json = Column(Text, nullable=True)     # JSON list of model IDs (optional fine-grained)
+    token_price_per_1k_cents = Column(Integer, nullable=True, default=10)  # Price for 1K extra tokens
+
     is_active = Column(Boolean, nullable=False, default=True)
     is_public = Column(Boolean, nullable=False, default=True)  # Show on public pricing page
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -346,6 +351,41 @@ class UsageRecord(Base):
     active_members = Column(Integer, nullable=False, default=0)
     llm_tokens_used = Column(Integer, nullable=False, default=0)
 
+    llm_tokens_purchased = Column(Integer, nullable=False, default=0)
+
     __table_args__ = (
         UniqueConstraint("tenant_id", "period_year", "period_month", name="uq_usage_tenant_period"),
     )
+
+
+class TenantLLMConfig(Base):
+    """Per-tenant LLM provider/model selection."""
+    __tablename__ = "tenant_llm_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    provider_id = Column(String, nullable=False)     # e.g. "openai", "anthropic"
+    provider_name = Column(String, nullable=False)    # e.g. "OpenAI"
+    model_id = Column(String, nullable=False)         # e.g. "gpt-4o"
+    is_default = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
+class TokenPurchase(Base):
+    """Token top-up purchases by tenants."""
+    __tablename__ = "token_purchases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    tokens_amount = Column(Integer, nullable=False)
+    price_cents = Column(Integer, nullable=False)
+    stripe_payment_intent_id = Column(String, nullable=True)
+    stripe_checkout_session_id = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="pending")  # pending | completed | failed
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

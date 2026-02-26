@@ -101,7 +101,17 @@ export default function PricingClient() {
           apiFetch("/admin/plans/public"),
           apiFetch("/admin/plans/public/addons"),
         ]);
-        if (pRes.ok) setPlans(await pRes.json());
+        if (pRes.ok) {
+          const rawPlans: PlanPublic[] = await pRes.json();
+          // Deduplicate by slug — keep the first occurrence (highest display_order from backend)
+          const seen = new Set<string>();
+          const uniquePlans = rawPlans.filter(p => {
+            if (seen.has(p.slug)) return false;
+            seen.add(p.slug);
+            return true;
+          });
+          setPlans(uniquePlans);
+        }
         if (aRes.ok) setAddons(await aRes.json());
       } catch (err) {
         console.error("Failed to load pricing data", err);

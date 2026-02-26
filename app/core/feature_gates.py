@@ -411,6 +411,8 @@ def seed_plans() -> None:
                 "white_label_enabled": False,
                 "sla_guarantee_enabled": False,
                 "on_premise_enabled": False,
+                "allowed_llm_providers_json": '["groq"]',
+                "token_price_per_1k_cents": 15,
             },
             {
                 "name": "Professional",
@@ -449,6 +451,8 @@ def seed_plans() -> None:
                 "white_label_enabled": False,
                 "sla_guarantee_enabled": False,
                 "on_premise_enabled": False,
+                "allowed_llm_providers_json": '["groq", "mistral", "openai"]',
+                "token_price_per_1k_cents": 10,
             },
             {
                 "name": "Business",
@@ -487,6 +491,8 @@ def seed_plans() -> None:
                 "white_label_enabled": False,
                 "sla_guarantee_enabled": False,
                 "on_premise_enabled": False,
+                "allowed_llm_providers_json": '["groq", "mistral", "openai", "anthropic", "gemini"]',
+                "token_price_per_1k_cents": 7,
             },
             {
                 "name": "Enterprise",
@@ -524,6 +530,8 @@ def seed_plans() -> None:
                 "white_label_enabled": True,
                 "sla_guarantee_enabled": True,
                 "on_premise_enabled": True,
+                "allowed_llm_providers_json": '["groq", "mistral", "openai", "anthropic", "gemini"]',
+                "token_price_per_1k_cents": 5,
             },
         ]
 

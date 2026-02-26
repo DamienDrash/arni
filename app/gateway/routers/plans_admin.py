@@ -562,8 +562,17 @@ async def list_public_plans():
             Plan.is_public.is_(True),
         ).order_by(Plan.display_order.asc(), Plan.price_monthly_cents.asc()).all()
 
-        result = []
+        # Deduplicate by slug — keep first occurrence (by display_order)
+        seen_slugs = set()
+        unique_plans = []
         for p in plans:
+            if p.slug in seen_slugs:
+                continue
+            seen_slugs.add(p.slug)
+            unique_plans.append(p)
+
+        result = []
+        for p in unique_plans:
             features_list = []
             if p.features_json:
                 try:

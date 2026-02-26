@@ -65,6 +65,10 @@ type PlanFull = {
   white_label_enabled: boolean;
   sla_guarantee_enabled: boolean;
   on_premise_enabled: boolean;
+  // LLM Provider
+  allowed_llm_providers_json: string | null;
+  allowed_llm_models_json: string | null;
+  token_price_per_1k_cents: number | null;
   // Overage
   overage_conversation_cents: number;
   overage_user_cents: number;
@@ -208,6 +212,8 @@ function emptyPlan(): Partial<PlanFull> {
     sla_guarantee_enabled: false, on_premise_enabled: false,
     overage_conversation_cents: 5, overage_user_cents: 1500,
     overage_connector_cents: 4900, overage_channel_cents: 2900,
+    allowed_llm_providers_json: null, allowed_llm_models_json: null,
+    token_price_per_1k_cents: 10,
   };
 }
 
@@ -857,6 +863,7 @@ export default function PlansPage() {
                 { id: "channels", label: "Kanäle", icon: <Radio size={12} /> },
                 { id: "features", label: "Features", icon: <Zap size={12} /> },
                 { id: "display", label: "Anzeige", icon: <Eye size={12} /> },
+                { id: "llm", label: "LLM Provider", icon: <Brain size={12} /> },
                 { id: "overage", label: "Overage", icon: <AlertTriangle size={12} /> },
               ]}
             />
@@ -974,6 +981,43 @@ export default function PlansPage() {
                     JSON-Array mit Strings. Wird auf der Pricing-Seite und im Billing-Bereich angezeigt.
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* LLM Provider Tab */}
+            {planTab === "llm" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={sectionTitleStyle}>Erlaubte LLM-Provider</div>
+                <p style={{ fontSize: 11, color: T.textMuted, lineHeight: 1.5 }}>
+                  Wähle welche LLM-Provider für Tenants mit diesem Plan verfügbar sind. Höhere Pläne sollten mehr Provider anbieten.
+                </p>
+                {["groq", "mistral", "openai", "anthropic", "gemini"].map(pid => {
+                  const providerNames: Record<string, string> = { groq: "Groq (Free Tier)", mistral: "Mistral AI", openai: "OpenAI", anthropic: "Anthropic", gemini: "Google Gemini" };
+                  const currentProviders: string[] = (() => { try { return JSON.parse(editPlan.allowed_llm_providers_json || "[]"); } catch { return []; } })();
+                  const isChecked = currentProviders.includes(pid);
+                  return (
+                    <ToggleRow
+                      key={pid}
+                      label={providerNames[pid] || pid}
+                      value={isChecked}
+                      onChange={(v) => {
+                        const updated = v ? [...currentProviders, pid] : currentProviders.filter((p: string) => p !== pid);
+                        setEditPlan({ ...editPlan, allowed_llm_providers_json: JSON.stringify(updated) });
+                      }}
+                      icon={<Cpu size={14} />}
+                    />
+                  );
+                })}
+                <div style={sectionTitleStyle}>Token-Preise</div>
+                <NumberField
+                  label="Token-Preis pro 1K (Cent)"
+                  value={editPlan.token_price_per_1k_cents ?? 10}
+                  onChange={v => setEditPlan({ ...editPlan, token_price_per_1k_cents: v ?? 10 })}
+                  suffix="ct/1K"
+                />
+                <p style={{ fontSize: 10, color: T.textDim, lineHeight: 1.5 }}>
+                  Preis den Tenants zahlen wenn sie zusätzliche Tokens kaufen. Niedrigere Preise für höhere Pläne empfohlen.
+                </p>
               </div>
             )}
 
