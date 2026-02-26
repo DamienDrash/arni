@@ -27,6 +27,17 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  icons: {
+    icon: [
+      { url: "/ariia/favicon.svg", type: "image/svg+xml" },
+      { url: "/ariia/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/ariia/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/ariia/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+    ],
+    apple: "/ariia/apple-touch-icon.png",
+    shortcut: "/ariia/favicon.ico",
+  },
+  manifest: "/ariia/site.webmanifest",
 };
 
 export default function RootLayout({

@@ -1,0 +1,835 @@
+#!/usr/bin/env bash
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ARIIA – Enterprise Deployment & Management CLI
+#  Version 2.0 · Gold Standard Edition
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+#  Usage:
+#    ariia                          Interactive TUI (dialog-based)
+#    ariia --help                   Show all commands
+#    ariia --status                 Show service status
+#    ariia --restart [service]      Restart all or specific service
+#    ariia --rebuild [service]      Rebuild and restart service(s)
+#    ariia --logs [service]         Tail logs
+#    ariia --backup                 Create full backup
+#    ariia --update                 Git pull + selective rebuild
+#    ariia --migrate                Run database migrations
+#    ariia --health                 Full health check
+#    ariia --onboard                First-time setup wizard
+#
+set -euo pipefail
+
+# ─── Configuration ────────────────────────────────────────────────────────────
+ARIIA_VERSION="2.0.0"
+ARIIA_DIR="${ARIIA_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+ARIIA_ENV="$ARIIA_DIR/.env"
+ARIIA_BACKUP_DIR="${ARIIA_BACKUP_DIR:-/var/backups/ariia}"
+ARIIA_LOG="/var/log/ariia-deploy.log"
+COMPOSE_FILE="$ARIIA_DIR/docker-compose.yml"
+DIALOG_HEIGHT=24
+DIALOG_WIDTH=76
+
+# Service groups for selective operations
+CORE_SERVICES="ariia-core"
+FRONTEND_SERVICES="ariia-frontend"
+WORKER_SERVICES="ariia-worker ariia-telegram-polling"
+INFRA_SERVICES="ariia-redis ariia-postgres qdrant"
+MONITORING_SERVICES="prometheus alertmanager grafana redis-exporter postgres-exporter node-exporter cadvisor loki promtail"
+ALL_APP_SERVICES="$CORE_SERVICES $FRONTEND_SERVICES $WORKER_SERVICES"
+
+# ─── Colors & Formatting ─────────────────────────────────────────────────────
+C_RESET="\033[0m"
+C_BOLD="\033[1m"
+C_DIM="\033[2m"
+C_PURPLE="\033[38;5;141m"
+C_GREEN="\033[38;5;114m"
+C_RED="\033[38;5;210m"
+C_YELLOW="\033[38;5;221m"
+C_CYAN="\033[38;5;117m"
+C_BLUE="\033[38;5;75m"
+C_WHITE="\033[38;5;255m"
+
+# ─── Utility Functions ────────────────────────────────────────────────────────
+log() { echo -e "${C_DIM}[$(date '+%H:%M:%S')]${C_RESET} $*"; }
+info() { echo -e "${C_BLUE}▸${C_RESET} $*"; }
+success() { echo -e "${C_GREEN}✓${C_RESET} $*"; }
+warn() { echo -e "${C_YELLOW}⚠${C_RESET} $*"; }
+error() { echo -e "${C_RED}✗${C_RESET} $*"; }
+header() {
+  echo ""
+  echo -e "${C_PURPLE}${C_BOLD}  ╔══════════════════════════════════════════════════════════╗${C_RESET}"
+  echo -e "${C_PURPLE}${C_BOLD}  ║  ARIIA · Enterprise Deployment CLI v${ARIIA_VERSION}            ║${C_RESET}"
+  echo -e "${C_PURPLE}${C_BOLD}  ╚══════════════════════════════════════════════════════════╝${C_RESET}"
+  echo ""
+}
+
+spinner() {
+  local pid=$1 msg="${2:-Working...}"
+  local chars='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+  while kill -0 "$pid" 2>/dev/null; do
+    for (( i=0; i<${#chars}; i++ )); do
+      printf "\r  ${C_PURPLE}${chars:$i:1}${C_RESET} %s" "$msg"
+      sleep 0.1
+    done
+  done
+  printf "\r  ${C_GREEN}✓${C_RESET} %s\n" "$msg"
+}
+
+ensure_dir() { mkdir -p "$ARIIA_BACKUP_DIR" 2>/dev/null || sudo mkdir -p "$ARIIA_BACKUP_DIR"; }
+ensure_dialog() {
+  if ! command -v dialog &>/dev/null; then
+    info "Installing dialog..."
+    sudo apt-get update -qq && sudo apt-get install -y -qq dialog >/dev/null 2>&1
+    success "dialog installed"
+  fi
+}
+
+cd_project() { cd "$ARIIA_DIR" || { error "Project directory not found: $ARIIA_DIR"; exit 1; }; }
+
+load_env() {
+  if [ -f "$ARIIA_ENV" ]; then
+    set -a; source "$ARIIA_ENV"; set +a
+  fi
+}
+
+# ─── Docker Helpers ───────────────────────────────────────────────────────────
+dc() { docker compose -f "$COMPOSE_FILE" "$@"; }
+
+get_container_status() {
+  local svc="$1"
+  local state
+  state=$(docker inspect --format='{{.State.Status}}' "${svc}" 2>/dev/null || echo "not found")
+  local health
+  health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}N/A{{end}}' "${svc}" 2>/dev/null || echo "N/A")
+  echo "$state|$health"
+}
+
+format_uptime() {
+  local started
+  started=$(docker inspect --format='{{.State.StartedAt}}' "$1" 2>/dev/null)
+  if [ -n "$started" ] && [ "$started" != "0001-01-01T00:00:00Z" ]; then
+    local start_ts now_ts diff
+    start_ts=$(date -d "$started" +%s 2>/dev/null || echo 0)
+    now_ts=$(date +%s)
+    diff=$((now_ts - start_ts))
+    if [ $diff -lt 60 ]; then echo "${diff}s"
+    elif [ $diff -lt 3600 ]; then echo "$((diff/60))m"
+    elif [ $diff -lt 86400 ]; then echo "$((diff/3600))h $((diff%3600/60))m"
+    else echo "$((diff/86400))d $((diff%86400/3600))h"
+    fi
+  else
+    echo "N/A"
+  fi
+}
+
+# ─── Command: Status ─────────────────────────────────────────────────────────
+cmd_status() {
+  header
+  cd_project
+  echo -e "  ${C_BOLD}${C_WHITE}Service Status${C_RESET}"
+  echo -e "  ${C_DIM}────────────────────────────────────────────────────────${C_RESET}"
+  printf "  ${C_BOLD}%-28s %-12s %-12s %-10s${C_RESET}\n" "SERVICE" "STATUS" "HEALTH" "UPTIME"
+  echo -e "  ${C_DIM}────────────────────────────────────────────────────────${C_RESET}"
+
+  local containers
+  containers=$(docker ps -a --format '{{.Names}}' --filter "name=ariia" 2>/dev/null | sort)
+
+  for c in $containers; do
+    local info_str
+    info_str=$(get_container_status "$c")
+    local state="${info_str%%|*}"
+    local health="${info_str##*|}"
+    local uptime
+    uptime=$(format_uptime "$c")
+
+    local state_color="$C_RED"
+    [ "$state" = "running" ] && state_color="$C_GREEN"
+    [ "$state" = "restarting" ] && state_color="$C_YELLOW"
+
+    local health_color="$C_DIM"
+    [ "$health" = "healthy" ] && health_color="$C_GREEN"
+    [ "$health" = "unhealthy" ] && health_color="$C_RED"
+
+    local short_name="${c#ariia_}"
+    short_name="${short_name#ariia-}"
+    printf "  %-28s ${state_color}%-12s${C_RESET} ${health_color}%-12s${C_RESET} ${C_DIM}%-10s${C_RESET}\n" \
+      "$short_name" "$state" "$health" "$uptime"
+  done
+
+  echo ""
+  # Disk usage
+  local disk_usage
+  disk_usage=$(docker system df --format '{{.Type}}\t{{.Size}}\t{{.Reclaimable}}' 2>/dev/null)
+  echo -e "  ${C_BOLD}${C_WHITE}Docker Resources${C_RESET}"
+  echo -e "  ${C_DIM}────────────────────────────────────────────────────────${C_RESET}"
+  printf "  ${C_BOLD}%-20s %-15s %-15s${C_RESET}\n" "TYPE" "SIZE" "RECLAIMABLE"
+  echo "$disk_usage" | while IFS=$'\t' read -r type size reclaim; do
+    printf "  %-20s %-15s ${C_YELLOW}%-15s${C_RESET}\n" "$type" "$size" "$reclaim"
+  done
+  echo ""
+}
+
+# ─── Command: Restart ─────────────────────────────────────────────────────────
+cmd_restart() {
+  local service="${1:-all}"
+  header
+  cd_project; load_env
+
+  if [ "$service" = "all" ]; then
+    info "Restarting all application services..."
+    dc restart $ALL_APP_SERVICES
+    success "All services restarted"
+  else
+    info "Restarting $service..."
+    dc restart "$service"
+    success "$service restarted"
+  fi
+}
+
+# ─── Command: Rebuild ─────────────────────────────────────────────────────────
+cmd_rebuild() {
+  local service="${1:-}"
+  header
+  cd_project; load_env
+
+  if [ -z "$service" ]; then
+    echo -e "  ${C_BOLD}Select service to rebuild:${C_RESET}"
+    echo ""
+    echo -e "  ${C_CYAN}1${C_RESET}) Backend (ariia-core)         ~2-3 min"
+    echo -e "  ${C_CYAN}2${C_RESET}) Frontend (ariia-frontend)     ~3-5 min"
+    echo -e "  ${C_CYAN}3${C_RESET}) Workers (worker + telegram)   ~2-3 min"
+    echo -e "  ${C_CYAN}4${C_RESET}) All application services      ~5-8 min"
+    echo -e "  ${C_CYAN}5${C_RESET}) Full stack (incl. monitoring) ~8-12 min"
+    echo ""
+    read -rp "  Choice [1-5]: " choice
+    case "$choice" in
+      1) service="backend" ;;
+      2) service="frontend" ;;
+      3) service="workers" ;;
+      4) service="app" ;;
+      5) service="full" ;;
+      *) error "Invalid choice"; exit 1 ;;
+    esac
+  fi
+
+  local start_time
+  start_time=$(date +%s)
+
+  case "$service" in
+    backend|ariia-core|core)
+      info "Rebuilding Backend..."
+      dc build --no-cache ariia-core
+      dc up -d ariia-core
+      success "Backend rebuilt and restarted"
+      ;;
+    frontend|ariia-frontend|web)
+      info "Rebuilding Frontend..."
+      dc build --no-cache ariia-frontend
+      dc up -d ariia-frontend
+      success "Frontend rebuilt and restarted"
+      ;;
+    workers|worker)
+      info "Rebuilding Workers..."
+      dc build --no-cache ariia-worker ariia-telegram-polling
+      dc up -d ariia-worker ariia-telegram-polling
+      success "Workers rebuilt and restarted"
+      ;;
+    app|application)
+      info "Rebuilding all application services..."
+      dc build --no-cache ariia-core ariia-frontend ariia-worker ariia-telegram-polling
+      dc up -d ariia-core ariia-frontend ariia-worker ariia-telegram-polling
+      success "All application services rebuilt"
+      ;;
+    full|all)
+      info "Rebuilding entire stack..."
+      dc down --remove-orphans
+      docker builder prune -f >/dev/null 2>&1
+      dc up -d --build
+      success "Full stack rebuilt"
+      ;;
+    *)
+      info "Rebuilding $service..."
+      dc build --no-cache "$service"
+      dc up -d "$service"
+      success "$service rebuilt"
+      ;;
+  esac
+
+  local end_time elapsed
+  end_time=$(date +%s)
+  elapsed=$((end_time - start_time))
+  echo ""
+  info "Build completed in ${C_BOLD}${elapsed}s${C_RESET}"
+}
+
+# ─── Command: Update ──────────────────────────────────────────────────────────
+cmd_update() {
+  header
+  cd_project; load_env
+
+  info "Checking for updates..."
+  local before_hash after_hash
+  before_hash=$(git rev-parse HEAD)
+
+  # Stash local changes if any
+  if ! git diff --quiet 2>/dev/null; then
+    warn "Local changes detected, stashing..."
+    git stash push -m "ariia-cli-auto-stash-$(date +%Y%m%d_%H%M%S)"
+  fi
+
+  git pull origin main --ff-only 2>&1 | while read -r line; do
+    echo -e "  ${C_DIM}$line${C_RESET}"
+  done
+
+  after_hash=$(git rev-parse HEAD)
+
+  if [ "$before_hash" = "$after_hash" ]; then
+    success "Already up to date (${before_hash:0:8})"
+    return
+  fi
+
+  info "Updated: ${C_DIM}${before_hash:0:8}${C_RESET} → ${C_GREEN}${after_hash:0:8}${C_RESET}"
+
+  # Detect what changed for selective rebuild
+  local changed_files
+  changed_files=$(git diff --name-only "$before_hash" "$after_hash")
+  local rebuild_backend=false rebuild_frontend=false rebuild_workers=false
+
+  echo "$changed_files" | grep -q "^app/\|^Dockerfile\|^pyproject.toml\|^alembic/" && rebuild_backend=true
+  echo "$changed_files" | grep -q "^frontend/" && rebuild_frontend=true
+  echo "$changed_files" | grep -q "^scripts/.*worker\|^scripts/.*polling" && rebuild_workers=true
+
+  echo ""
+  echo -e "  ${C_BOLD}Changes detected:${C_RESET}"
+  $rebuild_backend && echo -e "  ${C_CYAN}▸${C_RESET} Backend code changed"
+  $rebuild_frontend && echo -e "  ${C_CYAN}▸${C_RESET} Frontend code changed"
+  $rebuild_workers && echo -e "  ${C_CYAN}▸${C_RESET} Worker scripts changed"
+  echo ""
+
+  # Selective rebuild
+  if $rebuild_backend; then
+    info "Rebuilding Backend..."
+    dc build ariia-core >/dev/null 2>&1 &
+    spinner $! "Building ariia-core"
+    dc up -d ariia-core
+  fi
+
+  if $rebuild_frontend; then
+    info "Rebuilding Frontend..."
+    dc build ariia-frontend >/dev/null 2>&1 &
+    spinner $! "Building ariia-frontend"
+    dc up -d ariia-frontend
+  fi
+
+  if $rebuild_workers; then
+    info "Rebuilding Workers..."
+    dc build ariia-worker ariia-telegram-polling >/dev/null 2>&1 &
+    spinner $! "Building workers"
+    dc up -d ariia-worker ariia-telegram-polling
+  fi
+
+  # Run migrations if alembic files changed
+  if echo "$changed_files" | grep -q "^alembic/"; then
+    info "Running database migrations..."
+    dc exec ariia-core alembic upgrade head 2>&1 | tail -3
+    success "Migrations applied"
+  fi
+
+  success "Update complete!"
+}
+
+# ─── Command: Logs ────────────────────────────────────────────────────────────
+cmd_logs() {
+  local service="${1:-}"
+  cd_project
+  if [ -z "$service" ]; then
+    dc logs -f --tail=100 $ALL_APP_SERVICES
+  else
+    dc logs -f --tail=200 "$service"
+  fi
+}
+
+# ─── Command: Backup ──────────────────────────────────────────────────────────
+cmd_backup() {
+  header
+  cd_project; load_env; ensure_dir
+
+  local timestamp
+  timestamp=$(date +%Y%m%d_%H%M%S)
+  local backup_path="$ARIIA_BACKUP_DIR/$timestamp"
+  mkdir -p "$backup_path"
+
+  info "Creating backup → $backup_path"
+
+  # 1. Database dump
+  info "Dumping PostgreSQL database..."
+  docker exec ariia_postgres pg_dump -U ariia ariia | gzip > "$backup_path/db_ariia_$timestamp.sql.gz" 2>/dev/null &
+  spinner $! "Database dump"
+
+  # 2. Redis dump
+  info "Dumping Redis..."
+  docker exec ariia_redis redis-cli BGSAVE >/dev/null 2>&1
+  sleep 2
+  docker cp ariia_redis:/data/dump.rdb "$backup_path/redis_$timestamp.rdb" 2>/dev/null || warn "Redis dump skipped"
+  success "Redis snapshot saved"
+
+  # 3. Environment & Config
+  info "Backing up configuration..."
+  cp "$ARIIA_ENV" "$backup_path/.env.backup" 2>/dev/null || true
+  cp "$COMPOSE_FILE" "$backup_path/docker-compose.yml.backup" 2>/dev/null || true
+  success "Configuration backed up"
+
+  # 4. Qdrant data (volumes)
+  info "Backing up Qdrant vectors..."
+  docker cp ariia_qdrant:/qdrant/storage "$backup_path/qdrant_storage" 2>/dev/null || warn "Qdrant backup skipped"
+
+  # 5. Create archive
+  info "Compressing backup..."
+  local archive="$ARIIA_BACKUP_DIR/ariia_backup_$timestamp.tar.gz"
+  tar -czf "$archive" -C "$ARIIA_BACKUP_DIR" "$timestamp" 2>/dev/null &
+  spinner $! "Compressing"
+  rm -rf "$backup_path"
+
+  local size
+  size=$(du -sh "$archive" | cut -f1)
+  echo ""
+  success "Backup complete: ${C_BOLD}$archive${C_RESET} (${size})"
+
+  # Cleanup old backups (keep last 7)
+  local count
+  count=$(ls -1 "$ARIIA_BACKUP_DIR"/ariia_backup_*.tar.gz 2>/dev/null | wc -l)
+  if [ "$count" -gt 7 ]; then
+    info "Cleaning old backups (keeping last 7)..."
+    ls -1t "$ARIIA_BACKUP_DIR"/ariia_backup_*.tar.gz | tail -n +8 | xargs rm -f
+    success "Old backups cleaned"
+  fi
+}
+
+# ─── Command: Restore ─────────────────────────────────────────────────────────
+cmd_restore() {
+  header
+  cd_project; load_env
+
+  local backups
+  backups=$(ls -1t "$ARIIA_BACKUP_DIR"/ariia_backup_*.tar.gz 2>/dev/null)
+  if [ -z "$backups" ]; then
+    error "No backups found in $ARIIA_BACKUP_DIR"
+    exit 1
+  fi
+
+  echo -e "  ${C_BOLD}Available backups:${C_RESET}"
+  echo ""
+  local i=1
+  while read -r f; do
+    local size ts
+    size=$(du -sh "$f" | cut -f1)
+    ts=$(basename "$f" | sed 's/ariia_backup_//;s/.tar.gz//')
+    printf "  ${C_CYAN}%d${C_RESET}) %s  ${C_DIM}(%s)${C_RESET}\n" "$i" "$ts" "$size"
+    i=$((i+1))
+  done <<< "$backups"
+
+  echo ""
+  read -rp "  Select backup [1-$((i-1))]: " choice
+  local selected
+  selected=$(echo "$backups" | sed -n "${choice}p")
+
+  if [ -z "$selected" ]; then
+    error "Invalid selection"
+    exit 1
+  fi
+
+  warn "This will REPLACE the current database! Are you sure?"
+  read -rp "  Type 'yes' to confirm: " confirm
+  [ "$confirm" != "yes" ] && { info "Cancelled."; exit 0; }
+
+  local tmp_dir="/tmp/ariia_restore_$$"
+  mkdir -p "$tmp_dir"
+  tar -xzf "$selected" -C "$tmp_dir"
+
+  local restore_dir
+  restore_dir=$(ls -1 "$tmp_dir")
+  local restore_path="$tmp_dir/$restore_dir"
+
+  # Restore DB
+  if [ -f "$restore_path"/db_ariia_*.sql.gz ]; then
+    info "Restoring database..."
+    gunzip -c "$restore_path"/db_ariia_*.sql.gz | docker exec -i ariia_postgres psql -U ariia -d ariia 2>/dev/null
+    success "Database restored"
+  fi
+
+  # Restore .env
+  if [ -f "$restore_path/.env.backup" ]; then
+    info "Restoring configuration..."
+    cp "$restore_path/.env.backup" "$ARIIA_ENV"
+    success "Configuration restored"
+  fi
+
+  rm -rf "$tmp_dir"
+  success "Restore complete! Restart services with: ariia --restart"
+}
+
+# ─── Command: Migrate ─────────────────────────────────────────────────────────
+cmd_migrate() {
+  header
+  cd_project; load_env
+
+  info "Running Alembic migrations..."
+  dc exec ariia-core alembic upgrade head 2>&1 | while read -r line; do
+    echo -e "  ${C_DIM}$line${C_RESET}"
+  done
+  success "Migrations complete"
+}
+
+# ─── Command: Health ──────────────────────────────────────────────────────────
+cmd_health() {
+  header
+  cd_project
+
+  echo -e "  ${C_BOLD}${C_WHITE}Health Check${C_RESET}"
+  echo -e "  ${C_DIM}────────────────────────────────────────────────────────${C_RESET}"
+
+  # API Health
+  local api_status
+  api_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null || echo "000")
+  if [ "$api_status" = "200" ]; then
+    success "API Gateway .............. ${C_GREEN}OK${C_RESET} (HTTP $api_status)"
+  else
+    error "API Gateway .............. ${C_RED}FAIL${C_RESET} (HTTP $api_status)"
+  fi
+
+  # Frontend
+  local fe_status
+  fe_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "000")
+  if [ "$fe_status" = "200" ] || [ "$fe_status" = "302" ]; then
+    success "Frontend ................. ${C_GREEN}OK${C_RESET} (HTTP $fe_status)"
+  else
+    error "Frontend ................. ${C_RED}FAIL${C_RESET} (HTTP $fe_status)"
+  fi
+
+  # Database
+  local db_ok
+  db_ok=$(docker exec ariia_postgres pg_isready -U ariia 2>/dev/null && echo "ok" || echo "fail")
+  if [[ "$db_ok" == *"ok"* ]] || [[ "$db_ok" == *"accepting"* ]]; then
+    success "PostgreSQL ............... ${C_GREEN}OK${C_RESET}"
+  else
+    error "PostgreSQL ............... ${C_RED}FAIL${C_RESET}"
+  fi
+
+  # Redis
+  local redis_ok
+  redis_ok=$(docker exec ariia_redis redis-cli ping 2>/dev/null || echo "fail")
+  if [ "$redis_ok" = "PONG" ]; then
+    success "Redis .................... ${C_GREEN}OK${C_RESET}"
+  else
+    error "Redis .................... ${C_RED}FAIL${C_RESET}"
+  fi
+
+  # Qdrant
+  local qdrant_status
+  qdrant_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:6333/healthz 2>/dev/null || echo "000")
+  if [ "$qdrant_status" = "200" ]; then
+    success "Qdrant ................... ${C_GREEN}OK${C_RESET}"
+  else
+    warn "Qdrant ................... ${C_YELLOW}N/A${C_RESET} (HTTP $qdrant_status)"
+  fi
+
+  # Disk
+  local disk_pct
+  disk_pct=$(df / | tail -1 | awk '{print $5}' | tr -d '%')
+  if [ "$disk_pct" -lt 80 ]; then
+    success "Disk Usage ............... ${C_GREEN}${disk_pct}%${C_RESET}"
+  elif [ "$disk_pct" -lt 90 ]; then
+    warn "Disk Usage ............... ${C_YELLOW}${disk_pct}%${C_RESET}"
+  else
+    error "Disk Usage ............... ${C_RED}${disk_pct}%${C_RESET} CRITICAL"
+  fi
+
+  # Memory
+  local mem_pct
+  mem_pct=$(free | awk '/Mem:/ {printf "%.0f", $3/$2*100}')
+  if [ "$mem_pct" -lt 80 ]; then
+    success "Memory Usage ............. ${C_GREEN}${mem_pct}%${C_RESET}"
+  elif [ "$mem_pct" -lt 90 ]; then
+    warn "Memory Usage ............. ${C_YELLOW}${mem_pct}%${C_RESET}"
+  else
+    error "Memory Usage ............. ${C_RED}${mem_pct}%${C_RESET} CRITICAL"
+  fi
+
+  echo ""
+}
+
+# ─── Command: Cleanup ─────────────────────────────────────────────────────────
+cmd_cleanup() {
+  header
+  cd_project
+
+  info "Cleaning Docker resources..."
+
+  echo -e "  ${C_BOLD}Current usage:${C_RESET}"
+  docker system df 2>/dev/null | while read -r line; do
+    echo -e "  ${C_DIM}$line${C_RESET}"
+  done
+  echo ""
+
+  read -rp "  Remove unused images, containers, and build cache? [y/N]: " confirm
+  if [[ "$confirm" =~ ^[Yy]$ ]]; then
+    docker system prune -f 2>/dev/null &
+    spinner $! "Cleaning Docker"
+    docker builder prune -f >/dev/null 2>&1
+    success "Cleanup complete"
+    echo ""
+    echo -e "  ${C_BOLD}After cleanup:${C_RESET}"
+    docker system df 2>/dev/null | while read -r line; do
+      echo -e "  ${C_DIM}$line${C_RESET}"
+    done
+  else
+    info "Cancelled"
+  fi
+}
+
+# ─── Command: Onboard ─────────────────────────────────────────────────────────
+cmd_onboard() {
+  header
+  echo -e "  ${C_BOLD}${C_PURPLE}Welcome to ARIIA Setup Wizard${C_RESET}"
+  echo -e "  ${C_DIM}This wizard will guide you through the initial configuration.${C_RESET}"
+  echo ""
+
+  # Step 1: Check prerequisites
+  info "Step 1/5: Checking prerequisites..."
+  local ok=true
+  command -v docker &>/dev/null && success "Docker installed" || { error "Docker not found"; ok=false; }
+  command -v git &>/dev/null && success "Git installed" || { error "Git not found"; ok=false; }
+  docker compose version &>/dev/null && success "Docker Compose available" || { error "Docker Compose not found"; ok=false; }
+  $ok || { error "Please install missing prerequisites first."; exit 1; }
+  echo ""
+
+  # Step 2: Clone or verify repo
+  info "Step 2/5: Project setup..."
+  if [ -f "$ARIIA_DIR/docker-compose.yml" ]; then
+    success "Project found at $ARIIA_DIR"
+  else
+    read -rp "  Git repository URL [https://github.com/DamienDrash/arni.git]: " repo_url
+    repo_url="${repo_url:-https://github.com/DamienDrash/arni.git}"
+    git clone "$repo_url" "$ARIIA_DIR"
+    success "Repository cloned"
+  fi
+  echo ""
+
+  # Step 3: Environment configuration
+  info "Step 3/5: Environment configuration..."
+  if [ -f "$ARIIA_ENV" ]; then
+    warn ".env file already exists. Skipping..."
+  else
+    cp "$ARIIA_DIR/.env.example" "$ARIIA_ENV" 2>/dev/null || touch "$ARIIA_ENV"
+
+    read -rp "  PostgreSQL Password [ariia_secure_2026]: " pg_pass
+    pg_pass="${pg_pass:-ariia_secure_2026}"
+
+    read -rp "  Auth Secret (JWT) [$(openssl rand -hex 32 | head -c 32)]: " auth_secret
+    auth_secret="${auth_secret:-$(openssl rand -hex 32)}"
+
+    read -rp "  OpenAI API Key (optional): " openai_key
+    read -rp "  Stripe Secret Key (optional): " stripe_key
+    read -rp "  Domain [services.frigew.ski]: " domain
+    domain="${domain:-services.frigew.ski}"
+
+    cat >> "$ARIIA_ENV" <<EOF
+POSTGRES_PASSWORD=$pg_pass
+AUTH_SECRET=$auth_secret
+OPENAI_API_KEY=$openai_key
+STRIPE_SECRET_KEY=$stripe_key
+DOMAIN=$domain
+EOF
+    success "Environment configured"
+  fi
+  echo ""
+
+  # Step 4: Build and start
+  info "Step 4/5: Building and starting services..."
+  cd_project; load_env
+  dc up -d --build 2>&1 | tail -5
+  echo ""
+
+  # Step 5: Run migrations
+  info "Step 5/5: Running database migrations..."
+  sleep 10
+  dc exec ariia-core alembic upgrade head 2>&1 | tail -3
+  success "Migrations applied"
+  echo ""
+
+  echo -e "  ${C_GREEN}${C_BOLD}╔══════════════════════════════════════════════════════════╗${C_RESET}"
+  echo -e "  ${C_GREEN}${C_BOLD}║  ARIIA is ready!                                         ║${C_RESET}"
+  echo -e "  ${C_GREEN}${C_BOLD}╚══════════════════════════════════════════════════════════╝${C_RESET}"
+  echo ""
+  echo -e "  ${C_CYAN}▸${C_RESET} API:      http://localhost:8000"
+  echo -e "  ${C_CYAN}▸${C_RESET} Frontend: http://localhost:3000"
+  echo -e "  ${C_CYAN}▸${C_RESET} Grafana:  http://localhost:3001"
+  echo ""
+  echo -e "  Run ${C_BOLD}ariia --status${C_RESET} to check service health."
+  echo ""
+}
+
+# ─── Command: Shell ───────────────────────────────────────────────────────────
+cmd_shell() {
+  local service="${1:-ariia-core}"
+  cd_project
+  info "Opening shell in $service..."
+  dc exec "$service" /bin/sh
+}
+
+# ─── Command: Help ────────────────────────────────────────────────────────────
+cmd_help() {
+  header
+  echo -e "  ${C_BOLD}${C_WHITE}Available Commands${C_RESET}"
+  echo -e "  ${C_DIM}────────────────────────────────────────────────────────${C_RESET}"
+  echo ""
+  echo -e "  ${C_BOLD}Deployment & Updates${C_RESET}"
+  echo -e "  ${C_CYAN}ariia --update${C_RESET}              Git pull + smart selective rebuild"
+  echo -e "  ${C_CYAN}ariia --rebuild [svc]${C_RESET}       Rebuild service (backend|frontend|workers|app|full)"
+  echo -e "  ${C_CYAN}ariia --restart [svc]${C_RESET}       Restart service(s)"
+  echo -e "  ${C_CYAN}ariia --migrate${C_RESET}             Run Alembic database migrations"
+  echo ""
+  echo -e "  ${C_BOLD}Monitoring & Diagnostics${C_RESET}"
+  echo -e "  ${C_CYAN}ariia --status${C_RESET}              Show all service statuses"
+  echo -e "  ${C_CYAN}ariia --health${C_RESET}              Full health check (API, DB, Redis, Disk)"
+  echo -e "  ${C_CYAN}ariia --logs [svc]${C_RESET}          Tail service logs"
+  echo ""
+  echo -e "  ${C_BOLD}Backup & Recovery${C_RESET}"
+  echo -e "  ${C_CYAN}ariia --backup${C_RESET}              Create full backup (DB, Redis, Config, Qdrant)"
+  echo -e "  ${C_CYAN}ariia --restore${C_RESET}             Restore from backup"
+  echo ""
+  echo -e "  ${C_BOLD}Maintenance${C_RESET}"
+  echo -e "  ${C_CYAN}ariia --cleanup${C_RESET}             Clean Docker resources"
+  echo -e "  ${C_CYAN}ariia --shell [svc]${C_RESET}         Open shell in container"
+  echo -e "  ${C_CYAN}ariia --onboard${C_RESET}             First-time setup wizard"
+  echo ""
+  echo -e "  ${C_BOLD}Interactive${C_RESET}"
+  echo -e "  ${C_CYAN}ariia${C_RESET}                       Launch interactive TUI menu"
+  echo ""
+}
+
+# ─── Interactive TUI (dialog) ─────────────────────────────────────────────────
+cmd_tui() {
+  ensure_dialog
+  cd_project; load_env
+
+  while true; do
+    local choice
+    choice=$(dialog --clear --backtitle "ARIIA Enterprise Management · v${ARIIA_VERSION}" \
+      --title "  ARIIA Control Center  " \
+      --menu "\nSelect an operation:" $DIALOG_HEIGHT $DIALOG_WIDTH 14 \
+      "1" "📊 Service Status" \
+      "2" "🔄 Update (Git Pull + Smart Rebuild)" \
+      "3" "🔨 Rebuild Service" \
+      "4" "♻️  Restart Service" \
+      "5" "📋 View Logs" \
+      "6" "🏥 Health Check" \
+      "7" "🗄️  Create Backup" \
+      "8" "📥 Restore from Backup" \
+      "9" "🗃️  Run Migrations" \
+      "10" "🧹 Cleanup Docker Resources" \
+      "11" "💻 Open Container Shell" \
+      "12" "🔧 Configuration" \
+      "13" "🚀 First-Time Setup" \
+      "Q" "❌ Exit" \
+      3>&1 1>&2 2>&3) || break
+
+    clear
+
+    case "$choice" in
+      1) cmd_status; read -rp "Press Enter to continue..." ;;
+      2) cmd_update; read -rp "Press Enter to continue..." ;;
+      3)
+        local svc
+        svc=$(dialog --backtitle "ARIIA" --title "Rebuild Service" \
+          --menu "Select service:" 16 50 7 \
+          "backend" "API Backend (ariia-core)" \
+          "frontend" "Web Frontend" \
+          "workers" "Background Workers" \
+          "app" "All App Services" \
+          "full" "Full Stack (incl. monitoring)" \
+          3>&1 1>&2 2>&3) || continue
+        clear
+        cmd_rebuild "$svc"
+        read -rp "Press Enter to continue..."
+        ;;
+      4)
+        local svc
+        svc=$(dialog --backtitle "ARIIA" --title "Restart Service" \
+          --menu "Select service:" 18 50 9 \
+          "all" "All Application Services" \
+          "ariia-core" "API Backend" \
+          "ariia-frontend" "Web Frontend" \
+          "ariia-worker" "Background Worker" \
+          "ariia-telegram-polling" "Telegram Polling" \
+          "ariia-redis" "Redis" \
+          "ariia-postgres" "PostgreSQL" \
+          "qdrant" "Qdrant Vector DB" \
+          3>&1 1>&2 2>&3) || continue
+        clear
+        cmd_restart "$svc"
+        read -rp "Press Enter to continue..."
+        ;;
+      5)
+        local svc
+        svc=$(dialog --backtitle "ARIIA" --title "View Logs" \
+          --menu "Select service:" 16 50 7 \
+          "" "All App Services" \
+          "ariia-core" "API Backend" \
+          "ariia-frontend" "Web Frontend" \
+          "ariia-worker" "Background Worker" \
+          "ariia-telegram-polling" "Telegram Polling" \
+          3>&1 1>&2 2>&3) || continue
+        clear
+        echo -e "${C_DIM}Press Ctrl+C to stop log streaming${C_RESET}"
+        cmd_logs "$svc" || true
+        ;;
+      6) cmd_health; read -rp "Press Enter to continue..." ;;
+      7) cmd_backup; read -rp "Press Enter to continue..." ;;
+      8) cmd_restore; read -rp "Press Enter to continue..." ;;
+      9) cmd_migrate; read -rp "Press Enter to continue..." ;;
+      10) cmd_cleanup; read -rp "Press Enter to continue..." ;;
+      11)
+        local svc
+        svc=$(dialog --backtitle "ARIIA" --title "Container Shell" \
+          --menu "Select container:" 14 50 5 \
+          "ariia-core" "API Backend (Python)" \
+          "ariia-frontend" "Frontend (Node.js)" \
+          "ariia-postgres" "PostgreSQL" \
+          "ariia-redis" "Redis" \
+          3>&1 1>&2 2>&3) || continue
+        clear
+        cmd_shell "$svc"
+        ;;
+      12)
+        dialog --backtitle "ARIIA" --title "Configuration" \
+          --msgbox "\nProject: $ARIIA_DIR\nEnv: $ARIIA_ENV\nBackups: $ARIIA_BACKUP_DIR\nCompose: $COMPOSE_FILE\n\nEdit .env: nano $ARIIA_ENV" 14 60
+        ;;
+      13) clear; cmd_onboard; read -rp "Press Enter to continue..." ;;
+      Q|q) clear; break ;;
+    esac
+  done
+}
+
+# ─── Main Entry Point ─────────────────────────────────────────────────────────
+main() {
+  case "${1:-}" in
+    --help|-h)      cmd_help ;;
+    --status|-s)    cmd_status ;;
+    --restart|-r)   cmd_restart "${2:-all}" ;;
+    --rebuild|-b)   cmd_rebuild "${2:-}" ;;
+    --update|-u)    cmd_update ;;
+    --logs|-l)      cmd_logs "${2:-}" ;;
+    --backup)       cmd_backup ;;
+    --restore)      cmd_restore ;;
+    --migrate|-m)   cmd_migrate ;;
+    --health)       cmd_health ;;
+    --cleanup)      cmd_cleanup ;;
+    --shell)        cmd_shell "${2:-ariia-core}" ;;
+    --onboard)      cmd_onboard ;;
+    "")             cmd_tui ;;
+    *)              error "Unknown command: $1"; cmd_help; exit 1 ;;
+  esac
+}
+
+main "$@"

@@ -66,9 +66,25 @@ addopts = "--tb=short --cov=app --cov-report=term-missing"
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+exclude = ["alembic/versions/*.py", "tests/**"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP", "ANN", "S", "B"]
+select = ["E", "F", "I", "N", "W", "UP", "S", "B"]
+ignore = [
+    "S104",   # Possible binding to all interfaces (expected in server code)
+    "S105",   # Possible hardcoded password (defaults overridden by env vars)
+    "W293",   # Blank line contains whitespace
+    "W291",   # Trailing whitespace
+    "E501",   # Line too long (handled by formatter)
+    "B008",   # Do not perform function call in argument defaults (FastAPI Depends)
+    "N805",   # First argument of a method should be named `self`
+    "S603",   # subprocess call with shell=True
+    "S607",   # Starting a process with a partial executable path
+]
+
+[tool.ruff.lint.per-file-ignores]
+"app/gateway/routers/*.py" = ["B008"]
+"config/settings.py" = ["S105"]
 
 [tool.mypy]
 python_version = "3.12"

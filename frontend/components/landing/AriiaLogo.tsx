@@ -17,20 +17,16 @@ interface AriiaLogoProps {
   theme?: "dark" | "light";
 }
 
-/* Official logo assets with transparent backgrounds (uploaded 2026-02-24) */
+/* Official logo assets – local paths (basePath-aware) */
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const LOGO_URLS = {
   full: {
-    /* White/light letters on transparent – for dark backgrounds (navbar, footer, hero, login, register)
-     * File: logo_black_transparent.png (name refers to the background it was designed for) */
-    dark: "https://files.manuscdn.com/user_upload_by_module/session_file/107911917/NvnArzynaJaJVLLc.png",
-    /* Dark/navy letters on transparent – for light backgrounds
-     * File: logo_white_transparent.png (name refers to the background it was designed for) */
-    light: "https://files.manuscdn.com/user_upload_by_module/session_file/107911917/mqxeITbccMDjBUWg.png",
+    dark: `${BASE}/logo-full-dark.png`,
+    light: `${BASE}/logo-full-dark.png`,
   },
   icon: {
-    /* Icon card version for favicon / small displays */
-    dark: "https://files.manuscdn.com/user_upload_by_module/session_file/107911917/NvnArzynaJaJVLLc.png",
-    light: "https://files.manuscdn.com/user_upload_by_module/session_file/107911917/mqxeITbccMDjBUWg.png",
+    dark: `${BASE}/logo-icon-square.png`,
+    light: `${BASE}/logo-icon-square.png`,
   },
 };
 
