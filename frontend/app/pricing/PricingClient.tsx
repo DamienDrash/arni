@@ -284,19 +284,21 @@ export default function PricingClient() {
             </div>
           )}
 
-          {/* Enterprise CTA */}
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="max-w-5xl mx-auto mt-6 p-6 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4" style={{ background: "oklch(0.12 0.04 270)", border: "1px solid oklch(0.62 0.22 292 / 0.2)" }}>
-            <div>
-              <h3 className="text-lg font-bold mb-1" style={{ color: "oklch(0.97 0.005 270)" }}>{t("pricing.enterpriseTitle")}</h3>
-              <p className="text-sm" style={{ color: "oklch(0.65 0.015 270)" }}>{t("pricing.enterpriseDesc")}</p>
-            </div>
-            <a href="mailto:enterprise@ariia.ai">
-              <Button className="text-sm px-6 py-2.5 rounded-lg shrink-0 font-bold active:scale-95 transition-transform"
-                style={{ backgroundColor: "oklch(0.62 0.22 292)", color: "white" }}>
-                {t("pricing.enterpriseCta")}
-              </Button>
-            </a>
-          </motion.div>
+          {/* Enterprise CTA — only show if no enterprise plan is in the API response */}
+          {!plans.some(p => p.slug === "enterprise") && (
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="max-w-5xl mx-auto mt-6 p-6 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4" style={{ background: "oklch(0.12 0.04 270)", border: "1px solid oklch(0.62 0.22 292 / 0.2)" }}>
+              <div>
+                <h3 className="text-lg font-bold mb-1" style={{ color: "oklch(0.97 0.005 270)" }}>{t("pricing.enterpriseTitle")}</h3>
+                <p className="text-sm" style={{ color: "oklch(0.65 0.015 270)" }}>{t("pricing.enterpriseDesc")}</p>
+              </div>
+              <a href="mailto:enterprise@ariia.ai">
+                <Button className="text-sm px-6 py-2.5 rounded-lg shrink-0 font-bold active:scale-95 transition-transform"
+                  style={{ backgroundColor: "oklch(0.62 0.22 292)", color: "white" }}>
+                  {t("pricing.enterpriseCta")}
+                </Button>
+              </a>
+            </motion.div>
+          )}
         </div>
       </Section>
 
