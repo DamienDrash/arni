@@ -87,7 +87,7 @@ export default function RegisterPage() {
             }}
           >
             <div className="flex justify-center mb-5">
-              <AriiaLogo variant="icon" height={56} />
+              <AriiaLogo variant="full" height={40} />
             </div>
             <h1 className="text-2xl font-bold text-white tracking-tight">
               {t("register.title")}
