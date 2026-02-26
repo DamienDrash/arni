@@ -90,7 +90,7 @@ const PLATFORMS: Array<{
   category: string;
   connectorId?: string;
 }> = [
-  { id: "magicline", name: "Magicline", icon: <Dumbbell size={22} />, color: "#FF6B35", category: "fitness", connectorId: "magicline" },
+  { id: "hubspot", name: "HubSpot", icon: <Globe size={22} />, color: "#FF7A59", category: "crm", connectorId: "hubspot" },
   { id: "shopify", name: "Shopify", icon: <ShoppingBag size={22} />, color: "#96BF48", category: "ecommerce", connectorId: "shopify" },
   { id: "hubspot", name: "HubSpot", icon: <BarChart3 size={22} />, color: "#FF7A59", category: "crm", connectorId: "hubspot" },
   { id: "woocommerce", name: "WooCommerce", icon: <ShoppingBag size={22} />, color: "#7F54B3", category: "ecommerce", connectorId: "woocommerce" },
@@ -1947,7 +1947,7 @@ function SourceBadge({ source }: { source: string }) {
   const config: Record<string, { icon: React.ReactNode; color: string; bg: string }> = {
     manual: { icon: <PenLine size={11} />, color: T.textMuted, bg: T.surfaceAlt },
     csv: { icon: <FileSpreadsheet size={11} />, color: T.info, bg: T.infoDim },
-    magicline: { icon: <Dumbbell size={11} />, color: "#FF6B35", bg: "rgba(255,107,53,0.12)" },
+    hubspot: { icon: <Globe size={11} />, color: "#FF7A59", bg: "rgba(255,122,89,0.12)" },
     shopify: { icon: <ShoppingBag size={11} />, color: "#96BF48", bg: "rgba(150,191,72,0.12)" },
     hubspot: { icon: <BarChart3 size={11} />, color: "#FF7A59", bg: "rgba(255,122,89,0.12)" },
     woocommerce: { icon: <ShoppingBag size={11} />, color: "#7F54B3", bg: "rgba(127,84,179,0.12)" },

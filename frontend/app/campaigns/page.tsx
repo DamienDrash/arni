@@ -115,7 +115,7 @@ const CHANNEL_MAP: Record<string, { label: string; icon: typeof Mail; color: str
 };
 
 const TARGET_MAP: Record<string, string> = {
-  all_members: "Alle Mitglieder",
+  all_members: "Alle Kontakte",
   segment: "Segment",
   selected: "Ausgewählt",
   tags: "Nach Tags",
@@ -398,7 +398,7 @@ export default function CampaignsPage() {
               Kampagnen & Scheduling
             </h1>
             <p style={{ fontSize: 13, color: T.textMuted, margin: 0 }}>
-              Erstellen, planen und versenden Sie personalisierte Nachrichten an Ihre Mitglieder
+              Erstellen, planen und versenden Sie personalisierte Nachrichten an Ihre Kontakte
             </p>
           </div>
         </div>
@@ -560,7 +560,7 @@ export default function CampaignsPage() {
               Noch keine Kampagnen erstellt
             </p>
             <p style={{ fontSize: 13, color: T.textMuted, margin: "0 0 20px" }}>
-              Erstellen Sie Ihre erste Kampagne, um personalisierte Nachrichten an Ihre Mitglieder zu senden.
+              Erstellen Sie Ihre erste Kampagne, um personalisierte Nachrichten an Ihre Kontakte zu senden.
             </p>
             <button
               onClick={() => setActiveTab("create")}
@@ -833,10 +833,10 @@ export default function CampaignsPage() {
               </h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
                 {[
-                  { key: "all_members", label: "Alle Mitglieder", desc: "Nachricht an alle aktiven Mitglieder senden", icon: Users },
+                  { key: "all_members", label: "Alle Kontakte", desc: "Nachricht an alle aktiven Kontakte senden", icon: Users },
                   { key: "segment", label: "Segment", desc: "Vordefiniertes Segment verwenden", icon: Target },
-                  { key: "tags", label: "Nach Tags", desc: "Mitglieder nach Tags filtern", icon: Filter },
-                  { key: "selected", label: "Manuell auswählen", desc: "Einzelne Mitglieder auswählen", icon: CheckCircle },
+                  { key: "tags", label: "Nach Tags", desc: "Kontakte nach Tags filtern", icon: Filter },
+                  { key: "selected", label: "Manuell auswählen", desc: "Einzelne Kontakte auswählen", icon: CheckCircle },
                 ].map((t) => {
                   const Icon = t.icon;
                   const isSelected = newCampaign.target_type === t.key;
@@ -887,7 +887,7 @@ export default function CampaignsPage() {
                           <span style={{ fontSize: 13, fontWeight: 600 }}>{seg.name}</span>
                           {seg.description && <span style={{ fontSize: 12, color: T.textMuted, marginLeft: 8 }}>{seg.description}</span>}
                         </div>
-                        <Badge variant="accent">{seg.member_count} Mitglieder</Badge>
+                        <Badge variant="accent">{seg.member_count} Kontakte</Badge>
                       </button>
                     ))}
                   </div>
@@ -915,7 +915,7 @@ export default function CampaignsPage() {
                 <textarea
                   value={newCampaign.ai_prompt}
                   onChange={(e) => setNewCampaign({ ...newCampaign, ai_prompt: e.target.value })}
-                  placeholder="Beschreiben Sie, was die Nachricht beinhalten soll, z.B.: 'Motivierende Nachricht für Mitglieder die seit 2 Wochen nicht mehr im Studio waren. Erwähne unser neues Kursangebot und biete einen 10% Rabatt an.'"
+                  placeholder="Beschreiben Sie, was die Nachricht beinhalten soll, z.B.: 'Motivierende Nachricht für Kontakte die seit 2 Wochen nicht mehr aktiv waren. Erwähne unser neues Kursangebot und biete einen 10% Rabatt an.'"
                   rows={4}
                   style={{ ...inputStyle, resize: "vertical", marginBottom: 12 }}
                 />
@@ -1309,7 +1309,7 @@ export default function CampaignsPage() {
     return (
       <div>
         <SectionHeader
-          title="Mitglieder-Segmente"
+          title="Kontakt-Segmente"
           subtitle="Erstellen Sie Zielgruppen für gezielte Kampagnen"
           action={
             <button
@@ -1332,7 +1332,7 @@ export default function CampaignsPage() {
               Keine Segmente vorhanden
             </p>
             <p style={{ fontSize: 13, color: T.textMuted, margin: "0 0 20px" }}>
-              Erstellen Sie Segmente, um Ihre Mitglieder gezielt anzusprechen.
+              Erstellen Sie Segmente, um Ihre Kontakte gezielt anzusprechen.
             </p>
           </Card>
         ) : (
@@ -1353,7 +1353,7 @@ export default function CampaignsPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <Users size={14} color={T.textMuted} />
                     <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{seg.member_count}</span>
-                    <span style={{ fontSize: 12, color: T.textMuted }}>Mitglieder</span>
+                    <span style={{ fontSize: 12, color: T.textMuted }}>Kontakte</span>
                   </div>
                 </div>
               </Card>
@@ -1378,7 +1378,7 @@ export default function CampaignsPage() {
                     type="text"
                     value={segmentForm.name}
                     onChange={(e) => setSegmentForm({ ...segmentForm, name: e.target.value })}
-                    placeholder="z.B. Aktive Mitglieder"
+                    placeholder="z.B. Aktive Kontakte"
                     style={inputStyle}
                   />
                 </div>

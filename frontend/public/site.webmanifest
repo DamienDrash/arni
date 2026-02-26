@@ -1,7 +1,7 @@
 {
-  "name": "ARIIA – AI Living System Agent",
+  "name": "ARIIA – Enterprise AI Agent Platform",
   "short_name": "ARIIA",
-  "description": "KI-Plattform für Fitnessstudios – Automatisierte Kundenkommunikation über WhatsApp, Telegram und Voice",
+  "description": "Enterprise AI Agent Platform – Intelligente Kundenkommunikation über WhatsApp, Telegram und Voice",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

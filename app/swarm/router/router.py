@@ -93,7 +93,7 @@ class SwarmRouter:
             return AgentResponse(
                 content=(
                     "Dieser Kommunikationskanal (z.B. Telegram/SMS) ist in deinem aktuellen ARIIA-Plan "
-                    "nicht freigeschaltet. Bitte kontaktiere das Studio-Management für ein Upgrade."
+                    "nicht freigeschaltet. Bitte kontaktiere die Administration für ein Upgrade."
                 )
             )
 

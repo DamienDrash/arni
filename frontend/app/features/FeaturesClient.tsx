@@ -72,7 +72,7 @@ export default function FeaturesClient() {
       title: t("features.connectors.title"),
       desc: t("features.connectors.desc"),
       color: "oklch(0.72 0.2 292)",
-      details: [t("features.details.magicline"), t("features.details.shopify"), t("features.details.woo"), t("features.details.api")],
+      details: [t("features.details.ml"), t("features.details.shopify"), t("features.details.woo"), t("features.details.api")],
     },
   ];
 

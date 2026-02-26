@@ -21,9 +21,9 @@ logger = structlog.get_logger()
 # All setting keys that feed into prompt templates.
 # Seeded at tenant creation with sensible defaults.
 PROMPT_SETTINGS_KEYS: list[str] = [
-    "studio_name",             # Full studio name, e.g. "Mein Fitnessstudio GmbH"
-    "studio_short_name",       # Short name, e.g. "MyStudio"
-    "agent_display_name",      # Agent name shown to members: "ARIIA"
+    "studio_name",             # Full organization name, e.g. "My Company GmbH"
+    "studio_short_name",       # Short name, e.g. "MyCompany"
+    "agent_display_name",      # Agent name shown to customers: "ARIIA"
     "studio_locale",           # BCP-47 locale: "de-DE" | "en-US"
     "studio_timezone",         # IANA tz: "Europe/Berlin"
     "studio_emergency_number", # Emergency services: "112" | "911"

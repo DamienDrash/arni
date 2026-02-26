@@ -2,33 +2,36 @@ import { Metadata } from "next";
 import HomeClient from "./HomeClient";
 
 const SITE_URL = "https://www.ariia.ai";
-const OG_IMAGE = "https://files.manuscdn.com/user_upload_by_module/session_file/107911917/uFpxKFIPPBOjWMhN.png";
+const OG_IMAGE = `${SITE_URL}/og-image.png`;
 
 export const metadata: Metadata = {
-  title: "ARIIA | KI-Plattform für Fitnessstudios – Automatisierte Kundenkommunikation",
+  title: "ARIIA | Enterprise AI Agent Platform – Intelligente Kundenkommunikation automatisieren",
   description:
-    "ARIIA automatisiert die Kundenkommunikation für Fitnessstudios über WhatsApp, Telegram und Voice. Intelligente AI-Agenten steigern Effizienz, Mitgliederbindung und Umsatz. 14 Tage kostenlos testen.",
+    "ARIIA automatisiert die Kundenkommunikation für Unternehmen jeder Branche über WhatsApp, Telegram und Voice. Multi-Agent Orchestration mit Swarm Intelligence steigert Effizienz, Kundenbindung und Umsatz. DSGVO-konform. Made in Germany. 14 Tage kostenlos testen.",
   keywords: [
-    "KI Fitnessstudio",
-    "AI Chatbot Fitness",
-    "WhatsApp Automatisierung Fitnessstudio",
-    "Fitness Marketing Automatisierung",
-    "Magicline Integration KI",
+    "Enterprise AI Agent Platform",
+    "AI Chatbot Unternehmen",
+    "WhatsApp Automatisierung Business",
+    "KI Kundenkommunikation",
+    "Multi-Agent Orchestration",
     "ARIIA AI",
-    "Chatbot für Fitnessstudios",
+    "Chatbot für Unternehmen",
     "Kundenkommunikation automatisieren",
-    "Fitness Studio Software",
-    "KI Mitgliederverwaltung",
-    "Voice AI Fitness",
-    "Telegram Bot Fitnessstudio",
+    "Enterprise SaaS Deutschland",
+    "KI Kundenverwaltung",
+    "Voice AI Business",
+    "Omnichannel Automatisierung",
+    "Swarm Intelligence SaaS",
+    "Multi-Tenant AI Platform",
+    "CRM Integration KI",
   ],
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "ARIIA | KI-Plattform für Fitnessstudios – Automatisierte Kundenkommunikation",
+    title: "ARIIA | Enterprise AI Agent Platform – Intelligente Kundenkommunikation",
     description:
-      "Die führende KI-Plattform für Fitnessstudios. Automatisieren Sie Kundenkommunikation über WhatsApp, Telegram und Voice mit intelligenten AI-Agenten.",
+      "Die führende Enterprise AI Agent Platform. Automatisieren Sie Kundenkommunikation über WhatsApp, Telegram und Voice mit Multi-Agent Orchestration. DSGVO-konform.",
     url: SITE_URL,
     siteName: "ARIIA",
     images: [
@@ -36,7 +39,7 @@ export const metadata: Metadata = {
         url: OG_IMAGE,
         width: 1200,
         height: 630,
-        alt: "ARIIA – KI-Plattform für Fitnessstudios Dashboard",
+        alt: "ARIIA – Enterprise AI Agent Platform Dashboard",
       },
     ],
     locale: "de_DE",
@@ -45,9 +48,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "ARIIA | KI-Plattform für Fitnessstudios",
+    title: "ARIIA | Enterprise AI Agent Platform",
     description:
-      "Automatisieren Sie Kundenkommunikation über WhatsApp, Telegram und Voice mit intelligenten AI-Agenten. 14 Tage kostenlos testen.",
+      "Automatisieren Sie Kundenkommunikation über WhatsApp, Telegram und Voice mit Multi-Agent Orchestration. DSGVO-konform. 14 Tage kostenlos testen.",
     images: [OG_IMAGE],
     creator: "@ariia_ai",
   },

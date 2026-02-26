@@ -23,7 +23,7 @@
     "madeInGermany": "Hergestellt in Deutschland",
     "enterpriseReady": "Enterprise-fähig",
     "allSystemsOnline": "Alle Systeme online",
-    "membersSynced": "Mitglieder synchronisiert",
+    "membersSynced": "Kontakte synchronisiert",
     "details": "Details",
     "noEntries": "Keine Einträge gefunden",
     "search": "Suchen",
@@ -36,11 +36,11 @@
     "monitor": "Live-Monitor",
     "escalations": "Eskalationen",
     "analytics": "Analysen",
-    "members": "Mitglieder",
+    "members": "Kontakte",
     "users": "Benutzer",
     "knowledge": "Wissensdatenbank",
-    "memberMemory": "Mitgliedergedächtnis",
-    "systemPrompt": "Studio-Prompt",
+    "memberMemory": "Kontaktgedächtnis",
+    "systemPrompt": "System-Prompt",
     "sync": "Synchronisierung",
     "billing": "Abonnement",
     "settings": "Einstellungen",
@@ -50,17 +50,17 @@
     "health": "Engine-Statistiken",
     "quickActions": "Schnellaktionen",
     "platformControl": "Plattformsteuerung",
-    "studioDeck": "Studio-Deck",
+    "studioDeck": "Kontrollzentrum",
     "logout": "Abmelden",
     "roles": {
       "systemAdmin": "Systemadministrator",
-      "tenantAdmin": "Studio-Administrator"
+      "tenantAdmin": "Administrator"
     },
     "sections": {
       "operations": "Operationen",
       "customers": "Kunden",
       "knowledge": "Wissen",
-      "studio": "Studio",
+      "studio": "Organisation",
       "governance": "Verwaltung",
       "system": "System"
     },
@@ -102,20 +102,20 @@
         "newHint": "Mindestens 8 Zeichen lang"
       },
       "studio": {
-        "title": "Studio-Profil",
-        "subtitle": "Öffentliche Studio-Identität und Kontakt",
-        "name": "Studio-Name",
+        "title": "Organisationsprofil",
+        "subtitle": "Öffentliche Identität und Kontaktdaten Ihrer Organisation",
+        "name": "Organisationsname",
         "nameHint": "Wird in KI-Interaktionen angezeigt",
         "opsEmail": "Betriebs-E-Mail",
-        "opsEmailHint": "Kontakt für Studio-Operationen",
+        "opsEmailHint": "Kontakt für operative Anfragen",
         "opsTelegram": "Betriebs-Telegram",
-        "opsTelegramHint": "Telegram-Benutzername für Studio-Mitarbeiter",
+        "opsTelegramHint": "Telegram-Benutzername für Ihr Team",
         "refresh": "Datenaktualisierung",
         "refreshHint": "Manuelle Synchronisierung mit externen Systemen",
         "sla": "SLA-Stufe",
         "slaHint": "Service-Level-Agreement-Stufe",
-        "localeHint": "Primäre Sprache Ihrer Studio-Mitglieder",
-        "timezoneHint": "Lokale Studio-Zeit"
+        "localeHint": "Primäre Sprache Ihrer Kunden",
+        "timezoneHint": "Lokale Zeitzone Ihrer Organisation"
       },
       "title": "Kontoeinstellungen",
       "subtitle": "Verwalten Sie Ihr persönliches Profil und Ihre Sicherheit",
@@ -124,7 +124,7 @@
         "locale": "de-DE",
         "timezone": "MEZ",
         "password": "••••••••",
-        "studioName": "Ihr Studio-Name",
+        "studioName": "Ihr Organisationsname",
         "opsEmail": "ops@beispiel.de",
         "opsTelegram": "-100...",
         "sla": "15",
@@ -207,7 +207,7 @@
     },
     "integrations": {
       "title": "Integrationen",
-      "subtitle": "Verbinden Sie Magicline, WhatsApp und mehr."
+      "subtitle": "Verbinden Sie Ihre Tools, CRMs und Kommunikationskanäle."
     },
     "prompts": {
       "title": "Benutzerdefinierte Prompts",
@@ -225,12 +225,12 @@
     "title": "Der intelligente",
     "words": [
       "KI-Assistent",
-      "Studio-Manager",
+      "Kundenberater",
       "Operations-Bot",
       "Vertriebsagent"
     ],
-    "subtitle": "für Ihr Fitnessstudio",
-    "description": "ARIIA automatisiert die Kundenkommunikation über WhatsApp, Telegram und Voice. Steigern Sie Ihre Effizienz mit Arnold Prime Orchestration.",
+    "subtitle": "für Ihr Unternehmen",
+    "description": "ARIIA automatisiert die Kundenkommunikation über WhatsApp, Telegram und Voice. Steigern Sie Ihre Effizienz mit Multi-Agent Orchestration und Swarm Intelligence.",
     "cta": "Jetzt starten"
   },
   "stats": {
@@ -241,24 +241,24 @@
   },
   "features": {
     "badge": "Funktionen",
-    "title": "Alles, was Ihr Studio",
+    "title": "Alles, was Ihr Unternehmen",
     "titleAccent": "zum Erfolg braucht",
     "description": "Ein komplettes Ökosystem von KI-Agenten, nahtlos in Ihre bestehenden Systeme integriert.",
     "swarm": {
       "title": "Schwarmintelligenz",
-      "desc": "Spezialisierte Agenten (Vertrieb, Medizin, Betrieb) arbeiten zusammen, um jede Anfrage zu lösen."
+      "desc": "Spezialisierte Agenten (Vertrieb, Support, Betrieb) arbeiten zusammen, um jede Anfrage zu lösen."
     },
     "omnichannel": {
       "title": "Omnichannel",
-      "desc": "WhatsApp, Telegram, SMS und Voice. Erreichen Sie Ihre Mitglieder dort, wo sie sind."
+      "desc": "WhatsApp, Telegram, SMS und Voice. Erreichen Sie Ihre Kunden dort, wo sie sind."
     },
     "churn": {
-      "title": "Kündigungsprävention",
-      "desc": "KI-gesteuerte Analyse identifiziert Kündigungsrisiken, bevor sie entstehen."
+      "title": "Abwanderungsprävention",
+      "desc": "KI-gesteuerte Analyse identifiziert Abwanderungsrisiken, bevor sie entstehen."
     },
     "memory": {
       "title": "Kontextgedächtnis",
-      "desc": "ARIIA erinnert sich an jede Interaktion und baut echte Beziehungen zu Mitgliedern auf."
+      "desc": "ARIIA erinnert sich an jede Interaktion und baut echte Beziehungen zu Kunden auf."
     },
     "security": {
       "title": "DSGVO & Sicherheit",
@@ -266,19 +266,19 @@
     },
     "connectors": {
       "title": "Tiefe Integration",
-      "desc": "Direkte Verbindung zu Magicline, Shopify und mehr für Echtzeit-Bearbeitung."
+      "desc": "Direkte Verbindung zu HubSpot, Salesforce, Shopify und vielen weiteren Plattformen."
     },
     "page": {
       "title": "Next-Gen",
-      "titleAccent": "Studio-Intelligenz",
-      "description": "ARIIA ist mehr als ein Chatbot. Es ist ein Schwarm spezialisierter KI-Agenten, die Ihr Studio und Ihre Mitglieder verstehen.",
+      "titleAccent": "Enterprise Intelligence",
+      "description": "ARIIA ist mehr als ein Chatbot. Es ist ein Schwarm spezialisierter KI-Agenten, die Ihr Unternehmen und Ihre Kunden verstehen.",
       "techTitle": "Tiefer",
       "techSubtitle": "Technologie",
       "techSubtitleAccent": "Stack",
-      "deckTitle": "Studio",
-      "deckSubtitle": "Kontroll",
-      "deckSubtitleAccent": "Deck",
-      "deckDesc": "Ein zentrales Dashboard zur Überwachung jeder KI-Interaktion und zur Echtzeit-Verwaltung Ihrer Studio-Einstellungen.",
+      "deckTitle": "Kontroll",
+      "deckSubtitle": "Zentrum",
+      "deckSubtitleAccent": "",
+      "deckDesc": "Ein zentrales Dashboard zur Überwachung jeder KI-Interaktion und zur Echtzeit-Verwaltung Ihrer Einstellungen.",
       "securityTitle": "Enterprise",
       "securitySubtitle": "Sicherheit &",
       "securitySubtitleAccent": "Compliance",
@@ -290,24 +290,24 @@
         "desc": "Beobachten Sie KI-Interaktionen in Echtzeit und greifen Sie bei Bedarf ein."
       },
       "members": {
-        "title": "Mitgliederverwaltung",
-        "desc": "Tiefe Integration mit Magicline zur Abwicklung von Buchungen und Verträgen."
+        "title": "Kontaktverwaltung",
+        "desc": "Nahtlose Integration mit Ihrem CRM für Kundendaten, Buchungen und Verträge."
       },
       "knowledge": {
         "title": "Wissensdatenbank",
-        "desc": "Laden Sie Ihre Studiounterlagen hoch, um die KI auf Ihre spezifischen Regeln zu trainieren."
+        "desc": "Laden Sie Ihre Unternehmensdokumente hoch, um die KI auf Ihre spezifischen Regeln zu trainieren."
       },
       "prompts": {
         "title": "Persona-Steuerung",
-        "desc": "Passen Sie den Ton und die Persönlichkeit Ihres Studio-Assistenten an."
+        "desc": "Passen Sie den Ton und die Persönlichkeit Ihres KI-Assistenten an."
       },
       "multi": {
         "title": "Mandantenfähigkeit",
-        "desc": "Verwalten Sie mehrere Studio-Standorte von einem zentralen Konto aus."
+        "desc": "Verwalten Sie mehrere Standorte oder Abteilungen von einem zentralen Konto aus."
       },
       "churn": {
-        "title": "Kündigungsprävention",
-        "desc": "Die KI identifiziert Mitglieder, die aufgrund ihres Verhaltens von einer Kündigung bedroht sind."
+        "title": "Abwanderungsprävention",
+        "desc": "Die KI identifiziert Kunden, die aufgrund ihres Verhaltens von einer Abwanderung bedroht sind."
       }
     },
     "details": {
@@ -319,7 +319,7 @@
       "tg": "Telegram Bot",
       "voice": "Sprach-STT/TTS",
       "chat": "Web-Widget",
-      "ml": "Magicline-Synchronisation",
+      "ml": "CRM Deep-Link",
       "proactive": "Proaktive Kontaktaufnahme",
       "scoring": "Verhaltensbewertung",
       "behavior": "Engagement-Analyse",
@@ -333,8 +333,7 @@
       "audit": "Audit-Protokolle",
       "api": "REST API-Zugriff",
       "shopify": "Shopify-Integration",
-      "woo": "WooCommerce",
-      "magicline": "Magicline Deep-Link"
+      "woo": "WooCommerce"
     },
     "securityLabels": {
       "dsgvo": "DSGVO",
@@ -347,13 +346,13 @@
   },
   "cta": {
     "title": "Bereit für die Zukunft der",
-    "titleAccent": "Studio-Automatisierung",
-    "subtitle": "Schließen Sie sich über 50 Fitnessstudios an, die bereits mit ARIIA wachsen.",
+    "titleAccent": "Kundenkommunikation",
+    "subtitle": "Schließen Sie sich über 200 Unternehmen an, die bereits mit ARIIA wachsen.",
     "button": "Kostenloses Konto erstellen",
     "compare": "Preise vergleichen"
   },
   "footer": {
-    "brandDesc": "Die Evolution des Studiobetriebs. Agentische Multi-Tenant SaaS-Plattform.",
+    "brandDesc": "Enterprise AI Agent Platform. Intelligente Multi-Tenant Automatisierung.",
     "product": "Produkt",
     "company": "Unternehmen",
     "contact": "Kontakt",
@@ -416,25 +415,25 @@
     "noSessions": "Derzeit keine aktiven Sitzungen",
     "selectSession": "Wählen Sie eine Sitzung aus, um Details anzuzeigen",
     "handoff": {
-      "link": "Mitglied verknüpfen",
-      "hint": "Diese Sitzung manuell einer Mitglieds-ID zuordnen",
-      "placeholder": "Mitglieds-ID eingeben"
+      "link": "Kontakt verknüpfen",
+      "hint": "Diese Sitzung manuell einem Kontakt zuordnen",
+      "placeholder": "Kontakt-ID eingeben"
     }
   },
   "memberMemory": {
-    "title": "Mitgliedergedächtnis",
+    "title": "Kontaktgedächtnis",
     "subtitle": "Semantische Langzeit-Wissensbasis",
     "files": "Gedächtnisdateien",
-    "noFiles": "Keine Gedächtniseinträge für dieses Mitglied gefunden",
+    "noFiles": "Keine Gedächtniseinträge für diesen Kontakt gefunden",
     "selectFile": "Wählen Sie einen Eintrag aus, um Details anzuzeigen",
     "reasonPlaceholder": "Grund für manuelle Überschreibung eingeben",
     "scheduler": "Analyse-Scheduler",
     "lastRun": "Zuletzt analysiert"
   },
   "members": {
-    "title": "Mitglieder",
+    "title": "Kontakte",
     "subtitle": "Verwalten Sie Ihre Kundendaten und Integrationen",
-    "add": "Mitglied hinzufügen",
+    "add": "Kontakt hinzufügen",
     "import": {
       "clickOrDrop": "Klicken oder Datei hierher ziehen",
       "selectFile": "Datei auswählen",
@@ -442,10 +441,10 @@
       "success": "Import erfolgreich gestartet"
     },
     "importTitle": "CSV Import",
-    "noMembers": "Keine Mitglieder gefunden",
+    "noMembers": "Keine Kontakte gefunden",
     "noContact": "Keine Kontaktinformationen",
-    "confirmDelete": "Möchten Sie die ausgewählten Mitglieder wirklich löschen?",
-    "search": "Mitglieder suchen...",
+    "confirmDelete": "Möchten Sie die ausgewählten Kontakte wirklich löschen?",
+    "search": "Kontakte suchen...",
     "stats": {
       "total": "Gesamt",
       "active": "Aktiv",
@@ -455,7 +454,7 @@
       "selected": "ausgewählt"
     },
     "table": {
-      "member": "Mitglied",
+      "member": "Kontakt",
       "source": "Quelle",
       "status": "Status"
     },
@@ -473,13 +472,13 @@
       "title": "Kundendaten-Hub",
       "subtitle": "Wählen Sie, wie Sie Ihre Kundendaten verwalten und importieren möchten",
       "chooseMethod": "Wählen Sie Ihre Integrationsmethode",
-      "existingData": "{{count}} Mitglieder bereits importiert",
-      "viewData": "Mitglieder anzeigen",
+      "existingData": "{{count}} Kontakte bereits importiert",
+      "viewData": "Kontakte anzeigen",
       "activeIntegrations": "Aktive Integrationen",
       "methods": {
         "manual": {
           "title": "Manuelle Verwaltung",
-          "desc": "Fügen Sie Mitglieder einzeln hinzu oder importieren Sie per CSV-Datei. Perfekt für den schnellen Einstieg.",
+          "desc": "Fügen Sie Kontakte einzeln hinzu oder importieren Sie per CSV-Datei. Perfekt für den schnellen Einstieg.",
           "cta": "Manuell starten"
         },
         "api": {
@@ -489,7 +488,7 @@
         },
         "platform": {
           "title": "Plattform-Integration",
-          "desc": "Verbinden Sie Plattformen wie Magicline, Shopify oder HubSpot mit geführtem Setup.",
+          "desc": "Verbinden Sie Plattformen wie HubSpot, Salesforce oder Shopify mit geführtem Setup.",
           "cta": "Plattformen durchsuchen"
         }
       },
@@ -517,7 +516,7 @@
     },
     "platforms": {
       "categories": {
-        "fitness": "Fitness",
+        "fitness": "Fitness & Wellness",
         "ecommerce": "E-Commerce",
         "crm": "CRM",
         "developer": "Entwickler"
@@ -526,7 +525,7 @@
     "onboarding": {
       "next": "Weiter",
       "back": "Zurück",
-      "finish": "Zu den Mitgliedern",
+      "finish": "Zu den Kontakten",
       "api": {
         "title": "API-Integration",
         "subtitle": "Verbinden Sie Ihre Systeme über REST API",
@@ -537,17 +536,17 @@
         "step3Title": "Test & Go Live",
         "step3Desc": "Verbindung prüfen",
         "overviewTitle": "Verfügbare API-Endpunkte",
-        "overviewDesc": "Nutzen Sie diese REST API-Endpunkte um Ihre Mitgliederdaten programmatisch zu verwalten. Alle Endpunkte erfordern Authentifizierung via Bearer Token.",
-        "endpointCreate": "Mitglied erstellen",
+        "overviewDesc": "Nutzen Sie diese REST API-Endpunkte um Ihre Kundendaten programmatisch zu verwalten. Alle Endpunkte erfordern Authentifizierung via Bearer Token.",
+        "endpointCreate": "Kontakt erstellen",
         "endpointImport": "CSV-Massenimport",
-        "endpointList": "Alle Mitglieder auflisten",
+        "endpointList": "Alle Kontakte auflisten",
         "endpointExport": "Als CSV exportieren",
         "authTitle": "Authentifizierung",
         "authDesc": "Alle API-Anfragen müssen einen gültigen Bearer Token im Authorization-Header enthalten. API-Tokens können in den Kontoeinstellungen generiert werden.",
         "testTitle": "Bereit zum Start",
         "testDesc": "Ihre API-Integration ist einsatzbereit. Sie können jetzt Daten an ARIIA senden.",
         "readyTitle": "API-Integration bereit",
-        "readyDesc": "Beginnen Sie mit dem Senden von Mitgliederdaten über die REST API. Prüfen Sie die Dokumentation für detaillierte Feld-Zuordnungen."
+        "readyDesc": "Beginnen Sie mit dem Senden von Kundendaten über die REST API. Prüfen Sie die Dokumentation für detaillierte Feld-Zuordnungen."
       },
       "platform": {
         "title": "Plattform-Integration",
@@ -572,34 +571,34 @@
         "testReady": "Klicken Sie auf den Button, um Ihre Konfiguration zu speichern und die Verbindung zu testen.",
         "runTest": "Speichern & Verbindung testen",
         "completeTitle": "Integration abgeschlossen",
-        "completeDesc": "{{name}} wurde erfolgreich verbunden. Ihre Mitgliederdaten werden nun automatisch synchronisiert.",
-        "goToMembers": "Zu den Mitgliedern"
+        "completeDesc": "{{name}} wurde erfolgreich verbunden. Ihre Kundendaten werden nun automatisch synchronisiert.",
+        "goToMembers": "Zu den Kontakten"
       }
     }
   },
   "pricing": {
     "title": "Einfache Preisgestaltung",
-    "titleAccent": "für jede Studiogröße",
-    "description": "Wählen Sie den Plan, der zu Ihrem Studiobetrieb passt. Alle Pläne beinhalten 24/7 KI-Verfügbarkeit und Magicline-Integration.",
+    "titleAccent": "für jede Unternehmensgröße",
+    "description": "Wählen Sie den Plan, der zu Ihrem Unternehmen passt. Alle Pläne beinhalten 24/7 KI-Verfügbarkeit und nahtlose CRM-Integration.",
     "monthly": "Monatlich",
     "yearly": "Jährlich",
     "billedYearly": "jährlich abgerechnet",
     "discount": "20% sparen",
     "enterpriseTitle": "Enterprise",
-    "enterpriseDesc": "Maßgeschneiderte Lösungen für große Studioketten mit über 10 Standorten und spezifischen Compliance-Anforderungen.",
+    "enterpriseDesc": "Maßgeschneiderte Lösungen für große Organisationen mit über 10 Standorten und spezifischen Compliance-Anforderungen.",
     "enterpriseCta": "Vertrieb kontaktieren",
     "addonsTitle": "Leistungsstarke",
     "addonsSubtitle": "Erweiterungen",
     "addonsSubtitleAccent": "zum Skalieren",
     "addonsDesc": "Erweitern Sie Ihre KI-Agenten mit spezialisierten Funktionen, die auf Ihren Workflow zugeschnitten sind.",
     "faqTitle": "Häufig gestellte Fragen",
-    "finalCta": "Bereit, Ihr Studio zu transformieren?",
+    "finalCta": "Bereit, Ihr Unternehmen zu transformieren?",
     "finalCtaAccent": "Starten Sie noch heute Ihre Testphase.",
-    "finalCtaDesc": "Schließen Sie sich über 50 Fitnessstudios an, die bereits ARIIA nutzen.",
+    "finalCtaDesc": "Schließen Sie sich über 200 Unternehmen an, die bereits ARIIA nutzen.",
     "plans": {
       "starter": {
         "name": "Starter",
-        "desc": "Perfekt für Boutique-Studios",
+        "desc": "Perfekt für kleine Teams und Startups",
         "cta": "Jetzt starten",
         "features": [
           "1 KI-Agent (Betrieb)",
@@ -611,19 +610,19 @@
       "professional": {
         "name": "Professionell",
         "badge": "Am beliebtesten",
-        "desc": "Für wachsende Fitnessstudios",
+        "desc": "Für wachsende Unternehmen",
         "cta": "Kostenlose Testphase starten",
         "features": [
           "3 KI-Agenten (Vertrieb, Betrieb, Support)",
           "WhatsApp & Telegram",
           "500 KI-Lösungen/Monat",
           "Erweiterte Analysen",
-          "Mitgliedergedächtnis (1 Stufe)"
+          "Kontaktgedächtnis (1 Stufe)"
         ]
       },
       "business": {
         "name": "Business",
-        "desc": "Vollständige Automatisierung für große Studios",
+        "desc": "Vollständige Automatisierung für Enterprise-Kunden",
         "cta": "Pro-Version wählen",
         "features": [
           "Voller Schwarm (Alle Agenten)",
@@ -641,11 +640,11 @@
       },
       "vision": {
         "name": "KI-Vision (YOLOv8)",
-        "desc": "Echtzeit-Belegungs- und Sicherheitsüberwachung über Kameraintegration."
+        "desc": "Echtzeit-Überwachung und Sicherheitsanalyse über Kameraintegration."
       },
       "churn": {
         "name": "Abwanderungsprognose",
-        "desc": "Fortschrittliches ML-Modell zur frühzeitigen Erkennung von Kündigungsrisiken."
+        "desc": "Fortschrittliches ML-Modell zur frühzeitigen Erkennung von Abwanderungsrisiken."
       },
       "channel": {
         "name": "Zusätzlicher Kanal",
@@ -765,18 +764,18 @@
   "register": {
     "title": "Registrierung",
     "subtitle": "Erstellen Sie einen neuen Mandanten und Administratorbenutzer.",
-    "tenantName": "Mandantenname (z.B. Test-Studio)",
+    "tenantName": "Organisationsname (z.B. Mein Unternehmen)",
     "tenantSlug": "Mandanten-Slug (optional)",
     "email": "E-Mail",
     "name": "Name (optional)",
     "password": "Passwort (min. 8 Zeichen)",
-    "button": "Mandanten registrieren",
+    "button": "Organisation registrieren",
     "waiting": "Bitte warten Sie...",
     "backToLogin": "Zurück zum Login"
   },
   "login": {
     "placeholders": {
-      "email": "admin@ariia.io",
+      "email": "admin@ariia.ai",
       "password": "••••••••"
     }
   },
@@ -800,39 +799,39 @@
     "title": "Eskalationswarteschlange",
     "subtitle": "Tickets, die menschliches Eingreifen erfordern",
     "noEscalations": "Keine offenen Eskalationen.",
-    "memberIdError": "Bitte geben Sie eine gültige Mitglieds-ID an.",
+    "memberIdError": "Bitte geben Sie eine gültige Kontakt-ID an.",
     "tokenError": "Fehler beim Generieren des Tokens.",
     "handoffError": "Fehler beim Auflösen der Übergabe.",
     "allClear": "Alles klar",
-    "linkMember": "Mitglied verknüpfen",
-    "memberId": "Mitglieds-ID",
+    "linkMember": "Kontakt verknüpfen",
+    "memberId": "Kontakt-ID",
     "resolveHandoff": "Übergabe auflösen?"
   },
   "magicline": {
     "syncNotStarted": "Synchronisierung noch nicht gestartet",
-    "allEnriched": "Alle Mitglieder bereits angereichert",
+    "allEnriched": "Alle Kontakte bereits angereichert",
     "syncFailed": "Synchronisierung fehlgeschlagen",
-    "syncDescription": "Besuchs- und Buchungsdaten für alle Mitglieder laden",
+    "syncDescription": "Aktivitäts- und Buchungsdaten für alle Kontakte laden",
     "enrichAll": "Alle anreichern",
     "adoption": "ARIIA-Adoption",
-    "adoptionSubtitle": "Magicline-Mitglieder, die ARIIA genutzt haben",
+    "adoptionSubtitle": "Kontakte, die ARIIA genutzt haben",
     "usersActive": "Aktive Benutzer",
     "platformVerification": "Plattform & Verifizierung",
     "platformSubtitle": "Aktive Chatsitzungen nach Kanal und Status",
     "noSessions": "Noch keine Chatsitzungen verfügbar.",
     "languageDistribution": "Sprachverteilung",
-    "languageSubtitle": "Bevorzugte Sprache der Mitglieder",
+    "languageSubtitle": "Bevorzugte Sprache der Kontakte",
     "noLanguageData": "Keine Sprachdaten verfügbar.",
-    "memberStatus": "Mitgliedsstatus",
-    "memberStatusSubtitle": "Aktive vs. pausierte Mitglieder",
+    "memberStatus": "Kontaktstatus",
+    "memberStatusSubtitle": "Aktive vs. pausierte Kontakte",
     "noData": "Keine Daten.",
     "dataCoverage": "Datenabdeckung",
-    "dataCoverageSubtitle": "Mitglieder mit Besuchs- & Buchungsdaten"
+    "dataCoverageSubtitle": "Kontakte mit Aktivitäts- & Buchungsdaten"
   },
   "analytics": {
     "weeklyOverview": "Wochenübersicht",
     "weeklySubtitle": "Tickets & Lösungsrate (letzte 7 Tage)",
-    "satisfaction": "Mitgliederzufriedenheit",
+    "satisfaction": "Kundenzufriedenheit",
     "satisfactionSubtitle": "Feedback nach KI-Interaktionen",
     "noFeedback": "Noch kein Feedback verfügbar",
     "avgRating": "Durchschnittliche Bewertung",
@@ -862,7 +861,7 @@
     "noEvents": "Keine Ereignisse gefunden.",
     "initializing": "Dashboard wird initialisiert...",
     "loadError": "Fehler beim Laden der Daten.",
-    "analyticsHint": "Nutzen Sie den Menüpunkt „Analysen“ für detaillierte Auswertungen."
+    "analyticsHint": "Nutzen Sie den Menüpunkt 'Analysen' für detaillierte Auswertungen."
   },
   "tiptap": {
     "toolbar": "Texteditor-Symbolleiste",
@@ -878,7 +877,7 @@
   },
   "automation": {
     "title": "Automatisierung",
-    "subtitle": "Zeitplanung und LLM-Extraktion für die tägliche Mitglieder-Gedächtnis-Analyse.",
+    "subtitle": "Zeitplanung und LLM-Extraktion für die tägliche Kontakt-Gedächtnis-Analyse.",
     "lastRun": "Letzter Lauf",
     "schedulerActive": "Scheduler aktiv",
     "schedulerDesc": "Ermöglicht die tägliche Ausführung gemäß Cron-Ausdruck.",

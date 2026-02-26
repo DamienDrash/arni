@@ -50,7 +50,7 @@
     "health": "Estatísticas do Motor",
     "quickActions": "Ações Rápidas",
     "platformControl": "Controle da Plataforma",
-    "studioDeck": "Deck do Estúdio",
+    "organizationDeck": "Deck do Estúdio",
     "logout": "Sair",
     "roles": {
       "systemAdmin": "Administrador do Sistema",
@@ -60,7 +60,7 @@
       "operations": "Operações",
       "customers": "Clientes",
       "knowledge": "Conhecimento",
-      "studio": "Estúdio",
+      "organization": "Estúdio",
       "governance": "Governança",
       "system": "Sistema"
     }
@@ -94,7 +94,7 @@
         "new": "Nova Senha",
         "newHint": "Mínimo de 8 caracteres"
       },
-      "studio": {
+      "organization": {
         "title": "Perfil do Estúdio",
         "subtitle": "Identidade pública e contato do estúdio",
         "name": "Nome do Estúdio",
@@ -117,7 +117,7 @@
         "locale": "pt-BR",
         "timezone": "UTC",
         "password": "••••••••",
-        "studioName": "Nome do Seu Estúdio",
+        "organizationName": "Nome do Seu Estúdio",
         "opsEmail": "ops@exemplo.com",
         "opsTelegram": "-100...",
         "sla": "15",
@@ -200,7 +200,7 @@
     },
     "integrations": {
       "title": "Integrações",
-      "subtitle": "Conecte Magicline, WhatsApp e muito mais."
+      "subtitle": "Conecte CRM, WhatsApp e muito mais."
     },
     "prompts": {
       "title": "Prompts Personalizados",
@@ -259,7 +259,7 @@
     },
     "connectors": {
       "title": "Integração Profunda",
-      "desc": "Conexão direta com Magicline, Shopify e muito mais para gerenciamento em tempo real."
+      "desc": "Conexão direta com CRM, Shopify e muito mais para gerenciamento em tempo real."
     },
     "page": {
       "title": "Próxima Geração",
@@ -284,7 +284,7 @@
       },
       "members": {
         "title": "Gerenciamento de Membros",
-        "desc": "Integração profunda com Magicline para gerenciar reservas e contratos."
+        "desc": "Integração profunda com CRM para gerenciar reservas e contratos."
       },
       "knowledge": {
         "title": "Base de Conhecimento",
@@ -312,7 +312,7 @@
       "tg": "Bot do Telegram",
       "voice": "Voz STT/TTS",
       "chat": "Widget Web",
-      "ml": "Sincronização Magicline",
+      "ml": "Sincronização CRM",
       "proactive": "Alcance Proativo",
       "scoring": "Pontuação Comportamental",
       "behavior": "Análise de Engajamento",
@@ -327,7 +327,7 @@
       "api": "Acesso à REST API",
       "shopify": "Integração Shopify",
       "woo": "WooCommerce",
-      "magicline": "Deep-Link Magicline"
+      "crm": "Deep-Link CRM"
     },
     "securityLabels": {
       "dsgvo": "GDPR",
@@ -443,7 +443,7 @@
       "active": "Ativos",
       "paused": "Pausados",
       "manual": "Entradas Manuais",
-      "external": "Sincronizados (Magicline)",
+      "external": "Sincronizados (CRM)",
       "selected": "selecionados"
     },
     "table": {
@@ -464,7 +464,7 @@
   "pricing": {
     "title": "Preços Simples",
     "titleAccent": "para todos os tamanhos de estúdio",
-    "description": "Escolha o plano que melhor se adapta às operações do seu estúdio. Todos os planos incluem disponibilidade de IA 24 horas por dia, 7 dias por semana e integração Magicline.",
+    "description": "Escolha o plano que melhor se adapta às operações do seu estúdio. Todos os planos incluem disponibilidade de IA 24 horas por dia, 7 dias por semana e integração CRM.",
     "monthly": "Mensal",
     "yearly": "Anual",
     "billedYearly": "cobrado anualmente",
@@ -649,7 +649,7 @@
   "register": {
     "title": "Registro",
     "subtitle": "Crie um novo inquilino e usuário administrador.",
-    "tenantName": "Nome do Inquilino (ex: Test-Studio)",
+    "tenantName": "Nome do Inquilino (ex: Test-Organization)",
     "tenantSlug": "Slug do Inquilino (opcional)",
     "email": "E-mail",
     "name": "Nome (opcional)",
@@ -692,14 +692,14 @@
     "memberId": "ID do Membro",
     "resolveHandoff": "Resolver transferência?"
   },
-  "magicline": {
+  "crm": {
     "syncNotStarted": "Sincronização ainda não iniciada",
     "allEnriched": "Todos os membros já enriquecidos",
     "syncFailed": "Sincronização falhou",
     "syncDescription": "Carregar dados de visitas e reservas para todos os membros",
     "enrichAll": "Enriquecer Todos",
     "adoption": "Adoção ARIIA",
-    "adoptionSubtitle": "Membros Magicline que usaram ARIIA",
+    "adoptionSubtitle": "Membros CRM que usaram ARIIA",
     "usersActive": "Usuários ativos",
     "platformVerification": "Plataforma e Verificação",
     "platformSubtitle": "Sessões de chat ativas por canal e status",

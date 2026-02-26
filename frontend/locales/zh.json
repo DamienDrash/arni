@@ -50,7 +50,7 @@
     "health": "引擎状态",
     "quickActions": "快速操作",
     "platformControl": "平台控制",
-    "studioDeck": "工作室面板",
+    "organizationDeck": "工作室面板",
     "logout": "注销",
     "roles": {
       "systemAdmin": "系统管理员",
@@ -60,7 +60,7 @@
       "operations": "运营",
       "customers": "客户",
       "knowledge": "知识",
-      "studio": "工作室",
+      "organization": "工作室",
       "governance": "治理",
       "system": "系统"
     }
@@ -94,7 +94,7 @@
         "new": "新密码",
         "newHint": "至少8个字符"
       },
-      "studio": {
+      "organization": {
         "title": "工作室资料",
         "subtitle": "公开工作室身份和联系方式",
         "name": "工作室名称",
@@ -117,7 +117,7 @@
         "locale": "zh-CN",
         "timezone": "UTC",
         "password": "••••••••",
-        "studioName": "您的工作室名称",
+        "organizationName": "您的工作室名称",
         "opsEmail": "ops@example.com",
         "opsTelegram": "-100...",
         "sla": "15",
@@ -200,7 +200,7 @@
     },
     "integrations": {
       "title": "集成",
-      "subtitle": "连接 Magicline、WhatsApp 等。"
+      "subtitle": "连接 CRM、WhatsApp 等。"
     },
     "prompts": {
       "title": "自定义提示",
@@ -259,7 +259,7 @@
     },
     "connectors": {
       "title": "深度集成",
-      "desc": "直接连接 Magicline、Shopify 等，实现实时处理。"
+      "desc": "直接连接 CRM、Shopify 等，实现实时处理。"
     },
     "page": {
       "title": "下一代",
@@ -284,7 +284,7 @@
       },
       "members": {
         "title": "会员管理",
-        "desc": "与Magicline深度集成，处理预订和合同。"
+        "desc": "与CRM深度集成，处理预订和合同。"
       },
       "knowledge": {
         "title": "知识库",
@@ -312,7 +312,7 @@
       "tg": "Telegram Bot",
       "voice": "语音 STT/TTS",
       "chat": "网页小部件",
-      "ml": "Magicline 同步",
+      "ml": "CRM 同步",
       "proactive": "主动外联",
       "scoring": "行为评分",
       "behavior": "参与度分析",
@@ -327,7 +327,7 @@
       "api": "REST API 访问",
       "shopify": "Shopify 集成",
       "woo": "WooCommerce",
-      "magicline": "Magicline 深度链接"
+      "crm": "CRM 深度链接"
     },
     "securityLabels": {
       "dsgvo": "GDPR",
@@ -443,7 +443,7 @@
       "active": "活跃",
       "paused": "暂停",
       "manual": "手动录入",
-      "external": "已同步 (Magicline)",
+      "external": "已同步 (CRM)",
       "selected": "已选择"
     },
     "table": {
@@ -464,7 +464,7 @@
   "pricing": {
     "title": "简单定价",
     "titleAccent": "适用于各种规模的健身房",
-    "description": "选择适合您健身房运营的计划。所有计划均包含24/7 AI可用性和Magicline集成。",
+    "description": "选择适合您健身房运营的计划。所有计划均包含24/7 AI可用性和CRM集成。",
     "monthly": "每月",
     "yearly": "每年",
     "billedYearly": "按年计费",
@@ -649,7 +649,7 @@
   "register": {
     "title": "注册",
     "subtitle": "创建新租户和管理员用户。",
-    "tenantName": "租户名称（例如：Test-Studio）",
+    "tenantName": "租户名称（例如：Test-Organization）",
     "tenantSlug": "租户标识（可选）",
     "email": "电子邮件",
     "name": "姓名（可选）",
@@ -692,14 +692,14 @@
     "memberId": "会员ID",
     "resolveHandoff": "解决交接？"
   },
-  "magicline": {
+  "crm": {
     "syncNotStarted": "同步尚未开始",
     "allEnriched": "所有会员已丰富",
     "syncFailed": "同步失败",
     "syncDescription": "加载所有会员的访问和预订数据",
     "enrichAll": "全部丰富",
     "adoption": "ARIIA 采用情况",
-    "adoptionSubtitle": "已使用 ARIIA 的 Magicline 会员",
+    "adoptionSubtitle": "已使用 ARIIA 的 CRM 会员",
     "usersActive": "活跃用户",
     "platformVerification": "平台与验证",
     "platformSubtitle": "按渠道和状态划分的活跃聊天会话",

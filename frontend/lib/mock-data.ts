@@ -38,7 +38,7 @@ export const topIssues = [
 export const conversations = [
   { id: "T-4821", channel: "whatsapp", member: "Julia Meier", avatar: "JM", issue: "Kann ich mein Abo für 2 Wochen pausieren? Bin im Urlaub.", confidence: 94, status: "resolved", time: "vor 3 Min", messages: 4, sentiment: "positive" },
   { id: "T-4820", channel: "telegram", member: "Marco Klein", avatar: "MK", issue: "Termin für Kraft-Training am Montag 18 Uhr bitte.", confidence: 97, status: "resolved", time: "vor 7 Min", messages: 3, sentiment: "neutral" },
-  { id: "T-4819", channel: "email", member: "Sandra Richter", avatar: "SR", issue: "Die Magicline App stürzt seit gestern ständig ab. Kann mich nicht einloggen.", confidence: 42, status: "escalated", time: "vor 12 Min", messages: 6, sentiment: "negative" },
+  { id: "T-4819", channel: "email", member: "Sandra Richter", avatar: "SR", issue: "Die App stürzt seit gestern ständig ab. Kann mich nicht einloggen.", confidence: 42, status: "escalated", time: "vor 12 Min", messages: 6, sentiment: "negative" },
   { id: "T-4818", channel: "whatsapp", member: "Thomas Berg", avatar: "TB", issue: "Welche Kurse gibt es am Freitag Nachmittag?", confidence: 99, status: "resolved", time: "vor 15 Min", messages: 2, sentiment: "positive" },
   { id: "T-4817", channel: "phone", member: "Anna Lang", avatar: "AL", issue: "Möchte den Trainer wechseln für Personal Training.", confidence: 62, status: "pending", time: "vor 18 Min", messages: 5, sentiment: "neutral" },
   { id: "T-4816", channel: "whatsapp", member: "Lukas Fischer", avatar: "LF", issue: "Wie kann ich meine Mitgliedschaft upgraden auf Premium?", confidence: 88, status: "resolved", time: "vor 22 Min", messages: 3, sentiment: "positive" },

@@ -134,7 +134,7 @@ export function MagiclinePage() {
 
   // Always render 4 stat cards
   const memberStats = [
-    { label: "Gesamt-Mitglieder", value: stats ? stats.total_members.toLocaleString("de") : "–", color: T.accent, icon: <Users size={18} /> },
+    { label: "Gesamt-Kontakte", value: stats ? stats.total_members.toLocaleString("de") : "–", color: T.accent, icon: <Users size={18} /> },
     { label: "Mit Telefon", value: stats ? stats.with_phone.toLocaleString("de") : "–", color: T.whatsapp, icon: <Phone size={18} /> },
     { label: "Mit E-Mail", value: stats ? stats.with_email.toLocaleString("de") : "–", color: T.info, icon: <Mail size={18} /> },
     { label: "Neu (heute)", value: stats ? `+${stats.new_today}` : "–", color: T.success, icon: <UserCheck size={18} /> },
@@ -175,7 +175,7 @@ export function MagiclinePage() {
         </div>
         <div style={{ flex: 1 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: connected ? T.success : T.danger, margin: "0 0 4px" }}>
-            {connected ? "Magicline API Verbunden" : "Magicline API Nicht Erreichbar"}
+            {connected ? "Externe API Verbunden" : "Externe API Nicht Erreichbar"}
           </h3>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, color: T.textMuted }}>
@@ -450,7 +450,7 @@ export function MagiclinePage() {
                   </div>
                   <ProgressBar value={enrichedPct} max={100} color={T.accent} height={5} />
                   <div style={{ marginTop: 12, fontSize: 12, color: T.textDim }}>
-                    {enriched.toLocaleString("de")} von {total.toLocaleString("de")} Mitgliedern mit Besuchsdaten
+                    {enriched.toLocaleString("de")} von {total.toLocaleString("de")} Kontakten mit Aktivitätsdaten
                   </div>
                 </>
               );

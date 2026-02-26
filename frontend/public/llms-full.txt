@@ -1,76 +1,82 @@
-# ARIIA – AI Living System Agent
+# ARIIA – Enterprise AI Agent Platform
 
-> ARIIA ist eine Enterprise KI-Plattform (SaaS) für Fitnessstudios und Gesundheitseinrichtungen, die automatisierte Kundenkommunikation über WhatsApp, Telegram und Voice ermöglicht. Die Plattform nutzt Multi-Agent Orchestration mit Swarm Intelligence, um Mitgliederanfragen intelligent zu beantworten, Termine zu verwalten und Marketing-Kampagnen durchzuführen.
+> ARIIA is a Multi-Tenant Enterprise AI Agent Platform that automates customer communication across WhatsApp, Telegram, SMS, and Voice using Multi-Agent Orchestration and Swarm Intelligence. The platform serves businesses of all sizes and industries – from startups to enterprise organizations with multiple locations. GDPR-compliant. Made in Germany.
 
-## Über ARIIA
+## About ARIIA
 
-ARIIA wurde speziell für die Fitnessbranche entwickelt und löst ein zentrales Problem: Studios erhalten täglich hunderte Anfragen über verschiedene Kanäle, die manuell kaum zu bewältigen sind. ARIIA automatisiert diese Kommunikation mit intelligenten KI-Agenten, die rund um die Uhr verfügbar sind und dabei die Persönlichkeit und den Ton des jeweiligen Studios widerspiegeln.
+ARIIA solves a fundamental challenge that businesses across all industries face: managing hundreds of daily customer inquiries across multiple channels. ARIIA automates this communication with intelligent AI agents that are available 24/7 and reflect the personality and tone of each organization.
 
-Die Plattform ist als Multi-Tenant SaaS konzipiert, sodass jedes Studio seine eigene isolierte Umgebung mit individueller Konfiguration erhält. ARIIA integriert sich nahtlos mit Magicline, dem führenden Studio-Management-System in der DACH-Region, sowie mit weiteren Systemen wie Stripe, Calendly und Google Calendar.
+The platform is designed as a Multi-Tenant SaaS, giving each organization its own isolated environment with individual configuration. ARIIA integrates seamlessly with leading CRM systems (HubSpot, Salesforce), e-commerce platforms (Shopify, WooCommerce), scheduling tools (Calendly, Google Calendar), payment processors (Stripe), and many more.
 
 Website: https://www.ariia.ai
-Kontakt: hello@ariia.ai
-Standort: Deutschland
+Contact: hello@ariia.ai
+Location: Germany
 
-## Kernfunktionen
+## Core Features
 
-### Multi-Channel Kommunikation
-ARIIA unterstützt die Kommunikation über mehrere Kanäle gleichzeitig: WhatsApp Business API, Telegram Bot, Voice AI (Telefon), und Web-Chat. Alle Kanäle werden zentral in einem einheitlichen Dashboard verwaltet. Nachrichten werden kanalübergreifend synchronisiert, sodass ein Mitglied nahtlos zwischen Kanälen wechseln kann.
+### Multi-Channel Communication
+ARIIA supports communication across multiple channels simultaneously: WhatsApp Business API, Telegram Bot, Voice AI (Phone), SMS, and Web Widget. All channels are managed centrally in a unified dashboard. Messages are synchronized across channels, allowing customers to seamlessly switch between them.
 
 ### Multi-Agent Orchestration (Project Titan)
-Das Herzstück von ARIIA ist die Multi-Agent-Architektur "Project Titan". Statt eines einzelnen Chatbots arbeiten spezialisierte KI-Agenten als Schwarm zusammen. Ein Orchestrator-Agent analysiert eingehende Anfragen und delegiert sie an den passenden Spezialisten – etwa den Terminplanungs-Agenten, den Vertrags-Agenten oder den Trainingsberatungs-Agenten. Diese Architektur ermöglicht deutlich höhere Antwortqualität als monolithische Chatbots.
+The heart of ARIIA is the Multi-Agent architecture "Project Titan". Instead of a single chatbot, specialized AI agents work together as a swarm. An Orchestrator Agent analyzes incoming requests and delegates them to the appropriate specialist – such as the Scheduling Agent, the Sales Agent, or the Support Agent. This architecture enables significantly higher response quality than monolithic chatbots.
 
 ### 3-Tier Memory System
-ARIIA verfügt über ein dreistufiges Gedächtnissystem: Kurzzeit-Memory (aktuelle Konversation), Langzeit-Memory (Mitglieder-Präferenzen und Historie) und Kontext-Memory (Studio-spezifisches Wissen). Dadurch kann der KI-Agent personalisierte Antworten geben und sich an frühere Interaktionen erinnern.
+ARIIA features a three-tier memory system: Short-term Memory (current conversation), Long-term Memory (customer preferences and history), and Context Memory (organization-specific knowledge). This enables the AI agent to provide personalized responses and remember previous interactions.
 
 ### Vision AI
-Der Vision-Agent kann Bilder analysieren, die Mitglieder senden – etwa Fotos von Fitnessgeräten zur Identifikation, Trainingsplan-Fotos zur Digitalisierung oder Fortschrittsbilder zur Dokumentation.
+The Vision Agent can analyze images that customers send – such as product photos for identification, document photos for digitization, or reference images for visual support.
 
-### Magicline Integration
-Die direkte API-Anbindung an Magicline ermöglicht es ARIIA, Mitgliederdaten abzurufen, Verträge einzusehen, Termine zu buchen und Zahlungsstatus zu prüfen – alles automatisch und in Echtzeit.
+### CRM & Platform Integration
+Direct API connections to leading platforms enable ARIIA to retrieve customer data, view contracts, book appointments, and check payment status – all automatically and in real-time. Supported platforms include HubSpot, Salesforce, Shopify, WooCommerce, Stripe, Calendly, and more.
 
-### Echtzeit Analytics Dashboard
-Das Dashboard zeigt KPIs wie Ticket-Volumen, AI Resolution Rate, durchschnittliche Confidence-Scores, Antwortzeiten und Kanalverteilung. Studio-Betreiber können die Performance ihrer KI-Agenten in Echtzeit überwachen.
+### Real-time Analytics Dashboard
+The dashboard displays KPIs such as ticket volume, AI Resolution Rate, average confidence scores, response times, and channel distribution. Administrators can monitor the performance of their AI agents in real-time.
 
 ### Knowledge Base
-Die zentrale Wissensverwaltung ermöglicht es Studios, ihr spezifisches Wissen (Öffnungszeiten, Kursplan, Preise, FAQ) zu hinterlegen. Der KI-Agent nutzt dieses Wissen für präzise Antworten.
+The central knowledge management system allows organizations to store their specific knowledge (business hours, services, pricing, FAQ). The AI agent uses this knowledge for precise responses.
 
-### Member Memory
-Individuelle Mitglieder-Profile speichern Präferenzen, Trainingsziele, Kommunikationshistorie und persönliche Notizen. Der KI-Agent nutzt diese Informationen für personalisierte Interaktionen.
+### Contact Memory
+Individual customer profiles store preferences, goals, communication history, and personal notes. The AI agent uses this information for personalized interactions across all channels.
 
-### Kampagnen-Management
-Studios können automatisierte Marketing-Kampagnen über alle Kanäle erstellen und versenden – etwa Willkommensnachrichten für neue Mitglieder, Geburtstagsnachrichten oder Reaktivierungskampagnen für inaktive Mitglieder.
+### Campaign Management
+Organizations can create and send automated marketing campaigns across all channels – such as welcome messages for new customers, birthday greetings, or re-engagement campaigns for inactive customers.
 
-### Eskalations-Management
-Wenn der KI-Agent eine Anfrage nicht beantworten kann oder der Confidence-Score zu niedrig ist, wird automatisch an einen menschlichen Mitarbeiter eskaliert. Das System unterstützt sowohl automatische als auch manuelle Eskalation.
+### Escalation Management
+When the AI agent cannot answer a request or the confidence score is too low, it automatically escalates to a human agent. The system supports both automatic and manual escalation with full context handoff.
 
-## Preise und Pläne
+### Churn Prevention
+AI-driven behavioral analysis identifies customers at risk of canceling based on engagement patterns, interaction frequency, and sentiment analysis. Proactive outreach campaigns can be triggered automatically.
 
-### Trial (Kostenlos, 14 Tage)
-Alle Starter-Features zum Testen. Bis zu 50 Mitglieder und 100 Nachrichten. Basic AI (Groq). Keine Kreditkarte erforderlich.
+## Pricing and Plans
 
-### Starter (49€/Monat)
-Für kleine Studios. Bis zu 200 Mitglieder, 500 Nachrichten/Monat. 1 Kanal (WhatsApp oder Telegram). Basic AI. Knowledge Base. E-Mail-Support.
+### Trial (Free, 14 Days)
+All Starter features for testing. Up to 50 contacts and 100 messages. Basic AI (Groq). No credit card required.
 
-### Professional (149€/Monat)
-Für wachsende Studios. Bis zu 2.000 Mitglieder, 5.000 Nachrichten/Monat. Alle Kanäle. Advanced AI (GPT-4). Member Memory. Kampagnen. Analytics. Magicline Integration. Priority Support.
+### Starter (€49/month)
+For small teams and startups. Up to 200 contacts, 500 messages/month. 1 channel (WhatsApp or Telegram). Basic AI. Knowledge Base. Email support.
 
-### Enterprise (499€/Monat)
-Für Studio-Ketten. Unbegrenzte Mitglieder und Nachrichten. Alle Kanäle. Premium AI. Custom Integrations. Dedicated Account Manager. SLA. White-Label Option.
+### Professional (€149/month)
+For growing businesses. Up to 2,000 contacts, 5,000 messages/month. All channels. Advanced AI (GPT-4). Contact Memory. Campaigns. Analytics. CRM Integration. Priority support.
 
-## Technologie
+### Business (€299/month)
+For established organizations. Unlimited contacts and messages. Full Swarm (all agents). Omnichannel. GraphRAG & Full Memory. Custom integrations. Dedicated support.
 
-ARIIA basiert auf einer modernen Technologie-Stack: Python/FastAPI Backend, Next.js/React Frontend, PostgreSQL Datenbank, Docker-Container-Architektur. Die KI-Agenten nutzen verschiedene LLM-Provider (OpenAI, Anthropic, Groq) je nach Plan und Anforderung. Die Plattform ist DSGVO-konform und hostet alle Daten in Deutschland.
+### Enterprise (€499/month)
+For large organizations and multi-location businesses. Everything in Business plus: Custom AI models. Dedicated Account Manager. SLA. White-Label option. Compliance packages.
 
-## Hauptseiten
+## Technology
 
-- [Homepage](https://www.ariia.ai/): Übersicht über ARIIA und seine Vorteile
-- [Features](https://www.ariia.ai/features): Detaillierte technische Features
-- [Pricing](https://www.ariia.ai/pricing): Preispläne und Tarifübersicht
-- [Registrierung](https://www.ariia.ai/register): Kostenloses Konto erstellen
+ARIIA is built on a modern technology stack: Python/FastAPI backend, Next.js/React frontend, PostgreSQL database, Docker container architecture. The AI agents use various LLM providers (OpenAI, Anthropic, Groq) depending on the plan and requirements. The platform is GDPR-compliant and hosts all data in ISO-certified data centers in Germany.
 
-## Rechtliches
+## Pages
 
-- [Impressum](https://www.ariia.ai/impressum): Anbieterkennzeichnung
-- [Datenschutz](https://www.ariia.ai/datenschutz): Datenschutzerklärung
-- [AGB](https://www.ariia.ai/agb): Allgemeine Geschäftsbedingungen
+- [Homepage](https://www.ariia.ai/): Overview of ARIIA and its benefits for businesses
+- [Features](https://www.ariia.ai/features): Detailed technical features and capabilities
+- [Pricing](https://www.ariia.ai/pricing): Plans and pricing overview
+- [Register](https://www.ariia.ai/register): Create a free account with 14-day trial
+
+## Legal
+
+- [Imprint](https://www.ariia.ai/impressum): Legal notice
+- [Privacy Policy](https://www.ariia.ai/datenschutz): Data protection policy
+- [Terms of Service](https://www.ariia.ai/agb): General terms and conditions

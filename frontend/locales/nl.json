@@ -40,7 +40,7 @@
     "users": "Gebruikers",
     "knowledge": "Kennisbank",
     "memberMemory": "Leden Geheugen",
-    "systemPrompt": "Studioprompt",
+    "systemPrompt": "Organizationprompt",
     "sync": "Synchroniseren",
     "billing": "Abonnement",
     "settings": "Instellingen",
@@ -50,17 +50,17 @@
     "health": "Engine Statistieken",
     "quickActions": "Snelle Acties",
     "platformControl": "Platformbeheer",
-    "studioDeck": "Studiopaneel",
+    "organizationDeck": "Organizationpaneel",
     "logout": "Uitloggen",
     "roles": {
       "systemAdmin": "Systeembeheerder",
-      "tenantAdmin": "Studiobeheerder"
+      "tenantAdmin": "Organizationbeheerder"
     },
     "sections": {
       "operations": "Operationeel",
       "customers": "Klanten",
       "knowledge": "Kennis",
-      "studio": "Studio",
+      "organization": "Organization",
       "governance": "Beheer",
       "system": "Systeem"
     }
@@ -94,21 +94,21 @@
         "new": "Nieuw wachtwoord",
         "newHint": "Minimaal 8 tekens lang"
       },
-      "studio": {
-        "title": "Studioprofiel",
-        "subtitle": "Openbare studio-identiteit en contactgegevens",
-        "name": "Studionaam",
+      "organization": {
+        "title": "Organizationprofiel",
+        "subtitle": "Openbare organization-identiteit en contactgegevens",
+        "name": "Organizationnaam",
         "nameHint": "Weergegeven in AI-interacties",
         "opsEmail": "E-mailadres voor operaties",
-        "opsEmailHint": "Contactpersoon voor studio-operaties",
+        "opsEmailHint": "Contactpersoon voor organization-operaties",
         "opsTelegram": "Telegram voor operaties",
-        "opsTelegramHint": "Telegram-gebruikersnaam voor studiopersoneel",
+        "opsTelegramHint": "Telegram-gebruikersnaam voor organizationpersoneel",
         "refresh": "Gegevensvernieuwing",
         "refreshHint": "Handmatige synchronisatie met externe systemen",
         "sla": "SLA-niveau",
         "slaHint": "Service Level Agreement-niveau",
-        "localeHint": "Primaire taal van uw studiogebruikers",
-        "timezoneHint": "Lokale tijd van de studio"
+        "localeHint": "Primaire taal van uw organizationgebruikers",
+        "timezoneHint": "Lokale tijd van de organization"
       },
       "title": "Accountinstellingen",
       "subtitle": "Beheer uw persoonlijke profiel en beveiliging",
@@ -117,7 +117,7 @@
         "locale": "nl-NL",
         "timezone": "UTC",
         "password": "••••••••",
-        "studioName": "Uw Studionaam",
+        "organizationName": "Uw Organizationnaam",
         "opsEmail": "ops@voorbeeld.com",
         "opsTelegram": "-100...",
         "sla": "15",
@@ -200,7 +200,7 @@
     },
     "integrations": {
       "title": "Integraties",
-      "subtitle": "Verbind Magicline, WhatsApp en meer."
+      "subtitle": "Verbind CRM, WhatsApp en meer."
     },
     "prompts": {
       "title": "Aangepaste Prompts",
@@ -218,11 +218,11 @@
     "title": "De intelligente",
     "words": [
       "AI Assistent",
-      "Studiomanager",
+      "Organizationmanager",
       "Operations Bot",
       "Verkoopagent"
     ],
-    "subtitle": "voor uw fitnessstudio",
+    "subtitle": "voor uw bedrijf",
     "description": "ARIIA automatiseert klantcommunicatie via WhatsApp, Telegram en Voice. Verhoog uw efficiëntie met Arnold Prime Orchestration.",
     "cta": "Begin Nu"
   },
@@ -234,7 +234,7 @@
   },
   "features": {
     "badge": "Functies",
-    "title": "Alles wat uw studio",
+    "title": "Alles wat uw organization",
     "titleAccent": "nodig heeft om te slagen",
     "description": "Een compleet ecosysteem van AI-agenten naadloos geïntegreerd in uw bestaande systemen.",
     "swarm": {
@@ -259,19 +259,19 @@
     },
     "connectors": {
       "title": "Diepe Integratie",
-      "desc": "Directe verbinding met Magicline, Shopify en meer voor real-time afhandeling."
+      "desc": "Directe verbinding met CRM, Shopify en meer voor real-time afhandeling."
     },
     "page": {
       "title": "Volgende Generatie",
-      "titleAccent": "Studio Intelligentie",
-      "description": "ARIIA is meer dan een chatbot. Het is een zwerm van gespecialiseerde AI-agenten die uw studio en uw leden begrijpen.",
+      "titleAccent": "Organization Intelligentie",
+      "description": "ARIIA is meer dan een chatbot. Het is een zwerm van gespecialiseerde AI-agenten die uw organization en uw leden begrijpen.",
       "techTitle": "Diepe",
       "techSubtitle": "Technologie",
       "techSubtitleAccent": "Stack",
-      "deckTitle": "Studio",
+      "deckTitle": "Organization",
       "deckSubtitle": "Controle",
       "deckSubtitleAccent": "Deck",
-      "deckDesc": "Een centraal dashboard om elke AI-interactie te monitoren en uw studio-instellingen in real-time te beheren.",
+      "deckDesc": "Een centraal dashboard om elke AI-interactie te monitoren en uw organization-instellingen in real-time te beheren.",
       "securityTitle": "Enterprise",
       "securitySubtitle": "Beveiliging &",
       "securitySubtitleAccent": "Compliance",
@@ -284,19 +284,19 @@
       },
       "members": {
         "title": "Ledenbeheer",
-        "desc": "Diepe integratie met Magicline voor het afhandelen van boekingen en contracten."
+        "desc": "Diepe integratie met CRM voor het afhandelen van boekingen en contracten."
       },
       "knowledge": {
         "title": "Kennisbank",
-        "desc": "Upload uw studiodocumenten om de AI te trainen op uw specifieke regels."
+        "desc": "Upload uw organizationdocumenten om de AI te trainen op uw specifieke regels."
       },
       "prompts": {
         "title": "Persona Beheer",
-        "desc": "Pas de toon en persoonlijkheid van uw studio-assistent aan."
+        "desc": "Pas de toon en persoonlijkheid van uw organization-assistent aan."
       },
       "multi": {
         "title": "Multi-Tenant",
-        "desc": "Beheer meerdere studiolocaties vanuit één centraal account."
+        "desc": "Beheer meerdere organizationlocaties vanuit één centraal account."
       },
       "churn": {
         "title": "Churn Preventie",
@@ -312,7 +312,7 @@
       "tg": "Telegram Bot",
       "voice": "Spraak STT/TTS",
       "chat": "Webwidget",
-      "ml": "Magicline Synchronisatie",
+      "ml": "CRM Synchronisatie",
       "proactive": "Proactieve Benadering",
       "scoring": "Gedragsscore",
       "behavior": "Betrokkenheidsanalyse",
@@ -327,7 +327,7 @@
       "api": "REST API Toegang",
       "shopify": "Shopify Integratie",
       "woo": "WooCommerce",
-      "magicline": "Magicline Deep-Link"
+      "crm": "CRM Deep-Link"
     },
     "securityLabels": {
       "dsgvo": "AVG",
@@ -340,13 +340,13 @@
   },
   "cta": {
     "title": "Klaar voor de toekomst van",
-    "titleAccent": "studio-automatisering",
-    "subtitle": "Sluit u aan bij meer dan 50 fitnessstudio's die al groeien met ARIIA.",
+    "titleAccent": "organization-automatisering",
+    "subtitle": "Sluit u aan bij meer dan 50 bedrijven die al groeien met ARIIA.",
     "button": "Maak Gratis Account Aan",
     "compare": "Vergelijk Prijzen"
   },
   "footer": {
-    "brandDesc": "De evolutie van studio-activiteiten. Agentic Multi-Tenant SaaS Platform.",
+    "brandDesc": "De evolutie van organization-activiteiten. Agentic Multi-Tenant SaaS Platform.",
     "product": "Product",
     "company": "Bedrijf",
     "contact": "Contact",
@@ -426,7 +426,7 @@
   },
   "members": {
     "title": "Leden",
-    "subtitle": "Beheer uw studiolleden en hun AI-status",
+    "subtitle": "Beheer uw organizationlleden en hun AI-status",
     "add": "Lid Toevoegen",
     "import": {
       "clickOrDrop": "Klik of sleep bestand naar dit gebied om te uploaden",
@@ -443,7 +443,7 @@
       "active": "Actief",
       "paused": "Gepauzeerd",
       "manual": "Handmatige Invoer",
-      "external": "Gesynchroniseerd (Magicline)",
+      "external": "Gesynchroniseerd (CRM)",
       "selected": "geselecteerd"
     },
     "table": {
@@ -463,27 +463,27 @@
   },
   "pricing": {
     "title": "Eenvoudige Prijzen",
-    "titleAccent": "voor elke studiogrootte",
-    "description": "Kies het abonnement dat past bij uw studiowerkzaamheden. Alle abonnementen omvatten 24/7 AI-beschikbaarheid en Magicline-integratie.",
+    "titleAccent": "voor elke organizationgrootte",
+    "description": "Kies het abonnement dat past bij uw organizationwerkzaamheden. Alle abonnementen omvatten 24/7 AI-beschikbaarheid en CRM-integratie.",
     "monthly": "Maandelijks",
     "yearly": "Jaarlijks",
     "billedYearly": "jaarlijks gefactureerd",
     "discount": "Bespaar 20%",
     "enterpriseTitle": "Enterprise",
-    "enterpriseDesc": "Maatwerkoplossingen voor grote studioketens met 10+ locaties en specifieke compliance-eisen.",
+    "enterpriseDesc": "Maatwerkoplossingen voor grote organizationketens met 10+ locaties en specifieke compliance-eisen.",
     "enterpriseCta": "Neem contact op met Verkoop",
     "addonsTitle": "Krachtige",
     "addonsSubtitle": "Add-ons",
     "addonsSubtitleAccent": "om te schalen",
     "addonsDesc": "Verbeter uw AI-agenten met gespecialiseerde mogelijkheden die zijn afgestemd op uw workflow.",
     "faqTitle": "Veelgestelde Vragen",
-    "finalCta": "Klaar om uw studio te transformeren?",
+    "finalCta": "Klaar om uw organization te transformeren?",
     "finalCtaAccent": "Start vandaag nog uw proefperiode.",
-    "finalCtaDesc": "Sluit u aan bij meer dan 50 fitnessstudio's die ARIIA al gebruiken.",
+    "finalCtaDesc": "Sluit u aan bij meer dan 50 bedrijven die ARIIA al gebruiken.",
     "plans": {
       "starter": {
         "name": "Starter",
-        "desc": "Perfect voor boetiekstudio's",
+        "desc": "Perfect voor boetiekorganization's",
         "cta": "Beginnen",
         "features": [
           "1 AI Agent (Operaties)",
@@ -495,7 +495,7 @@
       "professional": {
         "name": "Professioneel",
         "badge": "Meest Populair",
-        "desc": "Voor groeiende fitnessstudio's",
+        "desc": "Voor groeiende bedrijven",
         "cta": "Start Gratis Proefperiode",
         "features": [
           "3 AI Agents (Verkoop, Operaties, Medic)",
@@ -507,7 +507,7 @@
       },
       "business": {
         "name": "Zakelijk",
-        "desc": "Volledige automatisering voor grote studio's",
+        "desc": "Volledige automatisering voor grote organization's",
         "cta": "Ga Pro",
         "features": [
           "Volledige Zwerm (Alle Agents)",
@@ -649,7 +649,7 @@
   "register": {
     "title": "Registratie",
     "subtitle": "Maak een nieuwe tenant en beheerdersgebruiker aan.",
-    "tenantName": "Tenantnaam (bijv. Test-Studio)",
+    "tenantName": "Tenantnaam (bijv. Test-Organization)",
     "tenantSlug": "Tenant Slug (optioneel)",
     "email": "E-mail",
     "name": "Naam (optioneel)",
@@ -692,14 +692,14 @@
     "memberId": "Lid-ID",
     "resolveHandoff": "Overdracht oplossen?"
   },
-  "magicline": {
+  "crm": {
     "syncNotStarted": "Synchronisatie nog niet gestart",
     "allEnriched": "Alle leden zijn al verrijkt",
     "syncFailed": "Synchronisatie mislukt",
     "syncDescription": "Laad bezoek- en boekingsgegevens voor alle leden",
     "enrichAll": "Alles verrijken",
     "adoption": "ARIIA Adoptie",
-    "adoptionSubtitle": "Magicline-leden die ARIIA hebben gebruikt",
+    "adoptionSubtitle": "CRM-leden die ARIIA hebben gebruikt",
     "usersActive": "Actieve gebruikers",
     "platformVerification": "Platform & Verificatie",
     "platformSubtitle": "Actieve chatsessies per kanaal en status",

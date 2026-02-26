@@ -485,7 +485,7 @@ export default function MemberMemoryPage() {
               </h3>
               <p style={{ fontSize: 13, color: T.textMuted, maxWidth: 360, lineHeight: 1.6 }}>
                 Wählen Sie links einen Gedächtniseintrag aus, um den Inhalt zu bearbeiten.
-                Die KI analysiert Chatverläufe und erstellt automatisch Mitgliederprofile.
+                Die KI analysiert Chatverläufe und erstellt automatisch Kontaktprofile.
               </p>
               {files.length > 0 && (
                 <button
@@ -507,11 +507,11 @@ export default function MemberMemoryPage() {
         </div>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 4 }}>
-            Wie funktioniert das Mitgliedergedächtnis?
+            Wie funktioniert das Kontaktgedächtnis?
           </div>
           <p style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.6, margin: 0 }}>
-            Das Mitgliedergedächtnis analysiert automatisch Chatverläufe und extrahiert relevante Informationen
-            über Ihre Mitglieder – wie Trainingsziele, Vorlieben, Beschwerden und persönliche Details.
+            Das Kontaktgedächtnis analysiert automatisch Chatverläufe und extrahiert relevante Informationen
+            über Ihre Kontakte – wie Präferenzen, Interessen, Anliegen und persönliche Details.
             Diese Informationen werden als Markdown-Dateien gespeichert und stehen der KI bei zukünftigen
             Gesprächen als Kontext zur Verfügung. Sie können Einträge manuell bearbeiten oder die automatische
             Analyse jederzeit starten.

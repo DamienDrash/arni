@@ -1,5 +1,5 @@
 /* TEAM */
-Product: ARIIA – AI Living System Agent
+Product: ARIIA – Enterprise AI Agent Platform
 URL: https://www.ariia.ai
 Contact: hello [at] ariia.ai
 Location: Germany

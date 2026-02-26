@@ -46,7 +46,7 @@ const FIELD_META: Record<keyof PromptConfig, { label: string; help: string; mult
   },
   sales_retention_rules: {
     label: "Retention-Regeln",
-    help: "Regeln für den Sales-Agent zur Mitgliederbindung",
+    help: "Regeln für den Sales-Agent zur Kundenbindung",
     multiline: true,
   },
   medic_disclaimer_text: {

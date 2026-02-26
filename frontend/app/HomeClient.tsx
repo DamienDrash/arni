@@ -122,7 +122,7 @@ const stats = [
 const logos = [
   { name: "WhatsApp", color: "oklch(0.62 0.22 292)" },
   { name: "Telegram", color: "oklch(0.65 0.15 220)" },
-  { name: "Magicline", color: "oklch(0.62 0.22 292)" },
+  { name: "HubSpot", color: "oklch(0.62 0.22 292)" },
   { name: "Shopify", color: "oklch(0.62 0.22 292)" },
   { name: "WooCommerce", color: "oklch(0.62 0.22 292)" },
 ];
@@ -202,7 +202,7 @@ export default function HomeClient() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
                 className="text-4xl sm:text-5xl lg:text-[3.5rem] xl:text-6xl font-bold leading-[1.06] tracking-tight mb-7"
-                aria-label="ARIIA – KI-gestützte Kundenkommunikation für Fitnessstudios"
+                aria-label="ARIIA – Enterprise AI Agent Platform für intelligente Kundenkommunikation"
                 style={{ color: "oklch(0.97 0.005 270)" }}
               >
                 {t("hero.title")}{" "}
@@ -276,7 +276,7 @@ export default function HomeClient() {
             >
               <div className="relative rounded-2xl overflow-hidden"
                 style={{ border: "1px solid oklch(0.62 0.22 292 / 0.25)", boxShadow: "0 0 50px oklch(0.62 0.22 292 / 0.15)" }}>
-                <img src={IMG_DASHBOARD} alt="ARIIA KI-Plattform Dashboard – Echtzeit-Analytics, Mitgliederverwaltung und AI-Agenten-Monitoring für Fitnessstudios" className="w-full h-auto" loading="eager" width={1200} height={675} />
+                <img src={IMG_DASHBOARD} alt="ARIIA Enterprise AI Agent Platform Dashboard – Echtzeit-Analytics, Kundenverwaltung und Multi-Agent Orchestration" className="w-full h-auto" loading="eager" width={1200} height={675} />
                 <div className="absolute inset-0 pointer-events-none"
                   style={{ background: "linear-gradient(180deg, transparent 60%, oklch(0.09 0.04 270 / 0.5))" }} />
               </div>

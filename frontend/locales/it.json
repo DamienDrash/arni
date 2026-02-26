@@ -40,7 +40,7 @@
     "users": "Utenti",
     "knowledge": "Base di conoscenza",
     "memberMemory": "Memoria Membri",
-    "systemPrompt": "Prompt dello Studio",
+    "systemPrompt": "Prompt dello Organization",
     "sync": "Sincronizzazione",
     "billing": "Abbonamento",
     "settings": "Impostazioni",
@@ -50,17 +50,17 @@
     "health": "Statistiche del Motore",
     "quickActions": "Azioni rapide",
     "platformControl": "Controllo della Piattaforma",
-    "studioDeck": "Pannello Studio",
+    "organizationDeck": "Pannello Organization",
     "logout": "Esci",
     "roles": {
       "systemAdmin": "Amministratore di sistema",
-      "tenantAdmin": "Amministratore dello Studio"
+      "tenantAdmin": "Amministratore dello Organization"
     },
     "sections": {
       "operations": "Operazioni",
       "customers": "Clienti",
       "knowledge": "Conoscenza",
-      "studio": "Studio",
+      "organization": "Organization",
       "governance": "Governance",
       "system": "Sistema"
     }
@@ -94,21 +94,21 @@
         "new": "Nuova Password",
         "newHint": "Almeno 8 caratteri"
       },
-      "studio": {
-        "title": "Profilo Studio",
-        "subtitle": "Identità pubblica e contatto dello studio",
-        "name": "Nome Studio",
+      "organization": {
+        "title": "Profilo Organization",
+        "subtitle": "Identità pubblica e contatto dello organization",
+        "name": "Nome Organization",
         "nameHint": "Visualizzato nelle interazioni AI",
         "opsEmail": "Email Operativa",
-        "opsEmailHint": "Contatto per le operazioni dello studio",
+        "opsEmailHint": "Contatto per le operazioni dello organization",
         "opsTelegram": "Telegram Operativo",
-        "opsTelegramHint": "Nome utente Telegram per il personale dello studio",
+        "opsTelegramHint": "Nome utente Telegram per il personale dello organization",
         "refresh": "Aggiornamento Dati",
         "refreshHint": "Sincronizzazione manuale con sistemi esterni",
         "sla": "Livello SLA",
         "slaHint": "Livello dell'accordo sul livello di servizio",
-        "localeHint": "Lingua principale dei membri del suo studio",
-        "timezoneHint": "Ora locale dello studio"
+        "localeHint": "Lingua principale dei membri del suo organization",
+        "timezoneHint": "Ora locale dello organization"
       },
       "title": "Impostazioni Account",
       "subtitle": "Gestisca il suo profilo personale e la sicurezza",
@@ -117,7 +117,7 @@
         "locale": "it-IT",
         "timezone": "CET",
         "password": "••••••••",
-        "studioName": "Nome del Suo Studio",
+        "organizationName": "Nome del Suo Organization",
         "opsEmail": "ops@esempio.com",
         "opsTelegram": "-100...",
         "sla": "15",
@@ -200,7 +200,7 @@
     },
     "integrations": {
       "title": "Integrazioni",
-      "subtitle": "Connetta Magicline, WhatsApp e altro."
+      "subtitle": "Connetta CRM, WhatsApp e altro."
     },
     "prompts": {
       "title": "Prompt Personalizzati",
@@ -218,11 +218,11 @@
     "title": "L'intelligente",
     "words": [
       "Assistente AI",
-      "Gestore Studio",
+      "Gestore Organization",
       "Bot Operativo",
       "Agente di Vendita"
     ],
-    "subtitle": "per il Suo studio fitness",
+    "subtitle": "per il Suo organization fitness",
     "description": "ARIIA automatizza la comunicazione con i clienti tramite WhatsApp, Telegram e Voce. Aumenti la Sua efficienza con Arnold Prime Orchestration.",
     "cta": "Inizia Ora"
   },
@@ -234,7 +234,7 @@
   },
   "features": {
     "badge": "Funzionalità",
-    "title": "Tutto ciò di cui il Suo studio",
+    "title": "Tutto ciò di cui il Suo organization",
     "titleAccent": "ha bisogno per avere successo",
     "description": "Un ecosistema completo di agenti AI perfettamente integrati nei Suoi sistemi esistenti.",
     "swarm": {
@@ -259,19 +259,19 @@
     },
     "connectors": {
       "title": "Integrazione Profonda",
-      "desc": "Connessione diretta a Magicline, Shopify e altro per una gestione in tempo reale."
+      "desc": "Connessione diretta a CRM, Shopify e altro per una gestione in tempo reale."
     },
     "page": {
-      "title": "Intelligenza Studio",
+      "title": "Intelligenza Organization",
       "titleAccent": "di Nuova Generazione",
-      "description": "ARIIA è più di un chatbot. È uno swarm di agenti AI specializzati che comprendono il Suo studio e i Suoi membri.",
+      "description": "ARIIA è più di un chatbot. È uno swarm di agenti AI specializzati che comprendono il Suo organization e i Suoi membri.",
       "techTitle": "Stack",
       "techSubtitle": "Tecnologico",
       "techSubtitleAccent": "Avanzato",
       "deckTitle": "Pannello di",
       "deckSubtitle": "Controllo",
-      "deckSubtitleAccent": "Studio",
-      "deckDesc": "Una dashboard centrale per monitorare ogni interazione AI e gestire le impostazioni del Suo studio in tempo reale.",
+      "deckSubtitleAccent": "Organization",
+      "deckDesc": "Una dashboard centrale per monitorare ogni interazione AI e gestire le impostazioni del Suo organization in tempo reale.",
       "securityTitle": "Sicurezza",
       "securitySubtitle": "e Conformità",
       "securitySubtitleAccent": "Aziendale",
@@ -284,19 +284,19 @@
       },
       "members": {
         "title": "Gestione Membri",
-        "desc": "Integrazione profonda con Magicline per gestire prenotazioni e contratti."
+        "desc": "Integrazione profonda con CRM per gestire prenotazioni e contratti."
       },
       "knowledge": {
         "title": "Base di Conoscenza",
-        "desc": "Carichi i documenti del Suo studio per addestrare l'IA sulle Sue regole specifiche."
+        "desc": "Carichi i documenti del Suo organization per addestrare l'IA sulle Sue regole specifiche."
       },
       "prompts": {
         "title": "Controllo della Personalità",
-        "desc": "Personalizzi il tono e la personalità dell'assistente del Suo studio."
+        "desc": "Personalizzi il tono e la personalità dell'assistente del Suo organization."
       },
       "multi": {
         "title": "Multi-Tenant",
-        "desc": "Gestisca più sedi dello studio da un unico account centrale."
+        "desc": "Gestisca più sedi dello organization da un unico account centrale."
       },
       "churn": {
         "title": "Prevenzione dell'Abbandono",
@@ -312,7 +312,7 @@
       "tg": "Telegram Bot",
       "voice": "Voce STT/TTS",
       "chat": "Widget Web",
-      "ml": "Sincronizzazione Magicline",
+      "ml": "Sincronizzazione CRM",
       "proactive": "Comunicazione Proattiva",
       "scoring": "Punteggio Comportamentale",
       "behavior": "Analisi dell'Engagement",
@@ -327,7 +327,7 @@
       "api": "Accesso REST API",
       "shopify": "Integrazione Shopify",
       "woo": "WooCommerce",
-      "magicline": "Deep-Link Magicline"
+      "crm": "Deep-Link CRM"
     },
     "securityLabels": {
       "dsgvo": "GDPR",
@@ -340,13 +340,13 @@
   },
   "cta": {
     "title": "Pronto per il futuro dell'",
-    "titleAccent": "automazione dello studio",
+    "titleAccent": "automazione dello organization",
     "subtitle": "Si unisca a oltre 50 studi fitness che stanno già crescendo con ARIIA.",
     "button": "Crea Account Gratuito",
     "compare": "Confronta Prezzi"
   },
   "footer": {
-    "brandDesc": "L'evoluzione delle operazioni dello studio. Piattaforma SaaS Multi-Tenant Agente.",
+    "brandDesc": "L'evoluzione delle operazioni dello organization. Piattaforma SaaS Multi-Tenant Agente.",
     "product": "Prodotto",
     "company": "Azienda",
     "contact": "Contatti",
@@ -426,7 +426,7 @@
   },
   "members": {
     "title": "Membri",
-    "subtitle": "Gestisci i membri del tuo studio e il loro stato AI",
+    "subtitle": "Gestisci i membri del tuo organization e il loro stato AI",
     "add": "Aggiungi Membro",
     "import": {
       "clickOrDrop": "Clicca o trascina il file in quest'area per caricarlo",
@@ -443,7 +443,7 @@
       "active": "Attivi",
       "paused": "In Pausa",
       "manual": "Inserimenti Manuali",
-      "external": "Sincronizzati (Magicline)",
+      "external": "Sincronizzati (CRM)",
       "selected": "selezionati"
     },
     "table": {
@@ -463,8 +463,8 @@
   },
   "pricing": {
     "title": "Prezzi Semplici",
-    "titleAccent": "per ogni dimensione di studio",
-    "description": "Scegli il piano più adatto alle operazioni del tuo studio. Tutti i piani includono disponibilità AI 24/7 e integrazione Magicline.",
+    "titleAccent": "per ogni dimensione di organization",
+    "description": "Scegli il piano più adatto alle operazioni del tuo organization. Tutti i piani includono disponibilità AI 24/7 e integrazione CRM.",
     "monthly": "Mensile",
     "yearly": "Annuale",
     "billedYearly": "fatturato annualmente",
@@ -477,7 +477,7 @@
     "addonsSubtitleAccent": "per scalare",
     "addonsDesc": "Migliora i tuoi agenti AI con capacità specializzate su misura per il tuo flusso di lavoro.",
     "faqTitle": "Domande Frequenti",
-    "finalCta": "Pronto a trasformare il tuo studio?",
+    "finalCta": "Pronto a trasformare il tuo organization?",
     "finalCtaAccent": "Inizia la tua prova oggi.",
     "finalCtaDesc": "Unisciti a oltre 50 studi fitness che utilizzano già ARIIA.",
     "plans": {
@@ -649,7 +649,7 @@
   "register": {
     "title": "Registrazione",
     "subtitle": "Crea un nuovo tenant e un utente amministratore.",
-    "tenantName": "Nome Tenant (es. Test-Studio)",
+    "tenantName": "Nome Tenant (es. Test-Organization)",
     "tenantSlug": "Slug Tenant (opzionale)",
     "email": "E-mail",
     "name": "Nome (opzionale)",
@@ -692,14 +692,14 @@
     "memberId": "ID Membro",
     "resolveHandoff": "Risolvere il passaggio di consegne?"
   },
-  "magicline": {
+  "crm": {
     "syncNotStarted": "Sincronizzazione non ancora avviata",
     "allEnriched": "Tutti i membri già arricchiti",
     "syncFailed": "Sincronizzazione fallita",
     "syncDescription": "Carica i dati di visita e prenotazione per tutti i membri",
     "enrichAll": "Arricchisci Tutto",
     "adoption": "Adozione ARIIA",
-    "adoptionSubtitle": "Membri Magicline che hanno utilizzato ARIIA",
+    "adoptionSubtitle": "Membri CRM che hanno utilizzato ARIIA",
     "usersActive": "Utenti attivi",
     "platformVerification": "Piattaforma e Verifica",
     "platformSubtitle": "Sessioni di chat attive per canale e stato",

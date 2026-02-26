@@ -4,12 +4,13 @@ import RegisterClient from "./RegisterClient";
 export const metadata: Metadata = {
   title: "Registrieren – Kostenloses ARIIA-Konto erstellen",
   description:
-    "Erstellen Sie Ihr kostenloses ARIIA-Konto und starten Sie mit 14 Tagen kostenlosem Test. KI-gestützte Kundenkommunikation für Ihr Fitnessstudio.",
+    "Erstellen Sie Ihr kostenloses ARIIA-Konto und starten Sie mit 14 Tagen kostenlosem Test. KI-gestützte Kundenkommunikation für Ihr Unternehmen. Enterprise AI Agent Platform.",
   keywords: [
     "ARIIA registrieren",
-    "Fitness KI kostenlos testen",
-    "Studio Software Registrierung",
+    "Enterprise AI kostenlos testen",
+    "AI Agent Platform Registrierung",
     "KI Chatbot kostenlos",
+    "Business Automatisierung testen",
   ],
   alternates: {
     canonical: "/register",
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "ARIIA – Kostenloses Konto erstellen",
     description:
-      "14 Tage kostenlos testen. Automatisieren Sie die Kundenkommunikation Ihres Fitnessstudios mit KI.",
+      "14 Tage kostenlos testen. Automatisieren Sie die Kundenkommunikation Ihres Unternehmens mit Multi-Agent Orchestration.",
     url: "https://www.ariia.ai/register",
     type: "website",
   },
@@ -25,7 +26,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "ARIIA – Jetzt kostenlos registrieren",
     description:
-      "14 Tage kostenlos testen. KI-gestützte Kundenkommunikation für Fitnessstudios.",
+      "14 Tage kostenlos testen. Enterprise AI Agent Platform für intelligente Kundenkommunikation.",
   },
 };
 

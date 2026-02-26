@@ -249,7 +249,7 @@ export default function BrandingPage() {
                 />
               </div>
             </BrandField>
-            <BrandField icon={Mail} label="Support-E-Mail" hint="Kontakt-E-Mail die Mitgliedern angezeigt wird">
+            <BrandField icon={Mail} label="Support-E-Mail" hint="Kontakt-E-Mail die Kunden angezeigt wird">
               <input
                 style={inputStyle}
                 value={config.tenant_support_email || ""}

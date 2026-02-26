@@ -546,7 +546,7 @@ export function EscalationsPage() {
             }} className="custom-scrollbar">
               {memberResults.length === 0 ? (
                 <div style={{ padding: 24, textAlign: "center", color: T.textDim, fontSize: 12 }}>
-                  {memberSearch.trim() ? (searchingMembers ? "Suche…" : "Keine Mitglieder gefunden") : "Suchbegriff eingeben, um Mitglieder zu finden"}
+                  {memberSearch.trim() ? (searchingMembers ? "Suche…" : "Keine Kontakte gefunden") : "Suchbegriff eingeben, um Kontakte zu finden"}
                 </div>
               ) : (
                 memberResults.map((m) => (

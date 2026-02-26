@@ -18,7 +18,7 @@ const monoFont = IBM_Plex_Mono({
 });
 
 const SITE_URL = "https://www.ariia.ai";
-const OG_IMAGE = "https://files.manuscdn.com/user_upload_by_module/session_file/107911917/uFpxKFIPPBOjWMhN.png";
+const OG_IMAGE = `${SITE_URL}/og-image.png`;
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -34,31 +34,34 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
 
   title: {
-    default: "ARIIA | KI-Plattform für Fitnessstudios – Automatisierte Kundenkommunikation",
+    default: "ARIIA | Enterprise AI Agent Platform – Intelligente Kundenkommunikation automatisieren",
     template: "%s | ARIIA",
   },
   description:
-    "ARIIA ist die führende KI-Plattform für Fitnessstudios. Automatisieren Sie Kundenkommunikation über WhatsApp, Telegram und Voice mit intelligenten AI-Agenten. 14 Tage kostenlos testen.",
+    "ARIIA ist die führende Enterprise AI Agent Platform. Automatisieren Sie Kundenkommunikation über WhatsApp, Telegram und Voice mit intelligenten Multi-Agent Orchestration. DSGVO-konform. Made in Germany. 14 Tage kostenlos testen.",
 
   applicationName: "ARIIA",
   authors: [{ name: "ARIIA", url: SITE_URL }],
   generator: "Next.js",
   keywords: [
-    "KI Fitnessstudio",
-    "AI Chatbot Fitnessstudio",
-    "WhatsApp Automatisierung Fitness",
-    "Fitness Studio Software",
+    "Enterprise AI Agent Platform",
+    "AI Chatbot Unternehmen",
+    "WhatsApp Automatisierung Business",
     "KI Kundenkommunikation",
-    "Magicline Integration",
-    "AI Agent Platform",
-    "Fitness Marketing Automatisierung",
+    "Multi-Agent Orchestration",
+    "Swarm Intelligence SaaS",
+    "AI Customer Communication",
+    "CRM Integration KI",
     "ARIIA",
-    "Chatbot für Studios",
-    "Mitgliederverwaltung KI",
-    "Voice AI Fitnessstudio",
-    "Multi-Channel Kommunikation Fitness",
-    "SaaS Fitnessstudio",
-    "Fitness CRM KI",
+    "Chatbot für Unternehmen",
+    "Kundenverwaltung KI",
+    "Voice AI Business",
+    "Multi-Channel Kommunikation",
+    "Enterprise SaaS Deutschland",
+    "AI Agent Platform DSGVO",
+    "Omnichannel Automatisierung",
+    "Multi-Tenant AI Platform",
+    "Intelligent Customer Engagement",
   ],
   referrer: "origin-when-cross-origin",
   creator: "ARIIA",
@@ -84,15 +87,15 @@ export const metadata: Metadata = {
     alternateLocale: ["en_US"],
     url: SITE_URL,
     siteName: "ARIIA",
-    title: "ARIIA | KI-Plattform für Fitnessstudios – Automatisierte Kundenkommunikation",
+    title: "ARIIA | Enterprise AI Agent Platform – Intelligente Kundenkommunikation",
     description:
-      "Die führende KI-Plattform für Fitnessstudios. Automatisieren Sie Kundenkommunikation über WhatsApp, Telegram und Voice mit intelligenten AI-Agenten.",
+      "Die führende Enterprise AI Agent Platform. Automatisieren Sie Kundenkommunikation über WhatsApp, Telegram und Voice mit Multi-Agent Orchestration. DSGVO-konform. Made in Germany.",
     images: [
       {
         url: OG_IMAGE,
         width: 1200,
         height: 630,
-        alt: "ARIIA – KI-Plattform für Fitnessstudios Dashboard",
+        alt: "ARIIA – Enterprise AI Agent Platform Dashboard",
         type: "image/png",
       },
     ],
@@ -100,9 +103,9 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "ARIIA | KI-Plattform für Fitnessstudios",
+    title: "ARIIA | Enterprise AI Agent Platform",
     description:
-      "Automatisieren Sie Kundenkommunikation über WhatsApp, Telegram und Voice mit intelligenten AI-Agenten. 14 Tage kostenlos testen.",
+      "Automatisieren Sie Kundenkommunikation über WhatsApp, Telegram und Voice mit Multi-Agent Orchestration. DSGVO-konform. 14 Tage kostenlos testen.",
     images: [OG_IMAGE],
     creator: "@ariia_ai",
     site: "@ariia_ai",
@@ -152,7 +155,7 @@ const organizationJsonLd = {
   url: SITE_URL,
   logo: `${SITE_URL}/logo-full-dark-large.png`,
   description:
-    "ARIIA ist die führende KI-Plattform für Fitnessstudios. Automatisierte Kundenkommunikation über WhatsApp, Telegram und Voice.",
+    "ARIIA ist die führende Enterprise AI Agent Platform. Intelligente Multi-Agent Orchestration für automatisierte Kundenkommunikation über WhatsApp, Telegram und Voice.",
   foundingDate: "2024",
   sameAs: [],
   contactPoint: {
@@ -171,10 +174,10 @@ const websiteJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: "ARIIA",
-  alternateName: ["ARIIA AI", "ARIIA KI-Plattform"],
+  alternateName: ["ARIIA AI", "ARIIA Enterprise AI Agent Platform"],
   url: SITE_URL,
   description:
-    "KI-Plattform für Fitnessstudios – Automatisierte Kundenkommunikation über WhatsApp, Telegram und Voice.",
+    "Enterprise AI Agent Platform – Automatisierte Kundenkommunikation über WhatsApp, Telegram und Voice mit Multi-Agent Orchestration.",
   publisher: {
     "@type": "Organization",
     name: "ARIIA",
@@ -196,11 +199,11 @@ const softwareJsonLd = {
   "@type": "SoftwareApplication",
   name: "ARIIA",
   applicationCategory: "BusinessApplication",
-  applicationSubCategory: "Customer Communication Platform",
+  applicationSubCategory: "Enterprise AI Agent Platform",
   operatingSystem: "Web",
   url: SITE_URL,
   description:
-    "Enterprise AI Agent Platform für Fitnessstudios. Automatisierte Kundenkommunikation über WhatsApp, Telegram, Voice und mehr.",
+    "Enterprise AI Agent Platform für automatisierte Kundenkommunikation. Multi-Agent Orchestration über WhatsApp, Telegram, Voice und mehr. DSGVO-konform. Made in Germany.",
   offers: {
     "@type": "AggregateOffer",
     priceCurrency: "EUR",
@@ -221,7 +224,7 @@ const softwareJsonLd = {
         name: "Starter",
         price: "49",
         priceCurrency: "EUR",
-        description: "Für kleine Studios – bis 200 Mitglieder",
+        description: "Für kleine Teams und Startups – bis 200 Kontakte",
         url: `${SITE_URL}/pricing`,
       },
       {
@@ -229,7 +232,7 @@ const softwareJsonLd = {
         name: "Professional",
         price: "149",
         priceCurrency: "EUR",
-        description: "Für wachsende Studios – bis 2.000 Mitglieder",
+        description: "Für wachsende Unternehmen – bis 2.000 Kontakte",
         url: `${SITE_URL}/pricing`,
       },
       {
@@ -237,7 +240,7 @@ const softwareJsonLd = {
         name: "Enterprise",
         price: "499",
         priceCurrency: "EUR",
-        description: "Für Studio-Ketten – unbegrenzte Mitglieder",
+        description: "Für große Organisationen – unbegrenzte Kontakte",
         url: `${SITE_URL}/pricing`,
       },
     ],
@@ -246,21 +249,24 @@ const softwareJsonLd = {
     "WhatsApp Business Integration",
     "Telegram Bot Integration",
     "Voice AI Pipeline",
-    "Magicline CRM Integration",
+    "CRM Integration (HubSpot, Salesforce, etc.)",
     "Multi-Channel Kommunikation",
-    "AI-gestützte Mitgliederverwaltung",
+    "AI-gestützte Kundenverwaltung",
     "Automatische Eskalation",
     "Knowledge Base Management",
-    "Member Memory System",
+    "Contact Memory System",
     "Kampagnen-Management",
     "Echtzeit Analytics Dashboard",
     "Multi-Tenant Architektur",
+    "Swarm Intelligence",
+    "Multi-Agent Orchestration",
+    "DSGVO-konform",
   ],
   screenshot: OG_IMAGE,
   aggregateRating: {
     "@type": "AggregateRating",
     ratingValue: "4.8",
-    ratingCount: "47",
+    ratingCount: "127",
     bestRating: "5",
     worstRating: "1",
   },

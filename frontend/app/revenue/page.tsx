@@ -354,7 +354,7 @@ export default function RevenueAnalyticsPage() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["Tenant", "Plan", "Status", "MRR", "Add-ons", "Nachrichten", "Token-Nutzung", "Mitglieder"].map(h => (
+                  {["Tenant", "Plan", "Status", "MRR", "Add-ons", "Nachrichten", "Token-Nutzung", "Kontakte"].map(h => (
                     <th key={h} style={{
                       textAlign: "left", padding: "12px 14px", fontSize: 10, fontWeight: 600,
                       color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em",

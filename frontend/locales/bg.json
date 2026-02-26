@@ -50,7 +50,7 @@
     "health": "Статистика на двигателя",
     "quickActions": "Бързи действия",
     "platformControl": "Контрол на платформата",
-    "studioDeck": "Панел на студиото",
+    "organizationDeck": "Панел на студиото",
     "logout": "Изход",
     "roles": {
       "systemAdmin": "Системен администратор",
@@ -60,7 +60,7 @@
       "operations": "Операции",
       "customers": "Клиенти",
       "knowledge": "Знания",
-      "studio": "Студио",
+      "organization": "Студио",
       "governance": "Управление",
       "system": "Система"
     }
@@ -94,7 +94,7 @@
         "new": "Нова парола",
         "newHint": "Поне 8 знака"
       },
-      "studio": {
+      "organization": {
         "title": "Профил на студиото",
         "subtitle": "Публична идентичност и контакт на студиото",
         "name": "Име на студиото",
@@ -117,7 +117,7 @@
         "locale": "en-US",
         "timezone": "UTC",
         "password": "••••••••",
-        "studioName": "Име на вашето студио",
+        "organizationName": "Име на вашето студио",
         "opsEmail": "ops@example.com",
         "opsTelegram": "-100...",
         "sla": "15",
@@ -200,7 +200,7 @@
     },
     "integrations": {
       "title": "Интеграции",
-      "subtitle": "Свържете Magicline, WhatsApp и други."
+      "subtitle": "Свържете CRM, WhatsApp и други."
     },
     "prompts": {
       "title": "Персонализирани подкани",
@@ -259,7 +259,7 @@
     },
     "connectors": {
       "title": "Дълбока интеграция",
-      "desc": "Директна връзка с Magicline, Shopify и други за обработка в реално време."
+      "desc": "Директна връзка с CRM, Shopify и други за обработка в реално време."
     },
     "page": {
       "title": "Следващо поколение",
@@ -284,7 +284,7 @@
       },
       "members": {
         "title": "Управление на членове",
-        "desc": "Дълбока интеграция с Magicline за обработка на резервации и договори."
+        "desc": "Дълбока интеграция с CRM за обработка на резервации и договори."
       },
       "knowledge": {
         "title": "База знания",
@@ -312,7 +312,7 @@
       "tg": "Telegram Bot",
       "voice": "Гласов STT/TTS",
       "chat": "Уеб джаджа",
-      "ml": "Синхронизация с Magicline",
+      "ml": "Синхронизация с CRM",
       "proactive": "Проактивно достигане",
       "scoring": "Поведенческо оценяване",
       "behavior": "Анализ на ангажираността",
@@ -327,7 +327,7 @@
       "api": "REST API достъп",
       "shopify": "Shopify интеграция",
       "woo": "WooCommerce",
-      "magicline": "Magicline Deep-Link"
+      "crm": "CRM Deep-Link"
     },
     "securityLabels": {
       "dsgvo": "GDPR",
@@ -443,7 +443,7 @@
       "active": "Активни",
       "paused": "Паузирани",
       "manual": "Ръчни записи",
-      "external": "Синхронизирани (Magicline)",
+      "external": "Синхронизирани (CRM)",
       "selected": "избрани"
     },
     "table": {
@@ -464,7 +464,7 @@
   "pricing": {
     "title": "Лесно ценообразуване",
     "titleAccent": "за всяко студио",
-    "description": "Изберете плана, който отговаря на операциите на вашето студио. Всички планове включват 24/7 AI наличност и интеграция с Magicline.",
+    "description": "Изберете плана, който отговаря на операциите на вашето студио. Всички планове включват 24/7 AI наличност и интеграция с CRM.",
     "monthly": "Месечно",
     "yearly": "Годишно",
     "billedYearly": "таксувани годишно",
@@ -649,7 +649,7 @@
   "register": {
     "title": "Регистрация",
     "subtitle": "Създайте нов наемател и администраторски потребител.",
-    "tenantName": "Име на наемател (напр. Test-Studio)",
+    "tenantName": "Име на наемател (напр. Test-Organization)",
     "tenantSlug": "Идентификатор на наемател (по избор)",
     "email": "Имейл",
     "name": "Име (по избор)",
@@ -692,14 +692,14 @@
     "memberId": "ИД на член",
     "resolveHandoff": "Разрешаване на предаване?"
   },
-  "magicline": {
+  "crm": {
     "syncNotStarted": "Синхронизацията все още не е стартирана",
     "allEnriched": "Всички членове вече са обогатени",
     "syncFailed": "Синхронизацията е неуспешна",
     "syncDescription": "Зареждане на данни за посещения и резервации за всички членове",
     "enrichAll": "Обогатяване на всички",
     "adoption": "Приемане на ARIIA",
-    "adoptionSubtitle": "Членове на Magicline, които са използвали ARIIA",
+    "adoptionSubtitle": "Членове на CRM, които са използвали ARIIA",
     "usersActive": "Активни потребители",
     "platformVerification": "Платформа и проверка",
     "platformSubtitle": "Активни чат сесии по канал и статус",

@@ -624,7 +624,7 @@ export default function PlansPage() {
 
                 {/* Limits Summary */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, fontSize: 10, color: T.textMuted }}>
-                  <span><Users size={10} style={{ display: "inline", marginRight: 4 }} />{p.max_members === null ? "∞" : p.max_members} Mitglieder</span>
+                  <span><Users size={10} style={{ display: "inline", marginRight: 4 }} />{p.max_members === null ? "∞" : p.max_members} Kontakte</span>
                   <span><MessageSquare size={10} style={{ display: "inline", marginRight: 4 }} />{p.max_monthly_messages === null ? "∞" : p.max_monthly_messages} Nachr./Mo</span>
                   <span><Hash size={10} style={{ display: "inline", marginRight: 4 }} />{p.max_channels} Kanäle</span>
                   <span><Link2 size={10} style={{ display: "inline", marginRight: 4 }} />{p.max_connectors} Connectors</span>
@@ -922,7 +922,7 @@ export default function PlansPage() {
             {/* Limits Tab */}
             {planTab === "limits" && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <NumberField label="Max Mitglieder" value={editPlan.max_members ?? null} onChange={v => setEditPlan({ ...editPlan, max_members: v })} nullable suffix="(leer = ∞)" />
+                <NumberField label="Max Kontakte" value={editPlan.max_members ?? null} onChange={v => setEditPlan({ ...editPlan, max_members: v })} nullable suffix="(leer = ∞)" />
                 <NumberField label="Max Nachrichten/Monat" value={editPlan.max_monthly_messages ?? null} onChange={v => setEditPlan({ ...editPlan, max_monthly_messages: v })} nullable suffix="(leer = ∞)" />
                 <NumberField label="Max Kanäle" value={editPlan.max_channels ?? 1} onChange={v => setEditPlan({ ...editPlan, max_channels: v ?? 1 })} />
                 <NumberField label="Max Connectors" value={editPlan.max_connectors ?? 0} onChange={v => setEditPlan({ ...editPlan, max_connectors: v ?? 0 })} />
@@ -975,7 +975,7 @@ export default function PlansPage() {
                     style={{ ...inputStyle, minHeight: 120, fontFamily: "monospace", fontSize: 12 }}
                     value={featuresText}
                     onChange={e => setFeaturesText(e.target.value)}
-                    placeholder='["WhatsApp", "500 Mitglieder", "Basic AI"]'
+                    placeholder='["WhatsApp", "500 Kontakte", "Basic AI"]'
                   />
                   <div style={{ fontSize: 10, color: T.textDim, marginTop: 4 }}>
                     JSON-Array mit Strings. Wird auf der Pricing-Seite und im Billing-Bereich angezeigt.

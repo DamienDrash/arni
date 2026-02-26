@@ -1,21 +1,23 @@
 import { Metadata } from "next";
 import PricingClient from "./PricingClient";
 
-const OG_IMAGE = "https://files.manuscdn.com/user_upload_by_module/session_file/107911917/uFpxKFIPPBOjWMhN.png";
+const SITE_URL = "https://www.ariia.ai";
+const OG_IMAGE = `${SITE_URL}/og-pricing.png`;
 
 export const metadata: Metadata = {
-  title: "Preise & Pläne – Flexible Tarife für jedes Fitnessstudio",
+  title: "Preise & Pläne – Flexible Tarife für jede Unternehmensgröße",
   description:
-    "Wählen Sie den passenden ARIIA-Tarif für Ihr Fitnessstudio. Von Starter (49€/Monat) bis Enterprise (499€/Monat) – faire Preise, transparente Leistungen und 14 Tage kostenlos testen.",
+    "Wählen Sie den passenden ARIIA-Tarif für Ihr Unternehmen. Von Starter (49€/Monat) bis Enterprise (499€/Monat) – faire Preise, transparente Leistungen und 14 Tage kostenlos testen. DSGVO-konform.",
   keywords: [
     "ARIIA Preise",
-    "Fitness KI Kosten",
+    "Enterprise AI Kosten",
     "KI SaaS Preisgestaltung",
-    "Studio Automatisierung Tarife",
-    "Fitnessstudio Software Preise",
+    "Business Automatisierung Tarife",
+    "AI Agent Platform Preise",
     "AI Chatbot Kosten",
     "WhatsApp Bot Preise",
-    "Fitness CRM Preise",
+    "Enterprise CRM KI Preise",
+    "Multi-Agent Orchestration Kosten",
   ],
   alternates: {
     canonical: "/pricing",
@@ -23,23 +25,23 @@ export const metadata: Metadata = {
   openGraph: {
     title: "ARIIA Preise | Transparent & Skalierbar",
     description:
-      "Starten Sie noch heute mit der digitalen Transformation Ihres Studios. Ab 49€/Monat oder 14 Tage kostenlos testen.",
-    url: "https://www.ariia.ai/pricing",
+      "Starten Sie noch heute mit der intelligenten Automatisierung Ihrer Kundenkommunikation. Ab 49€/Monat oder 14 Tage kostenlos testen.",
+    url: `${SITE_URL}/pricing`,
     type: "website",
     images: [
       {
         url: OG_IMAGE,
         width: 1200,
         height: 630,
-        alt: "ARIIA Pricing – Flexible Tarife für Fitnessstudios",
+        alt: "ARIIA Pricing – Flexible Tarife für Unternehmen",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "ARIIA Preise | Ab 49€/Monat für Fitnessstudios",
+    title: "ARIIA Preise | Ab 49€/Monat für Unternehmen",
     description:
-      "Faire Preise, transparente Leistungen. Von Starter bis Enterprise – für jede Studiogröße der passende Plan.",
+      "Faire Preise, transparente Leistungen. Von Starter bis Enterprise – für jede Unternehmensgröße der passende Plan.",
     images: [OG_IMAGE],
   },
 };

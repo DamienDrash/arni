@@ -218,7 +218,7 @@ export default function BillingPage() {
               unit="Nachr."
             />
             <UsageCard
-              label="Mitglieder"
+              label="Kontakte"
               used={usage?.members_count || 0}
               limit={currentPlan?.limits?.max_members ?? null}
               unit="Mitgl."

@@ -107,7 +107,7 @@ export function AnalyticsPage() {
 
         {/* Satisfaction Trend (M2: MemberFeedback-System) */}
         <Card style={{ padding: 24, display: "flex", flexDirection: "column", minHeight: 288 }}>
-          <SectionHeader title="Mitglieder-Zufriedenheit" subtitle="Feedback nach KI-Interaktionen" />
+          <SectionHeader title="Kundenzufriedenheit" subtitle="Feedback nach KI-Interaktionen" />
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, marginTop: 24 }}>
             {!satisfaction || satisfaction.total === 0 ? (
               <>
@@ -116,7 +116,7 @@ export function AnalyticsPage() {
                   {loading ? "Lade Daten..." : "Noch kein Feedback vorhanden"}
                 </p>
                 <p style={{ fontSize: 11, color: T.textDim, margin: 0, textAlign: "center", maxWidth: 200 }}>
-                  Zufriedenheitswerte werden hier angezeigt, sobald Mitglieder die Chat-Bot-Sitzungen bewerten.
+                  Zufriedenheitswerte werden hier angezeigt, sobald Kunden die Chat-Bot-Sitzungen bewerten.
                 </p>
               </>
             ) : (

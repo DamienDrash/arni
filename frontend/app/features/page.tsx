@@ -1,49 +1,52 @@
 import { Metadata } from "next";
 import FeaturesClient from "./FeaturesClient";
 
-const OG_IMAGE = "https://files.manuscdn.com/user_upload_by_module/session_file/107911917/uFpxKFIPPBOjWMhN.png";
+const SITE_URL = "https://www.ariia.ai";
+const OG_IMAGE = `${SITE_URL}/og-features.png`;
 
 export const metadata: Metadata = {
-  title: "Features – Intelligente KI-Agenten & Swarm Intelligence für Fitnessstudios",
+  title: "Features – Multi-Agent Orchestration, Swarm Intelligence & Enterprise AI",
   description:
-    "Entdecken Sie die technischen Highlights von ARIIA: Multi-Agent Orchestration, 3-Tier Memory, Vision AI, Voice Pipeline und Multi-Channel Support. Die umfassendste KI-Lösung für moderne Fitnessstudios.",
+    "Entdecken Sie die technischen Highlights von ARIIA: Multi-Agent Orchestration, 3-Tier Memory, Vision AI, Voice Pipeline und Omnichannel Support. Die umfassendste Enterprise AI Agent Platform für intelligente Kundenkommunikation.",
   keywords: [
     "KI Agenten Swarm Intelligence",
     "Multi-Agent Orchestration",
-    "Fitness Studio Automatisierung Features",
-    "Vision AI Fitnessstudio",
+    "Enterprise AI Features",
+    "Vision AI Business",
     "3-Tier Memory AI",
     "Voice Pipeline KI",
     "WhatsApp Bot Features",
-    "Telegram Integration Fitness",
-    "Magicline API Integration",
+    "Telegram Integration Business",
+    "CRM API Integration",
     "AI Knowledge Base",
-    "Member Memory System",
+    "Contact Memory System",
     "Echtzeit Analytics",
+    "Omnichannel Automatisierung",
+    "Enterprise SaaS Features",
   ],
   alternates: {
     canonical: "/features",
   },
   openGraph: {
-    title: "ARIIA Features | Die Zukunft der Fitness-KI",
+    title: "ARIIA Features | Enterprise AI Agent Platform",
     description:
-      "Von Voice Pipeline bis Vision Agent – ARIIA bietet die umfassendste KI-Lösung für Studios. Multi-Channel, Multi-Agent, Multi-Tenant.",
-    url: "https://www.ariia.ai/features",
+      "Von Voice Pipeline bis Vision Agent – ARIIA bietet die umfassendste Enterprise AI Agent Platform. Multi-Channel, Multi-Agent, Multi-Tenant.",
+    url: `${SITE_URL}/features`,
     type: "website",
     images: [
       {
         url: OG_IMAGE,
         width: 1200,
         height: 630,
-        alt: "ARIIA Features – KI-Agenten für Fitnessstudios",
+        alt: "ARIIA Features – Enterprise AI Agent Platform",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "ARIIA Features | Intelligente KI-Agenten für Fitnessstudios",
+    title: "ARIIA Features | Enterprise AI Agent Platform",
     description:
-      "Multi-Agent Orchestration, Voice AI, Vision AI und mehr. Entdecken Sie die Zukunft der Fitness-Kommunikation.",
+      "Multi-Agent Orchestration, Voice AI, Vision AI und mehr. Entdecken Sie die Zukunft der intelligenten Kundenkommunikation.",
     images: [OG_IMAGE],
   },
 };

@@ -50,7 +50,7 @@
     "health": "엔진 통계",
     "quickActions": "빠른 작업",
     "platformControl": "플랫폼 제어",
-    "studioDeck": "스튜디오 덱",
+    "organizationDeck": "스튜디오 덱",
     "logout": "로그아웃",
     "roles": {
       "systemAdmin": "시스템 관리자",
@@ -60,7 +60,7 @@
       "operations": "운영",
       "customers": "고객",
       "knowledge": "지식",
-      "studio": "스튜디오",
+      "organization": "스튜디오",
       "governance": "거버넌스",
       "system": "시스템"
     }
@@ -94,7 +94,7 @@
         "new": "새 비밀번호",
         "newHint": "최소 8자 이상"
       },
-      "studio": {
+      "organization": {
         "title": "스튜디오 프로필",
         "subtitle": "공개 스튜디오 정보 및 연락처",
         "name": "스튜디오 이름",
@@ -117,7 +117,7 @@
         "locale": "ko-KR",
         "timezone": "UTC",
         "password": "••••••••",
-        "studioName": "귀하의 스튜디오 이름",
+        "organizationName": "귀하의 스튜디오 이름",
         "opsEmail": "ops@example.com",
         "opsTelegram": "-100...",
         "sla": "15",
@@ -200,7 +200,7 @@
     },
     "integrations": {
       "title": "통합",
-      "subtitle": "Magicline, WhatsApp 등을 연결합니다."
+      "subtitle": "CRM, WhatsApp 등을 연결합니다."
     },
     "prompts": {
       "title": "맞춤형 프롬프트",
@@ -259,7 +259,7 @@
     },
     "connectors": {
       "title": "심층 통합",
-      "desc": "Magicline, Shopify 등과의 직접 연결로 실시간 처리가 가능합니다."
+      "desc": "CRM, Shopify 등과의 직접 연결로 실시간 처리가 가능합니다."
     },
     "page": {
       "title": "차세대",
@@ -284,7 +284,7 @@
       },
       "members": {
         "title": "회원 관리",
-        "desc": "예약 및 계약 처리를 위한 Magicline과의 심층 통합입니다."
+        "desc": "예약 및 계약 처리를 위한 CRM과의 심층 통합입니다."
       },
       "knowledge": {
         "title": "지식 기반",
@@ -312,7 +312,7 @@
       "tg": "Telegram 봇",
       "voice": "음성 STT/TTS",
       "chat": "웹 위젯",
-      "ml": "Magicline 동기화",
+      "ml": "CRM 동기화",
       "proactive": "사전 예방적 아웃리치",
       "scoring": "행동 점수화",
       "behavior": "참여도 분석",
@@ -327,7 +327,7 @@
       "api": "REST API 접근",
       "shopify": "Shopify 통합",
       "woo": "WooCommerce",
-      "magicline": "Magicline 딥링크"
+      "crm": "CRM 딥링크"
     },
     "securityLabels": {
       "dsgvo": "GDPR",
@@ -443,7 +443,7 @@
       "active": "활성",
       "paused": "일시 중지됨",
       "manual": "수동 항목",
-      "external": "동기화됨 (Magicline)",
+      "external": "동기화됨 (CRM)",
       "selected": "선택됨"
     },
     "table": {
@@ -464,7 +464,7 @@
   "pricing": {
     "title": "간단한 가격 정책",
     "titleAccent": "모든 스튜디오 규모에 적합",
-    "description": "스튜디오 운영에 적합한 요금제를 선택하십시오. 모든 요금제에는 연중무휴 AI 가용성 및 Magicline 통합이 포함됩니다.",
+    "description": "스튜디오 운영에 적합한 요금제를 선택하십시오. 모든 요금제에는 연중무휴 AI 가용성 및 CRM 통합이 포함됩니다.",
     "monthly": "월간",
     "yearly": "연간",
     "billedYearly": "연간 청구",
@@ -649,7 +649,7 @@
   "register": {
     "title": "등록",
     "subtitle": "새 테넌트와 관리자 사용자를 생성하십시오.",
-    "tenantName": "테넌트 이름 (예: Test-Studio)",
+    "tenantName": "테넌트 이름 (예: Test-Organization)",
     "tenantSlug": "테넌트 슬러그 (선택 사항)",
     "email": "이메일",
     "name": "이름 (선택 사항)",
@@ -692,14 +692,14 @@
     "memberId": "회원 ID",
     "resolveHandoff": "핸드오프를 해결하시겠습니까?"
   },
-  "magicline": {
+  "crm": {
     "syncNotStarted": "동기화가 아직 시작되지 않았습니다.",
     "allEnriched": "모든 회원이 이미 풍부화되었습니다.",
     "syncFailed": "동기화 실패",
     "syncDescription": "모든 회원의 방문 및 예약 데이터를 로드합니다.",
     "enrichAll": "모두 풍부화",
     "adoption": "ARIIA 채택률",
-    "adoptionSubtitle": "ARIIA를 사용한 Magicline 회원",
+    "adoptionSubtitle": "ARIIA를 사용한 CRM 회원",
     "usersActive": "활성 사용자",
     "platformVerification": "플랫폼 및 인증",
     "platformSubtitle": "채널 및 상태별 활성 채팅 세션",

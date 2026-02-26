@@ -1,34 +1,37 @@
-# ARIIA – AI Living System Agent
+# ARIIA – Enterprise AI Agent Platform
 
-> ARIIA ist eine Enterprise KI-Plattform (SaaS) für Fitnessstudios, die automatisierte Kundenkommunikation über WhatsApp, Telegram und Voice ermöglicht. Die Plattform nutzt Multi-Agent Orchestration mit Swarm Intelligence, um Mitgliederanfragen intelligent zu beantworten, Termine zu verwalten und Kampagnen durchzuführen.
+> ARIIA is a Multi-Tenant Enterprise AI Agent Platform that automates customer communication across WhatsApp, Telegram, SMS, and Voice using Multi-Agent Orchestration and Swarm Intelligence. GDPR-compliant. Made in Germany.
 
-ARIIA wurde speziell für die Fitnessbranche entwickelt und integriert sich nahtlos mit Magicline und anderen Studio-Management-Systemen. Die Plattform ist als Multi-Tenant SaaS konzipiert und bietet verschiedene Preispläne von Starter (49€/Monat) bis Enterprise (499€/Monat). Neue Nutzer können ARIIA 14 Tage kostenlos testen.
+ARIIA provides intelligent AI agents that handle customer interactions autonomously across multiple channels. The platform uses a swarm architecture where specialized agents (Sales, Support, Operations) collaborate to resolve every customer request. ARIIA serves businesses of all sizes and industries – from startups to enterprise organizations with multiple locations.
 
-Kernfunktionen:
-- **Multi-Channel Kommunikation**: WhatsApp Business, Telegram, Voice AI, Web-Chat
-- **Multi-Agent Orchestration**: Spezialisierte KI-Agenten arbeiten als Schwarm zusammen
-- **3-Tier Memory System**: Kurzzeit-, Langzeit- und Kontext-Gedächtnis für personalisierte Interaktionen
-- **Vision AI**: Bildanalyse für Geräteerkennung und Trainingsunterstützung
-- **Magicline Integration**: Direkte Anbindung an das führende Fitness-CRM
-- **Echtzeit Analytics**: Dashboard mit KPIs, Ticket-Tracking und Confidence-Scores
-- **Knowledge Base**: Zentrale Wissensverwaltung für den KI-Agenten
-- **Member Memory**: Individuelle Mitglieder-Profile mit Präferenzen und Historie
-- **Kampagnen-Management**: Automatisierte Marketing-Kampagnen über alle Kanäle
-- **Eskalations-Management**: Automatische Weiterleitung an menschliche Mitarbeiter
+## Key Features
 
-## Hauptseiten
+- **Multi-Agent Orchestration**: Specialized AI agents work together in a swarm to handle complex customer interactions
+- **Omnichannel Communication**: WhatsApp Business, Telegram, Voice AI, SMS, Web Widget
+- **3-Tier Memory System**: Short-term, long-term, and contextual memory for personalized interactions
+- **Vision AI**: Image analysis for product recognition and visual support
+- **CRM Integration**: Seamless connection to HubSpot, Salesforce, Shopify, and more
+- **Real-time Analytics**: Dashboard with KPIs, ticket tracking, and confidence scores
+- **Knowledge Base**: Central knowledge management for AI agents
+- **Contact Memory**: Individual customer profiles with preferences and history
+- **Campaign Management**: Automated marketing campaigns across all channels
+- **Escalation Management**: Automatic handoff to human agents when needed
+- **Multi-Tenant Architecture**: Manage multiple locations or departments from one account
+- **GDPR Compliance**: All data hosted in ISO-certified data centers in Germany
 
-- [Homepage](https://www.ariia.ai/): Übersicht über ARIIA und seine Vorteile für Fitnessstudios
-- [Features](https://www.ariia.ai/features): Detaillierte technische Features und Funktionen
-- [Pricing](https://www.ariia.ai/pricing): Preispläne und Tarifübersicht (Starter, Professional, Enterprise)
-- [Registrierung](https://www.ariia.ai/register): Kostenloses Konto erstellen mit 14-Tage-Trial
+## Pages
 
-## Rechtliches
+- [Homepage](https://www.ariia.ai/): Overview of ARIIA and its benefits for businesses
+- [Features](https://www.ariia.ai/features): Detailed technical features and capabilities
+- [Pricing](https://www.ariia.ai/pricing): Plans and pricing (Starter, Professional, Business, Enterprise)
+- [Register](https://www.ariia.ai/register): Create a free account with 14-day trial
 
-- [Impressum](https://www.ariia.ai/impressum): Anbieterkennzeichnung
-- [Datenschutz](https://www.ariia.ai/datenschutz): Datenschutzerklärung
-- [AGB](https://www.ariia.ai/agb): Allgemeine Geschäftsbedingungen
+## Legal
+
+- [Imprint](https://www.ariia.ai/impressum): Legal notice
+- [Privacy Policy](https://www.ariia.ai/datenschutz): Data protection policy
+- [Terms of Service](https://www.ariia.ai/agb): General terms and conditions
 
 ## Optional
 
-- [LLM-Vollversion](https://www.ariia.ai/llms-full.txt): Ausführliche Beschreibung aller Features und Preise
+- [Full LLM Version](https://www.ariia.ai/llms-full.txt): Comprehensive description of all features and pricing

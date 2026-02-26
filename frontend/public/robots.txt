@@ -1,4 +1,4 @@
-# ARIIA – AI Living System Agent
+# ARIIA – Enterprise AI Agent Platform
 # https://www.ariia.ai
 # Last updated: 2026-02-26
 

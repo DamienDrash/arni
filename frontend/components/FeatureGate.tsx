@@ -128,7 +128,7 @@ export function LimitGate({ resource, children }: LimitGateProps) {
       ? usage?.messages_used
       : usage?.members_count;
 
-  const label = resource === "messages" ? "Nachrichten" : "Mitglieder";
+  const label = resource === "messages" ? "Nachrichten" : "Kontakte";
 
   return (
     <>

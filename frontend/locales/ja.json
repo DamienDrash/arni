@@ -50,7 +50,7 @@
     "health": "エンジン統計",
     "quickActions": "クイックアクション",
     "platformControl": "プラットフォームコントロール",
-    "studioDeck": "スタジオデッキ",
+    "organizationDeck": "スタジオデッキ",
     "logout": "ログアウト",
     "roles": {
       "systemAdmin": "システム管理者",
@@ -60,7 +60,7 @@
       "operations": "運用",
       "customers": "顧客",
       "knowledge": "ナレッジ",
-      "studio": "スタジオ",
+      "organization": "スタジオ",
       "governance": "ガバナンス",
       "system": "システム"
     }
@@ -94,7 +94,7 @@
         "new": "新しいパスワード",
         "newHint": "8文字以上で入力してください。"
       },
-      "studio": {
+      "organization": {
         "title": "スタジオプロフィール",
         "subtitle": "公開されるスタジオの識別情報と連絡先です。",
         "name": "スタジオ名",
@@ -117,7 +117,7 @@
         "locale": "ja-JP",
         "timezone": "UTC",
         "password": "••••••••",
-        "studioName": "貴社スタジオ名",
+        "organizationName": "貴社スタジオ名",
         "opsEmail": "ops@example.com",
         "opsTelegram": "-100...",
         "sla": "15",
@@ -200,7 +200,7 @@
     },
     "integrations": {
       "title": "連携",
-      "subtitle": "Magicline、WhatsAppなどを接続します。"
+      "subtitle": "CRM、WhatsAppなどを接続します。"
     },
     "prompts": {
       "title": "カスタムプロンプト",
@@ -259,7 +259,7 @@
     },
     "connectors": {
       "title": "ディープインテグレーション",
-      "desc": "Magicline、Shopifyなどへの直接接続により、リアルタイム処理を実現します。"
+      "desc": "CRM、Shopifyなどへの直接接続により、リアルタイム処理を実現します。"
     },
     "page": {
       "title": "次世代",
@@ -284,7 +284,7 @@
       },
       "members": {
         "title": "会員管理",
-        "desc": "Magiclineとの綿密な連携により、予約や契約を処理します。"
+        "desc": "CRMとの綿密な連携により、予約や契約を処理します。"
       },
       "knowledge": {
         "title": "ナレッジベース",
@@ -312,7 +312,7 @@
       "tg": "Telegram Bot",
       "voice": "音声 STT/TTS",
       "chat": "ウェブウィジェット",
-      "ml": "Magicline 同期",
+      "ml": "CRM 同期",
       "proactive": "プロアクティブなアウトリーチ",
       "scoring": "行動スコアリング",
       "behavior": "エンゲージメント分析",
@@ -327,7 +327,7 @@
       "api": "REST APIアクセス",
       "shopify": "Shopify連携",
       "woo": "WooCommerce",
-      "magicline": "Magicline ディープリンク"
+      "crm": "CRM ディープリンク"
     },
     "securityLabels": {
       "dsgvo": "GDPR",
@@ -443,7 +443,7 @@
       "active": "アクティブ",
       "paused": "一時停止中",
       "manual": "手動入力",
-      "external": "同期済み (Magicline)",
+      "external": "同期済み (CRM)",
       "selected": "選択済み"
     },
     "table": {
@@ -464,7 +464,7 @@
   "pricing": {
     "title": "シンプルな料金体系",
     "titleAccent": "あらゆるスタジオ規模に対応",
-    "description": "スタジオの運営に合ったプランをお選びください。すべてのプランには、24時間365日のAI利用とMagicline連携が含まれています。",
+    "description": "スタジオの運営に合ったプランをお選びください。すべてのプランには、24時間365日のAI利用とCRM連携が含まれています。",
     "monthly": "月払い",
     "yearly": "年払い",
     "billedYearly": "年間請求",
@@ -692,14 +692,14 @@
     "memberId": "会員ID",
     "resolveHandoff": "ハンドオフを解決しますか？"
   },
-  "magicline": {
+  "crm": {
     "syncNotStarted": "同期はまだ開始されていません",
     "allEnriched": "すべての会員はすでにエンリッチされています",
     "syncFailed": "同期に失敗しました",
     "syncDescription": "すべての会員の訪問および予約データを読み込みます",
     "enrichAll": "すべてをエンリッチ",
     "adoption": "ARIIA導入状況",
-    "adoptionSubtitle": "ARIIAを利用したMagicline会員",
+    "adoptionSubtitle": "ARIIAを利用したCRM会員",
     "usersActive": "アクティブユーザー",
     "platformVerification": "プラットフォームと検証",
     "platformSubtitle": "チャネルとステータス別のアクティブなチャットセッション",

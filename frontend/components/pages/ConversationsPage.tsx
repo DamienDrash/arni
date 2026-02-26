@@ -15,7 +15,7 @@ type FilterStatus = "all" | "resolved" | "pending" | "escalated";
 const mockMessages = (issue: string) => [
   { from: "member", text: issue, time: "14:22" },
   { from: "ai", text: "Hallo! Ich bin ARIIA, dein KI-Assistent. Lass mich das für dich prüfen. Einen Moment bitte…", time: "14:22" },
-  { from: "ai", text: "Ich habe deine Mitgliederdaten in Magicline gefunden. Ich kann dir bei dieser Anfrage weiterhelfen.", time: "14:23" },
+  { from: "ai", text: "Ich habe deine Kundendaten im System gefunden. Ich kann dir bei dieser Anfrage weiterhelfen.", time: "14:23" },
   { from: "member", text: "Super, danke!", time: "14:23" },
 ];
 
@@ -124,7 +124,7 @@ export function ConversationsPage() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <MiniButton><Eye size={12} /> Magicline</MiniButton>
+          <MiniButton><Eye size={12} /> CRM</MiniButton>
           <MiniButton><AlertTriangle size={12} /> Eskalieren</MiniButton>
           <MiniButton><Archive size={12} /></MiniButton>
         </div>

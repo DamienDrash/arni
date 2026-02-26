@@ -40,7 +40,7 @@
     "users": "Usuarios",
     "knowledge": "Base de Conocimiento",
     "memberMemory": "Memoria de Miembros",
-    "systemPrompt": "Indicador del Estudio",
+    "systemPrompt": "Indicador del Eorganization",
     "sync": "Sincronización",
     "billing": "Suscripción",
     "settings": "Configuración",
@@ -50,17 +50,17 @@
     "health": "Estadísticas del Motor",
     "quickActions": "Acciones Rápidas",
     "platformControl": "Control de Plataforma",
-    "studioDeck": "Cubierta del Estudio",
+    "organizationDeck": "Cubierta del Eorganization",
     "logout": "Cerrar sesión",
     "roles": {
       "systemAdmin": "Administrador del Sistema",
-      "tenantAdmin": "Administrador del Estudio"
+      "tenantAdmin": "Administrador del Eorganization"
     },
     "sections": {
       "operations": "Operaciones",
       "customers": "Clientes",
       "knowledge": "Conocimiento",
-      "studio": "Estudio",
+      "organization": "Eorganization",
       "governance": "Gobernanza",
       "system": "Sistema"
     }
@@ -94,21 +94,21 @@
         "new": "Nueva Contraseña",
         "newHint": "Al menos 8 caracteres de longitud"
       },
-      "studio": {
-        "title": "Perfil del Estudio",
-        "subtitle": "Identidad pública y contacto del estudio",
-        "name": "Nombre del Estudio",
+      "organization": {
+        "title": "Perfil del Eorganization",
+        "subtitle": "Identidad pública y contacto del eorganization",
+        "name": "Nombre del Eorganization",
         "nameHint": "Se muestra en las interacciones de IA",
         "opsEmail": "Correo Electrónico de Operaciones",
-        "opsEmailHint": "Contacto para operaciones del estudio",
+        "opsEmailHint": "Contacto para operaciones del eorganization",
         "opsTelegram": "Telegram de Operaciones",
-        "opsTelegramHint": "Usuario de Telegram para el personal del estudio",
+        "opsTelegramHint": "Usuario de Telegram para el personal del eorganization",
         "refresh": "Actualización de Datos",
         "refreshHint": "Sincronización manual con sistemas externos",
         "sla": "Nivel de SLA",
         "slaHint": "Nivel de acuerdo de nivel de servicio",
-        "localeHint": "Idioma principal de los miembros de su estudio",
-        "timezoneHint": "Hora local del estudio"
+        "localeHint": "Idioma principal de los miembros de su eorganization",
+        "timezoneHint": "Hora local del eorganization"
       },
       "title": "Configuración de la Cuenta",
       "subtitle": "Gestione su perfil personal y seguridad",
@@ -117,7 +117,7 @@
         "locale": "es-ES",
         "timezone": "UTC",
         "password": "••••••••",
-        "studioName": "Nombre de su Estudio",
+        "organizationName": "Nombre de su Eorganization",
         "opsEmail": "ops@ejemplo.com",
         "opsTelegram": "-100...",
         "sla": "15",
@@ -200,7 +200,7 @@
     },
     "integrations": {
       "title": "Integraciones",
-      "subtitle": "Conecte Magicline, WhatsApp y más."
+      "subtitle": "Conecte CRM, WhatsApp y más."
     },
     "prompts": {
       "title": "Instrucciones Personalizadas",
@@ -218,11 +218,11 @@
     "title": "El inteligente",
     "words": [
       "Asistente de IA",
-      "Gerente de Estudio",
+      "Gerente de Eorganization",
       "Bot de Operaciones",
       "Agente de Ventas"
     ],
-    "subtitle": "para su estudio de fitness",
+    "subtitle": "para su eorganization de fitness",
     "description": "ARIIA automatiza la comunicación con el cliente a través de WhatsApp, Telegram y Voz. Aumente su eficiencia con Arnold Prime Orchestration.",
     "cta": "Empezar"
   },
@@ -234,7 +234,7 @@
   },
   "features": {
     "badge": "Funcionalidades",
-    "title": "Todo lo que su estudio",
+    "title": "Todo lo que su eorganization",
     "titleAccent": "necesita para tener éxito",
     "description": "Un ecosistema completo de agentes de IA perfectamente integrados en sus sistemas existentes.",
     "swarm": {
@@ -259,19 +259,19 @@
     },
     "connectors": {
       "title": "Integración Profunda",
-      "desc": "Conexión directa a Magicline, Shopify y más para una gestión en tiempo real."
+      "desc": "Conexión directa a CRM, Shopify y más para una gestión en tiempo real."
     },
     "page": {
-      "title": "Inteligencia de Estudio",
+      "title": "Inteligencia de Eorganization",
       "titleAccent": "de Próxima Generación",
-      "description": "ARIIA es más que un chatbot. Es un enjambre de agentes de IA especializados que entienden su estudio y a sus miembros.",
+      "description": "ARIIA es más que un chatbot. Es un enjambre de agentes de IA especializados que entienden su eorganization y a sus miembros.",
       "techTitle": "Pila",
       "techSubtitle": "Tecnológica",
       "techSubtitleAccent": "Profunda",
       "deckTitle": "Control del",
-      "deckSubtitle": "Estudio",
+      "deckSubtitle": "Eorganization",
       "deckSubtitleAccent": "Deck",
-      "deckDesc": "Un panel central para monitorear cada interacción de IA y administrar la configuración de su estudio en tiempo real.",
+      "deckDesc": "Un panel central para monitorear cada interacción de IA y administrar la configuración de su eorganization en tiempo real.",
       "securityTitle": "Seguridad y",
       "securitySubtitle": "Cumplimiento",
       "securitySubtitleAccent": "Empresarial",
@@ -284,19 +284,19 @@
       },
       "members": {
         "title": "Gestión de Miembros",
-        "desc": "Integración profunda con Magicline para gestionar reservas y contratos."
+        "desc": "Integración profunda con CRM para gestionar reservas y contratos."
       },
       "knowledge": {
         "title": "Base de Conocimiento",
-        "desc": "Cargue los documentos de su estudio para entrenar a la IA con sus reglas específicas."
+        "desc": "Cargue los documentos de su eorganization para entrenar a la IA con sus reglas específicas."
       },
       "prompts": {
         "title": "Control de Persona",
-        "desc": "Personalice el tono y la personalidad de su asistente de estudio."
+        "desc": "Personalice el tono y la personalidad de su asistente de eorganization."
       },
       "multi": {
         "title": "Multitenencia",
-        "desc": "Gestione múltiples ubicaciones de estudio desde una única cuenta central."
+        "desc": "Gestione múltiples ubicaciones de eorganization desde una única cuenta central."
       },
       "churn": {
         "title": "Prevención de Abandono",
@@ -312,7 +312,7 @@
       "tg": "Bot de Telegram",
       "voice": "Voz STT/TTS",
       "chat": "Widget Web",
-      "ml": "Sincronización con Magicline",
+      "ml": "Sincronización con CRM",
       "proactive": "Alcance Proactivo",
       "scoring": "Puntuación de Comportamiento",
       "behavior": "Análisis de Interacción",
@@ -327,7 +327,7 @@
       "api": "Acceso a REST API",
       "shopify": "Integración con Shopify",
       "woo": "WooCommerce",
-      "magicline": "Enlace Profundo con Magicline"
+      "crm": "Enlace Profundo con CRM"
     },
     "securityLabels": {
       "dsgvo": "GDPR",
@@ -340,13 +340,13 @@
   },
   "cta": {
     "title": "Listo para el futuro de la",
-    "titleAccent": "automatización de estudios",
-    "subtitle": "Únase a más de 50 estudios de fitness que ya están creciendo con ARIIA.",
+    "titleAccent": "automatización de eorganizations",
+    "subtitle": "Únase a más de 50 eorganizations de fitness que ya están creciendo con ARIIA.",
     "button": "Crear Cuenta Gratuita",
     "compare": "Comparar Precios"
   },
   "footer": {
-    "brandDesc": "La evolución de las operaciones de estudio. Plataforma SaaS Multitenencia Agéntica.",
+    "brandDesc": "La evolución de las operaciones de eorganization. Plataforma SaaS Multitenencia Agéntica.",
     "product": "Producto",
     "company": "Empresa",
     "contact": "Contacto",
@@ -426,7 +426,7 @@
   },
   "members": {
     "title": "Miembros",
-    "subtitle": "Gestione los miembros de su estudio y su estado de IA",
+    "subtitle": "Gestione los miembros de su eorganization y su estado de IA",
     "add": "Añadir Miembro",
     "import": {
       "clickOrDrop": "Haga clic o arrastre el archivo a esta área para subirlo",
@@ -443,7 +443,7 @@
       "active": "Activos",
       "paused": "En Pausa",
       "manual": "Entradas Manuales",
-      "external": "Sincronizados (Magicline)",
+      "external": "Sincronizados (CRM)",
       "selected": "seleccionados"
     },
     "table": {
@@ -463,27 +463,27 @@
   },
   "pricing": {
     "title": "Precios Sencillos",
-    "titleAccent": "para cada tamaño de estudio",
-    "description": "Elija el plan que se adapte a las operaciones de su estudio. Todos los planes incluyen disponibilidad de IA 24/7 e integración con Magicline.",
+    "titleAccent": "para cada tamaño de eorganization",
+    "description": "Elija el plan que se adapte a las operaciones de su eorganization. Todos los planes incluyen disponibilidad de IA 24/7 e integración con CRM.",
     "monthly": "Mensual",
     "yearly": "Anual",
     "billedYearly": "facturado anualmente",
     "discount": "Ahorre 20%",
     "enterpriseTitle": "Empresarial",
-    "enterpriseDesc": "Soluciones personalizadas para grandes cadenas de estudios con más de 10 ubicaciones y necesidades de cumplimiento específicas.",
+    "enterpriseDesc": "Soluciones personalizadas para grandes cadenas de eorganizations con más de 10 ubicaciones y necesidades de cumplimiento específicas.",
     "enterpriseCta": "Contactar Ventas",
     "addonsTitle": "Potentes",
     "addonsSubtitle": "Complementos",
     "addonsSubtitleAccent": "para escalar",
     "addonsDesc": "Mejore sus agentes de IA con capacidades especializadas adaptadas a su flujo de trabajo.",
     "faqTitle": "Preguntas Frecuentes",
-    "finalCta": "¿Listo para transformar su estudio?",
+    "finalCta": "¿Listo para transformar su eorganization?",
     "finalCtaAccent": "Comience su prueba hoy.",
-    "finalCtaDesc": "Únase a más de 50 estudios de fitness que ya utilizan ARIIA.",
+    "finalCtaDesc": "Únase a más de 50 eorganizations de fitness que ya utilizan ARIIA.",
     "plans": {
       "starter": {
         "name": "Inicial",
-        "desc": "Perfecto para estudios boutique",
+        "desc": "Perfecto para eorganizations boutique",
         "cta": "Empezar",
         "features": [
           "1 Agente de IA (Operaciones)",
@@ -495,7 +495,7 @@
       "professional": {
         "name": "Profesional",
         "badge": "Más Popular",
-        "desc": "Para estudios de fitness en crecimiento",
+        "desc": "Para eorganizations de fitness en crecimiento",
         "cta": "Iniciar Prueba Gratuita",
         "features": [
           "3 Agentes de IA (Ventas, Operaciones, Médico)",
@@ -507,7 +507,7 @@
       },
       "business": {
         "name": "Empresarial",
-        "desc": "Automatización completa para grandes estudios",
+        "desc": "Automatización completa para grandes eorganizations",
         "cta": "Hacerse Pro",
         "features": [
           "Enjambre Completo (Todos los Agentes)",
@@ -649,7 +649,7 @@
   "register": {
     "title": "Registro",
     "subtitle": "Crear un nuevo inquilino y usuario administrador.",
-    "tenantName": "Nombre del Inquilino (ej. Test-Studio)",
+    "tenantName": "Nombre del Inquilino (ej. Test-Organization)",
     "tenantSlug": "Slug del Inquilino (opcional)",
     "email": "Correo electrónico",
     "name": "Nombre (opcional)",
@@ -692,14 +692,14 @@
     "memberId": "ID de Miembro",
     "resolveHandoff": "¿Resolver transferencia?"
   },
-  "magicline": {
+  "crm": {
     "syncNotStarted": "Sincronización aún no iniciada",
     "allEnriched": "Todos los miembros ya enriquecidos",
     "syncFailed": "Sincronización fallida",
     "syncDescription": "Cargar datos de visitas y reservas para todos los miembros",
     "enrichAll": "Enriquecer Todo",
     "adoption": "Adopción de ARIIA",
-    "adoptionSubtitle": "Miembros de Magicline que han utilizado ARIIA",
+    "adoptionSubtitle": "Miembros de CRM que han utilizado ARIIA",
     "usersActive": "Usuarios activos",
     "platformVerification": "Plataforma y Verificación",
     "platformSubtitle": "Sesiones de chat activas por canal y estado",

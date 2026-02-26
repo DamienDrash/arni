@@ -248,7 +248,7 @@ export default function PricingClient() {
                         <div className="flex items-start gap-2.5">
                           <Users size={13} className="shrink-0 mt-0.5" style={{ color: "oklch(0.5 0.08 270)" }} />
                           <span className="text-xs" style={{ color: "oklch(0.6 0.015 270)" }}>
-                            {plan.max_members === null ? "Unbegrenzte" : plan.max_members.toLocaleString("de-DE")} Mitglieder
+                            {plan.max_members === null ? "Unbegrenzte" : plan.max_members.toLocaleString("de-DE")} Kontakte
                           </span>
                         </div>
                         <div className="flex items-start gap-2.5 mt-1.5">
