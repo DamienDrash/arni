@@ -189,8 +189,8 @@ export default function MembersPage() {
     setIsLoading(true);
     try {
       const [mRes, cRes] = await Promise.all([
-        apiFetch("/admin/members"),
-        apiFetch("/admin/members/columns"),
+        apiFetch("/admin/members/"),
+        apiFetch("/admin/members/columns/"),
       ]);
       if (mRes.ok) {
         const data = await mRes.json();
@@ -260,7 +260,7 @@ export default function MembersPage() {
     if (!addForm.first_name || !addForm.last_name) return;
     setAddSaving(true);
     try {
-      const res = await apiFetch("/admin/members", {
+      const res = await apiFetch("/admin/members/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(addForm),
@@ -281,7 +281,7 @@ export default function MembersPage() {
     try {
       const formData = new FormData();
       formData.append("file", csvFile);
-      const res = await apiFetch("/admin/members/import/csv", {
+      const res = await apiFetch("/admin/members/import/csv/", {
         method: "POST",
         body: formData,
       });
@@ -302,7 +302,7 @@ export default function MembersPage() {
 
   async function handleCsvExport() {
     try {
-      const res = await apiFetch("/admin/members/export/csv");
+      const res = await apiFetch("/admin/members/export/csv/");
       if (res.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -319,7 +319,7 @@ export default function MembersPage() {
 
   async function bulkDelete() {
     if (!confirm(t("members.confirmDelete"))) return;
-    const res = await apiFetch("/admin/members/bulk", {
+    const res = await apiFetch("/admin/members/bulk/", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids: Array.from(selectedIds) }),
