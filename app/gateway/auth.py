@@ -198,13 +198,29 @@ async def register(req: RegisterRequest, response: Response) -> dict:
         db.commit()
         db.refresh(user)
 
-        # S5: Seed Starter subscription + prompt defaults for new tenants
+        # S5: Seed Trial subscription + prompt defaults for new tenants
         try:
+            from datetime import timedelta
             from app.core.models import Plan, Subscription as Sub
-            starter = db.query(Plan).filter(Plan.slug == "starter", Plan.is_active.is_(True)).first()
-            if starter:
-                db.add(Sub(tenant_id=tenant.id, plan_id=starter.id, status="active"))
+            trial_plan = db.query(Plan).filter(Plan.slug == "trial", Plan.is_active.is_(True)).first()
+            if trial_plan:
+                trial_end = datetime.now(timezone.utc) + timedelta(days=14)
+                db.add(Sub(
+                    tenant_id=tenant.id,
+                    plan_id=trial_plan.id,
+                    status="trialing",
+                    trial_ends_at=trial_end,
+                    current_period_start=datetime.now(timezone.utc),
+                    current_period_end=trial_end,
+                ))
                 db.commit()
+                logger.info("tenant.register.trial_started", tenant_id=tenant.id, trial_ends_at=trial_end.isoformat())
+            else:
+                # Fallback to Starter if Trial plan doesn't exist
+                starter = db.query(Plan).filter(Plan.slug == "starter", Plan.is_active.is_(True)).first()
+                if starter:
+                    db.add(Sub(tenant_id=tenant.id, plan_id=starter.id, status="active"))
+                    db.commit()
         except Exception as _sub_err:
             logger.warning("tenant.register.subscription_seed_failed", tenant_id=tenant.id, error=str(_sub_err))
 

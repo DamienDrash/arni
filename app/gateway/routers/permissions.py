@@ -156,6 +156,17 @@ async def get_permissions(
     # 1. Base Data
     sub = db.query(Subscription).filter(Subscription.tenant_id == user.tenant_id).first()
     plan = db.query(Plan).filter(Plan.id == sub.plan_id).first() if sub else None
+    
+    # Check if trial has expired (runtime check in addition to startup check)
+    is_trial_expired = False
+    if sub and sub.status == "trialing" and sub.trial_ends_at:
+        from datetime import timezone as tz
+        if sub.trial_ends_at.replace(tzinfo=tz.utc) < datetime.now(tz.utc):
+            sub.status = "expired"
+            db.commit()
+            is_trial_expired = True
+    elif sub and sub.status == "expired":
+        is_trial_expired = True
 
     # 2. Active Addons for this tenant
     active_addons = _get_active_addons(db, user.tenant_id) if not is_sys else []
@@ -235,7 +246,34 @@ async def get_permissions(
         }
 
         # Page access based on plan features
-        pages_data = {
+        # If trial expired, only allow billing page
+        if is_trial_expired:
+            pages_data = {
+                "/dashboard": True,
+                "/live": False,
+                "/escalations": False,
+                "/members": False,
+                "/knowledge": False,
+                "/users": False,
+                "/settings": True,
+                "/settings/billing": True,
+                "/settings/account": True,
+                "/settings/integrations": False,
+                "/settings/prompts": False,
+                "/settings/branding": False,
+                "/settings/automation": False,
+                "/analytics": False,
+                "/member-memory": False,
+                "/audit": False,
+                "/tenants": False,
+                "/plans": False,
+                "/health": False,
+                "/revenue": False,
+                "/settings/ai": False,
+                "/campaigns": False,
+            }
+        else:
+            pages_data = {
             "/dashboard": True,
             "/live": True,
             "/escalations": True,
@@ -245,7 +283,7 @@ async def get_permissions(
             "/settings": True,
             "/settings/billing": True,
             "/settings/account": True,
-            "/settings/integrations": features_data.get("api_access", False) or (plan and plan.slug not in ("starter",)),
+            "/settings/integrations": features_data.get("api_access", False) or (plan and plan.slug not in ("starter", "trial")),
             "/settings/prompts": features_data.get("custom_prompts", False),
             "/settings/branding": features_data.get("branding", False),
             "/settings/automation": features_data.get("automation", False),
@@ -289,6 +327,8 @@ async def get_permissions(
             "has_subscription": sub is not None or is_sys,
             "status": sub.status if sub else "active",
             "current_period_end": sub.current_period_end.isoformat() if sub and sub.current_period_end else None,
+            "trial_ends_at": sub.trial_ends_at.isoformat() if sub and sub.trial_ends_at else None,
+            "is_trial": sub.status == "trialing" if sub else False,
         },
         "usage": {
             "messages_used": (usage_rec.messages_inbound + usage_rec.messages_outbound) if usage_rec else 0,

@@ -21,8 +21,10 @@ export interface Plan {
 
 export interface Subscription {
   has_subscription: boolean;
-  status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid';
+  status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'expired';
   current_period_end: string | null;
+  trial_ends_at: string | null;
+  is_trial: boolean;
 }
 
 export interface Usage {
@@ -163,6 +165,33 @@ export function usePermissions() {
     return ['active', 'trialing'].includes(data.subscription.status);
   };
 
+  /**
+   * Check if the tenant is currently in a trial period.
+   */
+  const isTrial = (): boolean => {
+    return data?.subscription?.is_trial === true;
+  };
+
+  /**
+   * Get the number of days remaining in the trial.
+   * Returns 0 if not in trial or trial has expired.
+   */
+  const trialDaysRemaining = (): number => {
+    if (!data?.subscription?.trial_ends_at) return 0;
+    const end = new Date(data.subscription.trial_ends_at);
+    const now = new Date();
+    const diff = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, diff);
+  };
+
+  /**
+   * Check if the trial has expired.
+   */
+  const isTrialExpired = (): boolean => {
+    if (!data?.subscription?.is_trial) return false;
+    return trialDaysRemaining() <= 0;
+  };
+
   return {
     role,
     isSystemAdmin,
@@ -180,6 +209,9 @@ export function usePermissions() {
     usagePercent,
     hasAddon,
     isSubscriptionHealthy,
+    isTrial,
+    trialDaysRemaining,
+    isTrialExpired,
     loading: isLoading,
     reload: refetch,
   };

@@ -28,7 +28,7 @@ import { useI18n } from "@/lib/i18n/LanguageContext";
 // ══════════════════════════════════════════════════════════════════════════════
 
 type CategoryId = "messaging" | "payments" | "scheduling" | "ai_voice" | "analytics" | "members" | "crm";
-type PlanTier = "starter" | "professional" | "business" | "enterprise";
+type PlanTier = "starter" | "professional" | "pro" | "business" | "enterprise";
 type IntegrationStatus = "connected" | "disconnected" | "error" | "pending";
 type ViewState = "hub" | "onboarding" | "manage";
 
@@ -795,15 +795,19 @@ const INTEGRATIONS: IntegrationDef[] = [
 // PLAN HIERARCHY
 // ══════════════════════════════════════════════════════════════════════════════
 
-const PLAN_ORDER: Record<PlanTier, number> = {
+const PLAN_ORDER: Record<string, number> = {
+  trial: -1,
   starter: 0,
+  pro: 1,
   professional: 1,
   business: 2,
   enterprise: 3,
 };
 
-const PLAN_LABELS: Record<PlanTier, string> = {
+const PLAN_LABELS: Record<string, string> = {
+  trial: "Trial",
   starter: "Starter",
+  pro: "Professional",
   professional: "Professional",
   business: "Business",
   enterprise: "Enterprise",
@@ -829,6 +833,7 @@ export default function SettingsIntegrationsPage() {
   const [view, setView] = useState<ViewState>("hub");
   const [activeCategory, setActiveCategory] = useState<CategoryId | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "available" | "connected" | "locked">("all");
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationDef | null>(null);
   const [onboardingStep, setOnboardingStep] = useState(0);
 
@@ -864,6 +869,16 @@ export default function SettingsIntegrationsPage() {
     if (activeCategory !== "all") {
       list = list.filter(i => i.category === activeCategory);
     }
+    if (statusFilter !== "all") {
+      list = list.filter(i => {
+        const accessible = isIntegrationAccessible(i);
+        const connected = i.connectorId ? connectedIds.has(i.connectorId) : false;
+        if (statusFilter === "connected") return connected;
+        if (statusFilter === "available") return accessible && !connected;
+        if (statusFilter === "locked") return !accessible;
+        return true;
+      });
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(i =>
@@ -873,15 +888,11 @@ export default function SettingsIntegrationsPage() {
       );
     }
     return list;
-  }, [activeCategory, searchQuery]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCategory, searchQuery, statusFilter, connectedIds, plan]);
 
   const connectedCount = connectedIds.size;
-  const availableCount = INTEGRATIONS.filter(i => {
-    const planOk = isPlanSufficient(plan?.slug, i.minPlan);
-    const featureOk = i.featureKey ? feature(i.featureKey) : true;
-    const addonOk = i.addonSlug ? hasAddon(i.addonSlug) : true;
-    return planOk && featureOk && addonOk;
-  }).length;
+  const availableCount = INTEGRATIONS.filter(i => isIntegrationAccessible(i)).length;
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   function startOnboarding(integration: IntegrationDef) {
@@ -961,7 +972,13 @@ export default function SettingsIntegrationsPage() {
 
   function isIntegrationAccessible(integration: IntegrationDef): boolean {
     const planOk = isPlanSufficient(plan?.slug, integration.minPlan);
-    const featureOk = integration.featureKey ? feature(integration.featureKey) : true;
+    // Feature keys that are actually plan-gated (not separate feature flags)
+    const planGatedFeatures = ["platform_integrations"];
+    const featureOk = integration.featureKey
+      ? planGatedFeatures.includes(integration.featureKey)
+        ? planOk  // For plan-gated features, plan check is sufficient
+        : feature(integration.featureKey)
+      : true;
     const addonOk = integration.addonSlug ? hasAddon(integration.addonSlug) : true;
     return planOk && (featureOk || addonOk);
   }
@@ -1031,7 +1048,7 @@ export default function SettingsIntegrationsPage() {
           </div>
         </div>
 
-        {/* Search + Category Filter */}
+        {/* Search + Status Filter */}
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <div style={{ position: "relative", flex: 1 }}>
             <Search size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: T.textDim }} />
@@ -1041,6 +1058,37 @@ export default function SettingsIntegrationsPage() {
               placeholder={t("integrations.hub.searchPlaceholder")}
               style={{ ...inputStyle, paddingLeft: 38 }}
             />
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {([
+              { id: "all" as const, label: t("integrations.filter.all"), icon: <Filter size={13} />, count: INTEGRATIONS.length },
+              { id: "available" as const, label: t("integrations.filter.available"), icon: <Check size={13} />, count: availableCount },
+              { id: "connected" as const, label: t("integrations.filter.connected"), icon: <CheckCircle2 size={13} />, count: connectedCount },
+              { id: "locked" as const, label: t("integrations.filter.locked"), icon: <Lock size={13} />, count: INTEGRATIONS.length - availableCount },
+            ]).map((f) => {
+              const active = statusFilter === f.id;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => setStatusFilter(f.id)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    padding: "7px 12px", borderRadius: 8,
+                    background: active ? T.accentDim : T.surface,
+                    border: `1px solid ${active ? T.accent + "44" : T.border}`,
+                    color: active ? T.accent : T.textMuted,
+                    fontSize: 11, fontWeight: 600, cursor: "pointer",
+                    transition: "all 0.2s", whiteSpace: "nowrap",
+                  }}
+                >
+                  {f.icon}
+                  {f.label}
+                  <span style={{ fontSize: 9, fontWeight: 700, background: active ? T.accent + "22" : T.surfaceAlt, padding: "1px 5px", borderRadius: 4 }}>
+                    {f.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 

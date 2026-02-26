@@ -75,7 +75,7 @@ class FeatureGate:
             try:
                 sub = db.query(Subscription).filter(
                     Subscription.tenant_id == self._tenant_id,
-                    Subscription.status.in_(["active", "trialing"]),
+                    Subscription.status.in_(["active", "trialing", "expired"]),
                 ).first()
                 if sub:
                     plan = db.query(Plan).filter(Plan.id == sub.plan_id, Plan.is_active.is_(True)).first()
@@ -362,9 +362,9 @@ class FeatureGate:
 
 
 def seed_plans() -> None:
-    """Seed the 4 standard plans + default add-ons if they don't exist yet.
+    """Seed the 5 standard plans + default add-ons if they don't exist yet.
 
-    Plans: Starter, Professional, Business, Enterprise
+    Plans: Trial, Starter, Professional, Business, Enterprise
     Add-ons: Voice Pipeline, Vision AI, White Label, Churn Prediction, Extra Channel, Automation Pack
 
     Called at startup from gateway/main.py.
@@ -375,6 +375,46 @@ def seed_plans() -> None:
     db = SessionLocal()
     try:
         plans_data = [
+            {
+                "name": "Trial",
+                "slug": "trial",
+                "description": "14-Tage kostenloser Test mit eingeschraenkten Professional-Features.",
+                "price_monthly_cents": 0,
+                "trial_days": 14,
+                "display_order": 0,
+                "is_highlighted": False,
+                "is_public": False,
+                "features_json": '["1 WhatsApp-Kanal", "50 Mitglieder", "100 Nachrichten/Monat", "Basic AI (Groq)", "50K Tokens/Monat", "Member Memory", "Wissensbasis", "Live Chat"]',
+                "max_members": 50,
+                "max_monthly_messages": 100,
+                "max_channels": 1,
+                "max_connectors": 0,
+                "ai_tier": "basic",
+                "monthly_tokens": 50000,
+                "whatsapp_enabled": True,
+                "telegram_enabled": False,
+                "sms_enabled": False,
+                "email_channel_enabled": False,
+                "voice_enabled": False,
+                "instagram_enabled": False,
+                "facebook_enabled": False,
+                "google_business_enabled": False,
+                "memory_analyzer_enabled": True,
+                "custom_prompts_enabled": True,
+                "advanced_analytics_enabled": False,
+                "branding_enabled": False,
+                "audit_log_enabled": False,
+                "automation_enabled": False,
+                "api_access_enabled": False,
+                "multi_source_members_enabled": True,
+                "churn_prediction_enabled": False,
+                "vision_ai_enabled": False,
+                "white_label_enabled": False,
+                "sla_guarantee_enabled": False,
+                "on_premise_enabled": False,
+                "allowed_llm_providers_json": '["groq"]',
+                "token_price_per_1k_cents": 0,
+            },
             {
                 "name": "Starter",
                 "slug": "starter",
@@ -629,9 +669,50 @@ def seed_plans() -> None:
             if seeded_count:
                 db.commit()
                 logger.info("feature_gate.subscriptions_seeded", count=seeded_count)
+        # ── Check and expire overdue trials ─────────────────────────────
+        _expire_overdue_trials(db)
+
     except Exception as exc:
         db.rollback()
         logger.warning("feature_gate.plans_seed_failed", error=str(exc))
+    finally:
+        db.close()
+
+
+def _expire_overdue_trials(db) -> None:
+    """Expire trials that have passed their trial_ends_at date.
+
+    Moves expired trialing subscriptions to 'expired' status.
+    This is called at startup and can also be called periodically.
+    """
+    from app.core.models import Subscription
+    now = datetime.now(timezone.utc)
+    try:
+        expired_trials = db.query(Subscription).filter(
+            Subscription.status == "trialing",
+            Subscription.trial_ends_at.isnot(None),
+            Subscription.trial_ends_at < now,
+        ).all()
+        count = 0
+        for sub in expired_trials:
+            sub.status = "expired"
+            count += 1
+        if count:
+            db.commit()
+            logger.info("feature_gate.trials_expired", count=count)
+    except Exception as exc:
+        db.rollback()
+        logger.warning("feature_gate.trial_expire_failed", error=str(exc))
+
+
+def check_expired_trials() -> None:
+    """Public function to check and expire overdue trials.
+    Can be called from a cron job or startup hook.
+    """
+    from app.core.db import SessionLocal
+    db = SessionLocal()
+    try:
+        _expire_overdue_trials(db)
     finally:
         db.close()
 

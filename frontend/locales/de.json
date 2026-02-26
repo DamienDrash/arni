@@ -63,6 +63,13 @@
       "studio": "Studio",
       "governance": "Verwaltung",
       "system": "System"
+    },
+    "trial": {
+      "active": "Kostenloser Test",
+      "expired": "Test abgelaufen",
+      "daysLeft": "Noch {{days}} Tage verbleibend",
+      "expiredDesc": "Dein Testzeitraum ist abgelaufen. Wähle einen Plan um fortzufahren.",
+      "upgrade": "Jetzt upgraden"
     }
   },
   "settings": {
@@ -958,6 +965,12 @@
       "scheduling": "Termine & Buchungen",
       "ai_voice": "KI & Sprache",
       "analytics": "Analytik"
+    },
+    "filter": {
+      "all": "Alle",
+      "available": "Verfügbar",
+      "connected": "Verbunden",
+      "locked": "Gesperrt"
     }
   }
 }

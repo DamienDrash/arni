@@ -10,7 +10,9 @@ import {
   Bot,
   Brain,
   Building2,
+  Clock,
   CreditCard,
+  Crown,
   Database,
   LayoutDashboard,
   LogOut,
@@ -22,6 +24,7 @@ import {
   Zap,
   Megaphone,
   Send,
+  AlertCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
@@ -46,7 +49,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
   const router = useRouter();
   const { t } = useI18n();
   const [handoffCount, setHandoffCount] = useState(0);
-  const { role, canPage, plan, feature } = usePermissions();
+  const { role, canPage, plan, feature, isTrial, trialDaysRemaining, isTrialExpired } = usePermissions();
   
   const tenantSections = [
     {
@@ -221,6 +224,44 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
             ))}
           </div>
         </div>
+
+        {/* Trial Banner */}
+        {!isSystemAdmin && isTrial() && (() => {
+          const daysLeft = trialDaysRemaining();
+          const expired = isTrialExpired();
+          const progress = expired ? 100 : Math.max(0, ((14 - daysLeft) / 14) * 100);
+          return (
+            <div className={`${styles.trialBanner} ${expired ? styles.trialBannerExpired : ""}`}>
+              <div className={styles.trialHeader}>
+                <div className={`${styles.trialIcon} ${expired ? styles.trialIconExpired : ""}`}>
+                  {expired ? <AlertCircle size={14} /> : <Clock size={14} />}
+                </div>
+                <p className={styles.trialTitle}>
+                  {expired ? t("sidebar.trial.expired") : t("sidebar.trial.active")}
+                </p>
+              </div>
+              <p className={styles.trialDays}>
+                {expired
+                  ? t("sidebar.trial.expiredDesc")
+                  : t("sidebar.trial.daysLeft", { days: daysLeft })
+                }
+              </p>
+              <div className={styles.trialProgressWrap}>
+                <div
+                  className={`${styles.trialProgressBar} ${expired ? styles.trialProgressBarExpired : ""}`}
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <Link
+                href="/settings/billing"
+                className={`${styles.trialUpgradeBtn} ${expired ? styles.trialUpgradeBtnExpired : ""}`}
+              >
+                <Crown size={12} />
+                {t("sidebar.trial.upgrade")}
+              </Link>
+            </div>
+          );
+        })()}
 
         {allSections.map((section) => (
           <div key={section.title} className={styles.section}>
