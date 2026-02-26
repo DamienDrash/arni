@@ -1231,6 +1231,66 @@ async def send_intervention(
     return {"status": "ok"}
 
 
+class LinkMemberRequest(BaseModel):
+    member_id: str | None = None  # None = unlink
+
+@router.post("/chats/{user_id}/link-member")
+async def link_member_to_chat(
+    user_id: str,
+    body: LinkMemberRequest,
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Manually link or unlink a member to a chat session."""
+    _require_tenant_admin_or_system(user)
+    ok = persistence.link_session_to_member(
+        user_id=user_id,
+        tenant_id=user.tenant_id,
+        member_id=body.member_id,
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Session not found")
+    logger.info("admin.link_member", user_id=user_id, member_id=body.member_id)
+    return {"status": "ok", "user_id": user_id, "member_id": body.member_id}
+
+
+@router.get("/members/search-for-link")
+async def search_members_for_link(
+    q: str = "",
+    user: AuthContext = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    """Search members by name, email, phone or member_number for manual linking."""
+    _require_tenant_admin_or_system(user)
+    from app.core.db import SessionLocal
+    from app.core.models import StudioMember
+    db = SessionLocal()
+    try:
+        query = db.query(StudioMember).filter(StudioMember.tenant_id == user.tenant_id)
+        if q.strip():
+            term = f"%{q.strip()}%"
+            query = query.filter(
+                (StudioMember.first_name.ilike(term)) |
+                (StudioMember.last_name.ilike(term)) |
+                (StudioMember.email.ilike(term)) |
+                (StudioMember.phone_number.ilike(term)) |
+                (StudioMember.member_number.ilike(term))
+            )
+        members = query.limit(20).all()
+        return [
+            {
+                "id": m.id,
+                "customer_id": m.customer_id,
+                "member_number": m.member_number,
+                "first_name": m.first_name,
+                "last_name": m.last_name,
+                "email": m.email,
+                "phone_number": m.phone_number,
+            }
+            for m in members
+        ]
+    finally:
+        db.close()
+
+
 @router.post("/chats/{user_id}/reset")
 async def reset_chat(
     user_id: str,

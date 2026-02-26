@@ -285,6 +285,24 @@ class PersistenceService:
                 return {"session_found": session is not None}
             except Exception: self.db.rollback(); raise
 
+    def link_session_to_member(self, user_id: str, tenant_id: int, member_id: str | None) -> bool:
+        """Manually link (or unlink) a chat session to a member_id."""
+        with self._lock:
+            try:
+                resolved_tid = self._resolve_tenant_id(tenant_id)
+                session = self.db.query(ChatSession).filter(
+                    ChatSession.user_id == user_id,
+                    ChatSession.tenant_id == resolved_tid,
+                ).first()
+                if not session:
+                    return False
+                session.member_id = member_id
+                self.db.commit()
+                return True
+            except Exception:
+                self.db.rollback()
+                raise
+
 # Singleton Instance
 persistence = PersistenceService()
 persistence.init_default_settings()
