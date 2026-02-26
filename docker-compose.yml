@@ -45,6 +45,7 @@ services:
       - ariia_data:/app/data
       - ./config:/app/config
       - ./scripts:/app/scripts
+      - ./app:/app/app
     networks:
       - ariia-network
 
