@@ -50,6 +50,9 @@ GLOBAL_SYSTEM_SETTING_KEYS = {
     "platform_available_languages", # JSON list: ["de", "en", "bg"]
     "platform_default_language",   # "en"
     
+    # Gateway / Public URL
+    "gateway_public_url",
+    
     # Billing Governance
     "billing_plans_json",
     "billing_stripe_enabled",
