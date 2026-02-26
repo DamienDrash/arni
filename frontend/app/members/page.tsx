@@ -126,7 +126,7 @@ const labelStyle: CSSProperties = {
 
 const fadeSlide = {
   initial: { opacity: 0, y: 16 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] as const } },
   exit: { opacity: 0, y: -12, transition: { duration: 0.25 } },
 };
 
@@ -136,7 +136,7 @@ const staggerContainer = {
 
 const staggerItem = {
   initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const } },
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
