@@ -1949,7 +1949,7 @@ function SourceBadge({ source }: { source: string }) {
     csv: { icon: <FileSpreadsheet size={11} />, color: T.info, bg: T.infoDim },
     hubspot: { icon: <Globe size={11} />, color: "#FF7A59", bg: "rgba(255,122,89,0.12)" },
     shopify: { icon: <ShoppingBag size={11} />, color: "#96BF48", bg: "rgba(150,191,72,0.12)" },
-    hubspot: { icon: <BarChart3 size={11} />, color: "#FF7A59", bg: "rgba(255,122,89,0.12)" },
+    crm: { icon: <BarChart3 size={11} />, color: "#FF7A59", bg: "rgba(255,122,89,0.12)" },
     woocommerce: { icon: <ShoppingBag size={11} />, color: "#7F54B3", bg: "rgba(127,84,179,0.12)" },
     salesforce: { icon: <Globe size={11} />, color: "#00A1E0", bg: "rgba(0,161,224,0.12)" },
     api: { icon: <Terminal size={11} />, color: T.accent, bg: T.accentDim },
