@@ -69,6 +69,19 @@ CONNECTOR_REGISTRY = {
         "icon": "shopping-bag",
     },
     
+    "woocommerce": {
+        "name": "WooCommerce",
+        "category": "members",
+        "description": "Sync customers from WooCommerce store.",
+        "fields": [
+            {"key": "store_url", "label": "Store URL", "type": "text", "placeholder": "https://yourstore.com"},
+            {"key": "consumer_key", "label": "Consumer Key", "type": "text"},
+            {"key": "consumer_secret", "label": "Consumer Secret", "type": "password"},
+        ],
+        "setup_doc": "woocommerce.md",
+        "icon": "shopping-cart",
+    },
+    
     # ── CRM ───────────────────────────────────────────────────────────────────
     "hubspot": {
         "name": "HubSpot",
@@ -79,6 +92,19 @@ CONNECTOR_REGISTRY = {
         ],
         "setup_doc": "hubspot.md",
         "icon": "users",
+    },
+    "salesforce": {
+        "name": "Salesforce",
+        "category": "crm",
+        "description": "Sync contacts and leads from Salesforce CRM.",
+        "fields": [
+            {"key": "instance_url", "label": "Instance URL", "type": "text", "placeholder": "https://yourorg.salesforce.com"},
+            {"key": "client_id", "label": "Client ID (Consumer Key)", "type": "text"},
+            {"key": "client_secret", "label": "Client Secret", "type": "password"},
+            {"key": "refresh_token", "label": "Refresh Token", "type": "password"},
+        ],
+        "setup_doc": "salesforce.md",
+        "icon": "cloud",
     },
 }
 

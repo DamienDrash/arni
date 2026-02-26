@@ -426,24 +426,25 @@
   },
   "members": {
     "title": "Mitglieder",
-    "subtitle": "Verwalten Sie Ihre Studiomitglieder und deren KI-Status",
+    "subtitle": "Verwalten Sie Ihre Kundendaten und Integrationen",
     "add": "Mitglied hinzufügen",
     "import": {
-      "clickOrDrop": "Klicken oder ziehen Sie die Datei in diesen Bereich, um sie hochzuladen",
+      "clickOrDrop": "Klicken oder Datei hierher ziehen",
       "selectFile": "Datei auswählen",
-      "hint": "Unterstützt .csv, .xls, .xlsx"
+      "hint": "Unterstützt .csv, .xls, .xlsx",
+      "success": "Import erfolgreich gestartet"
     },
-    "importTitle": "Mitgliederimport",
+    "importTitle": "CSV Import",
     "noMembers": "Keine Mitglieder gefunden",
     "noContact": "Keine Kontaktinformationen",
-    "confirmDelete": "Möchten Sie dieses Mitglied wirklich löschen?",
+    "confirmDelete": "Möchten Sie die ausgewählten Mitglieder wirklich löschen?",
     "search": "Mitglieder suchen...",
     "stats": {
-      "total": "Gesamtmitglieder",
+      "total": "Gesamt",
       "active": "Aktiv",
       "paused": "Pausiert",
-      "manual": "Manuelle Einträge",
-      "external": "Synchronisiert (Magicline)",
+      "manual": "Manuell",
+      "external": "Synchronisiert",
       "selected": "ausgewählt"
     },
     "table": {
@@ -454,11 +455,119 @@
     "form": {
       "firstName": "Vorname",
       "lastName": "Nachname",
-      "email": "E-Mail-Adresse"
+      "email": "E-Mail-Adresse",
+      "phone": "Telefonnummer"
     },
     "status": {
       "active": "Aktiv",
       "paused": "Pausiert"
+    },
+    "hub": {
+      "title": "Kundendaten-Hub",
+      "subtitle": "Wählen Sie, wie Sie Ihre Kundendaten verwalten und importieren möchten",
+      "chooseMethod": "Wählen Sie Ihre Integrationsmethode",
+      "existingData": "{{count}} Mitglieder bereits importiert",
+      "viewData": "Mitglieder anzeigen",
+      "activeIntegrations": "Aktive Integrationen",
+      "methods": {
+        "manual": {
+          "title": "Manuelle Verwaltung",
+          "desc": "Fügen Sie Mitglieder einzeln hinzu oder importieren Sie per CSV-Datei. Perfekt für den schnellen Einstieg.",
+          "cta": "Manuell starten"
+        },
+        "api": {
+          "title": "API-Schnittstelle",
+          "desc": "Verbinden Sie Ihre Systeme über REST API für automatisierte Datensynchronisation.",
+          "cta": "API-Docs ansehen"
+        },
+        "platform": {
+          "title": "Plattform-Integration",
+          "desc": "Verbinden Sie Plattformen wie Magicline, Shopify oder HubSpot mit geführtem Setup.",
+          "cta": "Plattformen durchsuchen"
+        }
+      },
+      "features": {
+        "csv_upload": "CSV-Upload",
+        "single_entry": "Einzeleingabe",
+        "bulk_edit": "Massenbearbeitung",
+        "export": "Export",
+        "rest_api": "REST API",
+        "webhooks": "Webhooks",
+        "realtime_sync": "Echtzeit-Sync",
+        "api_keys": "API-Schlüssel",
+        "auto_sync": "Auto-Sync",
+        "no_code": "No Code",
+        "bi_directional": "Bidirektional",
+        "scheduled": "Geplant"
+      },
+      "upgradeRequired": "Professional-Plan erforderlich"
+    },
+    "data": {
+      "export": "Exportieren",
+      "import": "CSV importieren",
+      "entries": "Einträge",
+      "activeSyncs": "aktive Syncs"
+    },
+    "platforms": {
+      "categories": {
+        "fitness": "Fitness",
+        "ecommerce": "E-Commerce",
+        "crm": "CRM",
+        "developer": "Entwickler"
+      }
+    },
+    "onboarding": {
+      "next": "Weiter",
+      "back": "Zurück",
+      "finish": "Zu den Mitgliedern",
+      "api": {
+        "title": "API-Integration",
+        "subtitle": "Verbinden Sie Ihre Systeme über REST API",
+        "step1Title": "Übersicht",
+        "step1Desc": "API-Endpunkte",
+        "step2Title": "Authentifizierung",
+        "step2Desc": "API-Schlüssel & Tokens",
+        "step3Title": "Test & Go Live",
+        "step3Desc": "Verbindung prüfen",
+        "overviewTitle": "Verfügbare API-Endpunkte",
+        "overviewDesc": "Nutzen Sie diese REST API-Endpunkte um Ihre Mitgliederdaten programmatisch zu verwalten. Alle Endpunkte erfordern Authentifizierung via Bearer Token.",
+        "endpointCreate": "Mitglied erstellen",
+        "endpointImport": "CSV-Massenimport",
+        "endpointList": "Alle Mitglieder auflisten",
+        "endpointExport": "Als CSV exportieren",
+        "authTitle": "Authentifizierung",
+        "authDesc": "Alle API-Anfragen müssen einen gültigen Bearer Token im Authorization-Header enthalten. API-Tokens können in den Kontoeinstellungen generiert werden.",
+        "testTitle": "Bereit zum Start",
+        "testDesc": "Ihre API-Integration ist einsatzbereit. Sie können jetzt Daten an ARIIA senden.",
+        "readyTitle": "API-Integration bereit",
+        "readyDesc": "Beginnen Sie mit dem Senden von Mitgliederdaten über die REST API. Prüfen Sie die Dokumentation für detaillierte Feld-Zuordnungen."
+      },
+      "platform": {
+        "title": "Plattform-Integration",
+        "subtitle": "Verbinden Sie Ihre Plattform mit geführtem Setup",
+        "step1Title": "Plattform wählen",
+        "step1Desc": "Integration auswählen",
+        "step2Title": "Konfigurieren",
+        "step2Desc": "Zugangsdaten eingeben",
+        "step3Title": "Verbindung testen",
+        "step3Desc": "Setup überprüfen",
+        "step4Title": "Abschluss",
+        "step4Desc": "Synchronisation starten",
+        "configTitle": "{{name}} konfigurieren",
+        "configDesc": "Geben Sie Ihre API-Zugangsdaten ein, um die Verbindung herzustellen",
+        "optional": "optional",
+        "selectOption": "Option auswählen...",
+        "comingSoon": "Demnächst verfügbar",
+        "comingSoonDesc": "Die {{name}}-Integration befindet sich derzeit in Entwicklung. Kontaktieren Sie den Support für frühzeitigen Zugang.",
+        "testTitle": "Verbindung testen",
+        "testDesc": "Speichern Sie Ihre Konfiguration und überprüfen Sie die Verbindung, um sicherzustellen, dass alles korrekt funktioniert.",
+        "testing": "Verbindung wird getestet...",
+        "testReady": "Klicken Sie auf den Button, um Ihre Konfiguration zu speichern und die Verbindung zu testen.",
+        "runTest": "Speichern & Verbindung testen",
+        "completeTitle": "Integration abgeschlossen",
+        "completeDesc": "{{name}} wurde erfolgreich verbunden. Ihre Mitgliederdaten werden nun automatisch synchronisiert.",
+        "goToMembers": "Zu den Mitgliedern"
+      }
     }
   },
   "pricing": {

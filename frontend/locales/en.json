@@ -426,24 +426,25 @@
   },
   "members": {
     "title": "Members",
-    "subtitle": "Manage your studio members and their AI state",
+    "subtitle": "Manage your customer data and integrations",
     "add": "Add Member",
     "import": {
-      "clickOrDrop": "Click or drag file to this area to upload",
+      "clickOrDrop": "Click or drag file to upload",
       "selectFile": "Select File",
-      "hint": "Supports .csv, .xls, .xlsx"
+      "hint": "Supports .csv, .xls, .xlsx",
+      "success": "Import started successfully"
     },
-    "importTitle": "Member Import",
+    "importTitle": "CSV Import",
     "noMembers": "No members found",
     "noContact": "No contact information",
-    "confirmDelete": "Are you sure you want to delete this member?",
+    "confirmDelete": "Are you sure you want to delete the selected members?",
     "search": "Search members...",
     "stats": {
       "total": "Total Members",
       "active": "Active",
       "paused": "Paused",
       "manual": "Manual Entries",
-      "external": "Synced (Magicline)",
+      "external": "Synced",
       "selected": "selected"
     },
     "table": {
@@ -454,11 +455,119 @@
     "form": {
       "firstName": "First Name",
       "lastName": "Last Name",
-      "email": "Email Address"
+      "email": "Email Address",
+      "phone": "Phone Number"
     },
     "status": {
       "active": "Active",
       "paused": "Paused"
+    },
+    "hub": {
+      "title": "Customer Data Hub",
+      "subtitle": "Choose how you want to manage and import your customer data",
+      "chooseMethod": "Select your integration method",
+      "existingData": "{{count}} members already imported",
+      "viewData": "View Members",
+      "activeIntegrations": "Active Integrations",
+      "methods": {
+        "manual": {
+          "title": "Manual Management",
+          "desc": "Add members individually or import via CSV file. Perfect for getting started quickly.",
+          "cta": "Start manually"
+        },
+        "api": {
+          "title": "API Integration",
+          "desc": "Connect your systems via REST API for automated data synchronization.",
+          "cta": "View API docs"
+        },
+        "platform": {
+          "title": "Platform Integration",
+          "desc": "Connect platforms like Magicline, Shopify or HubSpot with guided setup.",
+          "cta": "Browse platforms"
+        }
+      },
+      "features": {
+        "csv_upload": "CSV Upload",
+        "single_entry": "Single Entry",
+        "bulk_edit": "Bulk Edit",
+        "export": "Export",
+        "rest_api": "REST API",
+        "webhooks": "Webhooks",
+        "realtime_sync": "Real-time Sync",
+        "api_keys": "API Keys",
+        "auto_sync": "Auto Sync",
+        "no_code": "No Code",
+        "bi_directional": "Bi-directional",
+        "scheduled": "Scheduled"
+      },
+      "upgradeRequired": "Professional plan required"
+    },
+    "data": {
+      "export": "Export",
+      "import": "Import CSV",
+      "entries": "entries",
+      "activeSyncs": "active syncs"
+    },
+    "platforms": {
+      "categories": {
+        "fitness": "Fitness",
+        "ecommerce": "E-Commerce",
+        "crm": "CRM",
+        "developer": "Developer"
+      }
+    },
+    "onboarding": {
+      "next": "Continue",
+      "back": "Back",
+      "finish": "Go to Members",
+      "api": {
+        "title": "API Integration",
+        "subtitle": "Connect your systems via REST API",
+        "step1Title": "Overview",
+        "step1Desc": "API endpoints",
+        "step2Title": "Authentication",
+        "step2Desc": "API keys & tokens",
+        "step3Title": "Test & Go Live",
+        "step3Desc": "Verify connection",
+        "overviewTitle": "Available API Endpoints",
+        "overviewDesc": "Use these REST API endpoints to programmatically manage your member data. All endpoints require authentication via Bearer token.",
+        "endpointCreate": "Create member",
+        "endpointImport": "Bulk CSV import",
+        "endpointList": "List all members",
+        "endpointExport": "Export as CSV",
+        "authTitle": "Authentication",
+        "authDesc": "All API requests must include a valid Bearer token in the Authorization header. You can generate API tokens in your account settings.",
+        "testTitle": "Ready to Go",
+        "testDesc": "Your API integration is ready. You can now start sending data to ARIIA.",
+        "readyTitle": "API Integration Ready",
+        "readyDesc": "Start sending member data via the REST API. Check the documentation for detailed field mappings."
+      },
+      "platform": {
+        "title": "Platform Integration",
+        "subtitle": "Connect your platform with guided setup",
+        "step1Title": "Select Platform",
+        "step1Desc": "Choose integration",
+        "step2Title": "Configure",
+        "step2Desc": "Enter credentials",
+        "step3Title": "Test Connection",
+        "step3Desc": "Verify setup",
+        "step4Title": "Complete",
+        "step4Desc": "Start syncing",
+        "configTitle": "Configure {{name}}",
+        "configDesc": "Enter your API credentials to establish the connection",
+        "optional": "optional",
+        "selectOption": "Select an option...",
+        "comingSoon": "Coming Soon",
+        "comingSoonDesc": "The {{name}} integration is currently in development. Contact support for early access.",
+        "testTitle": "Test Connection",
+        "testDesc": "Save your configuration and verify the connection to ensure everything works correctly.",
+        "testing": "Testing connection...",
+        "testReady": "Click the button below to save your configuration and test the connection.",
+        "runTest": "Save & Test Connection",
+        "completeTitle": "Integration Complete",
+        "completeDesc": "{{name}} has been successfully connected. Your member data will now sync automatically.",
+        "goToMembers": "Go to Members"
+      }
     }
   },
   "pricing": {
