@@ -1192,8 +1192,9 @@ export default function SettingsIntegrationsPage() {
 
         {/* Step Content */}
         <AnimatePresence mode="wait">
+          <motion.div {...fadeSlide} key={`step-${onboardingStep}`}>
           {currentStepDef.type === "info" && (
-            <motion.div {...fadeSlide} key={`step-${onboardingStep}`}>
+            <>
               <Card style={{ padding: 28 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: T.infoDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.info, flexShrink: 0 }}>
@@ -1233,11 +1234,11 @@ export default function SettingsIntegrationsPage() {
                   <ActionButton onClick={() => setOnboardingStep(1)} label={t("integrations.onboarding.next")} icon={<ArrowRight size={14} />} />
                 </div>
               </Card>
-            </motion.div>
+            </>
           )}
 
           {currentStepDef.type === "config" && (
-            <motion.div {...fadeSlide} key={`step-${onboardingStep}`}>
+            <>
               <Card style={{ padding: 28 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: T.warningDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.warning, flexShrink: 0 }}>
@@ -1333,11 +1334,11 @@ export default function SettingsIntegrationsPage() {
                   <ActionButton onClick={() => setOnboardingStep(s => s + 1)} label={t("integrations.onboarding.next")} icon={<ArrowRight size={14} />} />
                 </div>
               </Card>
-            </motion.div>
+            </>
           )}
 
           {currentStepDef.type === "test" && (
-            <motion.div {...fadeSlide} key={`step-${onboardingStep}`}>
+            <>
               <Card style={{ padding: 28 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: T.infoDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.info, flexShrink: 0 }}>
@@ -1414,11 +1415,11 @@ export default function SettingsIntegrationsPage() {
                   />
                 </div>
               </Card>
-            </motion.div>
+            </>
           )}
 
           {currentStepDef.type === "complete" && (
-            <motion.div {...fadeSlide} key={`step-${onboardingStep}`}>
+            <>
               <Card style={{ padding: 36, textAlign: "center" }}>
                 <div style={{ width: 72, height: 72, borderRadius: 20, background: T.successDim, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
                   <CheckCircle2 size={36} color={T.success} />
@@ -1445,8 +1446,9 @@ export default function SettingsIntegrationsPage() {
                   />
                 </div>
               </Card>
-            </motion.div>
+            </>
           )}
+          </motion.div>
         </AnimatePresence>
       </motion.div>
     );

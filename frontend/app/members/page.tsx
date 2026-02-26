@@ -613,8 +613,9 @@ export default function MembersPage() {
 
         {/* Step Content */}
         <AnimatePresence mode="wait">
+          <motion.div {...fadeSlide} key={`api-step-${onboardingStep}`}>
           {onboardingStep === 0 && (
-            <motion.div {...fadeSlide} key="api-step-0">
+            <>
               <Card style={{ padding: 28 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
                   <div
@@ -654,11 +655,11 @@ export default function MembersPage() {
                   <ActionButton onClick={() => setOnboardingStep(1)} label={t("members.onboarding.next")} icon={<ArrowRight size={14} />} />
                 </div>
               </Card>
-            </motion.div>
+            </>
           )}
 
           {onboardingStep === 1 && (
-            <motion.div {...fadeSlide} key="api-step-1">
+            <>
               <Card style={{ padding: 28 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
                   <div
@@ -703,11 +704,11 @@ export default function MembersPage() {
                   <ActionButton onClick={() => setOnboardingStep(2)} label={t("members.onboarding.next")} icon={<ArrowRight size={14} />} />
                 </div>
               </Card>
-            </motion.div>
+            </>
           )}
 
           {onboardingStep === 2 && (
-            <motion.div {...fadeSlide} key="api-step-2">
+            <>
               <Card style={{ padding: 28 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
                   <div
@@ -763,8 +764,9 @@ export default function MembersPage() {
                   />
                 </div>
               </Card>
-            </motion.div>
+            </>
           )}
+          </motion.div>
         </AnimatePresence>
       </motion.div>
     );
@@ -805,9 +807,10 @@ export default function MembersPage() {
         <StepIndicator steps={steps} currentStep={onboardingStep} />
 
         <AnimatePresence mode="wait">
+          <motion.div {...fadeSlide} key={`platform-step-${onboardingStep}`}>
           {/* Step 0: Platform Selection */}
           {onboardingStep === 0 && (
-            <motion.div {...fadeSlide} key="platform-step-0">
+            <>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
                 {PLATFORMS.map((platform) => {
                   const isConnected = connectedPlatforms.includes(platform.connectorId || "");
@@ -823,12 +826,12 @@ export default function MembersPage() {
                   );
                 })}
               </div>
-            </motion.div>
+            </>
           )}
 
           {/* Step 1: Configuration */}
           {onboardingStep === 1 && activePlatform && (
-            <motion.div {...fadeSlide} key="platform-step-1">
+            <>
               <Card style={{ padding: 28 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
                   <div
@@ -931,12 +934,12 @@ export default function MembersPage() {
                   )}
                 </div>
               </Card>
-            </motion.div>
+            </>
           )}
 
           {/* Step 2: Test Connection */}
           {onboardingStep === 2 && activePlatform && (
-            <motion.div {...fadeSlide} key="platform-step-2">
+            <>
               <Card style={{ padding: 28 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
                   <div
@@ -1062,12 +1065,12 @@ export default function MembersPage() {
                   />
                 </div>
               </Card>
-            </motion.div>
+            </>
           )}
 
           {/* Step 3: Complete */}
           {onboardingStep === 3 && activePlatform && (
-            <motion.div {...fadeSlide} key="platform-step-3">
+            <>
               <Card style={{ padding: 28, textAlign: "center" }}>
                 <div
                   style={{
