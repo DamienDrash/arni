@@ -199,6 +199,8 @@ async def get_permissions(
             "/settings/automation": True,
             "/settings/integrations": True,
             "/health": True,
+            "/revenue": True,
+            "/settings/ai": True,
         }
     else:
         # Standard SaaS logic for Tenants
@@ -253,6 +255,8 @@ async def get_permissions(
             "/tenants": False,
             "/plans": False,
             "/health": False,
+            "/revenue": False,
+            "/settings/ai": True,
         }
 
     # 4. Usage Data
