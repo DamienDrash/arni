@@ -1,14 +1,14 @@
 """campaigns_system – Campaign, Template, Segment, FollowUp tables
 
 Revision ID: camp_001
-Revises: llm_prov_001
+Revises: 202602260001
 Create Date: 2026-02-26
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = "camp_001"
-down_revision = "llm_prov_001"
+down_revision = "202602260001"
 branch_labels = None
 depends_on = None
 
