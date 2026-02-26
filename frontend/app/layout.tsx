@@ -18,7 +18,7 @@ const monoFont = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://services.frigew.ski/ariia"),
+  metadataBase: new URL("https://www.ariia.ai"),
   title: {
     default: "ARIIA | AI Living System Agent",
     template: "%s | ARIIA"
@@ -29,15 +29,15 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/ariia/favicon.svg", type: "image/svg+xml" },
-      { url: "/ariia/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/ariia/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/ariia/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
     ],
-    apple: "/ariia/apple-touch-icon.png",
-    shortcut: "/ariia/favicon.ico",
+    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon.ico",
   },
-  manifest: "/ariia/site.webmanifest",
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({

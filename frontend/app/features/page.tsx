@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "ARIIA Features | Die Zukunft der Fitness-KI",
     description: "Von Voice Pipeline bis Vision Agent - ARIIA bietet die umfassendste KI-Lösung für Studios.",
-    url: "https://services.frigew.ski/ariia/features",
+    url: "https://www.ariia.ai/features",
     type: "website",
   },
 };

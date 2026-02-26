@@ -122,7 +122,7 @@ async def maintenance_middleware(request: Request, call_next):
     
     # 1. Whitelist system, auth, admin and health paths
     # Admins must always be able to access the dashboard and settings to fix the system.
-    whitelist = ["/health", "/metrics", "/_next", "/static", "/ariia/_next", "/admin", "/auth", "/proxy/admin", "/proxy/auth"]
+    whitelist = ["/health", "/metrics", "/_next", "/static", "/admin", "/auth", "/proxy/admin", "/proxy/auth"]
     if any(path.startswith(p) for p in whitelist):
         return await call_next(request)
         

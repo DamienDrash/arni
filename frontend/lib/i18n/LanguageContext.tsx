@@ -73,7 +73,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     (window as any).ariia_lang = lang;
     
     // Optional: Sync to backend
-    fetch("/ariia/proxy/auth/profile-settings", {
+    fetch("/proxy/auth/profile-settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ locale: lang })

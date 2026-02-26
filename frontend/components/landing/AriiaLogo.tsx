@@ -17,11 +17,8 @@ interface AriiaLogoProps {
   theme?: "dark" | "light";
 }
 
-/* Official logo assets – local paths (basePath-aware)
- * Next.js basePath is /ariia – we must prefix all static asset URLs.
- * NEXT_PUBLIC_BASE_PATH env var is preferred, fallback to /ariia.
- */
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/ariia";
+/* Official logo assets – local paths */
+const BASE = "";
 const LOGO_URLS = {
   full: {
     dark: `${BASE}/logo-full-dark.png`,
