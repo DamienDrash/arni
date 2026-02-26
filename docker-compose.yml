@@ -1,32 +1,24 @@
 services:
-  # 1. Frontend
+  # 1. Frontend (Production Build)
   ariia-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: dev
+      target: runner
     container_name: ariia_frontend
     restart: always
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - NEXT_PUBLIC_ENABLE_WS=true
       - GATEWAY_INTERNAL_URL=http://ariia-core:8000
     depends_on:
       - ariia-core
-    volumes:
-      - ./frontend/app:/app/app
-      - ./frontend/components:/app/components
-      - ./frontend/lib:/app/lib
-      - ./frontend/locales:/app/locales
-      - ./frontend/public:/app/public
-      - ./frontend/next.config.ts:/app/next.config.ts
-      - ./frontend/tailwind.config.js:/app/tailwind.config.js
     networks:
       - ariia-network
 
-  # 2. ARIIA Core
+  # 2. ARIIA Core (Production)
   ariia-core:
     build: .
     container_name: ariia_core
@@ -34,7 +26,7 @@ services:
     ports:
       - "8000:8000"
     command: >
-      sh -c "uvicorn app.gateway.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips ${FORWARDED_ALLOW_IPS:-127.0.0.1} --reload"
+      sh -c "uvicorn app.gateway.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips ${FORWARDED_ALLOW_IPS:-*} --workers 2"
     environment:
       - PYTHONPATH=/app
       - REDIS_URL=redis://ariia-redis:6379/0
@@ -52,7 +44,6 @@ services:
       - ariia-postgres
     volumes:
       - ariia_data:/app/data
-      - ./app:/app/app
       - ./config:/app/config
       - ./scripts:/app/scripts
     networks:
@@ -106,7 +97,6 @@ services:
       disable: true
     volumes:
       - ariia_data:/app/data
-      - ./app:/app/app
     networks:
       - ariia-network
 
@@ -165,8 +155,8 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=GoldStandard2026!
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_DOMAIN=services.frigew.ski
-      - GF_SERVER_ROOT_URL=https://services.frigew.ski/ariia/monitor/
+      - GF_SERVER_DOMAIN=www.ariia.ai
+      - GF_SERVER_ROOT_URL=https://www.ariia.ai/monitor/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
     restart: always
     ports:
