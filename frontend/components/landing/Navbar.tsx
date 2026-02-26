@@ -46,7 +46,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1" aria-label="Hauptnavigation">
             {navLinks.map((link) => {
               const isActive = pathname === link.href;
               return (
@@ -97,6 +97,8 @@ export default function Navbar() {
               className="p-2 rounded-lg transition-colors"
               onClick={() => setMobileOpen(!mobileOpen)}
               style={{ color: "oklch(0.88 0.01 270)" }}
+              aria-label={mobileOpen ? "Menü schließen" : "Menü öffnen"}
+              aria-expanded={mobileOpen}
             >
               {mobileOpen ? <X size={22} /> : <Menu size={22} />}
             </button>

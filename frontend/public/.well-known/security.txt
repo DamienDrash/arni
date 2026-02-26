@@ -1,0 +1,9 @@
+# ARIIA Security Contact
+# https://www.ariia.ai
+# Last updated: 2026-02-26
+
+Contact: mailto:security@ariia.ai
+Expires: 2027-02-26T00:00:00.000Z
+Preferred-Languages: de, en
+Canonical: https://www.ariia.ai/.well-known/security.txt
+Policy: https://www.ariia.ai/datenschutz

@@ -23,7 +23,7 @@ export default function Footer() {
           </div>
 
           {/* Produkt */}
-          <div>
+          <nav aria-label="Produkt-Navigation">
             <h4 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "oklch(0.55 0.015 270)" }}>
               {t("footer.product")}
             </h4>
@@ -32,10 +32,10 @@ export default function Footer() {
               <Link href="/pricing" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>{t("footer.links.pricing")}</Link>
               <Link href="/register" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>{t("footer.links.test")}</Link>
             </div>
-          </div>
+          </nav>
 
           {/* Unternehmen */}
-          <div>
+          <nav aria-label="Rechtliche Navigation">
             <h4 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "oklch(0.55 0.015 270)" }}>
               {t("footer.company")}
             </h4>
@@ -44,7 +44,7 @@ export default function Footer() {
               <Link href="/datenschutz" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>{t("footer.links.datenschutz")}</Link>
               <Link href="/agb" className="block text-sm no-underline transition-colors" style={{ color: "oklch(0.5 0.015 270)" }}>{t("footer.links.agb")}</Link>
             </div>
-          </div>
+          </nav>
 
           {/* Kontakt */}
           <div>

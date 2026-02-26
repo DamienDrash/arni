@@ -1,0 +1,34 @@
+# ARIIA – AI Living System Agent
+
+> ARIIA ist eine Enterprise KI-Plattform (SaaS) für Fitnessstudios, die automatisierte Kundenkommunikation über WhatsApp, Telegram und Voice ermöglicht. Die Plattform nutzt Multi-Agent Orchestration mit Swarm Intelligence, um Mitgliederanfragen intelligent zu beantworten, Termine zu verwalten und Kampagnen durchzuführen.
+
+ARIIA wurde speziell für die Fitnessbranche entwickelt und integriert sich nahtlos mit Magicline und anderen Studio-Management-Systemen. Die Plattform ist als Multi-Tenant SaaS konzipiert und bietet verschiedene Preispläne von Starter (49€/Monat) bis Enterprise (499€/Monat). Neue Nutzer können ARIIA 14 Tage kostenlos testen.
+
+Kernfunktionen:
+- **Multi-Channel Kommunikation**: WhatsApp Business, Telegram, Voice AI, Web-Chat
+- **Multi-Agent Orchestration**: Spezialisierte KI-Agenten arbeiten als Schwarm zusammen
+- **3-Tier Memory System**: Kurzzeit-, Langzeit- und Kontext-Gedächtnis für personalisierte Interaktionen
+- **Vision AI**: Bildanalyse für Geräteerkennung und Trainingsunterstützung
+- **Magicline Integration**: Direkte Anbindung an das führende Fitness-CRM
+- **Echtzeit Analytics**: Dashboard mit KPIs, Ticket-Tracking und Confidence-Scores
+- **Knowledge Base**: Zentrale Wissensverwaltung für den KI-Agenten
+- **Member Memory**: Individuelle Mitglieder-Profile mit Präferenzen und Historie
+- **Kampagnen-Management**: Automatisierte Marketing-Kampagnen über alle Kanäle
+- **Eskalations-Management**: Automatische Weiterleitung an menschliche Mitarbeiter
+
+## Hauptseiten
+
+- [Homepage](https://www.ariia.ai/): Übersicht über ARIIA und seine Vorteile für Fitnessstudios
+- [Features](https://www.ariia.ai/features): Detaillierte technische Features und Funktionen
+- [Pricing](https://www.ariia.ai/pricing): Preispläne und Tarifübersicht (Starter, Professional, Enterprise)
+- [Registrierung](https://www.ariia.ai/register): Kostenloses Konto erstellen mit 14-Tage-Trial
+
+## Rechtliches
+
+- [Impressum](https://www.ariia.ai/impressum): Anbieterkennzeichnung
+- [Datenschutz](https://www.ariia.ai/datenschutz): Datenschutzerklärung
+- [AGB](https://www.ariia.ai/agb): Allgemeine Geschäftsbedingungen
+
+## Optional
+
+- [LLM-Vollversion](https://www.ariia.ai/llms-full.txt): Ausführliche Beschreibung aller Features und Preise

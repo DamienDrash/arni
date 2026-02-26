@@ -1,0 +1,76 @@
+# ARIIA – AI Living System Agent
+
+> ARIIA ist eine Enterprise KI-Plattform (SaaS) für Fitnessstudios und Gesundheitseinrichtungen, die automatisierte Kundenkommunikation über WhatsApp, Telegram und Voice ermöglicht. Die Plattform nutzt Multi-Agent Orchestration mit Swarm Intelligence, um Mitgliederanfragen intelligent zu beantworten, Termine zu verwalten und Marketing-Kampagnen durchzuführen.
+
+## Über ARIIA
+
+ARIIA wurde speziell für die Fitnessbranche entwickelt und löst ein zentrales Problem: Studios erhalten täglich hunderte Anfragen über verschiedene Kanäle, die manuell kaum zu bewältigen sind. ARIIA automatisiert diese Kommunikation mit intelligenten KI-Agenten, die rund um die Uhr verfügbar sind und dabei die Persönlichkeit und den Ton des jeweiligen Studios widerspiegeln.
+
+Die Plattform ist als Multi-Tenant SaaS konzipiert, sodass jedes Studio seine eigene isolierte Umgebung mit individueller Konfiguration erhält. ARIIA integriert sich nahtlos mit Magicline, dem führenden Studio-Management-System in der DACH-Region, sowie mit weiteren Systemen wie Stripe, Calendly und Google Calendar.
+
+Website: https://www.ariia.ai
+Kontakt: hello@ariia.ai
+Standort: Deutschland
+
+## Kernfunktionen
+
+### Multi-Channel Kommunikation
+ARIIA unterstützt die Kommunikation über mehrere Kanäle gleichzeitig: WhatsApp Business API, Telegram Bot, Voice AI (Telefon), und Web-Chat. Alle Kanäle werden zentral in einem einheitlichen Dashboard verwaltet. Nachrichten werden kanalübergreifend synchronisiert, sodass ein Mitglied nahtlos zwischen Kanälen wechseln kann.
+
+### Multi-Agent Orchestration (Project Titan)
+Das Herzstück von ARIIA ist die Multi-Agent-Architektur "Project Titan". Statt eines einzelnen Chatbots arbeiten spezialisierte KI-Agenten als Schwarm zusammen. Ein Orchestrator-Agent analysiert eingehende Anfragen und delegiert sie an den passenden Spezialisten – etwa den Terminplanungs-Agenten, den Vertrags-Agenten oder den Trainingsberatungs-Agenten. Diese Architektur ermöglicht deutlich höhere Antwortqualität als monolithische Chatbots.
+
+### 3-Tier Memory System
+ARIIA verfügt über ein dreistufiges Gedächtnissystem: Kurzzeit-Memory (aktuelle Konversation), Langzeit-Memory (Mitglieder-Präferenzen und Historie) und Kontext-Memory (Studio-spezifisches Wissen). Dadurch kann der KI-Agent personalisierte Antworten geben und sich an frühere Interaktionen erinnern.
+
+### Vision AI
+Der Vision-Agent kann Bilder analysieren, die Mitglieder senden – etwa Fotos von Fitnessgeräten zur Identifikation, Trainingsplan-Fotos zur Digitalisierung oder Fortschrittsbilder zur Dokumentation.
+
+### Magicline Integration
+Die direkte API-Anbindung an Magicline ermöglicht es ARIIA, Mitgliederdaten abzurufen, Verträge einzusehen, Termine zu buchen und Zahlungsstatus zu prüfen – alles automatisch und in Echtzeit.
+
+### Echtzeit Analytics Dashboard
+Das Dashboard zeigt KPIs wie Ticket-Volumen, AI Resolution Rate, durchschnittliche Confidence-Scores, Antwortzeiten und Kanalverteilung. Studio-Betreiber können die Performance ihrer KI-Agenten in Echtzeit überwachen.
+
+### Knowledge Base
+Die zentrale Wissensverwaltung ermöglicht es Studios, ihr spezifisches Wissen (Öffnungszeiten, Kursplan, Preise, FAQ) zu hinterlegen. Der KI-Agent nutzt dieses Wissen für präzise Antworten.
+
+### Member Memory
+Individuelle Mitglieder-Profile speichern Präferenzen, Trainingsziele, Kommunikationshistorie und persönliche Notizen. Der KI-Agent nutzt diese Informationen für personalisierte Interaktionen.
+
+### Kampagnen-Management
+Studios können automatisierte Marketing-Kampagnen über alle Kanäle erstellen und versenden – etwa Willkommensnachrichten für neue Mitglieder, Geburtstagsnachrichten oder Reaktivierungskampagnen für inaktive Mitglieder.
+
+### Eskalations-Management
+Wenn der KI-Agent eine Anfrage nicht beantworten kann oder der Confidence-Score zu niedrig ist, wird automatisch an einen menschlichen Mitarbeiter eskaliert. Das System unterstützt sowohl automatische als auch manuelle Eskalation.
+
+## Preise und Pläne
+
+### Trial (Kostenlos, 14 Tage)
+Alle Starter-Features zum Testen. Bis zu 50 Mitglieder und 100 Nachrichten. Basic AI (Groq). Keine Kreditkarte erforderlich.
+
+### Starter (49€/Monat)
+Für kleine Studios. Bis zu 200 Mitglieder, 500 Nachrichten/Monat. 1 Kanal (WhatsApp oder Telegram). Basic AI. Knowledge Base. E-Mail-Support.
+
+### Professional (149€/Monat)
+Für wachsende Studios. Bis zu 2.000 Mitglieder, 5.000 Nachrichten/Monat. Alle Kanäle. Advanced AI (GPT-4). Member Memory. Kampagnen. Analytics. Magicline Integration. Priority Support.
+
+### Enterprise (499€/Monat)
+Für Studio-Ketten. Unbegrenzte Mitglieder und Nachrichten. Alle Kanäle. Premium AI. Custom Integrations. Dedicated Account Manager. SLA. White-Label Option.
+
+## Technologie
+
+ARIIA basiert auf einer modernen Technologie-Stack: Python/FastAPI Backend, Next.js/React Frontend, PostgreSQL Datenbank, Docker-Container-Architektur. Die KI-Agenten nutzen verschiedene LLM-Provider (OpenAI, Anthropic, Groq) je nach Plan und Anforderung. Die Plattform ist DSGVO-konform und hostet alle Daten in Deutschland.
+
+## Hauptseiten
+
+- [Homepage](https://www.ariia.ai/): Übersicht über ARIIA und seine Vorteile
+- [Features](https://www.ariia.ai/features): Detaillierte technische Features
+- [Pricing](https://www.ariia.ai/pricing): Preispläne und Tarifübersicht
+- [Registrierung](https://www.ariia.ai/register): Kostenloses Konto erstellen
+
+## Rechtliches
+
+- [Impressum](https://www.ariia.ai/impressum): Anbieterkennzeichnung
+- [Datenschutz](https://www.ariia.ai/datenschutz): Datenschutzerklärung
+- [AGB](https://www.ariia.ai/agb): Allgemeine Geschäftsbedingungen

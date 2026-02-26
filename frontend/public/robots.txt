@@ -1,0 +1,136 @@
+# ARIIA – AI Living System Agent
+# https://www.ariia.ai
+# Last updated: 2026-02-26
+
+# ─── Default: Allow all crawlers ───
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /members
+Disallow: /users
+Disallow: /live
+Disallow: /escalations
+Disallow: /analytics
+Disallow: /knowledge
+Disallow: /member-memory
+Disallow: /campaigns
+Disallow: /audit
+Disallow: /tenants
+Disallow: /revenue
+Disallow: /system-prompt
+Disallow: /magicline
+Disallow: /plans
+Disallow: /proxy/
+Disallow: /ws/
+Disallow: /api/
+Disallow: /_next/
+Disallow: /login
+Disallow: /register
+
+# ─── Google ───
+User-agent: Googlebot
+Allow: /
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /proxy/
+Disallow: /ws/
+Disallow: /api/
+Disallow: /login
+Disallow: /register
+
+# ─── Google AI (Gemini) ───
+User-agent: Google-Extended
+Allow: /
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /proxy/
+
+# ─── OpenAI GPTBot ───
+User-agent: GPTBot
+Allow: /
+Allow: /features
+Allow: /pricing
+Allow: /impressum
+Allow: /datenschutz
+Allow: /agb
+Allow: /llms.txt
+Allow: /llms-full.txt
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /proxy/
+Disallow: /ws/
+
+# ─── OpenAI ChatGPT User ───
+User-agent: ChatGPT-User
+Allow: /
+Allow: /features
+Allow: /pricing
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /proxy/
+
+# ─── Anthropic Claude ───
+User-agent: ClaudeBot
+Allow: /
+Allow: /features
+Allow: /pricing
+Allow: /llms.txt
+Allow: /llms-full.txt
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /proxy/
+
+# ─── Anthropic Claude Web ───
+User-agent: anthropic-ai
+Allow: /
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /proxy/
+
+# ─── Perplexity ───
+User-agent: PerplexityBot
+Allow: /
+Allow: /features
+Allow: /pricing
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /proxy/
+
+# ─── Apple Intelligence ───
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /proxy/
+
+# ─── Meta AI ───
+User-agent: Meta-ExternalAgent
+Allow: /
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /proxy/
+
+# ─── Cohere ───
+User-agent: cohere-ai
+Allow: /
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /proxy/
+
+# ─── Bing ───
+User-agent: Bingbot
+Allow: /
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /proxy/
+Disallow: /ws/
+Disallow: /login
+Disallow: /register
+
+# ─── Sitemaps ───
+Sitemap: https://www.ariia.ai/sitemap.xml
+
+# ─── LLM-specific content ───
+# See /llms.txt for LLM-optimized content
+# See /llms-full.txt for comprehensive LLM content

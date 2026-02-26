@@ -1,0 +1,17 @@
+/* TEAM */
+Product: ARIIA – AI Living System Agent
+URL: https://www.ariia.ai
+Contact: hello [at] ariia.ai
+Location: Germany
+
+/* TECHNOLOGY */
+Frontend: Next.js, React, TypeScript, TailwindCSS
+Backend: Python, FastAPI, PostgreSQL
+AI: Multi-Agent Orchestration, LLM (GPT-4, Claude, Groq)
+Infrastructure: Docker, Nginx, Let's Encrypt
+Hosting: Germany (DSGVO-konform)
+
+/* SITE */
+Last update: 2026-02-26
+Language: German, English
+Standards: HTML5, CSS3, Schema.org, OpenGraph, llms.txt
