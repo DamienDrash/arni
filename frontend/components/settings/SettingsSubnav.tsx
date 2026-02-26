@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SlidersHorizontal, PlugZap, Bot, UserCircle2, MessageSquare, CreditCard, Palette, ShieldCheck, Cpu } from "lucide-react";
+import {
+  SlidersHorizontal, PlugZap, Bot, UserCircle2, MessageSquare,
+  CreditCard, Palette, ShieldCheck, Cpu,
+} from "lucide-react";
 
 import { getStoredUser } from "@/lib/auth";
 import { T } from "@/lib/tokens";
@@ -12,7 +15,7 @@ export default function SettingsSubnav() {
   const { t } = useI18n();
   const pathname = usePathname() || "";
   const role = getStoredUser()?.role;
-  
+
   const tabs = [
     { href: "/settings", label: t("settings.overview.title"), icon: SlidersHorizontal },
     { href: "/settings/account", label: t("settings.account.title"), icon: UserCircle2 },
@@ -38,10 +41,10 @@ export default function SettingsSubnav() {
     <div
       style={{
         display: "flex",
-        gap: 8,
+        gap: 6,
         flexWrap: "wrap",
-        padding: 8,
-        borderRadius: 12,
+        padding: "8px 10px",
+        borderRadius: 14,
         border: `1px solid ${T.border}`,
         background: T.surface,
       }}
@@ -59,18 +62,30 @@ export default function SettingsSubnav() {
               display: "inline-flex",
               alignItems: "center",
               gap: 7,
-              padding: "8px 10px",
-              borderRadius: 9,
+              padding: "8px 12px",
+              borderRadius: 10,
               textDecoration: "none",
-              border: `1px solid ${isActive ? `${T.accent}66` : T.border}`,
-              background: isActive ? T.accentDim : T.surfaceAlt,
+              border: isActive ? `1px solid ${T.accent}50` : "1px solid transparent",
+              background: isActive
+                ? `linear-gradient(135deg, ${T.accentDim}, rgba(108,92,231,0.08))`
+                : "transparent",
               color: isActive ? T.text : T.textMuted,
               fontSize: 12,
-              fontWeight: 600,
+              fontWeight: isActive ? 700 : 600,
+              transition: "all 0.2s ease",
+              position: "relative",
             }}
           >
-            <Icon size={14} />
+            <Icon size={14} color={isActive ? T.accent : T.textDim} />
             {tab.label}
+            {isActive && (
+              <div style={{
+                position: "absolute", bottom: -1, left: "50%",
+                transform: "translateX(-50%)",
+                width: 16, height: 2, borderRadius: 1,
+                background: T.accent,
+              }} />
+            )}
           </Link>
         );
       })}

@@ -20,6 +20,8 @@ import {
   ShieldCheck,
   Server,
   Zap,
+  Megaphone,
+  Send,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
@@ -69,6 +71,12 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
         { name: t("sidebar.knowledge"), href: "/knowledge", icon: BookOpen },
         { name: t("sidebar.memberMemory"), href: "/member-memory", icon: Brain, feature: "memory_analyzer" },
         { name: t("sidebar.systemPrompt"), href: "/system-prompt", icon: Bot, feature: "custom_prompts" },
+      ],
+    },
+    {
+      title: "KAMPAGNEN",
+      items: [
+        { name: "Kampagnen", href: "/campaigns", icon: Megaphone },
       ],
     },
     {

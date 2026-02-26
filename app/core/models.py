@@ -389,3 +389,188 @@ class TokenPurchase(Base):
     stripe_checkout_session_id = Column(String, nullable=True)
     status = Column(String, nullable=False, default="pending")  # pending | completed | failed
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class Campaign(Base):
+    """Marketing campaign / broadcast / scheduled message."""
+    __tablename__ = "campaigns"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Type: broadcast | scheduled | follow_up | drip
+    type = Column(String, nullable=False, default="broadcast")
+    # Status: draft | ai_generating | pending_review | approved | scheduled | sending | sent | failed | cancelled
+    status = Column(String, nullable=False, default="draft")
+    # Channel: email | whatsapp | telegram | sms | multi
+    channel = Column(String, nullable=False, default="email")
+
+    # Targeting
+    target_type = Column(String, nullable=False, default="all_members")  # all_members | segment | selected | tags
+    target_filter_json = Column(Text, nullable=True)  # JSON: member_ids, tags, segment criteria
+
+    # Template
+    template_id = Column(Integer, ForeignKey("campaign_templates.id"), nullable=True)
+
+    # Content
+    content_subject = Column(String, nullable=True)
+    content_body = Column(Text, nullable=True)
+    content_html = Column(Text, nullable=True)
+
+    # AI Generation
+    ai_prompt = Column(Text, nullable=True)
+    ai_generated_content = Column(Text, nullable=True)
+
+    # Preview / Approval
+    preview_token = Column(String, nullable=True, unique=True, index=True)
+    preview_expires_at = Column(DateTime, nullable=True)
+
+    # Scheduling
+    scheduled_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+
+    # Stats
+    stats_total = Column(Integer, nullable=False, default=0)
+    stats_sent = Column(Integer, nullable=False, default=0)
+    stats_delivered = Column(Integer, nullable=False, default=0)
+    stats_opened = Column(Integer, nullable=False, default=0)
+    stats_clicked = Column(Integer, nullable=False, default=0)
+    stats_failed = Column(Integer, nullable=False, default=0)
+
+    # A/B Testing
+    is_ab_test = Column(Boolean, nullable=False, default=False)
+    ab_winner_variant = Column(String, nullable=True)
+
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
+class CampaignTemplate(Base):
+    """Reusable message/email templates for campaigns."""
+    __tablename__ = "campaign_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Type: email | whatsapp | sms | telegram
+    type = Column(String, nullable=False, default="email")
+
+    # Email template parts
+    header_html = Column(Text, nullable=True)
+    footer_html = Column(Text, nullable=True)
+    body_template = Column(Text, nullable=True)
+
+    # Variables available in template
+    variables_json = Column(Text, nullable=True)  # JSON: ["first_name", "studio_name", ...]
+
+    # Styling
+    primary_color = Column(String, nullable=True, default="#6C5CE7")
+    logo_url = Column(String, nullable=True)
+
+    is_default = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
+class CampaignVariant(Base):
+    """A/B test variants for campaigns."""
+    __tablename__ = "campaign_variants"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
+    variant_name = Column(String, nullable=False, default="A")  # "A", "B"
+    content_subject = Column(String, nullable=True)
+    content_body = Column(Text, nullable=True)
+    content_html = Column(Text, nullable=True)
+    percentage = Column(Integer, nullable=False, default=50)  # % of recipients
+    stats_sent = Column(Integer, nullable=False, default=0)
+    stats_opened = Column(Integer, nullable=False, default=0)
+    stats_clicked = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class CampaignRecipient(Base):
+    """Individual recipient tracking for campaigns."""
+    __tablename__ = "campaign_recipients"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
+    member_id = Column(Integer, ForeignKey("studio_members.id"), nullable=False, index=True)
+    variant_name = Column(String, nullable=True)  # For A/B tests
+
+    # Status: pending | sent | delivered | opened | clicked | failed | bounced | unsubscribed
+    status = Column(String, nullable=False, default="pending")
+    sent_at = Column(DateTime, nullable=True)
+    delivered_at = Column(DateTime, nullable=True)
+    opened_at = Column(DateTime, nullable=True)
+    clicked_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+
+class MemberSegment(Base):
+    """Reusable member segments for targeting."""
+    __tablename__ = "member_segments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Filter criteria as JSON
+    filter_json = Column(Text, nullable=True)  # {"status": "active", "tags": ["vip"], ...}
+    is_dynamic = Column(Boolean, nullable=False, default=True)  # Re-evaluate on use
+
+    member_count = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
+class ScheduledFollowUp(Base):
+    """Chat-based scheduled follow-ups for individual members."""
+    __tablename__ = "scheduled_follow_ups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    member_id = Column(Integer, ForeignKey("studio_members.id"), nullable=True, index=True)
+
+    # Context
+    conversation_id = Column(String, nullable=True)  # Reference to chat session
+    reason = Column(Text, nullable=True)  # "Pause - Rückkehr nach 2 Wochen"
+    ai_context_json = Column(Text, nullable=True)  # Relevant chat context for the follow-up
+
+    # Scheduling
+    follow_up_at = Column(DateTime, nullable=False)
+    message_template = Column(Text, nullable=True)
+    channel = Column(String, nullable=False, default="whatsapp")
+
+    # Status: pending | sent | cancelled | failed
+    status = Column(String, nullable=False, default="pending")
+    sent_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )

@@ -1,89 +1,177 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import SettingsSubnav from "@/components/settings/SettingsSubnav";
 import { Card } from "@/components/ui/Card";
-import { SectionHeader } from "@/components/ui/SectionHeader";
 import { getStoredUser } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n/LanguageContext";
-import { UserCircle2, Cpu, ShieldCheck, PlugZap, MessageSquare, CreditCard, Palette, Bot } from "lucide-react";
+import { T } from "@/lib/tokens";
+import {
+  UserCircle2, Cpu, ShieldCheck, PlugZap, MessageSquare,
+  CreditCard, Palette, Bot, ArrowRight, Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 
 export default function SettingsOverviewPage() {
   const { t } = useI18n();
   const role = getStoredUser()?.role;
+  const [hovered, setHovered] = useState<string | null>(null);
 
   const cards = [
-    { 
-      href: "/settings/account", 
-      title: t("settings.account.title"), 
-      desc: t("settings.account.subtitle"), 
-      icon: UserCircle2, 
+    {
+      href: "/settings/account",
+      title: t("settings.account.title"),
+      desc: t("settings.account.subtitle"),
+      icon: UserCircle2,
       color: "#3B82F6",
-      roles: ["system_admin", "tenant_admin", "tenant_user"] 
+      gradient: "linear-gradient(135deg, #3B82F6, #2563EB)",
+      roles: ["system_admin", "tenant_admin", "tenant_user"],
     },
-    { 
-      href: "/settings/ai", 
-      title: t("settings.ai.title"), 
-      desc: t("settings.ai.subtitle"), 
-      icon: Cpu, 
+    {
+      href: "/settings/ai",
+      title: t("settings.ai.title"),
+      desc: t("settings.ai.subtitle"),
+      icon: Cpu,
       color: "#6C5CE7",
-      roles: ["system_admin"] 
+      gradient: "linear-gradient(135deg, #6C5CE7, #5B4BD5)",
+      roles: ["system_admin", "tenant_admin"],
     },
-    { 
-      href: "/settings/general", 
-      title: t("settings.general.title"), 
-      desc: t("settings.general.subtitle"), 
-      icon: ShieldCheck, 
+    {
+      href: "/settings/general",
+      title: t("settings.general.title"),
+      desc: t("settings.general.subtitle"),
+      icon: ShieldCheck,
       color: "#10B981",
-      roles: ["system_admin"] 
+      gradient: "linear-gradient(135deg, #10B981, #059669)",
+      roles: ["system_admin"],
     },
-    { 
-      href: "/settings/integrations", 
-      title: t("settings.integrations.title"), 
-      desc: t("settings.integrations.subtitle"), 
-      icon: PlugZap, 
+    {
+      href: "/settings/integrations",
+      title: t("settings.integrations.title"),
+      desc: t("settings.integrations.subtitle"),
+      icon: PlugZap,
       color: "#F59E0B",
-      roles: ["tenant_admin"] 
+      gradient: "linear-gradient(135deg, #F59E0B, #D97706)",
+      roles: ["tenant_admin"],
     },
-    { 
-      href: "/settings/prompts", 
-      title: t("settings.prompts.title"), 
-      desc: t("settings.prompts.subtitle"), 
-      icon: MessageSquare, 
+    {
+      href: "/settings/prompts",
+      title: t("settings.prompts.title"),
+      desc: t("settings.prompts.subtitle"),
+      icon: MessageSquare,
       color: "#EC4899",
-      roles: ["tenant_admin"] 
+      gradient: "linear-gradient(135deg, #EC4899, #DB2777)",
+      roles: ["tenant_admin"],
     },
-    { 
-      href: "/settings/billing", 
-      title: t("settings.billing.title"), 
-      desc: t("settings.billing.subtitle"), 
-      icon: CreditCard, 
+    {
+      href: "/settings/billing",
+      title: t("settings.billing.title"),
+      desc: t("settings.billing.subtitle"),
+      icon: CreditCard,
       color: "#6366F1",
-      roles: ["tenant_admin"] 
+      gradient: "linear-gradient(135deg, #6366F1, #4F46E5)",
+      roles: ["tenant_admin"],
+    },
+    {
+      href: "/settings/branding",
+      title: t("settings.branding"),
+      desc: "Logo, Farben und White-Label-Konfiguration anpassen",
+      icon: Palette,
+      color: "#F472B6",
+      gradient: "linear-gradient(135deg, #F472B6, #EC4899)",
+      roles: ["tenant_admin"],
     },
   ];
 
-  const visibleCards = cards.filter(c => c.roles.includes(role || ""));
+  const visibleCards = cards.filter((c) => c.roles.includes(role || ""));
 
   return (
-    <div className="flex flex-col gap-6">
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <SettingsSubnav />
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {visibleCards.map((card) => (
-          <Link key={card.href} href={card.href}>
-            <Card className="p-6 h-full hover:border-slate-300 transition-all group">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform" style={{ background: `${card.color}15`, color: card.color }}>
-                <card.icon size={24} />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-1">{card.title}</h3>
-              <p className="text-sm text-slate-500 leading-relaxed mb-4">{card.desc}</p>
-              <div className="text-xs font-bold uppercase tracking-widest text-slate-400 group-hover:text-indigo-600 flex items-center gap-2">
-                {t("common.edit")} <span className="text-lg">→</span>
-              </div>
-            </Card>
-          </Link>
-        ))}
+
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: 14,
+          background: T.accentDim, display: "flex",
+          alignItems: "center", justifyContent: "center",
+        }}>
+          <Sparkles size={22} color={T.accent} />
+        </div>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: T.text, margin: 0, letterSpacing: "-0.02em" }}>
+            Einstellungen
+          </h1>
+          <p style={{ fontSize: 13, color: T.textMuted, margin: 0 }}>
+            Konfiguriere dein System nach deinen Anforderungen
+          </p>
+        </div>
+      </div>
+
+      {/* Cards Grid */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+        gap: 16,
+      }}>
+        {visibleCards.map((card) => {
+          const isHovered = hovered === card.href;
+          return (
+            <Link key={card.href} href={card.href} style={{ textDecoration: "none" }}>
+              <Card
+                style={{
+                  padding: 0,
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  transition: "all 0.25s ease",
+                  transform: isHovered ? "translateY(-2px)" : "none",
+                  boxShadow: isHovered ? `0 8px 24px ${card.color}20` : "none",
+                  border: isHovered ? `1px solid ${card.color}40` : `1px solid ${T.border}`,
+                }}
+                onMouseEnter={() => setHovered(card.href)}
+                onMouseLeave={() => setHovered(null)}
+              >
+                {/* Gradient accent bar */}
+                <div style={{ height: 3, background: card.gradient }} />
+
+                <div style={{ padding: "20px 20px 18px" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 12,
+                      background: `${card.color}12`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "transform 0.25s ease",
+                      transform: isHovered ? "scale(1.1)" : "none",
+                    }}>
+                      <card.icon size={22} color={card.color} />
+                    </div>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 8,
+                      background: isHovered ? `${card.color}15` : T.surfaceAlt,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "all 0.25s ease",
+                    }}>
+                      <ArrowRight size={14} color={isHovered ? card.color : T.textDim} />
+                    </div>
+                  </div>
+
+                  <h3 style={{
+                    fontSize: 15, fontWeight: 700, color: T.text,
+                    margin: "14px 0 4px", letterSpacing: "-0.01em",
+                  }}>
+                    {card.title}
+                  </h3>
+                  <p style={{
+                    fontSize: 12, color: T.textMuted, margin: 0,
+                    lineHeight: 1.5, minHeight: 36,
+                  }}>
+                    {card.desc}
+                  </p>
+                </div>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
