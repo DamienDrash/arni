@@ -1100,7 +1100,7 @@ export default function SettingsIntegrationsPage() {
                       border: `1px solid ${i.color}33`,
                     }}
                   >
-                    <div style={{ color: i.color, display: "flex" }}>{React.cloneElement(i.icon as React.ReactElement, { size: 12 })}</div>
+                    <div style={{ color: i.color, display: "flex" }}>{React.cloneElement(i.icon as React.ReactElement<any>, { size: 12 })}</div>
                     <span style={{ fontSize: 11, fontWeight: 600, color: T.text }}>{i.name}</span>
                   </div>
                 ))}
