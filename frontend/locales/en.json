@@ -911,5 +911,53 @@
   },
   "ui": {
     "noData": "No data"
+  },
+  "integrations": {
+    "hub": {
+      "title": "Integration Hub",
+      "subtitle": "Connect tools and services to power your business",
+      "connected": "Connected",
+      "available": "Available for your plan",
+      "total": "Total integrations",
+      "searchPlaceholder": "Search integrations...",
+      "activeIntegrations": "Active Integrations",
+      "noResults": "No integrations found matching your search."
+    },
+    "onboarding": {
+      "setupTitle": "Setup {name}",
+      "next": "Continue",
+      "back": "Back",
+      "optional": "optional",
+      "selectOption": "Select an option...",
+      "viewDocs": "View official documentation",
+      "testing": "Testing connection...",
+      "testFailed": "Please check your credentials and try again.",
+      "testReady": "Click the button below to verify your configuration.",
+      "runTest": "Test Connection",
+      "backToHub": "Back to Integration Hub"
+    },
+    "card": {
+      "comingSoon": "Coming Soon",
+      "upgrade": "Upgrade",
+      "manage": "Manage",
+      "setup": "Setup"
+    },
+    "manage": {
+      "configuration": "Configuration",
+      "test": "Test Connection",
+      "disconnect": "Disconnect",
+      "save": "Save Changes",
+      "documentation": "Documentation",
+      "docDesc": "Official setup guide and API reference",
+      "openDocs": "Open Docs"
+    },
+    "categories": {
+      "all": "All Integrations",
+      "messaging": "Communication",
+      "payments": "Payments & Billing",
+      "scheduling": "Scheduling & Booking",
+      "ai_voice": "AI & Voice",
+      "analytics": "Analytics"
+    }
   }
 }

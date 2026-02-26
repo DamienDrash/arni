@@ -911,5 +911,53 @@
   },
   "ui": {
     "noData": "Keine Daten"
+  },
+  "integrations": {
+    "hub": {
+      "title": "Integration Hub",
+      "subtitle": "Verbinden Sie Tools und Dienste für Ihr Unternehmen",
+      "connected": "Verbunden",
+      "available": "Verfügbar für Ihren Plan",
+      "total": "Integrationen gesamt",
+      "searchPlaceholder": "Integrationen suchen...",
+      "activeIntegrations": "Aktive Integrationen",
+      "noResults": "Keine Integrationen gefunden."
+    },
+    "onboarding": {
+      "setupTitle": "{name} einrichten",
+      "next": "Weiter",
+      "back": "Zurück",
+      "optional": "optional",
+      "selectOption": "Option auswählen...",
+      "viewDocs": "Offizielle Dokumentation ansehen",
+      "testing": "Verbindung wird getestet...",
+      "testFailed": "Bitte überprüfen Sie Ihre Zugangsdaten und versuchen Sie es erneut.",
+      "testReady": "Klicken Sie auf den Button, um Ihre Konfiguration zu überprüfen.",
+      "runTest": "Verbindung testen",
+      "backToHub": "Zurück zum Integration Hub"
+    },
+    "card": {
+      "comingSoon": "Demnächst",
+      "upgrade": "Upgrade",
+      "manage": "Verwalten",
+      "setup": "Einrichten"
+    },
+    "manage": {
+      "configuration": "Konfiguration",
+      "test": "Verbindung testen",
+      "disconnect": "Trennen",
+      "save": "Änderungen speichern",
+      "documentation": "Dokumentation",
+      "docDesc": "Offizielle Einrichtungsanleitung und API-Referenz",
+      "openDocs": "Doku öffnen"
+    },
+    "categories": {
+      "all": "Alle Integrationen",
+      "messaging": "Kommunikation",
+      "payments": "Zahlungen & Abrechnung",
+      "scheduling": "Termine & Buchungen",
+      "ai_voice": "KI & Sprache",
+      "analytics": "Analytik"
+    }
   }
 }
