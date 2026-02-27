@@ -950,6 +950,53 @@ export default function SettingsIntegrationsPage() {
   const [testResult, setTestResult] = useState<{ status: string; message: string } | null>(null);
   const [showPassword, setShowPassword] = useState<Record<string, boolean>>({});
   const [setupDocs, setSetupDocs] = useState<string>("");
+  const [webhookInfo, setWebhookInfo] = useState<{ webhook_url?: string; verify_token?: string; instructions?: string } | null>(null);
+  const [copiedField, setCopiedField] = useState<string>("");
+  // Fetch webhook info when entering onboarding for a connector
+  useEffect(() => {
+    if (view !== "onboarding" || !selectedIntegration?.connectorId) {
+      setWebhookInfo(null);
+      return;
+    }
+    const fetchWebhookInfo = async () => {
+      try {
+        const res = await apiFetch(`/admin/connector-hub/${selectedIntegration.connectorId}/webhook-info`);
+        if (res.ok) {
+          const data = await res.json();
+          setWebhookInfo(data);
+        }
+      } catch (e) {
+        // Non-critical, webhook info is optional
+      }
+    };
+    fetchWebhookInfo();
+  }, [view, selectedIntegration?.connectorId]);
+
+  // Auto-fill verify_token from webhook info
+  useEffect(() => {
+    if (webhookInfo?.verify_token && !configValues.verify_token) {
+      setConfigValues(c => ({ ...c, verify_token: webhookInfo.verify_token! }));
+    }
+  }, [webhookInfo?.verify_token]);
+
+  const copyToClipboard = async (text: string, fieldName: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(fieldName);
+      setTimeout(() => setCopiedField(""), 2000);
+    } catch (e) {
+      // Fallback
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopiedField(fieldName);
+      setTimeout(() => setCopiedField(""), 2000);
+    }
+  };
+
 
   // ── Data Fetching ──────────────────────────────────────────────────────────
   async function fetchCatalog() {
@@ -1407,6 +1454,101 @@ export default function SettingsIntegrationsPage() {
                 </div>
 
                 {/* Dynamic Fields */}
+                {/* Webhook Info Box - shown for connectors that need webhook configuration */}
+                {webhookInfo?.webhook_url && (
+                  <div style={{
+                    background: "linear-gradient(135deg, #0ea5e910, #6366f108)",
+                    border: "1px solid #0ea5e930",
+                    borderRadius: 12,
+                    padding: 20,
+                    marginBottom: 8,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, background: "#0ea5e918", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Link2 size={16} color="#0ea5e9" />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: 0 }}>Webhook Konfiguration</p>
+                        <p style={{ fontSize: 11, color: T.textDim, margin: 0 }}>Diese Daten bei deinem Provider eintragen</p>
+                      </div>
+                    </div>
+
+                    {/* Webhook URL */}
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6, display: "block" }}>
+                        Webhook URL
+                      </label>
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 8,
+                        background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8,
+                        padding: "10px 12px",
+                      }}>
+                        <code style={{ flex: 1, fontSize: 12, color: T.text, wordBreak: "break-all", fontFamily: "monospace" }}>
+                          {webhookInfo.webhook_url}
+                        </code>
+                        <button
+                          onClick={() => copyToClipboard(webhookInfo.webhook_url!, "webhook_url")}
+                          style={{
+                            background: copiedField === "webhook_url" ? "#10b98118" : T.surfaceAlt,
+                            border: `1px solid ${copiedField === "webhook_url" ? "#10b981" : T.border}`,
+                            borderRadius: 6, padding: "6px 10px", cursor: "pointer",
+                            display: "flex", alignItems: "center", gap: 4,
+                            color: copiedField === "webhook_url" ? "#10b981" : T.textDim,
+                            fontSize: 11, fontWeight: 600, transition: "all 0.2s",
+                          }}
+                        >
+                          {copiedField === "webhook_url" ? <><Check size={12} /> Kopiert</> : <><Copy size={12} /> Kopieren</>}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Verify Token */}
+                    {webhookInfo.verify_token && (
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6, display: "block" }}>
+                          Verify Token
+                        </label>
+                        <div style={{
+                          display: "flex", alignItems: "center", gap: 8,
+                          background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8,
+                          padding: "10px 12px",
+                        }}>
+                          <code style={{ flex: 1, fontSize: 12, color: T.text, wordBreak: "break-all", fontFamily: "monospace" }}>
+                            {webhookInfo.verify_token}
+                          </code>
+                          <button
+                            onClick={() => copyToClipboard(webhookInfo.verify_token!, "verify_token")}
+                            style={{
+                              background: copiedField === "verify_token" ? "#10b98118" : T.surfaceAlt,
+                              border: `1px solid ${copiedField === "verify_token" ? "#10b981" : T.border}`,
+                              borderRadius: 6, padding: "6px 10px", cursor: "pointer",
+                              display: "flex", alignItems: "center", gap: 4,
+                              color: copiedField === "verify_token" ? "#10b981" : T.textDim,
+                              fontSize: 11, fontWeight: 600, transition: "all 0.2s",
+                            }}
+                          >
+                            {copiedField === "verify_token" ? <><Check size={12} /> Kopiert</> : <><Copy size={12} /> Kopieren</>}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Instructions */}
+                    {webhookInfo.instructions && (
+                      <div style={{
+                        display: "flex", alignItems: "flex-start", gap: 8,
+                        background: "#f59e0b10", border: "1px solid #f59e0b25",
+                        borderRadius: 8, padding: "10px 12px",
+                      }}>
+                        <Info size={14} color="#f59e0b" style={{ marginTop: 1, flexShrink: 0 }} />
+                        <p style={{ fontSize: 12, color: T.text, margin: 0, lineHeight: 1.5 }}>
+                          {webhookInfo.instructions}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
                   {currentStepDef.fields?.map((field) => {
                     if (field.dependsOn) {

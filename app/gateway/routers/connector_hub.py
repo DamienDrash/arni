@@ -106,6 +106,15 @@ def update_connector_config(
         db_key = _get_config_key(user.tenant_id, connector_id, key)
         persistence.upsert_setting(db_key, str(new_val), tenant_id=user.tenant_id)
         
+    # Auto-generate verify_token for WhatsApp if not set
+    if connector_id == "whatsapp":
+        vt_key = _get_config_key(user.tenant_id, "whatsapp", "verify_token")
+        existing_vt = persistence.get_setting(vt_key, tenant_id=user.tenant_id)
+        if not existing_vt:
+            import secrets as _secrets
+            auto_token = _secrets.token_urlsafe(32)
+            persistence.upsert_setting(vt_key, auto_token, tenant_id=user.tenant_id)
+
     # Handle enable/disable
     if "enabled" in config:
         enabled_key = _get_config_key(user.tenant_id, connector_id, "enabled")
@@ -208,3 +217,61 @@ def get_setup_docs(
     """Get setup documentation markdown."""
     # In real app, load from disk or DB
     return {"content": f"# Setup Guide for {connector_id}\n\n1. Step one...\n2. Step two..."}
+
+
+@router.get("/{connector_id}/webhook-info")
+def get_webhook_info(
+    connector_id: str,
+    user: AuthContext = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Return the webhook URL and verify token for a connector.
+    This info is shown to tenants so they can configure it in their provider (e.g. Meta).
+    """
+    _require_admin(user)
+    
+    from app.core.db import SessionLocal
+    from app.core.models import Tenant
+    db = SessionLocal()
+    try:
+        tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+        tenant_slug = tenant.slug if tenant else "unknown"
+    finally:
+        db.close()
+    
+    # Build the public webhook URL
+    base_url = "https://www.ariia.ai"
+    
+    result: Dict[str, Any] = {"connector_id": connector_id, "tenant_slug": tenant_slug}
+    
+    if connector_id == "whatsapp":
+        result["webhook_url"] = f"{base_url}/webhook/whatsapp/{tenant_slug}"
+        # Get or generate verify token
+        vt_key = _get_config_key(user.tenant_id, "whatsapp", "verify_token")
+        verify_token = persistence.get_setting(vt_key, tenant_id=user.tenant_id)
+        if not verify_token:
+            import secrets as _secrets
+            verify_token = _secrets.token_urlsafe(32)
+            persistence.upsert_setting(vt_key, verify_token, tenant_id=user.tenant_id)
+        result["verify_token"] = verify_token
+        result["instructions"] = (
+            "Trage diese Webhook-URL und den Verify Token in deiner Meta App unter "
+            "WhatsApp > Configuration > Webhook ein. "
+            "Abonniere die Felder: messages, messaging_postbacks."
+        )
+    elif connector_id == "telegram":
+        result["webhook_url"] = f"{base_url}/webhook/telegram/{tenant_slug}"
+        result["instructions"] = (
+            "Der Telegram-Webhook wird automatisch konfiguriert. "
+            "Alternativ kannst du diese URL manuell bei @BotFather setzen."
+        )
+    elif connector_id == "email":
+        result["webhook_url"] = f"{base_url}/webhook/email/{tenant_slug}"
+        result["instructions"] = "Konfiguriere dein E-Mail-System, um eingehende Nachrichten an diese URL weiterzuleiten."
+    elif connector_id == "sms":
+        result["webhook_url"] = f"{base_url}/webhook/sms/{tenant_slug}"
+        result["instructions"] = "Trage diese URL als Messaging Webhook in deinem Twilio Dashboard ein."
+    else:
+        result["webhook_url"] = None
+        result["instructions"] = "Dieser Connector benötigt keinen Webhook."
+    
+    return result

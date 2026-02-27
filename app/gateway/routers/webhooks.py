@@ -423,7 +423,10 @@ async def webhook_verify_tenant(
     if tenant_id is None:
         raise HTTPException(status_code=404, detail="Unknown tenant")
     
-    expected_token = persistence.get_setting("meta_verify_token", tenant_id=tenant_id)
+    # Read from connector hub key, fallback to legacy
+    expected_token = persistence.get_setting(
+        f"integration_whatsapp_{tenant_id}_verify_token", tenant_id=tenant_id
+    ) or persistence.get_setting("meta_verify_token", tenant_id=tenant_id)
     if hub_mode == "subscribe" and hub_verify_token == expected_token:
         return int(hub_challenge)
     return {"error": "Verification failed"}
