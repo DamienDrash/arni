@@ -109,7 +109,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
         { name: "Revenue Analytics", href: "/revenue", icon: BarChart3 },
         { name: t("sidebar.audit"), href: "/audit", icon: ScrollText },
         { name: t("sidebar.settings"), href: "/settings", icon: ShieldCheck },
-        { name: t("sidebar.health"), href: "/health", icon: Server },
+        { name: "Infrastructure", href: "/infrastructure", icon: Server },
       ],
     },
   ];

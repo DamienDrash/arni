@@ -164,6 +164,7 @@ app.include_router(metrics_router)
 # --- New Routers (PR 2, 3, 4) ---
 from app.gateway.routers import members_crud, integrations_sync, connector_hub, permissions, platform_ai, plans_admin
 from app.gateway.routers import revenue_analytics, tenant_llm, campaigns
+from app.gateway.routers import docker_management
 app.include_router(members_crud.router)
 app.include_router(integrations_sync.router)
 app.include_router(connector_hub.router)
@@ -173,6 +174,7 @@ app.include_router(plans_admin.router)
 app.include_router(revenue_analytics.router)
 app.include_router(tenant_llm.router)
 app.include_router(campaigns.router)
+app.include_router(docker_management.router)
 
 # --- ACP Router ---
 from app.acp.server import router as acp_router

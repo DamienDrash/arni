@@ -327,6 +327,9 @@ class Subscription(Base):
     current_period_end = Column(DateTime, nullable=True)
     trial_ends_at = Column(DateTime, nullable=True)
     canceled_at = Column(DateTime, nullable=True)
+    cancel_at_period_end = Column(Boolean, default=False, nullable=False)
+    pending_plan_id = Column(Integer, nullable=True)
+    billing_interval = Column(String, default="month", nullable=True)
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(

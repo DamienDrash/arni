@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   UserCircle2, Lock, Bell, Globe, Save, CheckCircle,
   AlertTriangle, Eye, EyeOff, Building2, Clock, Mail,
-  MessageSquare, Gauge, Languages,
+  MessageSquare, Gauge, Languages, XCircle, Trash2,
+  RotateCcw, Calendar, Loader2, ShieldAlert,
 } from "lucide-react";
 
 import SettingsSubnav from "@/components/settings/SettingsSubnav";
@@ -466,7 +467,287 @@ export default function SettingsAccountPage() {
           </div>
         </>
       )}
+
+      {/* ── Danger Zone ── */}
+      {isTenantAdmin && (
+        <DangerZone t={t} />
+      )}
     </div>
+  );
+}
+
+/* ── Danger Zone Component ── */
+
+function DangerZone({ t }: { t: (key: string) => string }) {
+  const [subscriptionInfo, setSubscriptionInfo] = useState<{
+    has_subscription: boolean;
+    status: string;
+    cancel_at_period_end: boolean;
+    current_period_end: string | null;
+  } | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [reactivateLoading, setReactivateLoading] = useState(false);
+  const [deactivateLoading, setDeactivateLoading] = useState(false);
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [deactivateInput, setDeactivateInput] = useState("");
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    loadSubscription();
+  }, []);
+
+  async function loadSubscription() {
+    try {
+      const res = await apiFetch("/admin/billing/subscription");
+      if (res.ok) setSubscriptionInfo(await res.json());
+    } catch {}
+  }
+
+  async function handleCancel() {
+    setCancelLoading(true);
+    setStatusMessage(null);
+    try {
+      const res = await apiFetch("/admin/billing/cancel-subscription", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStatusMessage({ type: "success", text: data.message });
+        loadSubscription();
+      } else {
+        setStatusMessage({ type: "error", text: data.detail || "Fehler bei der Kündigung" });
+      }
+    } catch {
+      setStatusMessage({ type: "error", text: "Netzwerkfehler" });
+    } finally {
+      setCancelLoading(false);
+    }
+  }
+
+  async function handleReactivate() {
+    setReactivateLoading(true);
+    setStatusMessage(null);
+    try {
+      const res = await apiFetch("/admin/billing/reactivate-subscription", { method: "POST" });
+      if (res.ok) {
+        setStatusMessage({ type: "success", text: "Abonnement wurde reaktiviert." });
+        loadSubscription();
+      }
+    } catch {
+      setStatusMessage({ type: "error", text: "Netzwerkfehler" });
+    } finally {
+      setReactivateLoading(false);
+    }
+  }
+
+  async function handleDeactivateAccount() {
+    if (deactivateInput !== "KONTO LÖSCHEN") return;
+    setDeactivateLoading(true);
+    setStatusMessage(null);
+    try {
+      const res = await apiFetch("/admin/billing/deactivate-account", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStatusMessage({ type: "success", text: data.message });
+        // Redirect to login after 3 seconds
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 3000);
+      } else {
+        setStatusMessage({ type: "error", text: data.detail || "Fehler beim Deaktivieren" });
+      }
+    } catch {
+      setStatusMessage({ type: "error", text: "Netzwerkfehler" });
+    } finally {
+      setDeactivateLoading(false);
+    }
+  }
+
+  const isCanceled = subscriptionInfo?.cancel_at_period_end;
+  const hasActiveSub = subscriptionInfo?.has_subscription && subscriptionInfo?.status === "active";
+
+  return (
+    <Card style={{ padding: 0, overflow: "hidden", border: `1px solid #ef444440` }}>
+      <div style={{
+        padding: "16px 24px", borderBottom: `1px solid #ef444430`,
+        display: "flex", alignItems: "center", gap: 12,
+        background: "#fef2f215",
+      }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 10,
+          background: "#ef444415", display: "flex",
+          alignItems: "center", justifyContent: "center",
+        }}>
+          <ShieldAlert size={18} color="#ef4444" />
+        </div>
+        <div>
+          <h2 style={{ ...sectionTitleStyle, color: "#ef4444" }}>Gefahrenzone</h2>
+          <p style={{ fontSize: 11, color: T.textMuted, margin: 0 }}>
+            Abonnement kündigen oder Konto deaktivieren
+          </p>
+        </div>
+      </div>
+
+      <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+        {/* Status message */}
+        {statusMessage && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
+            borderRadius: 10,
+            background: statusMessage.type === "success" ? T.successDim : T.dangerDim,
+            border: `1px solid ${statusMessage.type === "success" ? T.success : T.danger}30`,
+          }}>
+            {statusMessage.type === "success" ? (
+              <CheckCircle size={16} color={T.success} />
+            ) : (
+              <AlertTriangle size={16} color={T.danger} />
+            )}
+            <span style={{ fontSize: 13, color: statusMessage.type === "success" ? T.success : T.danger, fontWeight: 600 }}>
+              {statusMessage.text}
+            </span>
+          </div>
+        )}
+
+        {/* Cancel Subscription */}
+        {hasActiveSub && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "16px 20px", borderRadius: 12,
+            border: `1px solid ${T.border}`, background: T.surface,
+          }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <XCircle size={16} color={isCanceled ? "#f59e0b" : "#ef4444"} />
+                <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>
+                  {isCanceled ? "Kündigung vorgemerkt" : "Abonnement kündigen"}
+                </span>
+              </div>
+              {isCanceled ? (
+                <p style={{ fontSize: 12, color: T.textMuted, margin: 0, lineHeight: 1.5 }}>
+                  Ihr Abonnement wird zum Ende des aktuellen Abrechnungszeitraums
+                  {subscriptionInfo?.current_period_end && (
+                    <> am <strong>{new Date(subscriptionInfo.current_period_end).toLocaleDateString("de-DE")}</strong></>
+                  )} nicht erneuert. Sie können die Kündigung jederzeit rückgängig machen.
+                </p>
+              ) : (
+                <p style={{ fontSize: 12, color: T.textMuted, margin: 0, lineHeight: 1.5 }}>
+                  Das Abonnement wird zum Ende des aktuellen Abrechnungszeitraums gekündigt.
+                  Bis dahin behalten Sie vollen Zugriff.
+                </p>
+              )}
+            </div>
+            <div style={{ marginLeft: 16 }}>
+              {isCanceled ? (
+                <button
+                  onClick={handleReactivate}
+                  disabled={reactivateLoading}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "10px 20px", borderRadius: 10,
+                    background: "#22c55e", color: "#fff",
+                    border: "none", fontSize: 13, fontWeight: 700,
+                    cursor: "pointer", opacity: reactivateLoading ? 0.6 : 1,
+                    whiteSpace: "nowrap" as const,
+                  }}
+                >
+                  {reactivateLoading ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                  Reaktivieren
+                </button>
+              ) : (
+                <button
+                  onClick={handleCancel}
+                  disabled={cancelLoading}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "10px 20px", borderRadius: 10,
+                    background: "transparent", color: "#ef4444",
+                    border: "1px solid #ef444440", fontSize: 13, fontWeight: 700,
+                    cursor: "pointer", opacity: cancelLoading ? 0.6 : 1,
+                    whiteSpace: "nowrap" as const,
+                  }}
+                >
+                  {cancelLoading ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                  Kündigen
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Deactivate Account */}
+        <div style={{
+          padding: "16px 20px", borderRadius: 12,
+          border: "1px solid #ef444430", background: "#fef2f208",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <Trash2 size={16} color="#ef4444" />
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#ef4444" }}>
+              Konto deaktivieren
+            </span>
+          </div>
+          <p style={{ fontSize: 12, color: T.textMuted, margin: "0 0 12px", lineHeight: 1.5 }}>
+            <strong>Achtung:</strong> Diese Aktion deaktiviert Ihr gesamtes Konto. Alle aktiven Abonnements
+            werden gekündigt. Diese Aktion kann nur vom Support rückgängig gemacht werden.
+          </p>
+
+          {!showDeactivateConfirm ? (
+            <button
+              onClick={() => setShowDeactivateConfirm(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "10px 20px", borderRadius: 10,
+                background: "#ef4444", color: "#fff",
+                border: "none", fontSize: 13, fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              <Trash2 size={14} /> Konto deaktivieren...
+            </button>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <p style={{ fontSize: 12, color: "#ef4444", fontWeight: 600, margin: 0 }}>
+                Geben Sie <strong>KONTO LÖSCHEN</strong> ein, um fortzufahren:
+              </p>
+              <input
+                value={deactivateInput}
+                onChange={(e) => setDeactivateInput(e.target.value)}
+                placeholder="KONTO LÖSCHEN"
+                style={{
+                  ...inputStyle,
+                  borderColor: deactivateInput === "KONTO LÖSCHEN" ? "#ef4444" : T.border,
+                }}
+              />
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  onClick={() => { setShowDeactivateConfirm(false); setDeactivateInput(""); }}
+                  style={{
+                    padding: "10px 20px", borderRadius: 10,
+                    background: T.surfaceAlt, color: T.text,
+                    border: `1px solid ${T.border}`, fontSize: 13, fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  onClick={handleDeactivateAccount}
+                  disabled={deactivateInput !== "KONTO LÖSCHEN" || deactivateLoading}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "10px 20px", borderRadius: 10,
+                    background: deactivateInput === "KONTO LÖSCHEN" ? "#ef4444" : "#ef444440",
+                    color: "#fff", border: "none", fontSize: 13, fontWeight: 700,
+                    cursor: deactivateInput === "KONTO LÖSCHEN" ? "pointer" : "not-allowed",
+                    opacity: deactivateLoading ? 0.6 : 1,
+                  }}
+                >
+                  {deactivateLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  Unwiderruflich deaktivieren
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
   );
 }
 

@@ -473,6 +473,550 @@ async def verify_checkout_session(
     return result
 
 
+
+# ── Plan Change (Upgrade / Downgrade via Stripe Subscription.modify) ─────────
+
+class ChangePlanRequest(BaseModel):
+    plan_slug: str
+    billing_interval: str = "month"  # "month" or "year"
+
+class ChangePlanPreviewResponse(BaseModel):
+    current_plan: str
+    new_plan: str
+    is_upgrade: bool
+    proration_amount_cents: int = 0
+    proration_formatted: str = ""
+    effective_date: str = ""
+    message: str = ""
+
+@router.post("/billing/preview-plan-change")
+async def preview_plan_change(
+    req: ChangePlanRequest,
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Vorschau der Kosten bei Plan-Wechsel (Proration Preview).
+    
+    Zeigt dem Benutzer, was ein Upgrade/Downgrade kosten würde,
+    bevor er den Wechsel bestätigt.
+    """
+    _require_billing_access(user)
+    stripe = _get_stripe(user.tenant_id)
+
+    db = SessionLocal()
+    try:
+        sub = db.query(Subscription).filter(Subscription.tenant_id == user.tenant_id).first()
+        if not sub or not sub.stripe_subscription_id:
+            raise HTTPException(status_code=404, detail="Kein aktives Stripe-Abonnement gefunden.")
+
+        current_plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
+        new_plan = db.query(Plan).filter(
+            Plan.slug == req.plan_slug, Plan.is_active.is_(True)
+        ).first()
+        if not new_plan:
+            raise HTTPException(status_code=404, detail=f"Plan '{req.plan_slug}' nicht gefunden.")
+
+        # Determine price ID based on billing interval
+        if req.billing_interval == "year" and getattr(new_plan, "stripe_price_yearly_id", None):
+            new_price_id = new_plan.stripe_price_yearly_id
+        else:
+            new_price_id = new_plan.stripe_price_id
+
+        if not new_price_id:
+            raise HTTPException(status_code=422, detail="Kein Stripe-Preis für diesen Plan konfiguriert.")
+
+        current_price = current_plan.price_monthly_cents if current_plan else 0
+        new_price = new_plan.price_monthly_cents
+        is_upgrade = new_price > current_price
+
+        # Get the current subscription from Stripe to find the subscription item
+        stripe_sub = stripe.Subscription.retrieve(sub.stripe_subscription_id)
+        if not stripe_sub or not stripe_sub.get("items", {}).get("data"):
+            raise HTTPException(status_code=502, detail="Stripe-Abonnement konnte nicht abgerufen werden.")
+
+        current_item_id = stripe_sub["items"]["data"][0]["id"]
+
+        result = {
+            "current_plan": current_plan.name if current_plan else "Unbekannt",
+            "new_plan": new_plan.name,
+            "is_upgrade": is_upgrade,
+            "current_price_cents": current_price,
+            "new_price_cents": new_price,
+            "billing_interval": req.billing_interval,
+        }
+
+        if is_upgrade:
+            # Preview proration for upgrades
+            try:
+                upcoming = stripe.Invoice.create_preview(
+                    customer=sub.stripe_customer_id,
+                    subscription=sub.stripe_subscription_id,
+                    subscription_items=[{
+                        "id": current_item_id,
+                        "price": new_price_id,
+                    }],
+                    subscription_proration_behavior="create_prorations",
+                )
+                # Find proration line items
+                proration_amount = 0
+                for line in upcoming.get("lines", {}).get("data", []):
+                    if line.get("proration"):
+                        proration_amount += line.get("amount", 0)
+
+                result["proration_amount_cents"] = proration_amount
+                result["proration_formatted"] = f"€{proration_amount / 100:.2f}"
+                result["effective_date"] = "Sofort"
+                result["message"] = (
+                    f"Upgrade auf {new_plan.name}: Sie zahlen jetzt anteilig "
+                    f"€{proration_amount / 100:.2f} für die verbleibende Zeit im aktuellen Abrechnungszyklus."
+                )
+            except Exception as exc:
+                logger.warning("billing.preview_proration_failed", error=str(exc))
+                result["message"] = f"Upgrade auf {new_plan.name} wird sofort wirksam."
+                result["proration_amount_cents"] = 0
+        else:
+            # Downgrade: effective at end of period
+            period_end = stripe_sub.get("current_period_end")
+            if period_end:
+                end_dt = datetime.fromtimestamp(period_end, tz=timezone.utc)
+                result["effective_date"] = end_dt.strftime("%d.%m.%Y")
+            else:
+                result["effective_date"] = "Ende des Abrechnungszeitraums"
+            result["proration_amount_cents"] = 0
+            result["proration_formatted"] = "€0.00"
+            result["message"] = (
+                f"Downgrade auf {new_plan.name}: Der Wechsel wird am Ende des aktuellen "
+                f"Abrechnungszeitraums ({result['effective_date']}) wirksam. "
+                f"Bis dahin behalten Sie alle Funktionen Ihres aktuellen Plans."
+            )
+
+        return result
+    finally:
+        db.close()
+
+
+@router.post("/billing/change-plan")
+async def change_plan(
+    req: ChangePlanRequest,
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Plan wechseln (Upgrade sofort mit Proration, Downgrade zum Periodenende).
+    
+    Gold Standard Implementierung:
+    - Upgrade: stripe.Subscription.modify mit proration_behavior='create_prorations'
+      → Sofortige Aktivierung, anteilige Berechnung
+    - Downgrade: stripe.Subscription.modify mit proration_behavior='none'
+      und schedule für nächste Periode → Wechsel am Ende des Abrechnungszeitraums
+    """
+    _require_billing_access(user)
+    stripe = _get_stripe(user.tenant_id)
+
+    db = SessionLocal()
+    try:
+        sub = db.query(Subscription).filter(Subscription.tenant_id == user.tenant_id).first()
+        if not sub or not sub.stripe_subscription_id:
+            raise HTTPException(
+                status_code=404,
+                detail="Kein aktives Stripe-Abonnement gefunden. Bitte zuerst ein Abonnement abschließen.",
+            )
+
+        if sub.status not in ("active", "trialing"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Plan-Wechsel nicht möglich. Aktueller Status: {sub.status}",
+            )
+
+        current_plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
+        new_plan = db.query(Plan).filter(
+            Plan.slug == req.plan_slug, Plan.is_active.is_(True)
+        ).first()
+        if not new_plan:
+            raise HTTPException(status_code=404, detail=f"Plan '{req.plan_slug}' nicht gefunden.")
+
+        if current_plan and current_plan.id == new_plan.id:
+            raise HTTPException(status_code=400, detail="Sie haben diesen Plan bereits.")
+
+        # Determine price ID
+        if req.billing_interval == "year" and getattr(new_plan, "stripe_price_yearly_id", None):
+            new_price_id = new_plan.stripe_price_yearly_id
+        else:
+            new_price_id = new_plan.stripe_price_id
+
+        if not new_price_id:
+            raise HTTPException(status_code=422, detail="Kein Stripe-Preis für diesen Plan konfiguriert.")
+
+        # Get current Stripe subscription
+        stripe_sub = stripe.Subscription.retrieve(sub.stripe_subscription_id)
+        current_item_id = stripe_sub["items"]["data"][0]["id"]
+
+        current_price = current_plan.price_monthly_cents if current_plan else 0
+        new_price = new_plan.price_monthly_cents
+        is_upgrade = new_price > current_price
+
+        if is_upgrade:
+            # ── UPGRADE: Sofort mit Proration ──
+            updated_sub = stripe.Subscription.modify(
+                sub.stripe_subscription_id,
+                items=[{
+                    "id": current_item_id,
+                    "price": new_price_id,
+                }],
+                proration_behavior="create_prorations",
+                metadata={
+                    "tenant_id": str(user.tenant_id),
+                    "plan_id": str(new_plan.id),
+                },
+            )
+
+            # Update local DB immediately
+            sub.plan_id = new_plan.id
+            sub.status = "active"
+            sub.cancel_at_period_end = False
+            sub.pending_plan_id = None
+            sub.billing_interval = req.billing_interval
+            sub.current_period_start = _ts_to_dt(updated_sub.get("current_period_start"))
+            sub.current_period_end = _ts_to_dt(updated_sub.get("current_period_end"))
+            db.commit()
+
+            _audit(user, "billing.plan_upgraded", {
+                "from_plan": current_plan.slug if current_plan else None,
+                "to_plan": new_plan.slug,
+                "proration": True,
+            })
+
+            logger.info("billing.plan_upgraded",
+                       tenant_id=user.tenant_id,
+                       from_plan=current_plan.slug if current_plan else None,
+                       to_plan=new_plan.slug)
+
+            return {
+                "success": True,
+                "type": "upgrade",
+                "plan": new_plan.name,
+                "effective": "immediate",
+                "message": f"Upgrade auf {new_plan.name} erfolgreich! Der neue Plan ist sofort aktiv.",
+            }
+
+        else:
+            # ── DOWNGRADE: Zum Periodenende ──
+            # Use Stripe Subscription Schedule for deferred downgrade
+            # First, cancel any existing schedule
+            try:
+                schedules = stripe.SubscriptionSchedule.list(
+                    customer=sub.stripe_customer_id,
+                    limit=5,
+                )
+                for sched in schedules.get("data", []):
+                    if sched.get("subscription") == sub.stripe_subscription_id and sched.get("status") in ("not_started", "active"):
+                        stripe.SubscriptionSchedule.release(sched["id"])
+            except Exception:
+                pass  # No existing schedule, that's fine
+
+            # Create a subscription schedule that changes the plan at period end
+            schedule = stripe.SubscriptionSchedule.create(
+                from_subscription=sub.stripe_subscription_id,
+            )
+
+            # Update the schedule with two phases:
+            # Phase 1: Current plan until period end
+            # Phase 2: New plan starting at period end
+            current_phase_end = stripe_sub.get("current_period_end")
+            stripe.SubscriptionSchedule.modify(
+                schedule["id"],
+                phases=[
+                    {
+                        "items": [{"price": stripe_sub["items"]["data"][0]["price"]["id"], "quantity": 1}],
+                        "start_date": stripe_sub.get("current_period_start"),
+                        "end_date": current_phase_end,
+                    },
+                    {
+                        "items": [{"price": new_price_id, "quantity": 1}],
+                        "start_date": current_phase_end,
+                        "iterations": 1,
+                        "proration_behavior": "none",
+                        "metadata": {
+                            "tenant_id": str(user.tenant_id),
+                            "plan_id": str(new_plan.id),
+                        },
+                    },
+                ],
+                metadata={
+                    "tenant_id": str(user.tenant_id),
+                    "downgrade_to_plan_id": str(new_plan.id),
+                },
+            )
+
+            # Update local DB - mark pending downgrade
+            sub.pending_plan_id = new_plan.id
+            sub.billing_interval = req.billing_interval
+            db.commit()
+
+            period_end_dt = _ts_to_dt(current_phase_end)
+            effective_date = period_end_dt.strftime("%d.%m.%Y") if period_end_dt else "Ende des Abrechnungszeitraums"
+
+            _audit(user, "billing.plan_downgrade_scheduled", {
+                "from_plan": current_plan.slug if current_plan else None,
+                "to_plan": new_plan.slug,
+                "effective_date": effective_date,
+            })
+
+            logger.info("billing.plan_downgrade_scheduled",
+                       tenant_id=user.tenant_id,
+                       from_plan=current_plan.slug if current_plan else None,
+                       to_plan=new_plan.slug,
+                       effective_date=effective_date)
+
+            return {
+                "success": True,
+                "type": "downgrade",
+                "plan": new_plan.name,
+                "effective": effective_date,
+                "message": (
+                    f"Downgrade auf {new_plan.name} geplant. "
+                    f"Der Wechsel wird am {effective_date} wirksam. "
+                    f"Bis dahin behalten Sie alle Funktionen Ihres aktuellen Plans."
+                ),
+            }
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error("billing.change_plan_failed", error=str(exc), tenant_id=user.tenant_id)
+        raise HTTPException(status_code=502, detail=f"Stripe-Fehler: {exc}")
+    finally:
+        db.close()
+
+
+# ── Subscription Cancellation ────────────────────────────────────────────────
+
+@router.post("/billing/cancel-subscription")
+async def cancel_subscription(
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Abonnement zum Ende des aktuellen Abrechnungszeitraums kündigen.
+    
+    Setzt cancel_at_period_end=True bei Stripe. Das Abo bleibt bis zum
+    Ende der bezahlten Periode aktiv und wird dann nicht erneuert.
+    """
+    _require_billing_access(user)
+    stripe = _get_stripe(user.tenant_id)
+
+    db = SessionLocal()
+    try:
+        sub = db.query(Subscription).filter(Subscription.tenant_id == user.tenant_id).first()
+        if not sub or not sub.stripe_subscription_id:
+            raise HTTPException(status_code=404, detail="Kein aktives Abonnement gefunden.")
+
+        if sub.status == "canceled":
+            raise HTTPException(status_code=400, detail="Das Abonnement ist bereits gekündigt.")
+
+        # Set cancel_at_period_end in Stripe
+        updated_sub = stripe.Subscription.modify(
+            sub.stripe_subscription_id,
+            cancel_at_period_end=True,
+        )
+
+        # Update local DB
+        sub.cancel_at_period_end = True
+        sub.canceled_at = datetime.now(timezone.utc)
+        db.commit()
+
+        period_end = updated_sub.get("current_period_end")
+        period_end_dt = _ts_to_dt(period_end)
+        effective_date = period_end_dt.strftime("%d.%m.%Y") if period_end_dt else "Ende des Abrechnungszeitraums"
+
+        _audit(user, "billing.subscription_canceled", {
+            "effective_date": effective_date,
+            "cancel_at_period_end": True,
+        })
+
+        logger.info("billing.subscription_canceled",
+                    tenant_id=user.tenant_id,
+                    effective_date=effective_date)
+
+        return {
+            "success": True,
+            "effective_date": effective_date,
+            "message": (
+                f"Ihr Abonnement wurde gekündigt. Es bleibt bis zum {effective_date} aktiv. "
+                f"Danach wird es nicht erneuert und Ihr Konto wird auf den kostenlosen Plan zurückgesetzt."
+            ),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error("billing.cancel_subscription_failed", error=str(exc))
+        raise HTTPException(status_code=502, detail=f"Stripe-Fehler: {exc}")
+    finally:
+        db.close()
+
+
+@router.post("/billing/reactivate-subscription")
+async def reactivate_subscription(
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Gekündigtes Abonnement reaktivieren (cancel_at_period_end zurücksetzen).
+    
+    Nur möglich, solange das Abo noch aktiv ist (vor dem Periodenende).
+    """
+    _require_billing_access(user)
+    stripe = _get_stripe(user.tenant_id)
+
+    db = SessionLocal()
+    try:
+        sub = db.query(Subscription).filter(Subscription.tenant_id == user.tenant_id).first()
+        if not sub or not sub.stripe_subscription_id:
+            raise HTTPException(status_code=404, detail="Kein Abonnement gefunden.")
+
+        if sub.status == "canceled":
+            raise HTTPException(
+                status_code=400,
+                detail="Das Abonnement ist bereits abgelaufen und kann nicht reaktiviert werden. Bitte schließen Sie ein neues Abonnement ab.",
+            )
+
+        if not sub.cancel_at_period_end:
+            raise HTTPException(status_code=400, detail="Das Abonnement ist nicht zur Kündigung vorgemerkt.")
+
+        # Remove cancel_at_period_end in Stripe
+        stripe.Subscription.modify(
+            sub.stripe_subscription_id,
+            cancel_at_period_end=False,
+        )
+
+        # Update local DB
+        sub.cancel_at_period_end = False
+        sub.canceled_at = None
+        db.commit()
+
+        _audit(user, "billing.subscription_reactivated", {})
+
+        logger.info("billing.subscription_reactivated", tenant_id=user.tenant_id)
+
+        return {
+            "success": True,
+            "message": "Ihr Abonnement wurde erfolgreich reaktiviert. Es wird wie gewohnt verlängert.",
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error("billing.reactivate_subscription_failed", error=str(exc))
+        raise HTTPException(status_code=502, detail=f"Stripe-Fehler: {exc}")
+    finally:
+        db.close()
+
+
+# ── Subscription Status ──────────────────────────────────────────────────────
+
+@router.get("/billing/subscription")
+async def get_subscription_status(
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Aktuellen Abonnement-Status abrufen inkl. Kündigungsinformationen."""
+    _require_billing_access(user)
+
+    db = SessionLocal()
+    try:
+        sub = db.query(Subscription).filter(Subscription.tenant_id == user.tenant_id).first()
+        if not sub:
+            return {"has_subscription": False, "status": "none"}
+
+        plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
+        pending_plan = None
+        if sub.pending_plan_id:
+            pending_plan = db.query(Plan).filter(Plan.id == sub.pending_plan_id).first()
+
+        result = {
+            "has_subscription": True,
+            "status": sub.status,
+            "plan_name": plan.name if plan else "Unbekannt",
+            "plan_slug": plan.slug if plan else None,
+            "cancel_at_period_end": bool(getattr(sub, "cancel_at_period_end", False)),
+            "current_period_end": sub.current_period_end.isoformat() if sub.current_period_end else None,
+            "current_period_start": sub.current_period_start.isoformat() if sub.current_period_start else None,
+            "billing_interval": getattr(sub, "billing_interval", "month") or "month",
+            "stripe_subscription_id": sub.stripe_subscription_id,
+        }
+
+        if sub.cancel_at_period_end:
+            result["cancellation_effective_date"] = (
+                sub.current_period_end.strftime("%d.%m.%Y") if sub.current_period_end else None
+            )
+
+        if pending_plan:
+            result["pending_downgrade"] = {
+                "plan_name": pending_plan.name,
+                "plan_slug": pending_plan.slug,
+                "effective_date": sub.current_period_end.strftime("%d.%m.%Y") if sub.current_period_end else None,
+            }
+
+        return result
+    finally:
+        db.close()
+
+
+# ── Account Deactivation ─────────────────────────────────────────────────────
+
+@router.post("/billing/deactivate-account")
+async def deactivate_account(
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Konto deaktivieren und alle Daten bereinigen.
+    
+    Voraussetzung: Das Abonnement muss gekündigt sein (cancel_at_period_end=True)
+    oder bereits abgelaufen (status=canceled).
+    """
+    _require_billing_access(user)
+
+    db = SessionLocal()
+    try:
+        sub = db.query(Subscription).filter(Subscription.tenant_id == user.tenant_id).first()
+
+        # Check if subscription is canceled or set to cancel
+        if sub and sub.status == "active" and not getattr(sub, "cancel_at_period_end", False):
+            raise HTTPException(
+                status_code=400,
+                detail="Bitte kündigen Sie zuerst Ihr Abonnement, bevor Sie Ihr Konto deaktivieren.",
+            )
+
+        # If subscription is still active but set to cancel, cancel it immediately in Stripe
+        if sub and sub.stripe_subscription_id and sub.status != "canceled":
+            try:
+                stripe = _get_stripe(user.tenant_id)
+                stripe.Subscription.cancel(sub.stripe_subscription_id)
+                sub.status = "canceled"
+                sub.canceled_at = datetime.now(timezone.utc)
+            except Exception as exc:
+                logger.warning("billing.deactivate_stripe_cancel_failed", error=str(exc))
+
+        # Deactivate the tenant
+        tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+        if tenant:
+            tenant.is_active = False
+
+        db.commit()
+
+        _audit(user, "account.deactivated", {
+            "tenant_id": user.tenant_id,
+        })
+
+        logger.info("account.deactivated", tenant_id=user.tenant_id)
+
+        return {
+            "success": True,
+            "message": "Ihr Konto wurde deaktiviert. Alle aktiven Dienste wurden beendet.",
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error("account.deactivation_failed", error=str(exc))
+        raise HTTPException(status_code=500, detail="Fehler bei der Konto-Deaktivierung.")
+    finally:
+        db.close()
+
+
 # ── Webhook (raw body, HMAC verification) ─────────────────────────────────────
 
 def _ts_to_dt(ts: int | None) -> datetime | None:
@@ -583,10 +1127,32 @@ def _on_subscription_event(event_type: str, obj: dict) -> None:
                 if event_type == "customer.subscription.deleted":
                     sub.status = "canceled"
                     sub.canceled_at = datetime.now(timezone.utc)
+                    sub.cancel_at_period_end = False
+                    # Apply pending downgrade if exists
+                    if sub.pending_plan_id:
+                        sub.plan_id = sub.pending_plan_id
+                        sub.pending_plan_id = None
                 else:
                     sub.status = obj.get("status", sub.status)
                     sub.current_period_start = _ts_to_dt(obj.get("current_period_start"))
                     sub.current_period_end   = _ts_to_dt(obj.get("current_period_end"))
+                    # Sync cancel_at_period_end from Stripe
+                    sub.cancel_at_period_end = obj.get("cancel_at_period_end", False)
+                    # Check if plan changed via subscription schedule
+                    items = obj.get("items", {}).get("data", [])
+                    if items:
+                        stripe_price_id = items[0].get("price", {}).get("id")
+                        if stripe_price_id:
+                            from app.core.models import Plan as _Plan
+                            new_plan = db.query(_Plan).filter(
+                                (_Plan.stripe_price_id == stripe_price_id) |
+                                (_Plan.stripe_price_yearly_id == stripe_price_id)
+                            ).first()
+                            if new_plan and new_plan.id != sub.plan_id:
+                                logger.info("billing.webhook.plan_changed_via_stripe",
+                                           old_plan_id=sub.plan_id, new_plan_id=new_plan.id)
+                                sub.plan_id = new_plan.id
+                                sub.pending_plan_id = None
         
         db.commit()
         logger.info("billing.webhook.subscription_updated", event_type=event_type, sub_id=stripe_sub_id)

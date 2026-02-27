@@ -8,7 +8,8 @@ import {
 import {
   TrendingUp, TrendingDown, DollarSign, Users, Zap, CreditCard,
   ArrowUpRight, ArrowDownRight, RefreshCcw, Download, Coins,
-  BarChart3, PieChart as PieChartIcon, Activity,
+  BarChart3, PieChart as PieChartIcon, Activity, FileText,
+  ExternalLink, CheckCircle2, XCircle, AlertTriangle,
 } from "lucide-react";
 
 import { T } from "@/lib/tokens";
@@ -25,19 +26,23 @@ type Overview = {
   plan_mrr_cents: number;
   addon_mrr_cents: number;
   token_revenue_cents: number;
+  stripe_total_revenue_12m_cents: number;
+  stripe_total_revenue_12m_formatted: string;
   total_subscribers: number;
   paying_subscribers: number;
   free_subscribers: number;
   canceled_total: number;
   total_tenants: number;
   plan_distribution: Record<string, number>;
+  data_source: string;
 };
 
 type MonthlyData = {
   year: number;
   month: number;
   label: string;
-  mrr_cents: number;
+  stripe_revenue_cents: number;
+  stripe_revenue_formatted: string;
   token_revenue_cents: number;
   messages_inbound: number;
   messages_outbound: number;
@@ -53,7 +58,10 @@ type TenantRevenue = {
   plan_name: string;
   plan_slug: string | null;
   status: string;
+  cancel_at_period_end: boolean;
   mrr_cents: number;
+  stripe_revenue_this_month_cents: number;
+  stripe_revenue_12m_cents: number;
   addon_count: number;
   messages_this_month: number;
   tokens_used: number;
@@ -74,6 +82,30 @@ type TokenAnalytics = {
     tokens_used: number;
     token_limit: number;
     usage_pct: number;
+  }>;
+};
+
+type StripeInvoice = {
+  invoice_id: string;
+  number: string | null;
+  customer_email: string;
+  customer_name: string;
+  tenant_name: string;
+  status: string;
+  amount_paid_cents: number;
+  amount_paid_formatted: string;
+  amount_due_cents: number;
+  currency: string;
+  created: string;
+  paid_at: string | null;
+  invoice_pdf: string | null;
+  hosted_invoice_url: string | null;
+  subscription_id: string | null;
+  lines: Array<{
+    description: string;
+    amount_cents: number;
+    period_start: string | null;
+    period_end: string | null;
   }>;
 };
 
@@ -113,8 +145,9 @@ export default function RevenueAnalyticsPage() {
   const [monthly, setMonthly] = useState<MonthlyData[]>([]);
   const [tenants, setTenants] = useState<TenantRevenue[]>([]);
   const [tokens, setTokens] = useState<TokenAnalytics | null>(null);
+  const [invoices, setInvoices] = useState<StripeInvoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "tenants" | "tokens">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "tenants" | "tokens" | "invoices">("overview");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -136,7 +169,26 @@ export default function RevenueAnalyticsPage() {
     }
   }, []);
 
+  const loadInvoices = useCallback(async () => {
+    try {
+      const res = await apiFetch("/admin/revenue/stripe-invoices?limit=50&status=all");
+      if (res.ok) {
+        const data = await res.json();
+        setInvoices(data.invoices || []);
+      }
+    } catch (e) {
+      console.error("Invoice load error:", e);
+    }
+  }, []);
+
   useEffect(() => { void load(); }, [load]);
+
+  // Load invoices when tab is selected
+  useEffect(() => {
+    if (activeTab === "invoices" && invoices.length === 0) {
+      void loadInvoices();
+    }
+  }, [activeTab]);
 
   if (loading) {
     return (
@@ -153,15 +205,16 @@ export default function RevenueAnalyticsPage() {
 
   const mrrData = monthly.map(m => ({
     label: m.label,
-    mrr: m.mrr_cents / 100,
+    stripe_revenue: m.stripe_revenue_cents / 100,
     tokens: m.token_revenue_cents / 100,
-    total: (m.mrr_cents + m.token_revenue_cents) / 100,
+    total: (m.stripe_revenue_cents + m.token_revenue_cents) / 100,
   }));
 
   const tabs = [
     { id: "overview" as const, label: "Übersicht", icon: BarChart3 },
     { id: "tenants" as const, label: "Tenants", icon: Users },
     { id: "tokens" as const, label: "Token Analytics", icon: Zap },
+    { id: "invoices" as const, label: "Stripe-Rechnungen", icon: FileText },
   ];
 
   return (
@@ -174,6 +227,15 @@ export default function RevenueAnalyticsPage() {
           </h1>
           <p style={{ fontSize: 12, color: T.textMuted, margin: "4px 0 0" }}>
             Umsatzentwicklung, Abonnements und Token-Kosten
+            {overview?.data_source === "stripe" && (
+              <span style={{
+                marginLeft: 8, padding: "2px 8px", borderRadius: 6,
+                background: "#22c55e15", color: "#22c55e", fontSize: 10,
+                fontWeight: 700, border: "1px solid #22c55e30",
+              }}>
+                Daten aus Stripe
+              </span>
+            )}
           </p>
         </div>
         <button
@@ -230,14 +292,14 @@ export default function RevenueAnalyticsPage() {
                 icon: TrendingUp, color: T.accent,
               },
               {
+                label: "Stripe Umsatz (12M)", value: formatCents(overview?.stripe_total_revenue_12m_cents || 0),
+                sub: "Tatsächlicher Umsatz aus Stripe-Rechnungen",
+                icon: CreditCard, color: "#6366f1",
+              },
+              {
                 label: "Zahlende Kunden", value: String(overview?.paying_subscribers || 0),
                 sub: `${overview?.free_subscribers || 0} Free · ${overview?.canceled_total || 0} Gekündigt`,
                 icon: Users, color: T.info,
-              },
-              {
-                label: "Token-Umsatz", value: formatCents(overview?.token_revenue_cents || 0),
-                sub: "Zusätzliche Token-Käufe",
-                icon: Coins, color: T.warning,
               },
             ].map((kpi, i) => {
               const Icon = kpi.icon;
@@ -267,7 +329,7 @@ export default function RevenueAnalyticsPage() {
           {/* Revenue Chart + Plan Distribution */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card style={{ padding: 24, gridColumn: "span 2" }}>
-              <SectionHeader title="Umsatzentwicklung" subtitle="Monatliche Einnahmen (letzte 12 Monate)" />
+              <SectionHeader title="Umsatzentwicklung (Stripe)" subtitle="Monatliche Einnahmen aus Stripe-Rechnungen (letzte 12 Monate)" />
               <ResponsiveContainer width="100%" height={280}>
                 <AreaChart data={mrrData}>
                   <defs>
@@ -284,7 +346,7 @@ export default function RevenueAnalyticsPage() {
                   <XAxis dataKey="label" stroke={T.textDim} tick={{ fontSize: 10 }} />
                   <YAxis stroke={T.textDim} tick={{ fontSize: 10 }} tickFormatter={(v) => `€${v}`} />
                   <Tooltip content={<CustomTooltipContent />} />
-                  <Area type="monotone" dataKey="mrr" name="Plan MRR" stroke={T.accent} fill="url(#gradMrr)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="stripe_revenue" name="Stripe-Umsatz" stroke={T.accent} fill="url(#gradMrr)" strokeWidth={2} />
                   <Area type="monotone" dataKey="tokens" name="Token-Umsatz" stroke={T.warning} fill="url(#gradToken)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -349,12 +411,12 @@ export default function RevenueAnalyticsPage() {
 
       {activeTab === "tenants" && (
         <Card style={{ padding: 24 }}>
-          <SectionHeader title="Tenant-Übersicht" subtitle="Umsatz und Nutzung pro Tenant" />
+          <SectionHeader title="Tenant-Übersicht" subtitle="Umsatz und Nutzung pro Tenant (Stripe-Daten)" />
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["Tenant", "Plan", "Status", "MRR", "Add-ons", "Nachrichten", "Token-Nutzung", "Kontakte"].map(h => (
+                  {["Tenant", "Plan", "Status", "Stripe Umsatz (Monat)", "Stripe Umsatz (12M)", "Add-ons", "Nachrichten", "Token-Nutzung", "Kontakte"].map(h => (
                     <th key={h} style={{
                       textAlign: "left", padding: "12px 14px", fontSize: 10, fontWeight: 600,
                       color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em",
@@ -378,12 +440,22 @@ export default function RevenueAnalyticsPage() {
                         <Badge variant="accent">{t_row.plan_name}</Badge>
                       </td>
                       <td style={{ padding: "14px" }}>
-                        <Badge variant={t_row.status === "active" ? "success" : t_row.status === "trialing" ? "info" : "warning"}>
-                          {t_row.status}
-                        </Badge>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          <Badge variant={t_row.status === "active" ? "success" : t_row.status === "trialing" ? "info" : "warning"}>
+                            {t_row.status}
+                          </Badge>
+                          {t_row.cancel_at_period_end && (
+                            <span style={{ fontSize: 9, color: T.warning, fontWeight: 700 }}>
+                              Kündigung vorgemerkt
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: "14px", fontSize: 13, fontWeight: 700, color: T.text }}>
-                        {formatCents(t_row.mrr_cents)}
+                        {formatCents(t_row.stripe_revenue_this_month_cents)}
+                      </td>
+                      <td style={{ padding: "14px", fontSize: 13, fontWeight: 600, color: T.textMuted }}>
+                        {formatCents(t_row.stripe_revenue_12m_cents)}
                       </td>
                       <td style={{ padding: "14px", fontSize: 13, color: T.text }}>{t_row.addon_count}</td>
                       <td style={{ padding: "14px", fontSize: 13, color: T.text }}>{formatNumber(t_row.messages_this_month)}</td>
@@ -408,7 +480,7 @@ export default function RevenueAnalyticsPage() {
                 })}
                 {tenants.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ padding: 40, textAlign: "center", color: T.textDim, fontSize: 13 }}>
+                    <td colSpan={9} style={{ padding: 40, textAlign: "center", color: T.textDim, fontSize: 13 }}>
                       Keine Tenant-Daten vorhanden
                     </td>
                   </tr>
@@ -522,6 +594,134 @@ export default function RevenueAnalyticsPage() {
             </ResponsiveContainer>
           </Card>
         </>
+      )}
+
+      {activeTab === "invoices" && (
+        <Card style={{ padding: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <SectionHeader
+              title="Stripe-Rechnungen"
+              subtitle="Direkte Rechnungsdaten aus Stripe zur Verifizierung und Audit"
+            />
+            <button
+              onClick={() => void loadInvoices()}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "8px 14px", borderRadius: 10,
+                background: T.accentDim, color: T.accentLight,
+                border: `1px solid ${T.accent}33`, fontSize: 12, fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <RefreshCcw size={14} /> Aktualisieren
+            </button>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {["Rechnungs-Nr.", "Kunde", "Status", "Betrag", "Erstellt", "Bezahlt am", "Aktionen"].map(h => (
+                    <th key={h} style={{
+                      textAlign: "left", padding: "12px 14px", fontSize: 10, fontWeight: 600,
+                      color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em",
+                      borderBottom: `1px solid ${T.border}`,
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map((inv) => (
+                  <tr key={inv.invoice_id} style={{ borderBottom: `1px solid ${T.border}` }}>
+                    <td style={{ padding: "14px" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>
+                        {inv.number || inv.invoice_id.slice(0, 20)}
+                      </span>
+                    </td>
+                    <td style={{ padding: "14px" }}>
+                      <div>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>
+                          {inv.tenant_name || inv.customer_name || "—"}
+                        </span>
+                        <span style={{ fontSize: 10, color: T.textDim, display: "block" }}>
+                          {inv.customer_email}
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ padding: "14px" }}>
+                      <Badge variant={
+                        inv.status === "paid" ? "success" :
+                        inv.status === "open" ? "info" :
+                        inv.status === "void" ? "default" : "warning"
+                      }>
+                        {inv.status === "paid" ? "Bezahlt" :
+                         inv.status === "open" ? "Offen" :
+                         inv.status === "draft" ? "Entwurf" :
+                         inv.status === "void" ? "Storniert" :
+                         inv.status}
+                      </Badge>
+                    </td>
+                    <td style={{ padding: "14px", fontSize: 14, fontWeight: 700, color: T.text }}>
+                      {inv.amount_paid_formatted}
+                    </td>
+                    <td style={{ padding: "14px", fontSize: 12, color: T.textMuted }}>
+                      {new Date(inv.created).toLocaleDateString("de-DE", {
+                        day: "2-digit", month: "2-digit", year: "numeric",
+                      })}
+                    </td>
+                    <td style={{ padding: "14px", fontSize: 12, color: T.textMuted }}>
+                      {inv.paid_at
+                        ? new Date(inv.paid_at).toLocaleDateString("de-DE", {
+                            day: "2-digit", month: "2-digit", year: "numeric",
+                          })
+                        : "—"
+                      }
+                    </td>
+                    <td style={{ padding: "14px" }}>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {inv.hosted_invoice_url && (
+                          <a
+                            href={inv.hosted_invoice_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: "flex", alignItems: "center", gap: 4,
+                              fontSize: 11, fontWeight: 600, color: T.accent,
+                              textDecoration: "none",
+                            }}
+                          >
+                            <ExternalLink size={12} /> Ansehen
+                          </a>
+                        )}
+                        {inv.invoice_pdf && (
+                          <a
+                            href={inv.invoice_pdf}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: "flex", alignItems: "center", gap: 4,
+                              fontSize: 11, fontWeight: 600, color: T.textMuted,
+                              textDecoration: "none",
+                            }}
+                          >
+                            <Download size={12} /> PDF
+                          </a>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {invoices.length === 0 && (
+                  <tr>
+                    <td colSpan={7} style={{ padding: 40, textAlign: "center", color: T.textDim, fontSize: 13 }}>
+                      Keine Rechnungen vorhanden
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
     </div>
   );

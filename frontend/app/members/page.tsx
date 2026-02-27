@@ -92,7 +92,6 @@ const PLATFORMS: Array<{
 }> = [
   { id: "hubspot", name: "HubSpot", icon: <Globe size={22} />, color: "#FF7A59", category: "crm", connectorId: "hubspot" },
   { id: "shopify", name: "Shopify", icon: <ShoppingBag size={22} />, color: "#96BF48", category: "ecommerce", connectorId: "shopify" },
-  { id: "hubspot", name: "HubSpot", icon: <BarChart3 size={22} />, color: "#FF7A59", category: "crm", connectorId: "hubspot" },
   { id: "woocommerce", name: "WooCommerce", icon: <ShoppingBag size={22} />, color: "#7F54B3", category: "ecommerce", connectorId: "woocommerce" },
   { id: "salesforce", name: "Salesforce", icon: <Globe size={22} />, color: "#00A1E0", category: "crm", connectorId: "salesforce" },
   { id: "custom_api", name: "Custom API", icon: <Terminal size={22} />, color: T.accentLight, category: "developer" },

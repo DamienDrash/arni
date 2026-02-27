@@ -38,6 +38,7 @@ dependencies = [
     "python-multipart>=0.0.9", # FastAPI Form/File support
     "stripe>=8.0.0",           # Stripe Billing Integration
     "cryptography>=44.0.0",    # Encryption for BYOK/Sensitive Settings
+    "docker>=7.0.0",
 ]
 
 [project.optional-dependencies]
