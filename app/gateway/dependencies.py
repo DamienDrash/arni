@@ -50,16 +50,33 @@ def get_telegram_bot(tenant_id: int | None = None) -> TelegramBot:
         admin_chat_id=admin_id,
     )
 
+def _wa_setting(key: str, tenant_id: int) -> str:
+    """Read WhatsApp setting from connector hub key, fallback to legacy key."""
+    hub_key = f"integration_whatsapp_{tenant_id}_{key}"
+    val = persistence.get_setting(hub_key, tenant_id=tenant_id)
+    if val:
+        return val
+    legacy_map = {
+        "access_token": "meta_access_token",
+        "phone_number_id": "meta_phone_number_id",
+        "app_secret": "meta_app_secret",
+        "verify_token": "meta_verify_token",
+    }
+    legacy_key = legacy_map.get(key)
+    if legacy_key:
+        return persistence.get_setting(legacy_key, tenant_id=tenant_id) or ""
+    return ""
+
+
 def get_whatsapp_client(tenant_id: int | None = None) -> WhatsAppClient:
     """Returns a tenant-aware WhatsAppClient instance."""
     token = ""
     phone_id = ""
     secret = ""
     if tenant_id is not None:
-        token = persistence.get_setting("meta_access_token", tenant_id=tenant_id) or ""
-        phone_id = persistence.get_setting("meta_phone_number_id", tenant_id=tenant_id) or ""
-        secret = persistence.get_setting("meta_app_secret", tenant_id=tenant_id) or ""
-
+        token = _wa_setting("access_token", tenant_id)
+        phone_id = _wa_setting("phone_number_id", tenant_id)
+        secret = _wa_setting("app_secret", tenant_id)
     return WhatsAppClient(
         access_token=token,
         phone_number_id=phone_id,
