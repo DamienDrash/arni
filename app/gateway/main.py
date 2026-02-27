@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.gateway.dependencies import redis_bus
 from app.gateway.routers import webhooks, voice, websocket
 from app.gateway.routers.billing import router as billing_router
+from app.gateway.routers.llm_costs import router as llm_costs_router
 from app.gateway.admin import router as admin_router
 from app.core.instrumentation import setup_instrumentation
 from app.core.auth import ensure_default_tenant_and_admin
@@ -183,6 +184,7 @@ app.include_router(acp_router)
 # --- Auth Router ---
 from app.gateway.auth import router as auth_router
 app.include_router(auth_router)
+app.include_router(llm_costs_router, prefix="/admin")
 
 # --- Health Check ---
 @app.get("/health")

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Date, UniqueConstraint, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Date, UniqueConstraint, ForeignKey, Float
 from app.core.db import Base
 
 class ChatSession(Base):
@@ -392,6 +392,42 @@ class TokenPurchase(Base):
     stripe_checkout_session_id = Column(String, nullable=True)
     status = Column(String, nullable=False, default="pending")  # pending | completed | failed
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+
+
+class LLMModelCost(Base):
+    """Cost configuration per LLM model – used for real-time cost calculation."""
+    __tablename__ = "llm_model_costs"
+    id = Column(Integer, primary_key=True, index=True)
+    provider_id = Column(String, nullable=False, index=True)       # e.g. "openai", "gemini"
+    model_id = Column(String, nullable=False, unique=True, index=True)  # e.g. "gpt-4.1-mini"
+    display_name = Column(String, nullable=True)                    # Human-readable name
+    input_cost_per_million = Column(Integer, nullable=False, default=0)   # Cost in USD-cents per 1M input tokens
+    output_cost_per_million = Column(Integer, nullable=False, default=0)  # Cost in USD-cents per 1M output tokens
+    is_active = Column(Boolean, nullable=False, default=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class LLMUsageLog(Base):
+    """Per-request LLM usage log with cost attribution per tenant."""
+    __tablename__ = "llm_usage_log"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    user_id = Column(String, nullable=True)                         # WhatsApp/Telegram user or admin email
+    agent_name = Column(String, nullable=True)                      # e.g. "persona", "sales", "medic"
+    provider_id = Column(String, nullable=False)
+    model_id = Column(String, nullable=False, index=True)
+    prompt_tokens = Column(Integer, nullable=False, default=0)
+    completion_tokens = Column(Integer, nullable=False, default=0)
+    total_tokens = Column(Integer, nullable=False, default=0)
+    input_cost_cents = Column(Float, nullable=False, default=0.0)   # Actual cost in USD-cents
+    output_cost_cents = Column(Float, nullable=False, default=0.0)
+    total_cost_cents = Column(Float, nullable=False, default=0.0)
+    latency_ms = Column(Integer, nullable=True)
+    success = Column(Boolean, nullable=False, default=True)
+    error_message = Column(String, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
 
 class Campaign(Base):

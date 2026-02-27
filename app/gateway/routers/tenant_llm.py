@@ -35,31 +35,35 @@ router = APIRouter(prefix="/admin/tenant/llm", tags=["tenant-llm"])
 ALL_PROVIDERS = [
     {
         "id": "openai", "name": "OpenAI",
-        "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+        "models": ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o", "gpt-4o-mini"],
         "tier": "standard",
     },
     {
         "id": "anthropic", "name": "Anthropic",
-        "models": ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"],
+        "models": ["claude-sonnet-4-20250514", "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"],
         "tier": "premium",
     },
     {
         "id": "mistral", "name": "Mistral AI",
-        "models": ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "open-mixtral-8x22b"],
+        "models": ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"],
         "tier": "standard",
     },
     {
         "id": "groq", "name": "Groq",
-        "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
+        "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it"],
         "tier": "basic",
     },
     {
         "id": "gemini", "name": "Google Gemini",
-        "models": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
-        "tier": "premium",
+        "models": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-2.0-flash-lite"],
+        "tier": "standard",
+    },
+    {
+        "id": "xai", "name": "xAI (Grok)",
+        "models": ["grok-4-1-fast-non-reasoning", "grok-3-mini"],
+        "tier": "standard",
     },
 ]
-
 # Token packages for purchase
 TOKEN_PACKAGES = [
     {"id": "tokens_50k", "name": "50K Tokens", "tokens": 50000, "price_cents": 500, "popular": False},

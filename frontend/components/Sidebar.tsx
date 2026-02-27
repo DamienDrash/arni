@@ -25,6 +25,7 @@ import {
   Megaphone,
   Send,
   AlertCircle,
+  Cpu,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
@@ -110,6 +111,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
         { name: t("sidebar.audit"), href: "/audit", icon: ScrollText },
         { name: t("sidebar.settings"), href: "/settings", icon: ShieldCheck },
         { name: "Infrastructure", href: "/infrastructure", icon: Server },
+        { name: "LLM Kosten", href: "/llm-costs", icon: Cpu },
       ],
     },
   ];
