@@ -23,6 +23,8 @@ from app.swarm.llm import LLMClient
 from app.swarm.router.intents import Intent
 from app.prompts.engine import get_engine
 from app.prompts.context import build_tenant_context
+from app.core.feature_gates import FeatureGate
+from fastapi import HTTPException
 
 logger = structlog.get_logger()
 

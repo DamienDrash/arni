@@ -60,7 +60,7 @@ interface SetupStep {
 interface ConfigField {
   key: string;
   label: string;
-  type: "text" | "password" | "select" | "toggle";
+  type: "text" | "password" | "select" | "toggle" | "qr_code";
   placeholder?: string;
   helpText?: string;
   options?: string[];
@@ -193,6 +193,84 @@ const CATEGORIES: Array<{
 // INTEGRATION DEFINITIONS
 // ══════════════════════════════════════════════════════════════════════════════
 
+
+function WhatsAppQrCode() {
+  const [qrSrc, setQrSrc] = React.useState<string | null>(null);
+  const [qrStatus, setQrStatus] = React.useState<"loading" | "ready" | "connected" | "error">("loading");
+  const [errorMsg, setErrorMsg] = React.useState("");
+  const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchQr = React.useCallback(async () => {
+    try {
+      const res = await apiFetch("/admin/platform/whatsapp/qr-image");
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setQrSrc(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
+        setQrStatus("ready");
+        setErrorMsg("");
+      } else if (res.status === 404) {
+        const data = await res.json().catch(() => ({ detail: "" }));
+        if (data.detail === "CONNECTED") {
+          setQrStatus("connected");
+          if (intervalRef.current) clearInterval(intervalRef.current);
+        } else {
+          setQrStatus("loading");
+          setErrorMsg("QR-Code wird generiert...");
+        }
+      } else {
+        setQrStatus("error");
+        setErrorMsg("WhatsApp Bridge nicht erreichbar");
+      }
+    } catch {
+      setQrStatus("error");
+      setErrorMsg("Verbindungsfehler");
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchQr();
+    intervalRef.current = setInterval(fetchQr, 15000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [fetchQr]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: 24, borderRadius: 16, background: "rgba(37,211,102,0.06)", border: "1px solid rgba(37,211,102,0.2)" }}>
+      {qrStatus === "connected" ? (
+        <>
+          <CheckCircle2 size={48} color="#25D366" />
+          <p style={{ fontSize: 15, fontWeight: 700, color: "#25D366", margin: 0 }}>WhatsApp ist verbunden!</p>
+        </>
+      ) : qrStatus === "ready" && qrSrc ? (
+        <>
+          <div style={{ background: "#fff", padding: 16, borderRadius: 12, boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
+            <img src={qrSrc} alt="WhatsApp QR Code" style={{ width: 256, height: 256, display: "block" }} />
+          </div>
+          <p style={{ fontSize: 12, color: "#888", margin: 0, textAlign: "center" }}>
+            Öffne WhatsApp auf deinem Handy → Einstellungen → Verknüpfte Geräte → Gerät hinzufügen
+          </p>
+          <button onClick={fetchQr} style={{ fontSize: 12, color: "#25D366", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+            QR-Code neu laden
+          </button>
+        </>
+      ) : qrStatus === "error" ? (
+        <>
+          <AlertCircle size={36} color="#FF6B6B" />
+          <p style={{ fontSize: 13, fontWeight: 600, color: "#FF6B6B", margin: 0 }}>{errorMsg}</p>
+          <button onClick={fetchQr} style={{ fontSize: 12, color: "#25D366", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+            Erneut versuchen
+          </button>
+        </>
+      ) : (
+        <>
+          <Loader2 size={36} color="#25D366" className="animate-spin" />
+          <p style={{ fontSize: 13, color: "#888", margin: 0 }}>{errorMsg || "QR-Code wird geladen..."}</p>
+        </>
+      )}
+    </div>
+  );
+}
+
 const INTEGRATIONS: IntegrationDef[] = [
   // ── Communication ─────────────────────────────────────────────────────────
   {
@@ -209,8 +287,8 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "whatsapp",
     setupSteps: [
       { title: "Overview", description: "WhatsApp Web connects via QR code — the simplest way to get started.", type: "info" },
-      { title: "Scan QR Code", description: "Open WhatsApp on your phone and scan the QR code displayed here.", type: "config", fields: [
-        { key: "mode", label: "Connection Mode", type: "select", options: ["qr"], helpText: "QR mode is available on all plans" },
+      { title: "Scan QR Code", description: "Open WhatsApp on your phone, go to Settings > Linked Devices > Link a Device, and scan the QR code below.", type: "config", fields: [
+        { key: "qr_display", label: "QR Code", type: "qr_code", helpText: "Scan this QR code with WhatsApp on your phone to connect" },
       ]},
       { title: "Verify Connection", description: "We'll verify your WhatsApp connection is active.", type: "test" },
       { title: "Ready!", description: "WhatsApp Web is connected and ready to receive messages.", type: "complete" },
@@ -1371,6 +1449,8 @@ export default function SettingsIntegrationsPage() {
                               }} />
                             </button>
                           </div>
+                        ) : field.type === "qr_code" ? (
+                          <WhatsAppQrCode />
                         ) : (
                           <div style={{ position: "relative" }}>
                             <input
