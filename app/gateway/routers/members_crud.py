@@ -75,6 +75,7 @@ def _check_member_limit(tenant_id: int):
 
 # ── Member CRUD ────────────────────────────────────────────────────────────────
 
+@router.get("", response_model=List[Dict[str, Any]])
 @router.get("/", response_model=List[Dict[str, Any]])
 def list_members(
     skip: int = 0, 
@@ -105,6 +106,7 @@ def list_members(
     finally:
         db.close()
 
+@router.post("", response_model=Dict[str, Any])
 @router.post("/", response_model=Dict[str, Any])
 def create_member(
     member: MemberCreate,
@@ -116,6 +118,21 @@ def create_member(
     
     db = SessionLocal()
     try:
+        # Duplicate check: email or phone must be unique per tenant
+        if member.email:
+            existing = db.query(StudioMember).filter(
+                StudioMember.tenant_id == user.tenant_id,
+                StudioMember.email == member.email
+            ).first()
+            if existing:
+                raise HTTPException(status_code=409, detail=f"Ein Kontakt mit der E-Mail {member.email} existiert bereits.")
+        if member.phone_number:
+            existing = db.query(StudioMember).filter(
+                StudioMember.tenant_id == user.tenant_id,
+                StudioMember.phone_number == member.phone_number
+            ).first()
+            if existing:
+                raise HTTPException(status_code=409, detail=f"Ein Kontakt mit der Telefonnummer {member.phone_number} existiert bereits.")
         new_member = StudioMember(
             tenant_id=user.tenant_id,
             customer_id=0, # Placeholder for manual
@@ -199,6 +216,7 @@ def update_member(
         db.close()
 
 @router.delete("/bulk")
+@router.delete("/bulk/")
 def bulk_delete_members(
     req: BulkDeleteRequest,
     user: AuthContext = Depends(get_current_user)
@@ -239,6 +257,7 @@ def list_custom_columns(user: AuthContext = Depends(get_current_user)):
         db.close()
 
 @router.post("/columns")
+@router.post("/columns/")
 def create_custom_column(
     col: CustomColumnCreate,
     user: AuthContext = Depends(get_current_user)
@@ -267,6 +286,7 @@ def create_custom_column(
 # ── CSV Import/Export ──────────────────────────────────────────────────────────
 
 @router.post("/import/csv")
+@router.post("/import/csv/")
 async def import_csv(
     file: UploadFile = File(...),
     background_tasks: BackgroundTasks = BackgroundTasks(),
@@ -360,6 +380,7 @@ def _process_csv_import(csv_content: str, tenant_id: int):
         db.close()
 
 @router.get("/export/csv")
+@router.get("/export/csv/")
 def export_csv(user: AuthContext = Depends(get_current_user)):
     """Export all members as CSV."""
     db = SessionLocal()

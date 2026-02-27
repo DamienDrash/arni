@@ -70,6 +70,21 @@ CONNECTOR_REGISTRY = {
         "setup_doc": "postmark.md",
         "icon": "mail",
     },
+    "smtp_email": {
+        "name": "SMTP E-Mail",
+        "category": "messaging",
+        "description": "Eigener SMTP-Server für E-Mail-Versand.",
+        "fields": [
+            {"key": "host", "label": "SMTP Host", "type": "text"},
+            {"key": "port", "label": "Port", "type": "text"},
+            {"key": "username", "label": "Benutzername", "type": "text"},
+            {"key": "password", "label": "Passwort", "type": "password"},
+            {"key": "from_email", "label": "Absender-E-Mail", "type": "text"},
+            {"key": "from_name", "label": "Absendername", "type": "text", "optional": True},
+        ],
+        "setup_doc": "smtp.md",
+        "icon": "mail",
+    },
     "instagram": {
         "name": "Instagram Messenger",
         "category": "messaging",

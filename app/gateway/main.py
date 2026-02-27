@@ -155,6 +155,8 @@ app.add_middleware(
 app.include_router(webhooks.router)
 app.include_router(voice.router)
 app.include_router(websocket.router)
+from app.gateway.routers import members_crud as _mc
+app.include_router(_mc.router)
 app.include_router(admin_router)
 app.include_router(billing_router, prefix="/admin")
 
@@ -166,7 +168,7 @@ app.include_router(metrics_router)
 from app.gateway.routers import members_crud, integrations_sync, connector_hub, permissions, platform_ai, plans_admin
 from app.gateway.routers import revenue_analytics, tenant_llm, campaigns
 from app.gateway.routers import docker_management
-app.include_router(members_crud.router)
+from app.gateway.routers import smtp_config
 app.include_router(integrations_sync.router)
 app.include_router(connector_hub.router)
 app.include_router(permissions.router)
@@ -176,6 +178,7 @@ app.include_router(revenue_analytics.router)
 app.include_router(tenant_llm.router)
 app.include_router(campaigns.router)
 app.include_router(docker_management.router)
+app.include_router(smtp_config.router)
 
 # --- ACP Router ---
 from app.acp.server import router as acp_router

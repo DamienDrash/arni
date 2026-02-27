@@ -3207,35 +3207,52 @@ async def get_whatsapp_qr(user: AuthContext = Depends(get_current_user)) -> dict
 
 @router.get("/platform/whatsapp/qr-image")
 async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
-    """Proxy and extract the raw QR image from the bridge's HTML dashboard."""
+    """Get QR code image from WAHA bridge for WhatsApp pairing."""
     _require_tenant_admin_or_system(user)
     from fastapi.responses import Response
-    import re
-    import base64
     
     slug = _safe_tenant_slug(user)
-    # The bridge serves an HTML page with the QR embedded as base64
-    bridge_url = (persistence.get_setting("bridge_qr_url") or "http://ariia-whatsapp-bridge:3000/qr")
+    waha_url = persistence.get_setting("waha_api_url", tenant_id=user.tenant_id) or "http://ariia-whatsapp-bridge:3000"
+    waha_key = persistence.get_setting("waha_api_key", tenant_id=user.tenant_id) or "ariia-waha-secret"
+    session_name = slug or "default"
     
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(bridge_url)
+            # 1. Ensure session exists
+            sessions_resp = await client.get(
+                f"{waha_url}/api/sessions",
+                headers={"X-Api-Key": waha_key}
+            )
+            if sessions_resp.status_code == 200:
+                sessions = sessions_resp.json()
+                session_names = [s["name"] for s in sessions]
+                if session_name not in session_names:
+                    # Create session
+                    await client.post(
+                        f"{waha_url}/api/sessions/start",
+                        headers={"X-Api-Key": waha_key, "Content-Type": "application/json"},
+                        json={"name": session_name}
+                    )
+                    import asyncio
+                    await asyncio.sleep(3)
+                else:
+                    # Check if already connected
+                    for s in sessions:
+                        if s["name"] == session_name and s.get("status") == "WORKING":
+                            raise HTTPException(status_code=404, detail="CONNECTED")
             
-            if resp.status_code != 200:
-                raise HTTPException(status_code=502, detail="Bridge nicht bereit")
+            # 2. Get QR code as PNG
+            qr_resp = await client.get(
+                f"{waha_url}/api/{session_name}/auth/qr",
+                headers={"X-Api-Key": waha_key, "Accept": "image/png"}
+            )
             
-            html_content = resp.text
-            # Regex to find the base64 image data in the <img> tag
-            match = re.search(r'src="data:image/png;base64,([^"]+)"', html_content)
-            
-            if not match:
-                # Check if it's already connected (the bridge page changes text then)
-                if "Linked" in html_content or "connected" in html_content.lower():
-                    raise HTTPException(status_code=404, detail="CONNECTED")
+            if qr_resp.status_code == 200 and qr_resp.headers.get("content-type", "").startswith("image/"):
+                return Response(content=qr_resp.content, media_type="image/png")
+            elif qr_resp.status_code == 404 or b"QR code" not in qr_resp.content:
                 raise HTTPException(status_code=404, detail="NO_QR_FOUND")
-            
-            img_data = base64.b64decode(match.group(1))
-            return Response(content=img_data, media_type="image/png")
+            else:
+                raise HTTPException(status_code=502, detail="QR-Code konnte nicht geladen werden")
             
     except HTTPException:
         raise

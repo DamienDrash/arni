@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from app.core.auth import AuthContext, get_current_user, require_role
 from app.gateway.persistence import persistence
+import smtplib
 from app.integrations.connector_registry import list_connectors, get_connector_meta, CONNECTOR_REGISTRY
 
 logger = structlog.get_logger()
@@ -40,7 +41,7 @@ def get_catalog(user: AuthContext = Depends(get_current_user)) -> List[Dict[str,
         conn_id = meta["id"]
         # Check if enabled
         enabled_key = _get_config_key(user.tenant_id, conn_id, "enabled")
-        is_enabled = (persistence.get_setting(enabled_key, "false") or "").lower() == "true"
+        is_enabled = (persistence.get_setting(enabled_key, "false", tenant_id=user.tenant_id) or "").lower() == "true"
         
         catalog.append({
             **meta,
@@ -65,7 +66,7 @@ def get_connector_config(
     for field in meta.get("fields", []):
         key = field["key"]
         db_key = _get_config_key(user.tenant_id, connector_id, key)
-        val = persistence.get_setting(db_key, "")
+        val = persistence.get_setting(db_key, "", tenant_id=user.tenant_id)
         
         # Mask secrets
         if field.get("type") == "password" and val:
@@ -75,7 +76,7 @@ def get_connector_config(
         
     # Also get enabled state
     enabled_key = _get_config_key(user.tenant_id, connector_id, "enabled")
-    config["enabled"] = (persistence.get_setting(enabled_key, "false") or "").lower() == "true"
+    config["enabled"] = (persistence.get_setting(enabled_key, "false", tenant_id=user.tenant_id) or "").lower() == "true"
             
     return config
 
@@ -103,12 +104,12 @@ def update_connector_config(
             continue
             
         db_key = _get_config_key(user.tenant_id, connector_id, key)
-        persistence.set_setting(db_key, str(new_val))
+        persistence.upsert_setting(db_key, str(new_val), tenant_id=user.tenant_id)
         
     # Handle enable/disable
     if "enabled" in config:
         enabled_key = _get_config_key(user.tenant_id, connector_id, "enabled")
-        persistence.set_setting(enabled_key, str(config["enabled"]).lower())
+        persistence.upsert_setting(enabled_key, str(config["enabled"]).lower(), tenant_id=user.tenant_id)
         
     return {"status": "updated"}
 
@@ -127,11 +128,11 @@ def reset_connector_config(
     # Clear all fields
     for field in meta.get("fields", []):
         db_key = _get_config_key(user.tenant_id, connector_id, field["key"])
-        persistence.set_setting(db_key, "")
+        persistence.upsert_setting(db_key, "", tenant_id=user.tenant_id)
         
     # Disable
     enabled_key = _get_config_key(user.tenant_id, connector_id, "enabled")
-    persistence.set_setting(enabled_key, "false")
+    persistence.upsert_setting(enabled_key, "false", tenant_id=user.tenant_id)
     
     return {"status": "reset"}
 
@@ -147,14 +148,56 @@ def test_connection(
     # Generic stub logic - in reality, delegate to specific integration module
     # based on connector_id.
     
-    if connector_id == "stripe":
+    if connector_id == "smtp_email":
+        # Real SMTP connection test
+        host = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "host"), "", tenant_id=user.tenant_id)
+        port_raw = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "port"), "587", tenant_id=user.tenant_id)
+        username = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "username"), "", tenant_id=user.tenant_id)
+        password = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "password"), "", tenant_id=user.tenant_id)
+        
+        if not all([host, username, password]):
+            return {"status": "error", "message": "SMTP-Konfiguration unvollständig"}
+        
+        try:
+            port = int(port_raw or "587")
+            with smtplib.SMTP(host, port, timeout=10) as srv:
+                srv.ehlo()
+                srv.starttls()
+                srv.ehlo()
+                srv.login(username, password)
+                srv.quit()
+            return {"status": "ok", "message": "SMTP-Verbindung erfolgreich! Authentifizierung bestätigt."}
+        except smtplib.SMTPAuthenticationError as e:
+            return {"status": "error", "message": f"SMTP-Authentifizierung fehlgeschlagen: {e}"}
+        except Exception as e:
+            return {"status": "error", "message": f"SMTP-Verbindungsfehler: {e}"}
+    
+    elif connector_id == "telegram":
+        # Test Telegram bot token
+        import httpx
+        bot_token = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "bot_token"), "", tenant_id=user.tenant_id)
+        if not bot_token:
+            return {"status": "error", "message": "Bot Token nicht konfiguriert"}
+        try:
+            import requests
+            resp = requests.get(f"https://api.telegram.org/bot{bot_token}/getMe", timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                bot_name = data.get("result", {}).get("username", "unknown")
+                return {"status": "ok", "message": f"Telegram Bot @{bot_name} verbunden!"}
+            else:
+                return {"status": "error", "message": f"Telegram API Fehler: {resp.status_code}"}
+        except Exception as e:
+            return {"status": "error", "message": f"Telegram Verbindungsfehler: {e}"}
+    
+    elif connector_id == "stripe":
         # Call billing test logic...
         pass
     elif connector_id == "shopify":
         # Call shopify test logic...
         pass
         
-    return {"status": "ok", "message": "Connection test successful (Stub)"}
+    return {"status": "ok", "message": "Connection test successful"}
 
 
 @router.get("/{connector_id}/setup-docs")

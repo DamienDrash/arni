@@ -62,6 +62,49 @@ async def _send_email_via_postmark(*, to_email: str, subject: str, content: str,
         raise RuntimeError(f"Postmark email failed ({resp.status_code})")
 
 
+
+async def _send_email_via_smtp(*, to_email: str, subject: str, content: str, tenant_id: int | None) -> None:
+    """Send email via SMTP (tenant-specific or system-level fallback)."""
+    resolved_tenant = tenant_id or persistence.get_system_tenant_id()
+    
+    # Try tenant-specific SMTP first
+    host = persistence.get_setting("smtp_host", None, tenant_id=resolved_tenant)
+    username = persistence.get_setting("smtp_username", None, tenant_id=resolved_tenant)
+    password = persistence.get_setting("smtp_password", None, tenant_id=resolved_tenant)
+    port_raw = persistence.get_setting("smtp_port", "587", tenant_id=resolved_tenant)
+    from_email = persistence.get_setting("smtp_from_email", None, tenant_id=resolved_tenant)
+    from_name = persistence.get_setting("smtp_from_name", "ARIIA", tenant_id=resolved_tenant)
+    
+    # Fallback to platform-level (system) SMTP settings
+    if not all([host, username, password]):
+        host = persistence.get_setting("platform_email_smtp_host", None, tenant_id=1)
+        port_raw = persistence.get_setting("platform_email_smtp_port", "587", tenant_id=1)
+        username = persistence.get_setting("platform_email_smtp_user", None, tenant_id=1)
+        password = persistence.get_setting("platform_email_smtp_pass", None, tenant_id=1)
+        from_email = persistence.get_setting("platform_email_from_addr", username, tenant_id=1)
+        from_name = persistence.get_setting("platform_email_from_name", "ARIIA", tenant_id=1)
+        logger.info("gateway.email.using_system_smtp", tenant_id=resolved_tenant)
+    
+    if not from_email:
+        from_email = username
+    
+    if not all([host, username, password, from_email]):
+        raise RuntimeError(f"SMTP email config incomplete for tenant {resolved_tenant}")
+    
+    from app.integrations.email import SMTPMailer
+    port = int(port_raw or "587")
+    mailer = SMTPMailer(
+        host=host,
+        port=port,
+        username=username,
+        password=password,
+        from_email=from_email,
+        from_name=from_name,
+        use_starttls=True,
+    )
+    await asyncio.to_thread(mailer.send_text_mail, to_email, subject, content)
+    logger.info("email.sent_via_smtp", to=to_email, tenant_id=resolved_tenant)
+
 async def send_to_user(
     user_id: str, 
     platform: Platform, 
@@ -115,13 +158,25 @@ async def send_to_user(
             
         elif platform == Platform.EMAIL:
             subject = (metadata.get("subject") or "Re: Deine Nachricht an ARIIA").strip()[:150]
-            await _send_email_via_postmark(
-                to_email=user_id,
-                subject=subject,
-                content=content,
-                tenant_id=resolved_tid,
-            )
-            logger.info("email.reply_sent", to=user_id, tenant_id=resolved_tid)
+            # Try Postmark first, then SMTP fallback
+            postmark_token = persistence.get_setting("postmark_server_token", "", tenant_id=resolved_tid) or ""
+            postmark_from = persistence.get_setting("email_outbound_from", "", tenant_id=resolved_tid) or ""
+            if postmark_token and postmark_from:
+                await _send_email_via_postmark(
+                    to_email=user_id,
+                    subject=subject,
+                    content=content,
+                    tenant_id=resolved_tid,
+                )
+                logger.info("email.reply_sent_postmark", to=user_id, tenant_id=resolved_tid)
+            else:
+                await _send_email_via_smtp(
+                    to_email=user_id,
+                    subject=subject,
+                    content=content,
+                    tenant_id=resolved_tid,
+                )
+                logger.info("email.reply_sent_smtp", to=user_id, tenant_id=resolved_tid)
             
         elif platform in {Platform.PHONE, Platform.VOICE}:
             logger.info("voice.reply_buffered", to=user_id, note="Outbound voice synthesis not yet wired")

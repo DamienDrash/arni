@@ -168,6 +168,7 @@ export default function MembersPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [addForm, setAddForm] = useState({ first_name: "", last_name: "", email: "", phone_number: "" });
   const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState("");
 
   // ── CSV State ──────────────────────────────────────────────────────────────
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -188,8 +189,8 @@ export default function MembersPage() {
     setIsLoading(true);
     try {
       const [mRes, cRes] = await Promise.all([
-        apiFetch("/admin/members/"),
-        apiFetch("/admin/members/columns/"),
+        apiFetch("/admin/members"),
+        apiFetch("/admin/members/columns"),
       ]);
       if (mRes.ok) {
         const data = await mRes.json();
@@ -258,8 +259,9 @@ export default function MembersPage() {
   async function handleAddMember() {
     if (!addForm.first_name || !addForm.last_name) return;
     setAddSaving(true);
+    setAddError("");
     try {
-      const res = await apiFetch("/admin/members/", {
+      const res = await apiFetch("/admin/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(addForm),
@@ -267,8 +269,17 @@ export default function MembersPage() {
       if (res.ok) {
         setIsAddModalOpen(false);
         setAddForm({ first_name: "", last_name: "", email: "", phone_number: "" });
+        setAddError("");
         fetchMembers();
+      } else if (res.status === 409) {
+        const data = await res.json();
+        setAddError(data.detail || "Ein Kontakt mit diesen Daten existiert bereits.");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setAddError(data.detail || "Fehler beim Erstellen des Kontakts.");
       }
+    } catch (e) {
+      setAddError("Netzwerkfehler. Bitte versuchen Sie es erneut.");
     } finally {
       setAddSaving(false);
     }
@@ -280,7 +291,7 @@ export default function MembersPage() {
     try {
       const formData = new FormData();
       formData.append("file", csvFile);
-      const res = await apiFetch("/admin/members/import/csv/", {
+      const res = await apiFetch("/admin/members/import/csv", {
         method: "POST",
         body: formData,
       });
@@ -301,7 +312,7 @@ export default function MembersPage() {
 
   async function handleCsvExport() {
     try {
-      const res = await apiFetch("/admin/members/export/csv/");
+      const res = await apiFetch("/admin/members/export/csv");
       if (res.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -318,7 +329,7 @@ export default function MembersPage() {
 
   async function bulkDelete() {
     if (!confirm(t("members.confirmDelete"))) return;
-    const res = await apiFetch("/admin/members/bulk/", {
+    const res = await apiFetch("/admin/members/bulk", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids: Array.from(selectedIds) }),
@@ -1510,9 +1521,26 @@ export default function MembersPage() {
                 style={inputStyle}
               />
             </div>
+            {addError && (
+              <div style={{
+                padding: "10px 14px",
+                borderRadius: 8,
+                background: "rgba(255,107,107,0.12)",
+                border: "1px solid rgba(255,107,107,0.3)",
+                color: "#FF6B6B",
+                fontSize: 12,
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}>
+                <AlertCircle size={14} />
+                {addError}
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
               <button
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={() => { setIsAddModalOpen(false); setAddError(""); }}
                 style={{
                   padding: "9px 18px",
                   borderRadius: 9,

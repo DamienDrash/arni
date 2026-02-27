@@ -136,16 +136,29 @@ async def _send_verification_email(
     member_name: str | None = None,
     tenant_id: int | None = None,
 ) -> bool:
-    # Logic extracted from main.py
-    host = persistence.get_setting("smtp_host", "smtp_host", tenant_id=tenant_id)
+    # Try tenant-specific SMTP first, then fall back to system (platform) SMTP
+    host = persistence.get_setting("smtp_host", None, tenant_id=tenant_id)
+    username = persistence.get_setting("smtp_username", None, tenant_id=tenant_id)
+    password = persistence.get_setting("smtp_password", None, tenant_id=tenant_id)
     port_raw = persistence.get_setting("smtp_port", "587", tenant_id=tenant_id)
-    username = persistence.get_setting("smtp_username", "", tenant_id=tenant_id)
-    password = persistence.get_setting("smtp_password", "", tenant_id=tenant_id)
-    from_email = persistence.get_setting("smtp_from_email", username, tenant_id=tenant_id)
+    from_email = persistence.get_setting("smtp_from_email", None, tenant_id=tenant_id)
     from_name = persistence.get_setting("smtp_from_name", "Ariia", tenant_id=tenant_id)
+    
+    # Fallback to platform-level (system) SMTP settings
+    if not all([host, username, password]):
+        host = persistence.get_setting("platform_email_smtp_host", None, tenant_id=1)
+        port_raw = persistence.get_setting("platform_email_smtp_port", "587", tenant_id=1)
+        username = persistence.get_setting("platform_email_smtp_user", None, tenant_id=1)
+        password = persistence.get_setting("platform_email_smtp_pass", None, tenant_id=1)
+        from_email = persistence.get_setting("platform_email_from_addr", username, tenant_id=1)
+        from_name = persistence.get_setting("platform_email_from_name", "ARIIA", tenant_id=1)
+        logger.info("gateway.verification.using_system_smtp")
+    
+    if not from_email:
+        from_email = username
+    
     subject = persistence.get_setting("verification_email_subject", "Dein ARIIA Verifizierungscode", tenant_id=tenant_id)
     use_starttls = _bool_setting(persistence.get_setting("smtp_use_starttls", "true", tenant_id=tenant_id))
-
     if not all([host, username, password, from_email]):
         logger.warning("gateway.verification.smtp_missing_config")
         return False
@@ -296,6 +309,23 @@ async def process_and_reply(message: InboundMessage) -> None:
                     "one_time_keyboard": True
                 }
                 await tg_bot.send_message(message.user_id, welcome_msg, reply_markup=keyboard)
+                # Save both user message and bot greeting to chat history
+                await asyncio.to_thread(
+                    persistence.save_message,
+                    user_id=message.user_id,
+                    role="user",
+                    content=message.content,
+                    platform=message.platform,
+                    tenant_id=message.tenant_id
+                )
+                await asyncio.to_thread(
+                    persistence.save_message,
+                    user_id=message.user_id,
+                    role="assistant",
+                    content=welcome_msg,
+                    platform=message.platform,
+                    tenant_id=message.tenant_id
+                )
                 return
             await bus.disconnect()
 
@@ -440,6 +470,15 @@ async def webhook_telegram_tenant(
         if phone:
             # 1. Save phone to session
             await asyncio.to_thread(persistence.get_or_create_session, str(contact["user_id"]), Platform.TELEGRAM, tenant_id=tenant_id, phone_number=phone)
+            # Save contact sharing as user message
+            await asyncio.to_thread(
+                persistence.save_message,
+                user_id=str(contact["user_id"]),
+                role="user",
+                content="[Kontakt geteilt]",
+                platform=Platform.TELEGRAM,
+                tenant_id=tenant_id
+            )
             # 2. Try to match member
             matched = await asyncio.to_thread(match_member_by_phone, phone, tenant_id)
             if matched:

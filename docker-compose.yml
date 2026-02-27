@@ -163,7 +163,7 @@ services:
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
     restart: always
     ports:
-      - "3001:3000"
+      - "3002:3000"
     depends_on:
       - prometheus
     networks:
@@ -239,7 +239,26 @@ services:
     networks:
       - ariia-network
 
+
+  # WhatsApp WAHA Bridge (QR Code based)
+  ariia-whatsapp-bridge:
+    image: devlikeapro/waha:latest
+    container_name: ariia_whatsapp_bridge
+    restart: always
+    ports:
+      - "3002:3000"
+    environment:
+      - WHATSAPP_DEFAULT_ENGINE=WEBJS
+      - WHATSAPP_RESTART_ALL_SESSIONS=true
+      - WAHA_PRINT_QR=true
+      - WAHA_API_KEY=ariia-waha-secret
+    volumes:
+      - waha_sessions:/app/.sessions
+    networks:
+      - ariia-network
+
 volumes:
+  waha_sessions:
   qdrant_data:
   redis_data:
   ariia_data:
