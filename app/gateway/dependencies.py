@@ -69,16 +69,45 @@ def _wa_setting(key: str, tenant_id: int) -> str:
 
 
 def get_whatsapp_client(tenant_id: int | None = None) -> WhatsAppClient:
-    """Returns a tenant-aware WhatsAppClient instance."""
+    """Returns a tenant-aware WhatsAppClient instance.
+    Falls Meta Cloud Daten fehlen, wird die WAHA (WhatsApp Web) Konfiguration geladen.
+    """
     token = ""
     phone_id = ""
     secret = ""
+    waha_url = None
+    waha_key = None
+    
     if tenant_id is not None:
         token = _wa_setting("access_token", tenant_id)
         phone_id = _wa_setting("phone_number_id", tenant_id)
         secret = _wa_setting("app_secret", tenant_id)
+        
+        # Load WAHA bridge settings (Persistence first, then Env)
+        waha_url = persistence.get_setting("waha_api_url", tenant_id=tenant_id)
+        waha_key = persistence.get_setting("waha_api_key", tenant_id=tenant_id)
+        
+    # Global fallbacks if tenant-specific settings are missing
+    if not waha_url:
+        waha_url = "http://ariia-whatsapp-bridge:3000"
+    if not waha_key:
+        waha_key = "ariia-waha-secret"
+        
+    # If Meta token is missing, we prioritize WAHA
+    if not token:
+        # We nullify Meta fields to ensure WhatsAppClient chooses WAHA path
+        return WhatsAppClient(
+            access_token="",
+            phone_number_id="",
+            app_secret="",
+            waha_api_url=waha_url,
+            waha_api_key=waha_key
+        )
+
     return WhatsAppClient(
         access_token=token,
         phone_number_id=phone_id,
         app_secret=secret,
+        waha_api_url=waha_url,
+        waha_api_key=waha_key
     )

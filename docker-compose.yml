@@ -252,6 +252,9 @@ services:
       - WHATSAPP_RESTART_ALL_SESSIONS=true
       - WAHA_PRINT_QR=true
       - WAHA_API_KEY=ariia-waha-secret
+      - WHATSAPP_HOOK_URL=http://ariia-core:8000/webhook/waha/ariia-demo
+      - WHATSAPP_HOOK_EVENTS=message
+      - WHATSAPP_HOOK_API_KEY=ariia-waha-secret
     volumes:
       - waha_sessions:/app/.sessions
     networks:

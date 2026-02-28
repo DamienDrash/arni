@@ -446,6 +446,57 @@ async def webhook_inbound_tenant(
     return {"status": "ok", "processed": str(messages_processed)}
 
 
+@router.post("/webhook/waha/{tenant_slug}")
+async def webhook_waha_tenant(
+    tenant_slug: str,
+    payload: dict[str, Any],
+) -> dict[str, str]:
+    """Inbound from WAHA (WhatsApp Web bridge)."""
+    tenant_id = _resolve_tenant_id_by_slug(tenant_slug)
+    if tenant_id is None:
+        logger.error("webhook.waha.unknown_tenant", slug=tenant_slug)
+        raise HTTPException(status_code=404, detail="Unknown tenant")
+
+    event_type = payload.get("event")
+    if event_type != "message":
+        return {"status": "ignored", "event": str(event_type)}
+
+    data = payload.get("payload", {})
+    # WAHA message structure: from (sender), body (text), id (message_id)
+    sender = data.get("from")
+    body = data.get("body", "")
+    msg_id = data.get("id", str(uuid4()))
+    
+    if not sender or not body:
+        return {"status": "ignored", "detail": "Missing sender or body"}
+
+    # WAHA usually sends sender as "491761234567@c.us"
+    # We strip the @c.us for internal matching if needed, or keep it as user_id
+    user_id = sender.split("@")[0]
+
+    inbound = InboundMessage(
+        message_id=msg_id,
+        platform=Platform.WHATSAPP,
+        user_id=user_id,
+        content=body,
+        content_type="text",
+        metadata={"waha_session": payload.get("session", "default"), "full_sender": sender},
+        tenant_id=tenant_id,
+    )
+    
+    logger.info("webhook.waha.inbound", tenant=tenant_slug, sender=user_id)
+
+    # Publish to Redis Bus for real-time workers
+    channel = redis_bus.get_tenant_channel(RedisBus.CHANNEL_INBOUND, tenant_id)
+    await redis_bus.publish(channel, inbound.model_dump_json())
+
+    # Async persist and process
+    asyncio.create_task(save_inbound_to_db(inbound))
+    asyncio.create_task(process_and_reply(inbound))
+
+    return {"status": "ok", "processed": "1"}
+
+
 @router.post("/webhook/telegram/{tenant_slug}")
 async def webhook_telegram_tenant(
     tenant_slug: str,

@@ -19,6 +19,7 @@ GRAPH_API_BASE = f"https://graph.facebook.com/{GRAPH_API_VERSION}"
 
 class WhatsAppClient:
     """Meta Cloud API client for WhatsApp Business messaging.
+    Now supports WAHA (WhatsApp Web bridge) as a fallback/alternative.
 
     Handles outbound text/template messages and webhook verification.
     """
@@ -28,22 +29,21 @@ class WhatsAppClient:
         access_token: str,
         phone_number_id: str,
         app_secret: str = "",
+        waha_api_url: str | None = None,
+        waha_api_key: str | None = None,
     ) -> None:
         self._access_token = access_token
         self._phone_number_id = phone_number_id
         self._app_secret = app_secret
         self._base_url = f"{GRAPH_API_BASE}/{phone_number_id}/messages"
+        self.waha_api_url = waha_api_url
+        self.waha_api_key = waha_api_key
 
     async def send_text(self, to: str, body: str) -> dict[str, Any]:
-        """Send a text message to a WhatsApp user.
-
-        Args:
-            to: Recipient phone number (E.164 format, e.g. '491701234567').
-            body: Message text content.
-
-        Returns:
-            API response dict with message ID.
-        """
+        """Send a text message to a WhatsApp user."""
+        if self.waha_api_url:
+            return await self._send_waha(to, body)
+            
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
@@ -52,6 +52,32 @@ class WhatsAppClient:
             "text": {"preview_url": False, "body": body},
         }
         return await self._send(payload)
+
+    async def _send_waha(self, to: str, body: str) -> dict[str, Any]:
+        """Send message via WAHA (WhatsApp Web bridge)."""
+        # Ensure 'to' has @c.us for WAHA if it doesn't
+        chat_id = to if "@" in to else f"{to}@c.us"
+        
+        payload = {
+            "chatId": chat_id,
+            "text": body,
+            "session": "default"
+        }
+        
+        headers = {"Content-Type": "application/json"}
+        if self.waha_api_key:
+            headers["X-Api-Key"] = self.waha_api_key
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(
+                f"{self.waha_api_url}/api/sendText",
+                json=payload,
+                headers=headers
+            )
+            if response.status_code >= 400:
+                logger.error("whatsapp.waha_send_failed", status=response.status_code, body=response.text)
+                return {"error": "WAHA_FAILED", "status": response.status_code}
+            return response.json()
 
     async def send_template(
         self,
