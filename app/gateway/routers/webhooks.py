@@ -646,6 +646,18 @@ async def webhook_email_tenant(
     
     asyncio.create_task(save_inbound_to_db(norm))
     asyncio.create_task(process_and_reply(norm))
+
+    # Real-time Broadcast to Dashboard
+    from app.gateway.utils import broadcast_to_admins
+    asyncio.create_task(broadcast_to_admins({
+        "type": "ghost.message_in",
+        "user_id": norm.user_id,
+        "tenant_id": tenant_id,
+        "platform": "email",
+        "content": norm.content,
+        "message_id": norm.message_id
+    }, tenant_id=tenant_id))
+
     return {"status": "ok"}
 
 @router.post("/webhook/sms/{tenant_slug}")
@@ -667,6 +679,20 @@ async def webhook_sms_tenant(
     
     asyncio.create_task(save_inbound_to_db(norm))
     asyncio.create_task(process_and_reply(norm))
+
+    # Real-time Broadcast to Dashboard
+    from app.gateway.utils import broadcast_to_admins
+    asyncio.create_task(broadcast_to_admins({
+        "type": "ghost.message_in",
+        "user_id": norm.user_id,
+        "tenant_id": tenant_id,
+        "platform": "sms",
+        "content": norm.content,
+        "message_id": norm.message_id
+    }, tenant_id=tenant_id))
+
+    from fastapi.responses import Response
+    return Response(content='<?xml version="1.0" encoding="UTF-8"?><Response></Response>', media_type="text/xml")
     
     # Twilio expects TwiML response
     return Response(content="<Response></Response>", media_type="text/xml")
