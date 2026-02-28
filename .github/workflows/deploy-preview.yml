@@ -1,0 +1,50 @@
+name: Deploy Preview Branch to VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy (default: current feature branch)"
+        required: false
+        default: "claude/claude-md-mlxv7x8202gilclt-Vowks"
+
+jobs:
+  deploy-preview:
+    name: Deploy to VPS (preview)
+    runs-on: ubuntu-latest
+
+    environment:
+      name: production
+      url: http://185.209.228.251:8000/health
+
+    steps:
+      - name: Deploy branch via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /root/.openclaw/workspace/arni
+
+            BRANCH="${{ github.event.inputs.branch }}"
+            echo "🔀 Checking out branch: $BRANCH"
+            git fetch origin "$BRANCH"
+            git checkout "$BRANCH"
+            git pull origin "$BRANCH"
+
+            echo "🐍 Restarting backend (hot-mounted – no rebuild needed)..."
+            docker compose restart arni-core
+
+            echo "⏳ Waiting for backend to be ready..."
+            sleep 6
+            curl -sf http://localhost:8000/health || exit 1
+
+            echo "⚛️  Rebuilding frontend..."
+            docker compose exec -T arni-frontend sh -c "npm install --prefer-offline && npm run build && pm2 restart all 2>/dev/null || true"
+            docker compose restart arni-frontend
+
+            echo "✅ Preview deployed: branch=$BRANCH"
+            echo "   Backend:  http://185.209.228.251:8000/health"
+            echo "   Frontend: http://185.209.228.251:3000"
