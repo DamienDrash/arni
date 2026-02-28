@@ -288,8 +288,8 @@ class FeatureGate:
                 if dialect == "postgresql":
                     db.execute(
                         text(
-                            f"INSERT INTO usage_records (tenant_id, period_year, period_month, {field}) "
-                            f"VALUES (:tid, :yr, :mo, :amt) "
+                            f"INSERT INTO usage_records (tenant_id, period_year, period_month, {field}, messages_inbound, messages_outbound, active_members, llm_tokens_used, llm_tokens_purchased) "
+                            f"VALUES (:tid, :yr, :mo, :amt, 0, 0, 0, 0, 0) "
                             f"ON CONFLICT (tenant_id, period_year, period_month) "
                             f"DO UPDATE SET {field} = usage_records.{field} + :amt"
                         ),
@@ -331,8 +331,8 @@ class FeatureGate:
                 if dialect == "postgresql":
                     db.execute(
                         text(
-                            f"INSERT INTO usage_records (tenant_id, period_year, period_month, {field}) "
-                            f"VALUES (:tid, :yr, :mo, :val) "
+                            f"INSERT INTO usage_records (tenant_id, period_year, period_month, {field}, messages_inbound, messages_outbound, active_members, llm_tokens_used, llm_tokens_purchased) "
+                            f"VALUES (:tid, :yr, :mo, :val, 0, 0, 0, 0, 0) "
                             f"ON CONFLICT (tenant_id, period_year, period_month) "
                             f"DO UPDATE SET {field} = :val"
                         ),

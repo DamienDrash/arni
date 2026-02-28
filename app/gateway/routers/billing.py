@@ -1387,8 +1387,8 @@ def _on_token_purchase_completed(obj: dict, meta: dict) -> None:
         dialect = engine.dialect.name
         if dialect == "postgresql":
             db.execute(text(
-                "INSERT INTO usage_records (tenant_id, period_year, period_month, llm_tokens_purchased) "
-                "VALUES (:tid, :yr, :mo, :amt) "
+                "INSERT INTO usage_records (tenant_id, period_year, period_month, llm_tokens_purchased, messages_inbound, messages_outbound, active_members, llm_tokens_used) "
+                "VALUES (:tid, :yr, :mo, :amt, 0, 0, 0, 0) "
                 "ON CONFLICT (tenant_id, period_year, period_month) "
                 "DO UPDATE SET llm_tokens_purchased = usage_records.llm_tokens_purchased + :amt"
             ), {"tid": tenant_id, "yr": now.year, "mo": now.month, "amt": tokens_amount})

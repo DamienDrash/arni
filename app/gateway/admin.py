@@ -1157,7 +1157,7 @@ async def list_recent_chats(limit: int = 10, user: AuthContext = Depends(get_cur
             results.append({
                 "user_id": s.user_id,
                 "platform": s.platform,
-                "last_active": s.last_message_at.isoformat(),
+                "last_active": s.last_message_at.isoformat() if s.last_message_at else None,
                 "is_active": s.is_active,
                 # Enhanced User Data (Sprint 13)
                 "user_name": s.user_name,
@@ -1218,15 +1218,6 @@ async def send_intervention(
 
     await _send_admin_intervention(user_id, platform, content, tenant_id=user.tenant_id)
 
-    asyncio.create_task(asyncio.to_thread(
-        persistence.save_message,
-        user_id=user_id,
-        role="assistant",
-        content=content,
-        platform=platform,
-        metadata={"source": "admin", "type": "intervention"},
-        tenant_id=user.tenant_id,
-    ))
     logger.info("admin.intervention.sent", user_id=user_id, platform=platform.value)
     return {"status": "ok"}
 
@@ -3227,9 +3218,12 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
             if sessions_resp.status_code == 200:
                 sessions = sessions_resp.json()
                 session_names = [s["name"] for s in sessions]
-                if session_name not in session_names:
+                
+                # Check for existing session state
+                current_session = next((s for s in sessions if s["name"] == session_name), None)
+                
+                if not current_session:
                     # Create session with dynamic webhook for this tenant
-                    # Use internal docker networking (ariia-core:8000)
                     webhook_url = f"http://ariia-core:8000/webhook/waha/{slug}"
                     await client.post(
                         f"{waha_url}/api/sessions/start",
@@ -3249,31 +3243,41 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
                     )
                     import asyncio
                     await asyncio.sleep(5)
+                elif current_session.get("status") in {"STOPPED", "FAILED"}:
+                    # Restart dead session
+                    await client.post(
+                        f"{waha_url}/api/sessions/{session_name}/start",
+                        headers={"X-Api-Key": waha_key}
+                    )
+                    import asyncio
+                    await asyncio.sleep(3)
                 else:
-                    # Check if already connected
-                    for s in sessions:
-                        if s["name"] == session_name:
-                            # Update webhook dynamically even if session exists
-                            webhook_url = f"http://ariia-core:8000/webhook/waha/{slug}"
-                            try:
-                                await client.post(
-                                    f"{waha_url}/api/sessions/{session_name}/webhooks",
-                                    headers={"X-Api-Key": waha_key, "Content-Type": "application/json"},
-                                    json={
-                                        "webhooks": [
-                                            {
-                                                "url": webhook_url,
-                                                "events": ["message"],
-                                                "hmac": waha_key
-                                            }
-                                        ]
-                                    }
-                                )
-                            except Exception:
-                                pass # Best effort for older WAHA versions
-                            
-                            if s.get("status") == "WORKING":
-                                raise HTTPException(status_code=404, detail="CONNECTED")
+                    # Session exists, ensure webhook is correct
+                    # Update webhook dynamically even if session exists
+                    webhook_url = f"http://ariia-core:8000/webhook/waha/{slug}"
+                    current_webhooks = current_session.get("config", {}).get("webhooks", [])
+                    is_set = any(w.get("url") == webhook_url for w in current_webhooks)
+                    
+                    if not is_set or len(current_webhooks) > 1:
+                        try:
+                            await client.post(
+                                f"{waha_url}/api/sessions/{session_name}/webhooks",
+                                headers={"X-Api-Key": waha_key, "Content-Type": "application/json"},
+                                json={
+                                    "webhooks": [
+                                        {
+                                            "url": webhook_url,
+                                            "events": ["message"],
+                                            "hmac": waha_key
+                                        }
+                                    ]
+                                }
+                            )
+                        except Exception:
+                            pass
+                    
+                    if current_session.get("status") == "WORKING":
+                        raise HTTPException(status_code=404, detail="CONNECTED")
             
             # 2. Get QR code as PNG (with retry)
             qr_resp = None

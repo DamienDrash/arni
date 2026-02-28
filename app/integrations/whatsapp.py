@@ -75,8 +75,15 @@ class WhatsAppClient:
                 headers=headers
             )
             if response.status_code >= 400:
+                error_detail = response.text
+                try:
+                    error_json = response.json()
+                    if error_json.get("status") == "SCAN_QR_CODE":
+                        error_detail = "WHATSAPP_NOT_CONNECTED"
+                except Exception:
+                    pass
                 logger.error("whatsapp.waha_send_failed", status=response.status_code, body=response.text)
-                return {"error": "WAHA_FAILED", "status": response.status_code}
+                raise RuntimeError(error_detail)
             return response.json()
 
     async def send_template(
