@@ -1,10 +1,19 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Last updated: 2026-02-28 (ground-up codebase analysis).
+
+---
 
 ## What This Project Is
 
-ARNI (v1.4) is a multi-tenant SaaS AI agent platform for fitness studios (WhatsApp, Telegram, SMS, Email, Voice) with a full admin dashboard. Tenants are fully isolated — each gets their own subscription plan, Jinja2 prompt templates, knowledge base, and branding. Powered by swarm-based agent routing (GPT-4o-mini) with a self-improvement ("Soul") subsystem and deterministic guardrails.
+**ARNI** is a multi-tenant SaaS AI agent platform for fitness studios. Members interact via WhatsApp, Telegram, SMS, Email, and Voice. Studio admins manage everything through a Next.js dashboard. Each tenant is fully isolated: own subscription plan, Jinja2 prompt templates, knowledge base, branding, and Magicline API credentials.
+
+Core engine: swarm-based agent routing (GPT-4o-mini intent classification → 5 specialized agents). Deterministic guardrails run before every LLM call. A "Soul" subsystem enables self-improving prompt evolution. An ACP bridge enables sandboxed self-refactoring from an IDE.
+
+**Deployment target:** VPS at `185.209.228.251` | Gateway port 8000 | Frontend port 3000
+
+---
 
 ## Commands
 
@@ -19,14 +28,15 @@ pip install -e ".[dev]"
 redis-server --daemonize yes
 uvicorn app.gateway.main:app --host 0.0.0.0 --port 8000
 
-# Run (Docker – preferred, starts all services)
+# Run (Docker – preferred, starts all 6 services)
 docker compose up --build
 
 # Tests
 pytest tests/ -v
-pytest tests/test_auth.py -v          # single test file
-pytest tests/ -k "test_name" -v       # single test by name
+pytest tests/test_auth.py -v             # single file
+pytest tests/ -k "test_name" -v          # single test
 pytest tests/ --cov=app --cov-report=term-missing  # with coverage
+# Current status: 262 passed, ~87% coverage
 
 # Lint / Type-check
 ruff check .
@@ -40,243 +50,463 @@ cd frontend
 npm install
 npm run dev                   # dev server on :3000
 npm run qa:gate               # full quality gate: lint + typecheck + build
-npm run lint:strict           # ESLint with zero warnings
+npm run lint:strict           # ESLint, zero warnings allowed
 npm run typecheck             # tsc --noEmit
 npm run test:rbac             # RBAC contract tests
 npm run build                 # production build
 ```
 
-The CI pipeline (`.github/workflows/frontend_quality.yml`) runs `lint:strict`, `typecheck`, `test:rbac`, and `build` on every PR touching `frontend/`.
+CI (`.github/workflows/frontend_quality.yml`) runs `lint:strict`, `typecheck`, `test:rbac`, `build` on every PR touching `frontend/`.
+
+---
 
 ## Architecture
 
 ### Request Flow
 
 ```
-Platform (WA/TG/SMS/Email/Voice) → Webhook Endpoint (FastAPI)
+Platform (WA/TG/SMS/Email/Voice)
+  → Webhook Endpoint (FastAPI app/gateway/main.py)
   → InboundMessage normalization (app/integrations/normalizer.py)
-  → GuardrailsService (deterministic safety check, pre-LLM)
-  → Phone-based MFA verification gate (Redis)
+  → GuardrailsService.check()  ← deterministic safety, runs BEFORE any LLM call
+  → Phone-based MFA gate (Redis)
   → Member matching (app/gateway/member_matching.py)
-  → Swarm Router (GPT-4o-mini intent classifier)
+  → SwarmRouter (GPT-4o-mini intent classification)
   → Agent (Ops / Sales / Medic / Vision / Persona)
   → Platform Dispatcher → reply sent
 ```
 
-### Infrastructure (Docker Compose)
+### SwarmRouter Logic (Priority Order)
 
-| Service | Image | Purpose |
-|---------|-------|---------|
-| `arni-core` | Custom (Dockerfile) | FastAPI backend, port 8000 |
-| `arni-frontend` | node:20-slim | Next.js admin panel, port 3000 |
-| `redis` | redis:alpine | Pub/sub, session cache, MFA codes |
-| `qdrant` | qdrant/qdrant | Vector DB for RAG / knowledge base |
-| `postgres` | postgres:16-alpine | Primary relational DB (multi-tenant prod) |
+1. **Emergency hard-route** — keywords like `notfall`, `herzinfarkt`, `unfall`, `112` → Medic directly (bypasses LLM)
+2. **Booking action keywords** — delete/cancel/reschedule → Ops
+3. **Dialog context override** — check `pending_action` flag from Redis
+4. **LLM classification** — GPT-4o-mini (Ollama/Llama-3 fallback if OpenAI offline)
+5. **Confidence threshold** — if <0.6, fall back to keyword matching
+6. **Final fallback** → Persona (smalltalk)
 
-### Key Backend Services
+### Intent → Agent Mapping
 
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| Gateway | `app/gateway/main.py` | Webhook ingress, WebSocket `/ws/control` (Ghost Mode), health, `/metrics` |
-| Admin API | `app/gateway/admin.py` | REST endpoints for the dashboard (members, settings, knowledge, audit, etc.) |
-| Redis Bus | `app/gateway/redis_bus.py` | Async pub/sub: `arni:inbound`, `arni:outbound`, `arni:events` |
-| Redis Keys | `app/core/redis_keys.py` | Tenant-scoped key factory — all Redis keys MUST use this module |
-| Swarm Router | `app/swarm/router/router.py` | Intent classification → agent dispatch |
-| Swarm Intents | `app/swarm/router/intents.py` | Intent definitions and routing table |
-| Agents | `app/swarm/agents/` | Ops (booking), Sales (retention), Medic (health), Vision, Persona |
-| Swarm Tools | `app/swarm/tools/` | `magicline.py` (member-facing API wrapper), `knowledge_base.py` (RAG search) |
-| Guardrails | `app/core/guardrails.py` | Deterministic safety layer ("Iron Dome"), config-driven via `config/guardrails.yaml` |
-| Persistence | `app/gateway/persistence.py` | Singleton wrapping SQLAlchemy SessionLocal; `get_setting()`, `upsert_setting()` |
-| Persistence Helpers | `app/gateway/persistence_helpers.py` | Additional DB query helpers |
-| Member Matching | `app/gateway/member_matching.py` | Phone → StudioMember lookup |
-| Memory (Context) | `app/memory/context.py` | RAM context: 20 turns / 30 min TTL |
-| Memory (DB) | `app/memory/database.py` | SQLite sessions: 90 days retention |
-| Memory (Knowledge) | `app/memory/knowledge.py` | Per-tenant knowledge file access |
-| Memory (Graph) | `app/memory/graph.py` | GraphRAG FactGraph via NetworkX (member facts as nodes/edges) |
-| Memory (Consent) | `app/memory/consent.py` | GDPR Art. 6 + 17 ConsentManager; cascade deletion on revocation |
-| Memory (Analyzer) | `app/memory/member_memory_analyzer.py` | LLM-based extraction of durable member facts from chat history |
-| Memory (Flush) | `app/memory/flush.py` | Memory flush / cleanup routines |
-| Memory (Repository) | `app/memory/repository.py` | SessionRepository abstraction |
-| Prompt Builder | `app/core/prompt_builder.py` | Tenant-aware prompt hydration from Settings table |
-| Prompt Engine | `app/prompts/engine.py` | Jinja2 template renderer |
-| Integrations | `app/integrations/` | WhatsApp (HMAC-SHA256), Telegram, Email (SMTP), Magicline, PII filter, WA Flows |
-| Magicline | `app/integrations/magicline/` | `client.py`, `member_enrichment.py`, `members_sync.py`, `scheduler.py` |
-| WhatsApp Web | `app/integrations/whatsapp_web/` | Node.js bridge (Baileys-based); auth artifacts in `data/whatsapp/` |
-| Auth | `app/core/auth.py` | HMAC-SHA256 tokens, RBAC (system_admin / tenant_admin / tenant_user) |
-| Feature Gates | `app/core/feature_gates.py` | HTTP 402/429 enforcement for plan limits |
-| Observability | `app/core/observability.py` | LangFuse tracing wrapper with graceful fallback |
-| Instrumentation | `app/core/instrumentation.py` | Prometheus metrics (`http_requests_total`, `http_request_duration_seconds`) |
-| ACP Server | `app/acp/server.py` | WebSocket endpoint for IDE integration and self-refactoring |
-| ACP Sandbox | `app/acp/sandbox.py` | Isolated execution environment for code changes |
-| ACP Rollback | `app/acp/rollback.py` | Git-based rollback for ACP changes |
-| ACP Refactor | `app/acp/refactor.py` | Refactoring engine (runs inside sandbox) |
-| Soul / Evolution | `app/soul/` | `analyzer.py` (log analysis), `evolver.py` (prompt change proposals), `flow.py` (cycle orchestrator) |
-| Knowledge Ingest | `app/knowledge/ingest.py` | MD file ingest into ChromaDB |
-| Knowledge Store | `app/knowledge/store.py` | ChromaDB wrapper |
-| Knowledge Retriever | `app/core/knowledge/retriever.py` | HybridRetriever (vector + BM25) |
-| Skills | `skills/` | MCP-compliant skill definitions (e.g., `magicline-support/SKILL.md`) |
-| Config | `config/settings.py` | Pydantic Settings loaded from `.env` |
+| Intent | Agent | Purpose |
+|--------|-------|---------|
+| `booking` | `AgentOps` | Schedule, book, cancel, reschedule (Magicline tools) |
+| `sales` | `AgentSales` | Contract, cancellation, retention |
+| `health` | `AgentMedic` | Fitness advice, injuries — ALWAYS appends `medic_disclaimer_text`, fallback to 112 |
+| `crowd` | `AgentVision` | Occupancy detection (YOLOv8, stub by default) |
+| `smalltalk` | `AgentPersona` | Chitchat, greetings, general Q&A (knowledge base + handoff) |
+| `unknown` | `AgentPersona` | Final fallback |
 
-### Frontend Structure
+### Infrastructure (Docker Compose — 6 Services)
 
-Next.js App Router with role-gated pages. Auth uses a cookie `arni_access_token` (HMAC-SHA256, not JWT). Role matrix is contract-tested in `frontend/tests/rbac.contract.test.ts`.
+| Service | Image | Port | Purpose |
+|---------|-------|------|---------|
+| `arni-frontend` | `node:20-slim` | 3000 | Next.js admin dashboard |
+| `arni-core` | Custom (Dockerfile) | 8000 | FastAPI backend |
+| `arni-telegram` | Custom (Dockerfile) | — | Telegram polling worker (separate process) |
+| `redis` | `redis:alpine` | 6379 | Pub/sub, session cache, MFA codes |
+| `qdrant` | `qdrant/qdrant:latest` | 6333 | Vector DB (RAG / knowledge base) |
+| `postgres` | `postgres:16-alpine` | 5432 | Primary relational DB (multi-tenant prod) |
 
-**Pages (`frontend/app/`):**
+Source code is hot-mounted into `arni-core` (`./app`, `./config`, `./scripts`).
 
-| Route | Purpose |
-|-------|---------|
-| `login/` | Login page |
-| `register/` | Tenant registration |
-| `analytics/` | Conversation analytics dashboard |
-| `audit/` | Admin audit log viewer |
-| `escalations/` | Escalation queue (human handoff) |
-| `knowledge/` | Per-tenant knowledge base management |
-| `live/` | Live WebSocket / Ghost Mode control |
-| `magicline/` | Magicline member sync & enrichment stats |
-| `member-memory/` | Member memory file viewer/editor |
-| `members/` | Studio member list (enrichment status, language, check-in stats) |
-| `plans/` | Subscription plan management |
-| `system-prompt/` | Ops agent system-prompt editor |
-| `tenants/` | Multi-tenant management (system_admin only) |
-| `users/` | Admin user management |
-| `settings/` | Settings hub with sub-pages: `account/`, `automation/`, `billing/`, `branding/`, `general/`, `integrations/`, `prompts/` |
+---
 
-**Libraries (`frontend/lib/`):**
+## Backend Module Map
+
+### app/core/ — Core Infrastructure
+
+| Module | Purpose | Key API |
+|--------|---------|---------|
+| `auth.py` | HMAC-SHA256 tokens, RBAC | `create_access_token()`, `decode_access_token()`, `hash_password()`, `get_current_user()`, `require_role()`, `AuthContext` dataclass |
+| `db.py` | SQLAlchemy engine, session factory, migrations | `Base`, `SessionLocal`, `engine`, `run_migrations()` |
+| `models.py` | All ORM models | See **Database Models** section |
+| `feature_gates.py` | Plan-based limits (HTTP 402/429) | `FeatureGate.require_channel()`, `require_feature()`, `check_message_limit()` |
+| `guardrails.py` | Deterministic safety layer ("Iron Dome") | `GuardrailsService.check()` — phrase/pattern/PII blocking via `config/guardrails.yaml` |
+| `instrumentation.py` | Prometheus metrics | `http_requests_total`, `http_request_duration_seconds` — exposed at `GET /metrics` |
+| `observability.py` | LangFuse tracing | Graceful fallback if `LANGFUSE_*` env vars not set |
+| `prompt_builder.py` | Tenant-aware Jinja2 prompt hydration | `get_prompt()` — fills `{placeholders}` from Settings table at call time |
+| `redis_keys.py` | Tenant-scoped Redis key factory | `redis_key()`, `token_key()`, `user_token_key()`, `dialog_context_key()`, `human_mode_key()` |
+| `knowledge/retriever.py` | Hybrid vector search | `HybridRetriever(collection_name)` — ChromaDB + BM25 |
+
+### app/gateway/ — Webhook Ingress & REST API
+
+| Module | Purpose |
+|--------|---------|
+| `main.py` | FastAPI app: all webhook routes, WebSocket Ghost Mode, health, metrics |
+| `admin.py` | REST admin API (members, settings, knowledge, audit, member memory) — mounted at `/admin/*` |
+| `auth.py` | Auth initialization + tenant bootstrap (`ensure_default_tenant_and_admin()`) |
+| `schemas.py` | Pydantic models: `InboundMessage`, `OutboundMessage`, `Platform` enum, `WebhookPayload` |
+| `redis_bus.py` | Async Redis pub/sub: channels `arni:inbound`, `arni:outbound`, `arni:events` |
+| `persistence.py` | `persistence` singleton wrapping `SessionLocal`; `get_setting()`, `upsert_setting()`, `init_default_settings()` |
+| `persistence_helpers.py` | Additional DB query helpers |
+| `member_matching.py` | Phone number → `StudioMember` lookup |
+| `routers/billing.py` | Stripe billing routes |
+
+**All Endpoints:**
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/health` | System status + Redis connection |
+| `GET` | `/metrics` | Prometheus metrics |
+| `GET` | `/webhook/whatsapp` | Meta webhook verification (default tenant) |
+| `GET` | `/webhook/whatsapp/{tenant_slug}` | Meta webhook verification (per-tenant) |
+| `POST` | `/webhook/whatsapp` | WhatsApp message ingress (default tenant) |
+| `POST` | `/webhook/whatsapp/{tenant_slug}` | WhatsApp message ingress (per-tenant) |
+| `POST` | `/webhook/telegram` | Telegram ingress (default tenant) |
+| `POST` | `/webhook/telegram/{tenant_slug}` | Telegram ingress (per-tenant) |
+| `POST` | `/webhook/sms/{tenant_slug}` | SMS ingress (Twilio) |
+| `POST` | `/webhook/email/{tenant_slug}` | Email ingress |
+| `POST` | `/voice/incoming/{tenant_slug}` | Voice call ingress |
+| `WS` | `/voice/stream/{tenant_slug}` | Live voice streaming |
+| `WS` | `/ws/control` | Ghost Mode (admin live monitoring/injection) |
+| `POST` | `/swarm/route` | Direct routing endpoint (internal) |
+| `WS` | `/acp/ws` | ACP IDE bridge (self-refactoring) |
+| `GET/POST` | `/admin/*` | Admin REST API (RBAC-enforced) |
+
+### app/swarm/ — Agent Swarm
+
+```
+app/swarm/
+├── base.py                     # BaseAgent ABC (shared LLM integration)
+├── llm.py                      # LLMClient: OpenAI primary, Ollama fallback
+├── router/
+│   ├── router.py               # SwarmRouter — intent classification + dispatch
+│   └── intents.py              # Intent enum (BOOKING, SALES, HEALTH, CROWD, SMALLTALK, UNKNOWN)
+├── agents/
+│   ├── ops.py                  # AgentOps — scheduling, bookings, Magicline tools
+│   ├── sales.py                # AgentSales — contracts, retention
+│   ├── medic.py                # AgentMedic — health advice, emergency routing
+│   ├── persona.py              # AgentPersona — smalltalk, knowledge base
+│   └── vision.py               # AgentVision — crowd/occupancy (stub by default)
+└── tools/
+    ├── magicline.py            # Member-facing Magicline API wrappers
+    └── knowledge_base.py       # RAG search tool (HybridRetriever)
+```
+
+### app/integrations/ — Platform Connectors
+
+```
+app/integrations/
+├── dispatcher.py               # OutboundMessage → platform routing
+├── normalizer.py               # Platform → InboundMessage normalization
+├── pii_filter.py               # PII masking for logs (email, phone, IBAN)
+├── whatsapp.py                 # WhatsApp Cloud API client (HMAC-SHA256 verification)
+├── telegram.py                 # Telegram Bot API client + polling worker
+├── email.py                    # SMTP mailer (SMTPMailer, verification emails)
+├── wa_flows.py                 # WhatsApp interactive messages (buttons, lists)
+├── magicline/
+│   ├── client.py               # Resource-oriented Magicline API client (1 method = 1 API call)
+│   ├── member_enrichment.py    # Check-in stats, booking history enrichment
+│   ├── members_sync.py         # Bulk sync all studio members
+│   └── scheduler.py            # Background enrichment scheduler
+└── whatsapp_web/
+    └── (Node.js Baileys bridge; auth artifacts in data/whatsapp/)
+```
+
+### app/memory/ — Conversation & Knowledge Storage
+
+| Module | Class | Purpose |
+|--------|-------|---------|
+| `context.py` | `ConversationContext`, `Turn` | RAM context: 20-turn limit, 30-min TTL, auto-flush trigger at >80% |
+| `database.py` | `MemoryDB` | SQLite session persistence (WAL, CASCADE DELETE, 90-day retention) |
+| `repository.py` | `SessionRepository` | Abstract CRUD for sessions and messages |
+| `knowledge.py` | — | Per-tenant `.md` knowledge file access |
+| `graph.py` | `FactGraph` | NetworkX GraphRAG: member facts as nodes/edges (HAS_INJURY, TRAINS, PREFERS, etc.) |
+| `consent.py` | `ConsentManager` | GDPR Art. 6 lawful processing check + Art. 17 cascade delete on revocation |
+| `flush.py` | — | Silent flush: fact extraction + context compaction routines |
+| `member_memory_analyzer.py` | `MemberMemoryAnalyzer` | LLM-based extraction of durable facts from chat history; cron-schedulable; output stored as Markdown in `data/knowledge/tenants/{slug}/members/` |
+
+**Memory Flow:**
+```
+ConversationContext (RAM, 20 turns)
+  → [at >80% capacity] → Silent Flush
+      → MemberMemoryAnalyzer (LLM fact extraction)
+      → knowledge files (Markdown)
+      → FactGraph (NetworkX nodes/edges)
+  → SQLite (90-day persistence)
+```
+
+### app/prompts/ — Prompt Templates
+
+```
+app/prompts/
+├── context.py                  # Tenant context builder
+├── engine.py                   # Jinja2 template renderer
+└── templates/
+    ├── medic/system.j2         # Health advice (legal disclaimer, emergency routing)
+    ├── ops/system.j2           # Scheduling/booking (Magicline tool definitions)
+    ├── persona/system.j2       # Smalltalk (knowledge base + handoff tools)
+    ├── router/system.j2        # Intent classification (5 categories)
+    └── sales/system.j2         # Retention (member status + check-in tools)
+```
+
+All templates use `{{ placeholder }}` syntax filled from the `Settings` table at runtime via `PromptBuilder`. Per-tenant overrides stored in `data/knowledge/tenants/{slug}/prompts/`.
+
+**Settings keys used in templates** (seeded by `PROMPT_SETTINGS_KEYS` in `prompt_builder.py`):
+
+| Key | Default | Used In |
+|-----|---------|---------|
+| `studio_name` | `Mein Studio` | All agents |
+| `studio_short_name` | — | All agents |
+| `agent_display_name` | `ARNI` | All agents (member-facing name) |
+| `studio_locale` | `de-DE` | All agents |
+| `studio_timezone` | `Europe/Berlin` | Ops |
+| `studio_emergency_number` | `112` | Medic |
+| `studio_address` | — | Ops, Persona |
+| `sales_prices_text` | — | Sales |
+| `sales_retention_rules` | — | Sales |
+| `medic_disclaimer_text` | (legal text) | Medic — ALWAYS appended, never omit |
+| `persona_bio_text` | — | Persona |
+| `checkin_enabled` | `true` | Ops, Sales (falls back to booking stats if false or data absent) |
+
+### app/soul/ — Self-Improvement Subsystem
+
+| Module | Class | Purpose |
+|--------|-------|---------|
+| `analyzer.py` | `LogAnalyzer` | Analyzes recent chat logs for trending topics and sentiment patterns |
+| `evolver.py` | `PromptEvolver` | Proposes prompt changes based on analyzer output |
+| `flow.py` | `SoulFlow` | Orchestrates: analyze → propose → (human-gated) apply cycle |
+
+### app/acp/ — IDE Bridge & Self-Refactoring
+
+| Module | Purpose |
+|--------|---------|
+| `server.py` | WebSocket endpoint `/acp/ws` for IDE handshake |
+| `sandbox.py` | Dockerized execution environment; file access restricted to `./workspace/` and `./data/` |
+| `refactor.py` | Refactoring engine (runs inside sandbox, no root access) |
+| `rollback.py` | Git-based rollback for any ACP-applied changes |
+
+### app/knowledge/ — Knowledge Ingestion
+
+| Module | Purpose |
+|--------|---------|
+| `ingest.py` | Scans `data/knowledge/*.md`, chunks on headers, upserts into ChromaDB per-tenant |
+| `store.py` | ChromaDB wrapper |
+
+### app/vision/ & app/voice/ — Physical Intelligence
+
+**Vision** (`app/vision/`):
+- `processor.py` — YOLOv8 person detection (auto-stubs when no GPU or `VISION_ENABLE_YOLO` not set)
+- `privacy.py` — 0s retention enforcer: processes in RAM only, no disk write of camera frames
+- `rtsp.py` — RTSP live stream snapshot grabber (auto-reconnect; set `RTSP_ENABLE_LIVE=1` to enable)
+
+**Voice** (`app/voice/`):
+- `stt.py` — Faster-Whisper speech-to-text (auto-stubs when library absent)
+- `tts.py` — Kokoro-82M ONNX (multilingual) or Piper TTS (German); ElevenLabs optional fallback
+- `pipeline.py` — Full voice I/O orchestration (<8s latency target)
+- `ingress.py` — Voice call ingress (Twilio/etc.)
+- `text_cleaner.py` — Transcription cleanup pre-LLM
+
+---
+
+## Database
+
+### Models (`app/core/models.py`)
+
+| Model | Key Columns | Purpose |
+|-------|------------|---------|
+| `Tenant` | id, slug (unique), name, is_active, created_at | Multi-tenant accounts |
+| `UserAccount` | id, tenant_id (FK), email (unique), full_name, role, password_hash, is_active | Admin users (RBAC) |
+| `ChatSession` | id, user_id, tenant_id (FK), platform, user_name, phone_number, email, member_id | Conversation sessions |
+| `ChatMessage` | id, session_id, tenant_id (FK), role (user/assistant), content, timestamp, metadata_json | Message history |
+| `Setting` | (tenant_id, key) composite PK, value, description, updated_at | Per-tenant + system-wide KV store |
+| `AuditLog` | id, actor_user_id, actor_email, tenant_id (FK), action, category, target_type, target_id, details_json | Governance audit trail |
+| `StudioMember` | id, tenant_id (FK), customer_id, member_number, first_name, last_name, phone_number, email, **gender**, **preferred_language**, **member_since**, **is_paused**, pause_info (JSON), additional_info (JSON), **checkin_stats** (JSON), **recent_bookings** (JSON dict), enriched_at | Member profile + Magicline cache |
+| `Plan` | id, name, slug (unique), stripe_price_id, price_monthly_cents, max_members, max_monthly_messages, max_channels, whatsapp_enabled, telegram_enabled, sms_enabled, email_channel_enabled, voice_enabled, memory_analyzer_enabled, custom_prompts_enabled | SaaS plans (Starter/Pro/Enterprise) |
+| `Subscription` | id, tenant_id (FK, unique), plan_id (FK), status, stripe_subscription_id, stripe_customer_id, current_period_start/end, trial_ends_at | Active plan per tenant |
+| `UsageRecord` | id, tenant_id (FK), period_year, period_month, messages_inbound, messages_outbound, active_members, llm_tokens_used | Monthly usage for billing |
+
+**Migrations:** Alembic in `alembic/versions/` + idempotent column-level backfills via `run_migrations()` in `app/core/db.py`.
+
+### DB Stack
+
+| DB | Use Case |
+|----|---------|
+| SQLite | Dev (single-tenant) |
+| PostgreSQL 16 | Production (multi-tenant) |
+| ChromaDB | Knowledge base per tenant |
+| Qdrant | RAG vector search |
+| Redis | Pub/sub, session cache, MFA codes, dialog context |
+
+---
+
+## Frontend
+
+### Pages (`frontend/app/` — Next.js App Router)
+
+| Route | Purpose | Access |
+|-------|---------|--------|
+| `login/` | Login | Public |
+| `register/` | Tenant self-registration | Public |
+| `/` (root) | Dashboard home | All roles |
+| `analytics/` | Conversation analytics | tenant_admin+ |
+| `audit/` | Audit log viewer | tenant_admin+ |
+| `escalations/` | Escalation queue (human handoff) | tenant_admin+ |
+| `knowledge/` | Knowledge base manager | tenant_admin+ |
+| `live/` | Ghost Mode (WebSocket control panel) | tenant_admin+ |
+| `magicline/` | Member sync & enrichment stats | tenant_admin+ |
+| `member-memory/` | Member memory file viewer/editor | tenant_admin+ |
+| `members/` | Studio member list (enrichment, language, check-in stats) | tenant_admin+ |
+| `plans/` | Subscription plan management | system_admin |
+| `system-prompt/` | Ops agent system-prompt editor | tenant_admin+ |
+| `tenants/` | Multi-tenant management | system_admin |
+| `users/` | Admin user management | tenant_admin+ |
+| `settings/` | Settings hub | tenant_admin+ |
+| `settings/account/` | Account settings | tenant_admin+ |
+| `settings/automation/` | Automation rules | tenant_admin+ |
+| `settings/billing/` | Stripe billing | tenant_admin+ |
+| `settings/branding/` | White-label branding | tenant_admin+ |
+| `settings/general/` | General settings | tenant_admin+ |
+| `settings/integrations/` | Platform integrations | tenant_admin+ |
+| `settings/prompts/` | Agent prompt configuration | tenant_admin+ |
+| `api/auth/[...path]/` | Auth proxy (cookie handling) | — |
+| `api/admin/[...path]/` | Admin API proxy | — |
+| `api/send/` | Outbound message proxy | — |
+
+### Libraries (`frontend/lib/`)
 
 | File | Purpose |
 |------|---------|
+| `api.ts` | Typed API client with error handling |
+| `api-hooks.ts` | React Query hooks (`useQuery`, `useMutation`) |
 | `auth.ts` | Token verify/decode helpers |
-| `api.ts` | Typed API client |
-| `api-hooks.ts` | React Query hooks |
-| `rbac.ts` | RBAC helper functions |
+| `rbac.ts` | RBAC helper functions (role checks) |
 | `branding.ts` | White-label branding helpers |
-| `chat-analytics.ts` | Analytics data transforms |
-| `tokens.ts` | Token management |
+| `chat-analytics.ts` | Analytics data transformations |
+| `tokens.ts` | Token management (set, get, clear) |
 | `base-path.ts` | Next.js basePath helper |
 | `query-client.ts` | React Query client setup |
 | `mock-data.ts` | Mock fixtures for development |
 | `server/proxy.ts` | Server-side API proxy helper |
 
-**Components (`frontend/components/`):**
+### Components (`frontend/components/`)
 
-- `NavShell.tsx`, `Sidebar.tsx` — Layout shell
-- `TiptapEditor.tsx` — Rich text editor
-- `settings/SettingsSubnav.tsx` — Settings navigation
-- `pages/` — Page-level components: `AnalyticsPage`, `ConversationsPage`, `DashboardPage`, `EscalationsPage`, `MagiclinePage`
-- `ui/` — Design system atoms: `Avatar`, `Badge`, `Card`, `ChannelIcon`, `ConfirmModal`, `CustomTooltip`, `Dialog`, `MiniButton`, `Modal`, `ProgressBar`, `QueryStates`, `SectionHeader`, `Stat`, `ToggleSwitch`
+**Page-level** (`components/pages/`): `AnalyticsPage`, `ConversationsPage`, `DashboardPage`, `EscalationsPage`, `MagiclinePage`
 
-### Database
+**Layout**: `NavShell.tsx`, `Sidebar.tsx`, `TiptapEditor.tsx`
 
-SQLAlchemy ORM with SQLite (dev) / PostgreSQL (prod). Schema lives in `app/core/models.py`. Migrations are handled by `run_migrations()` in `app/core/db.py` (idempotent column-level backfills) and Alembic in `alembic/`.
+**Settings**: `settings/SettingsSubnav.tsx`
 
-Key tables: `tenants`, `users`, `chat_sessions`, `chat_messages`, `studio_members` (Magicline cache), `settings`, `audit_logs`, `plans`, `subscriptions`, `usage_records`.
+**UI Design System** (`components/ui/`): `Avatar`, `Badge`, `Card`, `ChannelIcon`, `ConfirmModal`, `CustomTooltip`, `Dialog`, `MiniButton`, `Modal`, `ProgressBar`, `QueryStates`, `SectionHeader`, `Stat`, `ToggleSwitch`
 
-`StudioMember` new fields (added in recent sprints): `gender`, `preferred_language`, `member_since`, `is_paused`, `additional_info` (JSON), `checkin_stats` (JSON), `recent_bookings` (JSON dict), `enriched_at`.
+### Auth
 
-`Settings` table key-value store — important keys:
+- Cookie: `arni_access_token` (HMAC-SHA256, not JWT), 12h TTL
+- RBAC roles: `system_admin` > `tenant_admin` > `tenant_user`
+- Contract-tested in `frontend/tests/rbac.contract.test.ts`
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `checkin_enabled` | `true` | Use check-in stats; falls back to booking stats if disabled or data absent |
-| `studio_name` | `Mein Studio` | Shown in agent prompts and branding |
-| `agent_display_name` | `ARNI` | Member-facing agent name |
-| `medic_disclaimer_text` | (legal text) | Appended to all Medic agent replies |
-| ...and others seeded by `PROMPT_SETTINGS_KEYS` in `app/core/prompt_builder.py` | | |
+---
 
-### Authentication
+## Authentication (All Layers)
 
-- **Admin users**: HMAC-SHA256 token, cookie `arni_access_token`, 12h TTL (`auth_token_ttl_hours`). Backend dependency `get_current_user()` returns `AuthContext`.
-- **End users (members)**: Phone-based 6-digit MFA, code cached in Redis, matched to Magicline member.
-- **Webhooks**: WhatsApp → HMAC-SHA256 on raw body; Telegram → secret header; Twilio → HMAC-SHA1.
-- **Passwords**: PBKDF2-HMAC-SHA256 with 200k iterations.
-- **Auth transition mode**: `AUTH_TRANSITION_MODE=true` enables parallel validation during secret rotation.
+| Layer | Mechanism |
+|-------|-----------|
+| Admin users | HMAC-SHA256 token in `arni_access_token` cookie; `get_current_user()` → `AuthContext` |
+| End users (members) | Phone-based 6-digit MFA; code cached in Redis; matched to `StudioMember` via phone |
+| WhatsApp webhooks | HMAC-SHA256 on raw request body (`meta_app_secret`) |
+| Telegram webhooks | Secret header (`telegram_webhook_secret`) |
+| Twilio (SMS/Voice) | HMAC-SHA1 |
+| Passwords | PBKDF2-HMAC-SHA256, 200k iterations |
+| Secret rotation | `AUTH_TRANSITION_MODE=true` enables parallel validation during rotation |
 
-### SaaS Architecture (S1–S7+)
+---
 
-| Feature | Location | Notes |
-|---------|----------|-------|
-| Plans & Billing | `app/core/feature_gates.py`, `app/core/models.py` | Starter/Pro/Enterprise; metered usage; HTTP 402/429 gates; Stripe integration |
-| Prompt Templates | `app/prompts/`, `app/prompts/templates/` | Per-agent Jinja2 `.j2`; per-tenant override via `data/knowledge/tenants/{slug}/prompts/` |
-| Knowledge Bases | `app/knowledge/`, `app/core/knowledge/` | Per-tenant ChromaDB + Qdrant collections; HybridRetriever (vector + BM25) |
-| Redis Namespacing | `app/core/redis_keys.py` | Keys: `t{tenant_id}:{domain}:{key}` — always use `redis_key()` |
-| White-label Branding | Admin API + `frontend/app/settings/branding/` | `tenant_logo_url`, `tenant_primary_color`, `tenant_app_title` |
-| Tenant Onboarding | `app/gateway/auth.py` | On register: auto-seed Starter subscription + prompt defaults |
-| Tenant-aware Prompts | `app/core/prompt_builder.py` | Fills `{placeholders}` from Settings table at call time |
-| Vision (stub mode) | `app/vision/` | Set `VISION_ENABLE_YOLO=1` for real YOLOv8 inference; default is stub |
-| Voice (stub mode) | `app/voice/` | `SpeechToText` (Whisper), `TextToSpeech` (Kokoro/Piper), `VoicePipeline`; stub by default |
-| Observability | `app/core/observability.py` | LangFuse traces; degrades gracefully if `LANGFUSE_*` not set |
-| Prometheus Metrics | `app/core/instrumentation.py` | Exposed at `GET /metrics` |
-| ACP (IDE bridge) | `app/acp/` | WebSocket at `/acp/ws`; sandboxed self-refactoring with git rollback |
-| Soul / Self-Improvement | `app/soul/` | Analyze logs → propose prompt changes → (human-gated) apply |
-| GDPR Consent | `app/memory/consent.py` | Art. 6 check + Art. 17 cascade erasure |
-| GraphRAG | `app/memory/graph.py` | NetworkX FactGraph for member relationship facts |
-| Member Memory | `app/memory/member_memory_analyzer.py` | LLM-based extraction; cron-schedulable; stored as Markdown in `data/knowledge/` |
-| Magicline Enrichment | `app/integrations/magicline/member_enrichment.py` | Check-in stats, booking history (±2 week API limit), member profile |
-| Magicline Sync | `app/integrations/magicline/members_sync.py` | Bulk sync of all members from Magicline API |
-| Magicline Scheduler | `app/integrations/magicline/scheduler.py` | Background enrichment for all tenant members |
-| WA Web Bridge | `app/integrations/whatsapp_web/` | Node.js Baileys bridge; auth dir configurable via `BRIDGE_AUTH_DIR` |
-| Email (SMTP) | `app/integrations/email.py` | `SMTPMailer`; verification email support |
-| WA Flows | `app/integrations/wa_flows.py` | WhatsApp interactive message builders (buttons, lists) |
-| Skills | `skills/` | MCP-compliant skill rule files; `magicline-support/SKILL.md` is binding for Magicline operations |
+## Skills (MCP)
 
-## Engineering Rules (from `docs/specs/CODING_STANDARDS.md`)
+```
+skills/
+└── magicline-support/
+    └── SKILL.md           # BINDING ruleset for all Magicline member support
+```
 
-- **BMAD cycle**: Benchmark (define success metric) → Modularize (build in isolation) → Architect (integrate into swarm/redis) → Deploy & Verify. Only commit on PASS.
-- **MCP Tools**: New skills/tools go in `app/swarm/tools/` or `skills/`, must inherit `BaseTool` (or be MCP-compliant SKILL.md), accept JSON Schema inputs, return structured JSON.
-- **Skills are binding**: The `skills/magicline-support/SKILL.md` ruleset governs all Magicline member support operations — no alternatives, always ask if ambiguous.
-- **One-Way-Door**: Irreversible actions (deletions, cancellations) require human confirmation before execution.
-- **Emergency hard-route**: Keywords like "notfall", "unfall" bypass LLM classification and go directly to the Medic agent.
-- **Medic agent**: ALWAYS include the legal health disclaimer (`medic_disclaimer_text` from Settings) and fallback to 112. Never omit this.
-- **Guardrails first**: `GuardrailsService.check()` runs before every LLM call to block dangerous/off-topic inputs without spending tokens.
-- **External API mocking**: All tests must mock Magicline, WhatsApp, OpenAI. Never hit production APIs in CI.
-- **Multi-tenant isolation**: Every DB query must be scoped to `tenant_id`. Never leak data across tenants. All Redis keys must go through `app/core/redis_keys.py`.
-- **PII**: Mask in logs via `app/integrations/pii_filter.py`. Camera data: 0s retention (RAM-only).
-- **Conventional Commits**: Use `feat(scope):`, `fix:`, `refactor:` etc. Scope examples: `saas/s8`, `memory`, `integrations/magicline`.
-- **ACP Safety**: Self-refactoring always runs inside `app/acp/sandbox.py` (Dockerized). No root access. File access restricted to `./workspace/` and `./data/`.
+`skills/magicline-support/SKILL.md` is **binding**: it governs all Magicline member operations. Never deviate from it. Always ask for clarification when ambiguous. Tools defined:
+- `get_member_bookings`, `book_appointment`, `cancel_member_booking` (and ~5 more)
+- Multi-variant disambiguation required (e.g., "Kraft Training mit/ohne Trainer" → must ask)
+- Affirmative responses ("ja", "okay") must resolve against `pending_action` from context
 
-## Coding Style & Naming Conventions
+---
 
-- **Python**: 4-space indentation, type hints required (`from __future__ import annotations`), keep functions focused.
-- **Lint / type tools**: `ruff`, `mypy` (strict), `pytest`.
-- **TypeScript / React**: strict typing, no implicit `any`, ESLint clean (`lint:strict`).
+## Engineering Rules
+
+- **BMAD cycle**: Benchmark (define success metric first) → Modularize (build in isolation) → Architect (integrate into swarm/redis) → Deploy & Verify. Only commit on PASS.
+- **Guardrails first**: `GuardrailsService.check()` runs before every LLM call. Never skip.
+- **Emergency hard-route**: `notfall`, `herzinfarkt`, `unfall`, `112` → Medic directly, no LLM classification.
+- **Medic disclaimer**: ALWAYS include `medic_disclaimer_text` from Settings. Never omit this.
+- **One-Way-Door**: Irreversible actions (cancellations, deletions) require explicit human confirmation before execution.
+- **Redis keys**: ALL Redis keys MUST go through `app/core/redis_keys.py` → `redis_key()`. No hardcoded strings.
+- **Multi-tenant isolation**: Every DB query must filter by `tenant_id`. Never leak data across tenants.
+- **MCP Tools**: New swarm tools go in `app/swarm/tools/`, new skills go in `skills/`. Tools must accept JSON Schema inputs, return structured JSON.
+- **External API mocking**: All tests mock Magicline, WhatsApp, OpenAI. Never hit production APIs in CI.
+- **PII**: Mask in logs via `app/integrations/pii_filter.py`. Camera data: 0s retention, RAM-only.
+- **ACP Safety**: Self-refactoring runs inside `app/acp/sandbox.py`. No root access. File access restricted to `./workspace/` and `./data/`.
+- **Conventional Commits**: `feat(scope):`, `fix:`, `refactor:`, etc. Scope examples: `saas/billing`, `memory/graph`, `integrations/magicline`.
+
+---
+
+## Coding Style
+
+- **Python**: 4-space indentation, `from __future__ import annotations`, type hints required everywhere.
+- **Tools**: `ruff` (lint), `mypy --strict` (types), `pytest` (tests).
+- **TypeScript/React**: Strict mode, no implicit `any`, zero ESLint warnings (`lint:strict`).
 - **Naming**:
   - Python modules/functions: `snake_case`
   - Classes/Pydantic models: `PascalCase`
   - React components: `PascalCase`
-  - Files in `frontend/app/`: route-based naming (Next.js App Router)
+  - Next.js pages: `frontend/app/<route>/page.tsx` (App Router convention)
+
+---
 
 ## Testing
 
 | Location | Purpose |
 |----------|---------|
-| `tests/test_*.py` | Backend unit/integration tests |
+| `tests/conftest.py` | Shared fixtures (fake Redis, mock DB, test client) |
+| `tests/test_gateway.py`, `test_gateway_extended.py` | Webhook routes, Ghost Mode |
+| `tests/test_auth_restore.py` | Auth initialization |
+| `tests/test_multitenant_isolation.py` | Tenant data isolation |
+| `tests/test_swarm.py` | Swarm routing + agents |
+| `tests/test_memory.py` | Memory system (context, DB, flush) |
+| `tests/test_security_hardening.py` | Auth edge cases, PII |
+| `tests/test_acp.py` | ACP bridge |
+| `tests/test_voice.py`, `tests/voice/` | Voice pipeline |
+| `tests/test_vision.py` | Vision/YOLO stub |
+| `tests/test_soul.py` | Soul evolution subsystem |
 | `tests/agents/` | Agent-specific tests (ops booking, sales, magicline tools) |
-| `tests/integrations/` | Integration tests (Magicline client, Telegram webhook) |
-| `tests/evals/` | LLM faithfulness evaluations (`test_faithfulness.py`, `golden_dataset.json`) |
-| `tests/voice/` | Voice ingress tests |
-| `tests/conftest.py` | Shared fixtures |
-| `tests/locustfile.py` | Load test definitions |
-| `tests/run_all_qa.py` | QA runner script |
-| `tests/run_evals.py` | Eval runner script |
+| `tests/integrations/` | Magicline client, Telegram webhook |
+| `tests/evals/` | LLM faithfulness evals (`golden_dataset.json`) |
+| `tests/locustfile.py` | Load test (100 concurrent users, <100ms p95) |
 | `frontend/tests/rbac.contract.test.ts` | RBAC contract tests |
 
-**Rules**: Use `pytest-asyncio` for async tests. Mock all external APIs (Magicline, WhatsApp, OpenAI) with `fakeredis` and `httpx` test clients. Add tests per behavior change, especially for RBAC and tenant isolation.
+**Rules**: `pytest-asyncio` for all async tests. Mock all external APIs with `fakeredis` and `httpx` test clients. Add tests with every behavior change, especially RBAC and tenant isolation.
 
-## Environment
+---
 
-Copy `.env.example` to `.env`. Key variables:
+## Magicline API Constraints (Critical)
+
+| Endpoint | Constraint |
+|----------|-----------|
+| `GET /v1/appointments/booking?customerId=X` | **±2 weeks only** — hard API limit, no date filter possible |
+| `GET /v1/classes/booking?customerId=X` | **±2 weeks only** — same constraint |
+| `GET /v1/customers/{id}/activities/checkins` | Up to 365 days with `fromDate`+`toDate`; max `sliceSize=50` (>50 → 400 error); paginated via `offset` |
+
+Configure `checkin_enabled` in Settings table to switch between check-in stats (default) and booking-based stats (fallback when check-in data is absent or zero).
+
+---
+
+## Environment Variables
+
+Copy `.env.example` to `.env`. All variables:
 
 ```bash
-# Database
-DATABASE_URL=sqlite:////app/data/arni.db   # or postgres://...
-POSTGRES_PASSWORD=arni_dev_password
+# Gateway
+ENVIRONMENT=development          # 'production' enables stricter checks
+LOG_LEVEL=info
+GATEWAY_PUBLIC_URL=              # e.g. https://arni.getimpulse.de (for webhook reg)
+CORS_ALLOWED_ORIGINS=http://localhost:3000
 
-# Auth & Security
-AUTH_SECRET=<long-random-secret>
-ACP_SECRET=arni-acp-secret-changeme
-AUTH_TOKEN_TTL_HOURS=12
-AUTH_TRANSITION_MODE=false
-AUTH_ALLOW_HEADER_FALLBACK=false
+# Database
+DATABASE_URL=sqlite:////app/data/arni.db  # or postgresql+psycopg://...
+POSTGRES_PASSWORD=arni_dev_password
 
 # Redis & Vector DB
 REDIS_URL=redis://127.0.0.1:6379/0
@@ -285,19 +515,29 @@ QDRANT_URL=http://qdrant:6333
 # LLM
 OPENAI_API_KEY=<key>
 
+# Auth & Security
+AUTH_SECRET=<long-random-secret>           # HMAC signing key
+ACP_SECRET=arni-acp-secret-changeme        # ACP WebSocket auth
+AUTH_TOKEN_TTL_HOURS=12
+AUTH_TRANSITION_MODE=false                 # true during secret rotation
+AUTH_ALLOW_HEADER_FALLBACK=false
+SYSTEM_ADMIN_PASSWORD=<≥16chars>           # Blocks startup in prod if weak
+
 # Observability
 LANGFUSE_PUBLIC_KEY=<key>
 LANGFUSE_SECRET_KEY=<key>
 LANGFUSE_HOST=https://cloud.langfuse.com
 
-# WhatsApp / Meta
+# WhatsApp / Meta Cloud API
 META_VERIFY_TOKEN=<token>
 META_ACCESS_TOKEN=<token>
 META_PHONE_NUMBER_ID=<id>
-META_APP_SECRET=<secret>
+META_APP_SECRET=<secret>                   # HMAC-SHA256 webhook signature
 
-# WhatsApp Web Bridge
-BRIDGE_MODE=production          # 'self' for dev (self-chat only)
+# WhatsApp Web Bridge (Node.js / Baileys)
+BRIDGE_MODE=production                     # 'self' = dev/self-chat only
+BRIDGE_PORT=3000
+BRIDGE_WEBHOOK_URL=http://localhost:8000/webhook/whatsapp
 BRIDGE_AUTH_DIR=/app/data/whatsapp/auth_info_baileys
 
 # Telegram
@@ -308,35 +548,51 @@ TELEGRAM_WEBHOOK_SECRET=<secret>
 # Magicline
 MAGICLINE_BASE_URL=<url>
 MAGICLINE_API_KEY=<key>
+MAGICLINE_STUDIO_ID=<id>
 
-# SMTP / Email
+# Email (SMTP)
 SMTP_HOST=<host>
 SMTP_PORT=587
 SMTP_USERNAME=<user>
 SMTP_PASSWORD=<pass>
 SMTP_FROM_EMAIL=<email>
+SMTP_FROM_NAME=Arni
+SMTP_USE_STARTTLS=true
 
 # Voice
-ELEVENLABS_API_KEY=<key>        # optional; Kokoro/Piper are local TTS
+ELEVENLABS_API_KEY=<key>                   # Optional; Kokoro/Piper are local TTS
+
+# Feature flags
+VISION_ENABLE_YOLO=1                       # Enable real YOLOv8 inference (default: stub)
+RTSP_ENABLE_LIVE=1                         # Enable live RTSP stream capture (default: stub)
 ```
 
-Optional feature flags:
+---
 
-```bash
-VISION_ENABLE_YOLO=1            # Enable real YOLOv8 inference (default: stub)
-RTSP_ENABLE_LIVE=1              # Enable live RTSP stream capture (default: stub)
-SYSTEM_ADMIN_PASSWORD=<≥16chars>  # Blocks startup in production if weak
-```
+## Key File Locations
 
-## Magicline API Constraints (Important)
+| What | Where |
+|------|-------|
+| Guardrails config | `config/guardrails.yaml` |
+| Prompt templates | `app/prompts/templates/{agent}/system.j2` |
+| Per-tenant prompt overrides | `data/knowledge/tenants/{slug}/prompts/` |
+| Knowledge base files | `data/knowledge/tenants/{slug}/` |
+| Member memory files | `data/knowledge/tenants/{slug}/members/{phone}.md` |
+| WhatsApp auth artifacts | `data/whatsapp/auth_info_baileys/` |
+| ORM models | `app/core/models.py` |
+| DB migrations | `alembic/versions/` + `app/core/db.py:run_migrations()` |
+| Persona / Soul config | `docs/personas/SOUL.md` |
+| Magicline skill ruleset | `skills/magicline-support/SKILL.md` (BINDING) |
+| Architecture specs | `docs/specs/` |
+| Ops runbook | `docs/ops/RUNBOOK.md` |
+| Security audits | `docs/audits/` |
+| Sprint plans | `docs/sprints/` |
 
-- `GET /v1/appointments/booking?customerId=X` — only **±2 weeks** (hard API limit, no date filter)
-- `GET /v1/classes/booking?customerId=X` — only **±2 weeks** (same constraint)
-- `GET /v1/customers/{id}/activities/checkins` — up to 365 days with `fromDate`+`toDate`, max `sliceSize=50` (>50 → 400 error), paginated via `offset`
-- Configure `checkin_enabled` in Settings table to switch between check-in and booking-based stats
+---
 
 ## PR Guidelines
 
-- Short title (≤70 chars), detail in description body
+- Title ≤70 chars; put detail in body
 - Include: problem/solution summary, impacted areas (backend/frontend/data), test evidence (commands + output), screenshots for UI changes
-- PRs touching `frontend/` trigger the CI quality gate automatically
+- PRs touching `frontend/` trigger CI quality gate automatically
+- PRs touching `app/` should include updated/new pytest coverage
