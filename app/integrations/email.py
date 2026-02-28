@@ -34,11 +34,17 @@ class SMTPMailer:
         msg["To"] = to_email
         msg.set_content(body)
 
-        with smtplib.SMTP(self.host, self.port, timeout=30) as smtp:
-            smtp.ehlo()
-            if self.use_starttls:
-                smtp.starttls()
+        # Support Port 465 (Direct SSL) vs Port 587 (STARTTLS)
+        if self.port == 465:
+            with smtplib.SMTP_SSL(self.host, self.port, timeout=30) as smtp:
+                smtp.login(self.username, self.password)
+                smtp.send_message(msg)
+        else:
+            with smtplib.SMTP(self.host, self.port, timeout=30) as smtp:
                 smtp.ehlo()
-            smtp.login(self.username, self.password)
-            smtp.send_message(msg)
+                if self.use_starttls:
+                    smtp.starttls()
+                    smtp.ehlo()  # Required after starttls
+                smtp.login(self.username, self.password)
+                smtp.send_message(msg)
         logger.info("email.sent", to_email=to_email, subject=subject)

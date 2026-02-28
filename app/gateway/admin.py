@@ -1958,11 +1958,13 @@ async def test_integration_connector(
             if val is None:
                 # e.g. look for 'bot_token' if key is 'telegram_bot_token'
                 shorthand = key.replace(f"{normalized}_", "")
-                val = body.config.get(shorthand)
+                if shorthand != key:
+                    val = body.config.get(shorthand)
             
             if val is not None:
                 final_val = str(val or "")
-                if final_val != REDACTED_SECRET_VALUE:
+                # FIX: If frontend sends redacted placeholder, we MUST use the DB value
+                if final_val != REDACTED_SECRET_VALUE and final_val.strip() != "":
                     return final_val
         
         return _get_setting_with_env_fallback(key, env_attr, default, tenant_id=user.tenant_id)
@@ -2024,15 +2026,26 @@ async def test_integration_connector(
             port = int(_val("smtp_port") or "587")
             username = _val("smtp_username")
             password = _val("smtp_password")
+            
+            logger.info("admin.smtp_test.params", host=host, port=port, user=username, pw_len=len(password) if password else 0)
+            
             if not host or not username or not password:
                 raise HTTPException(status_code=422, detail="SMTP config incomplete")
 
             def _smtp_probe() -> None:
-                with smtplib.SMTP(host, port, timeout=20) as smtp:
-                    smtp.ehlo()
-                    smtp.starttls()
-                    smtp.login(username, password)
-                    smtp.noop()
+                if port == 465:
+                    logger.info("admin.smtp_test.trying_ssl", host=host, port=port)
+                    with smtplib.SMTP_SSL(host, port, timeout=20) as smtp:
+                        smtp.login(username, password)
+                        smtp.noop()
+                else:
+                    logger.info("admin.smtp_test.trying_starttls", host=host, port=port)
+                    with smtplib.SMTP(host, port, timeout=20) as smtp:
+                        smtp.ehlo()
+                        smtp.starttls()
+                        smtp.ehlo() # Required
+                        smtp.login(username, password)
+                        smtp.noop()
 
             await asyncio.to_thread(_smtp_probe)
             detail = f"SMTP login OK ({host}:{port})"

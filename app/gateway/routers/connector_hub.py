@@ -159,22 +159,27 @@ def test_connection(
     
     if connector_id == "smtp_email":
         # Real SMTP connection test
-        host = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "host"), "", tenant_id=user.tenant_id)
-        port_raw = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "port"), "587", tenant_id=user.tenant_id)
-        username = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "username"), "", tenant_id=user.tenant_id)
-        password = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "password"), "", tenant_id=user.tenant_id)
+        host = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "host"), "", tenant_id=user.tenant_id).strip()
+        port_raw = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "port"), "587", tenant_id=user.tenant_id).strip()
+        username = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "username"), "", tenant_id=user.tenant_id).strip()
+        password = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "password"), "", tenant_id=user.tenant_id).strip()
         
         if not all([host, username, password]):
             return {"status": "error", "message": "SMTP-Konfiguration unvollständig"}
         
         try:
             port = int(port_raw or "587")
-            with smtplib.SMTP(host, port, timeout=10) as srv:
-                srv.ehlo()
-                srv.starttls()
-                srv.ehlo()
-                srv.login(username, password)
-                srv.quit()
+            if port == 465:
+                with smtplib.SMTP_SSL(host, port, timeout=15) as srv:
+                    srv.login(username, password)
+                    srv.noop()
+            else:
+                with smtplib.SMTP(host, port, timeout=15) as srv:
+                    srv.ehlo()
+                    srv.starttls()
+                    srv.ehlo()
+                    srv.login(username, password)
+                    srv.noop()
             return {"status": "ok", "message": "SMTP-Verbindung erfolgreich! Authentifizierung bestätigt."}
         except smtplib.SMTPAuthenticationError as e:
             return {"status": "error", "message": f"SMTP-Authentifizierung fehlgeschlagen: {e}"}
