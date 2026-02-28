@@ -3214,7 +3214,8 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
     slug = _safe_tenant_slug(user)
     waha_url = persistence.get_setting("waha_api_url", tenant_id=user.tenant_id) or "http://ariia-whatsapp-bridge:3000"
     waha_key = persistence.get_setting("waha_api_key", tenant_id=user.tenant_id) or "ariia-waha-secret"
-    session_name = slug or "default"
+    # WAHA Core only supports 'default' session name. Multi-tenancy requires WAHA PLUS.
+    session_name = "default"
     
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -3234,22 +3235,28 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
                         json={"name": session_name}
                     )
                     import asyncio
-                    await asyncio.sleep(3)
+                    await asyncio.sleep(5)
                 else:
                     # Check if already connected
                     for s in sessions:
                         if s["name"] == session_name and s.get("status") == "WORKING":
                             raise HTTPException(status_code=404, detail="CONNECTED")
             
-            # 2. Get QR code as PNG
-            qr_resp = await client.get(
-                f"{waha_url}/api/{session_name}/auth/qr",
-                headers={"X-Api-Key": waha_key, "Accept": "image/png"}
-            )
+            # 2. Get QR code as PNG (with retry)
+            qr_resp = None
+            for _ in range(2):
+                qr_resp = await client.get(
+                    f"{waha_url}/api/{session_name}/auth/qr",
+                    headers={"X-Api-Key": waha_key, "Accept": "image/png"}
+                )
+                if qr_resp.status_code == 200 and qr_resp.headers.get("content-type", "").startswith("image/"):
+                    break
+                import asyncio
+                await asyncio.sleep(2)
             
-            if qr_resp.status_code == 200 and qr_resp.headers.get("content-type", "").startswith("image/"):
+            if qr_resp and qr_resp.status_code == 200 and qr_resp.headers.get("content-type", "").startswith("image/"):
                 return Response(content=qr_resp.content, media_type="image/png")
-            elif qr_resp.status_code == 404 or b"QR code" not in qr_resp.content:
+            elif qr_resp and (qr_resp.status_code == 404 or b"QR code" not in qr_resp.content):
                 raise HTTPException(status_code=404, detail="NO_QR_FOUND")
             else:
                 raise HTTPException(status_code=502, detail="QR-Code konnte nicht geladen werden")
@@ -3262,29 +3269,26 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
 
 @router.post("/platform/whatsapp/reset")
 async def reset_whatsapp_session(user: AuthContext = Depends(get_current_user)):
-    """Force-reset the WhatsApp session by clearing local auth data."""
+    """Force-reset the WhatsApp session by terminating it in WAHA bridge."""
     _require_tenant_admin_or_system(user)
-    import shutil
-    import os
     
-    slug = _safe_tenant_slug(user)
-    # The path where the bridge stores session keys
-    auth_dir = f"/app/data/whatsapp/auth_info_{slug}"
+    waha_url = persistence.get_setting("waha_api_url", tenant_id=user.tenant_id) or "http://ariia-whatsapp-bridge:3000"
+    waha_key = persistence.get_setting("waha_api_key", tenant_id=user.tenant_id) or "ariia-waha-secret"
+    session_name = "default"
     
     try:
-        if os.path.exists(auth_dir):
-            shutil.rmtree(auth_dir)
-            logger.info("admin.whatsapp.session_cleared", tenant=slug, path=auth_dir)
-        
-        # Also notify the bridge to restart the session
-        bridge_url = (persistence.get_setting("bridge_qr_url") or "http://ariia-whatsapp-bridge:3000/qr")
-        bridge_api_base = bridge_url.rsplit('/', 1)[0]
-        
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.post(f"{bridge_api_base}/session/terminate/{slug}")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # Delete the session
+            await client.post(
+                f"{waha_url}/api/sessions/stop",
+                headers={"X-Api-Key": waha_key, "Content-Type": "application/json"},
+                json={"name": session_name, "logout": True}
+            )
+            # Give it a moment to cleanup
+            import asyncio
+            await asyncio.sleep(2)
             
-        return {"status": "ok", "message": "Sitzung erfolgreich zurückgesetzt. Bitte QR-Code neu laden."}
+        return {"status": "ok", "message": "WhatsApp Sitzung zurückgesetzt. Bitte QR-Code neu laden."}
     except Exception as e:
         logger.error("admin.whatsapp.reset_failed", error=str(e))
-        # We return OK even if bridge call fails, as long as the dir is gone
-        return {"status": "ok", "message": "Lokale Daten bereinigt."}
+        return {"status": "ok", "message": "Reset-Anfrage an Bridge gesendet."}
