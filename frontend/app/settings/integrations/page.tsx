@@ -11,7 +11,17 @@ import { T } from "@/lib/tokens";
 
 type IntegrationsConfig = {
   telegram: { bot_token: string; admin_chat_id: string; webhook_secret: string };
-  whatsapp: { meta_verify_token: string; meta_access_token: string; meta_app_secret: string; bridge_auth_dir: string };
+  whatsapp: {
+    whatsapp_mode: string;          // "qr" | "business_api"
+    // Business API
+    meta_verify_token: string;
+    meta_access_token: string;
+    meta_app_secret: string;
+    // WhatsApp Web / Bridge
+    bridge_url: string;
+    bridge_auth_dir: string;
+    bridge_qr_url: string;
+  };
   magicline: {
     base_url: string;
     api_key: string;
@@ -276,18 +286,86 @@ export default function SettingsIntegrationsPage() {
               testing={testing === "whatsapp"}
               onTest={() => void testConnector("whatsapp")}
             >
-              <Field label="Meta Verify Token" hint="Token zur Webhook-Verifikation im Meta Developer Portal">
-                <input type="password" style={inputStyle} value={integrations.whatsapp.meta_verify_token} onChange={(e) => updateField("whatsapp.meta_verify_token", e.target.value)} placeholder="my-verify-token" />
+              {/* Mode selector */}
+              <Field label="Betriebsmodus" hint="Welcher Kanal soll für ausgehende Nachrichten verwendet werden?">
+                <select
+                  style={{ ...inputStyle, cursor: "pointer" }}
+                  value={integrations.whatsapp.whatsapp_mode}
+                  onChange={(e) => updateField("whatsapp.whatsapp_mode", e.target.value)}
+                >
+                  <option value="qr">WhatsApp Web (QR-Code / Bridge)</option>
+                  <option value="business_api">WhatsApp Business API (Meta Cloud)</option>
+                </select>
               </Field>
-              <Field label="Meta Access Token" hint="Permanenter Access Token der WhatsApp Business API">
-                <input type="password" style={inputStyle} value={integrations.whatsapp.meta_access_token} onChange={(e) => updateField("whatsapp.meta_access_token", e.target.value)} placeholder="EAAxxxxxxx..." />
-              </Field>
-              <Field label="Meta App Secret" hint="App-Secret zur HMAC-Signaturprüfung eingehender Events">
-                <input type="password" style={inputStyle} value={integrations.whatsapp.meta_app_secret} onChange={(e) => updateField("whatsapp.meta_app_secret", e.target.value)} placeholder="App Secret" />
-              </Field>
-              <Field label="Bridge Auth Dir" hint="Pfad zum WhatsApp-Bridge Auth-Verzeichnis (optional)">
-                <input style={inputStyle} value={integrations.whatsapp.bridge_auth_dir} onChange={(e) => updateField("whatsapp.bridge_auth_dir", e.target.value)} placeholder="/data/wa-bridge" />
-              </Field>
+
+              {/* ── Sektion: WhatsApp Web / Bridge ── */}
+              <div style={{ borderTop: `1px solid #1e3040`, paddingTop: 10, marginTop: 2 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8, opacity: integrations.whatsapp.whatsapp_mode === "qr" ? 1 : 0.4 }}>
+                  WhatsApp Web / Bridge
+                </div>
+                <div style={{ display: "grid", gap: 8, opacity: integrations.whatsapp.whatsapp_mode === "qr" ? 1 : 0.4 }}>
+                  <Field label="Bridge URL" hint="Basis-URL des lokalen Baileys-Bridge-Dienstes (z. B. http://localhost:3000)">
+                    <input
+                      style={inputStyle}
+                      value={integrations.whatsapp.bridge_url}
+                      onChange={(e) => updateField("whatsapp.bridge_url", e.target.value)}
+                      placeholder="http://localhost:3000"
+                    />
+                  </Field>
+                  <Field label="Bridge Auth-Verzeichnis" hint="Pfad zum Baileys Auth-Verzeichnis (Credential-Speicher)">
+                    <input
+                      style={inputStyle}
+                      value={integrations.whatsapp.bridge_auth_dir}
+                      onChange={(e) => updateField("whatsapp.bridge_auth_dir", e.target.value)}
+                      placeholder="/app/data/whatsapp/auth_info_baileys"
+                    />
+                  </Field>
+                  {integrations.whatsapp.bridge_qr_url && (
+                    <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.5 }}>
+                      QR-Code scannen:{" "}
+                      <a href={integrations.whatsapp.bridge_qr_url} target="_blank" rel="noreferrer" style={{ color: "#3b82f6" }}>
+                        {integrations.whatsapp.bridge_qr_url}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Sektion: Business API ── */}
+              <div style={{ borderTop: `1px solid #1e3040`, paddingTop: 10, marginTop: 2 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8, opacity: integrations.whatsapp.whatsapp_mode === "business_api" ? 1 : 0.4 }}>
+                  WhatsApp Business API
+                </div>
+                <div style={{ display: "grid", gap: 8, opacity: integrations.whatsapp.whatsapp_mode === "business_api" ? 1 : 0.4 }}>
+                  <Field label="Meta Verify Token" hint="Token zur Webhook-Verifikation im Meta Developer Portal">
+                    <input
+                      type="password"
+                      style={inputStyle}
+                      value={integrations.whatsapp.meta_verify_token}
+                      onChange={(e) => updateField("whatsapp.meta_verify_token", e.target.value)}
+                      placeholder="my-verify-token"
+                    />
+                  </Field>
+                  <Field label="Meta Access Token" hint="Permanenter Access Token der WhatsApp Business API">
+                    <input
+                      type="password"
+                      style={inputStyle}
+                      value={integrations.whatsapp.meta_access_token}
+                      onChange={(e) => updateField("whatsapp.meta_access_token", e.target.value)}
+                      placeholder="EAAxxxxxxx..."
+                    />
+                  </Field>
+                  <Field label="Meta App Secret" hint="App-Secret zur HMAC-Signaturprüfung eingehender Events">
+                    <input
+                      type="password"
+                      style={inputStyle}
+                      value={integrations.whatsapp.meta_app_secret}
+                      onChange={(e) => updateField("whatsapp.meta_app_secret", e.target.value)}
+                      placeholder="App Secret"
+                    />
+                  </Field>
+                </div>
+              </div>
             </IntegrationCard>
 
             <IntegrationCard

@@ -1486,10 +1486,16 @@ async def get_integrations_config(user: AuthContext = Depends(get_current_user))
             "webhook_secret": _mask_if_sensitive("telegram_webhook_secret", _get_setting_with_env_fallback("telegram_webhook_secret", "telegram_webhook_secret", tenant_id=user.tenant_id)),
         },
         "whatsapp": {
+            # Delivery mode: "qr" (WhatsApp Web/Bridge) | "business_api" (Meta Cloud API)
+            "whatsapp_mode": _get_setting_with_env_fallback("whatsapp_mode", None, "qr", tenant_id=user.tenant_id),
+            # Business API fields
             "meta_verify_token": _mask_if_sensitive("meta_verify_token", _get_setting_with_env_fallback("meta_verify_token", "meta_verify_token", tenant_id=user.tenant_id)),
             "meta_access_token": _mask_if_sensitive("meta_access_token", _get_setting_with_env_fallback("meta_access_token", "meta_access_token", tenant_id=user.tenant_id)),
             "meta_app_secret": _mask_if_sensitive("meta_app_secret", _get_setting_with_env_fallback("meta_app_secret", "meta_app_secret", tenant_id=user.tenant_id)),
-            "bridge_auth_dir": _mask_if_sensitive("bridge_auth_dir", _get_setting_with_env_fallback("bridge_auth_dir", "bridge_auth_dir", tenant_id=user.tenant_id)),
+            # WhatsApp Web / Bridge fields
+            "bridge_url": _get_setting_with_env_fallback("bridge_health_url", None, "http://localhost:3000/health", tenant_id=user.tenant_id).rsplit("/health", 1)[0].rstrip("/"),
+            "bridge_auth_dir": _get_setting_with_env_fallback("bridge_auth_dir", "bridge_auth_dir", tenant_id=user.tenant_id),
+            "bridge_qr_url": _get_setting_with_env_fallback("bridge_qr_url", None, "http://localhost:3000/qr", tenant_id=user.tenant_id),
         },
         "magicline": {
             "base_url": _get_setting_with_env_fallback("magicline_base_url", "magicline_base_url", tenant_id=user.tenant_id),
@@ -1541,9 +1547,14 @@ class TelegramConfigUpdate(BaseModel):
 
 
 class WhatsAppConfigUpdate(BaseModel):
+    # Mode selector
+    whatsapp_mode: str | None = None          # "qr" | "business_api"
+    # Business API credentials
     meta_verify_token: str | None = None
     meta_access_token: str | None = None
     meta_app_secret: str | None = None
+    # WhatsApp Web / Bridge settings
+    bridge_url: str | None = None             # Base URL of the Baileys bridge
     bridge_auth_dir: str | None = None
 
 
@@ -1641,9 +1652,15 @@ async def update_integrations_config(
         _persist_integration_key("telegram_admin_chat_id", body.telegram.admin_chat_id, tenant_id=user.tenant_id)
         _persist_integration_key("telegram_webhook_secret", body.telegram.webhook_secret, tenant_id=user.tenant_id)
     if body.whatsapp:
+        _persist_integration_key("whatsapp_mode", body.whatsapp.whatsapp_mode, tenant_id=user.tenant_id)
         _persist_integration_key("meta_verify_token", body.whatsapp.meta_verify_token, tenant_id=user.tenant_id)
         _persist_integration_key("meta_access_token", body.whatsapp.meta_access_token, tenant_id=user.tenant_id)
         _persist_integration_key("meta_app_secret", body.whatsapp.meta_app_secret, tenant_id=user.tenant_id)
+        if body.whatsapp.bridge_url is not None:
+            # Store as bridge_health_url (derived: append /health) and bridge_qr_url
+            _base = body.whatsapp.bridge_url.rstrip("/")
+            _persist_integration_key("bridge_health_url", f"{_base}/health", tenant_id=user.tenant_id)
+            _persist_integration_key("bridge_qr_url", f"{_base}/qr", tenant_id=user.tenant_id)
         _persist_integration_key("bridge_auth_dir", body.whatsapp.bridge_auth_dir, tenant_id=user.tenant_id)
     if body.magicline:
         _persist_integration_key("magicline_base_url", body.magicline.base_url, tenant_id=user.tenant_id)
@@ -1782,27 +1799,54 @@ async def test_integration_connector(provider: str, user: AuthContext = Depends(
             detail = f"Bot @{bot.get('username', 'unknown')} reachable"
 
         elif normalized == "whatsapp":
-            health_url = _get_setting_with_env_fallback("bridge_health_url", "bridge_health_url", tenant_id=user.tenant_id)
+            wa_mode = _get_setting_with_env_fallback("whatsapp_mode", None, "qr", tenant_id=user.tenant_id)
+            results: list[str] = []
+            errors: list[str] = []
+
+            # ── WhatsApp Web / Bridge ──────────────────────────────────
+            health_url = _get_setting_with_env_fallback("bridge_health_url", None, "", tenant_id=user.tenant_id)
             if health_url:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    resp = await client.get(health_url)
-                if resp.status_code >= 400:
-                    raise HTTPException(status_code=502, detail=f"WhatsApp bridge health failed ({resp.status_code})")
-                detail = f"Bridge health OK ({resp.status_code})"
-            else:
-                access_token = _get_setting_with_env_fallback("meta_access_token", "meta_access_token", tenant_id=user.tenant_id)
-                if not access_token or access_token == REDACTED_SECRET_VALUE:
-                    raise HTTPException(status_code=422, detail="WhatsApp access token is not configured")
-                async with httpx.AsyncClient(timeout=12.0) as client:
-                    resp = await client.get(
-                        "https://graph.facebook.com/v21.0/me",
-                        params={"access_token": access_token},
-                    )
-                if resp.status_code in (401, 403):
-                    raise HTTPException(status_code=502, detail="WhatsApp Access Token ungültig oder abgelaufen")
-                if resp.status_code >= 400:
-                    raise HTTPException(status_code=502, detail=f"WhatsApp Graph API nicht erreichbar ({resp.status_code})")
-                detail = "WhatsApp Graph token valid"
+                try:
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        resp = await client.get(health_url)
+                    if resp.status_code >= 400:
+                        errors.append(f"Bridge nicht erreichbar ({resp.status_code})")
+                    else:
+                        try:
+                            bridge_data = resp.json()
+                            status_str = bridge_data.get("status", "unknown")
+                        except Exception:
+                            status_str = str(resp.status_code)
+                        results.append(f"Bridge OK – {status_str}")
+                except Exception as _be:
+                    errors.append(f"Bridge Verbindungsfehler: {_be}")
+
+            # ── Meta Cloud API ─────────────────────────────────────────
+            access_token = _get_setting_with_env_fallback("meta_access_token", "meta_access_token", "", tenant_id=user.tenant_id)
+            if access_token and access_token != REDACTED_SECRET_VALUE:
+                try:
+                    async with httpx.AsyncClient(timeout=12.0) as client:
+                        resp = await client.get(
+                            "https://graph.facebook.com/v21.0/me",
+                            params={"access_token": access_token},
+                        )
+                    if resp.status_code in (401, 403):
+                        errors.append("Business API Token ungültig oder abgelaufen")
+                    elif resp.status_code >= 400:
+                        errors.append(f"Business API nicht erreichbar ({resp.status_code})")
+                    else:
+                        results.append("Business API Token gültig")
+                except Exception as _ae:
+                    errors.append(f"Business API Verbindungsfehler: {_ae}")
+
+            if not health_url and (not access_token or access_token == REDACTED_SECRET_VALUE):
+                raise HTTPException(status_code=422, detail="Weder Bridge-URL noch Business-API-Token konfiguriert")
+
+            if errors and not results:
+                raise HTTPException(status_code=502, detail=" | ".join(errors))
+
+            parts = results + ([f"Warnung: {e}" for e in errors] if errors else [])
+            detail = f"[Modus: {wa_mode}] " + " | ".join(parts) if parts else f"[Modus: {wa_mode}] Konfiguration fehlt"
 
         elif normalized == "magicline":
             base_url = _get_setting_with_env_fallback("magicline_base_url", "magicline_base_url", tenant_id=user.tenant_id)

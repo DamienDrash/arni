@@ -736,10 +736,16 @@ _telegram_bot = TelegramBot(
     bot_token=settings.telegram_bot_token,
     admin_chat_id=settings.telegram_admin_chat_id,
 )
+_wa_mode = persistence.get_setting("whatsapp_mode", None) or "qr"
+_bridge_health = (
+    persistence.get_setting("bridge_health_url", None) or "http://localhost:3000/health"
+)
+_bridge_base = _bridge_health.rsplit("/health", 1)[0].rstrip("/")
 _whatsapp_verifier = WhatsAppClient(
     access_token=settings.meta_access_token,
     phone_number_id=settings.meta_phone_number_id,
     app_secret=settings.meta_app_secret,
+    bridge_url=_bridge_base if _wa_mode == "qr" else "",
 )
 
 
