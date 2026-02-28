@@ -1179,7 +1179,7 @@ async def get_chat_history(user_id: str, user: AuthContext = Depends(get_current
         {
             "role": msg.role,
             "content": msg.content,
-            "timestamp": msg.timestamp.isoformat(),
+            "timestamp": msg.timestamp.isoformat() if msg.timestamp else None,
             "metadata": msg.metadata_json
         }
         for msg in history
@@ -3205,8 +3205,8 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
     slug = _safe_tenant_slug(user)
     waha_url = persistence.get_setting("waha_api_url", tenant_id=user.tenant_id) or "http://ariia-whatsapp-bridge:3000"
     waha_key = persistence.get_setting("waha_api_key", tenant_id=user.tenant_id) or "ariia-waha-secret"
-    # WAHA Core only supports 'default' session name. Multi-tenancy requires WAHA PLUS.
-    session_name = "default"
+    # WAHA Plus supports multiple sessions. We use the tenant slug as the session name.
+    session_name = slug or "default"
     
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -3230,11 +3230,12 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
                         headers={"X-Api-Key": waha_key, "Content-Type": "application/json"},
                         json={
                             "name": session_name,
+                            "displayName": "Ariia",
                             "config": {
                                 "webhooks": [
                                     {
                                         "url": webhook_url,
-                                        "events": ["message"],
+                                        "events": ["message", "session.status"],
                                         "hmac": waha_key
                                     }
                                 ]
@@ -3252,29 +3253,33 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
                     import asyncio
                     await asyncio.sleep(3)
                 else:
-                    # Session exists, ensure webhook is correct
-                    # Update webhook dynamically even if session exists
+                    # Session exists, ensure webhook is clean and correct
                     webhook_url = f"http://ariia-core:8000/webhook/waha/{slug}"
-                    current_webhooks = current_session.get("config", {}).get("webhooks", [])
-                    is_set = any(w.get("url") == webhook_url for w in current_webhooks)
                     
-                    if not is_set or len(current_webhooks) > 1:
-                        try:
-                            await client.post(
-                                f"{waha_url}/api/sessions/{session_name}/webhooks",
-                                headers={"X-Api-Key": waha_key, "Content-Type": "application/json"},
-                                json={
-                                    "webhooks": [
-                                        {
-                                            "url": webhook_url,
-                                            "events": ["message"],
-                                            "hmac": waha_key
-                                        }
-                                    ]
-                                }
-                            )
-                        except Exception:
-                            pass
+                    # FORCE OVERWRITE: First clear, then set (WAHA Core Best Practice)
+                    try:
+                        # 1. Clear all webhooks for this session
+                        await client.post(
+                            f"{waha_url}/api/sessions/{session_name}/webhooks",
+                            headers={"X-Api-Key": waha_key, "Content-Type": "application/json"},
+                            json={"webhooks": []}
+                        )
+                        # 2. Set the single correct one
+                        await client.post(
+                            f"{waha_url}/api/sessions/{session_name}/webhooks",
+                            headers={"X-Api-Key": waha_key, "Content-Type": "application/json"},
+                            json={
+                                "webhooks": [
+                                    {
+                                        "url": webhook_url,
+                                        "events": ["message", "session.status"],
+                                        "hmac": waha_key
+                                    }
+                                ]
+                            }
+                        )
+                    except Exception:
+                        pass
                     
                     if current_session.get("status") == "WORKING":
                         raise HTTPException(status_code=404, detail="CONNECTED")
@@ -3311,7 +3316,7 @@ async def reset_whatsapp_session(user: AuthContext = Depends(get_current_user)):
     
     waha_url = persistence.get_setting("waha_api_url", tenant_id=user.tenant_id) or "http://ariia-whatsapp-bridge:3000"
     waha_key = persistence.get_setting("waha_api_key", tenant_id=user.tenant_id) or "ariia-waha-secret"
-    session_name = "default"
+    session_name = _safe_tenant_slug(user) or "default"
     
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:

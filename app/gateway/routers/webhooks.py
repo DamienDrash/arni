@@ -450,8 +450,16 @@ async def webhook_inbound_tenant(
 async def webhook_waha_tenant(
     tenant_slug: str,
     payload: dict[str, Any],
+    request: Request,
 ) -> dict[str, str]:
     """Inbound from WAHA (WhatsApp Web bridge)."""
+    # AGGRESSIVE DEBUG LOGGING
+    logger.info("webhook.waha.raw_request", 
+                slug=tenant_slug, 
+                event_name=payload.get("event"),
+                session=payload.get("session"),
+                headers=dict(request.headers))
+
     # Special case: system-admin scans QR, WAHA gets configured with /system slug.
     # We map this to the demo tenant if no specific tenant is found.
     effective_slug = tenant_slug
@@ -464,6 +472,17 @@ async def webhook_waha_tenant(
         raise HTTPException(status_code=404, detail="Unknown tenant")
 
     event_type = payload.get("event")
+    
+    # --- 1. Handle Session Status Changes ---
+    if event_type == "session.status":
+        status_data = payload.get("payload", {})
+        new_status = status_data.get("status")
+        session_name = payload.get("session")
+        logger.info("webhook.waha.session_status", tenant=effective_slug, session=session_name, status=new_status)
+        # We could persist this to a 'whatsapp_status' setting or table
+        persistence.upsert_setting(f"wa_session_status_{session_name}", new_status, tenant_id=tenant_id)
+        return {"status": "ok", "type": "status_updated"}
+
     if event_type != "message":
         return {"status": "ignored", "event": str(event_type)}
 
@@ -475,6 +494,19 @@ async def webhook_waha_tenant(
     
     if not sender or not body:
         return {"status": "ignored", "detail": "Missing sender or body"}
+
+    # --- 2. Idempotency Check (Redis) ---
+    # Prevent double processing if WAHA retries due to local timeout
+    from app.core.redis_bus import get_redis
+    bus = await get_redis()
+    try:
+        lock_key = f"msg_lock:waha:{msg_id}"
+        is_new = await bus.client.set(lock_key, "1", ex=300, nx=True) # 5 min TTL
+        if not is_new:
+            logger.warning("webhook.waha.duplicate_ignored", msg_id=msg_id, tenant=effective_slug)
+            return {"status": "ok", "detail": "already_processed"}
+    finally:
+        await bus.disconnect()
 
     # WAHA usually sends sender as "491761234567@c.us"
     # We strip the @c.us for internal matching if needed, or keep it as user_id
