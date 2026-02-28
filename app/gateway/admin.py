@@ -3201,6 +3201,7 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
     """Get QR code image from WAHA bridge for WhatsApp pairing."""
     _require_tenant_admin_or_system(user)
     from fastapi.responses import Response
+    import asyncio
     
     slug = _safe_tenant_slug(user)
     waha_url = persistence.get_setting("waha_api_url", tenant_id=user.tenant_id) or "http://ariia-whatsapp-bridge:3000"
@@ -3222,8 +3223,14 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
                 # Check for existing session state
                 current_session = next((s for s in sessions if s["name"] == session_name), None)
                 
-                if not current_session:
-                    # Create session with dynamic webhook for this tenant
+                if not current_session or current_session.get("status") in {"STOPPED", "FAILED"}:
+                    # Clean start for new or failed sessions
+                    if current_session and current_session.get("status") == "FAILED":
+                        logger.warning("admin.whatsapp.session_failed_reset", tenant=slug)
+                        await client.post(f"{waha_url}/api/sessions/stop", json={"name": session_name}, headers={"X-Api-Key": waha_key})
+                        await asyncio.sleep(2)
+                        return {"status": "RESTARTING", "message": "Sitzung wird nach Fehler neu gestartet. Bitte kurz warten."}
+
                     webhook_url = f"http://ariia-core:8000/webhook/waha/{slug}"
                     await client.post(
                         f"{waha_url}/api/sessions/start",
@@ -3242,29 +3249,16 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
                             }
                         }
                     )
-                    import asyncio
-                    await asyncio.sleep(5)
-                elif current_session.get("status") in {"STOPPED", "FAILED"}:
-                    # Restart dead session
-                    await client.post(
-                        f"{waha_url}/api/sessions/{session_name}/start",
-                        headers={"X-Api-Key": waha_key}
-                    )
-                    import asyncio
-                    await asyncio.sleep(3)
+                    return {"status": "STARTING", "message": "WhatsApp Bridge wird initialisiert..."}
                 else:
-                    # Session exists, ensure webhook is clean and correct
-                    webhook_url = f"http://ariia-core:8000/webhook/waha/{slug}"
+                    # Session exists (SCAN_QR_CODE or WORKING)
+                    if current_session.get("status") == "WORKING":
+                        # Signal success to frontend
+                        return {"status": "CONNECTED", "message": "WhatsApp ist bereit!"}
                     
-                    # FORCE OVERWRITE: First clear, then set (WAHA Core Best Practice)
+                    # Update webhook dynamically
+                    webhook_url = f"http://ariia-core:8000/webhook/waha/{slug}"
                     try:
-                        # 1. Clear all webhooks for this session
-                        await client.post(
-                            f"{waha_url}/api/sessions/{session_name}/webhooks",
-                            headers={"X-Api-Key": waha_key, "Content-Type": "application/json"},
-                            json={"webhooks": []}
-                        )
-                        # 2. Set the single correct one
                         await client.post(
                             f"{waha_url}/api/sessions/{session_name}/webhooks",
                             headers={"X-Api-Key": waha_key, "Content-Type": "application/json"},
@@ -3280,9 +3274,6 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
                         )
                     except Exception:
                         pass
-                    
-                    if current_session.get("status") == "WORKING":
-                        raise HTTPException(status_code=404, detail="CONNECTED")
             
             # 2. Get QR code as PNG (with retry)
             qr_resp = None

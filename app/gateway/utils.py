@@ -210,21 +210,34 @@ async def send_to_user(
             "response": content,
             "message_id": f"out-{datetime.now(timezone.utc).timestamp()}",
             "metadata": metadata
-        })
+        }, tenant_id=resolved_tid)
              
     except Exception as e:
         logger.error("gateway.send_failed", error=str(e), user_id=user_id, platform=platform, tenant_id=resolved_tid)
         raise e
 
 
-async def broadcast_to_admins(message: dict[str, Any]) -> None:
-    """Send a message to all connected WebSocket clients (Admin Dashboard)."""
+async def broadcast_to_admins(message: dict[str, Any], tenant_id: int | None = None) -> None:
+    """Send a message to all connected WebSocket clients (Admin Dashboard) for a specific tenant."""
+    from app.gateway.dependencies import active_websockets
+    
+    # If no tenant_id provided, we broadcast to all
+    targets = []
+    if tenant_id is not None:
+        targets = active_websockets.get(tenant_id, [])
+    else:
+        for ws_list in active_websockets.values():
+            targets.extend(ws_list)
+
     disconnected = []
-    for ws in active_websockets:
+    for ws in targets:
         try:
             await ws.send_json(message)
         except Exception:
             disconnected.append(ws)
+            
+    # Cleanup disconnected
     for ws in disconnected:
-        if ws in active_websockets:
-            active_websockets.remove(ws)
+        for tid in list(active_websockets.keys()):
+            if ws in active_websockets[tid]:
+                active_websockets[tid].remove(ws)

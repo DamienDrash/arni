@@ -23,22 +23,29 @@ logger = structlog.get_logger()
 router = APIRouter(tags=["admin"])
 
 @router.websocket("/ws/control")
-async def websocket_control(ws: WebSocket) -> None:
+async def websocket_control(ws: WebSocket, tid: int | None = None) -> None:
     """WebSocket endpoint for Admin Dashboard & Ghost Mode."""
     await ws.accept()
-    active_websockets.append(ws)
+    
+    # Register in tenant-specific list
+    # Use 1 (system) as default if no tid provided
+    resolved_tid = tid if tid is not None else 1
+    if resolved_tid not in active_websockets:
+        active_websockets[resolved_tid] = []
+    active_websockets[resolved_tid].append(ws)
+    
     client_id = str(uuid4())[:8]
-    logger.info("ws.connected", client_id=client_id, total=len(active_websockets))
+    logger.info("ws.connected", client_id=client_id, tenant_id=resolved_tid, total=len(active_websockets[resolved_tid]))
 
     try:
-        system_tid = persistence.get_system_tenant_id()
         event = SystemEvent(
             event_type="admin.connected",
             source="gateway",
-            payload={"client_id": client_id},
+            payload={"client_id": client_id, "tenant_id": resolved_tid},
             severity="info",
         )
-        channel = redis_bus.get_tenant_channel(RedisBus.CHANNEL_EVENTS, system_tid)
+        from app.gateway.redis_bus import RedisBus
+        channel = redis_bus.get_tenant_channel(RedisBus.CHANNEL_EVENTS, resolved_tid)
         await redis_bus.publish(channel, event.model_dump_json())
     except Exception:
         pass
@@ -53,9 +60,7 @@ async def websocket_control(ws: WebSocket) -> None:
                      user_id = payload.get("user_id")
                      content = payload.get("content")
                      subtype = payload.get("subtype")
-                     tenant_id = payload.get("tenant_id") # Try to get tenant_id from payload
-                     
-                     resolved_tid = tenant_id if tenant_id is not None else persistence.get_system_tenant_id()
+                     # Use the connection's tenant_id for security
                      
                      platform_str = payload.get("platform", "whatsapp").lower().strip()
                      try:
@@ -79,28 +84,18 @@ async def websocket_control(ws: WebSocket) -> None:
                              )
                              
                          elif content:
+                             # send_to_user already handles saving to DB! No need to call persistence.save_message here.
                              await send_to_user(user_id, platform, content, tenant_id=resolved_tid)
-                             
-                             import asyncio
-                             asyncio.create_task(asyncio.to_thread(
-                                 persistence.save_message,
-                                 user_id=user_id,
-                                 role="assistant",
-                                 content=content,
-                                 platform=platform,
-                                 metadata={"source": "admin", "type": "intervention"},
-                                 tenant_id=resolved_tid,
-                             ))
                          
                          if content or subtype == "request_contact":
                              response_content = content or "[System Requested Contact]"
                              await broadcast_to_admins({
                                  "type": "ghost.message_out",
                                  "message_id": f"admin-{datetime.now().timestamp()}",
-                                 "user_id": "Admin",
+                                 "user_id": user_id, # Target user ID
                                  "response": response_content,
                                  "platform": platform
-                             })
+                             }, tenant_id=resolved_tid)
                          
             except json.JSONDecodeError:
                 await ws.send_json({
@@ -112,6 +107,6 @@ async def websocket_control(ws: WebSocket) -> None:
             except Exception as e:
                 logger.error("ws.handler_failed", error=str(e))
     except WebSocketDisconnect:
-        if ws in active_websockets:
-            active_websockets.remove(ws)
-        logger.info("ws.disconnected", client_id=client_id)
+        if resolved_tid in active_websockets and ws in active_websockets[resolved_tid]:
+            active_websockets[resolved_tid].remove(ws)
+        logger.info("ws.disconnected", client_id=client_id, tenant_id=resolved_tid)

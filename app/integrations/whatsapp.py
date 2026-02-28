@@ -31,6 +31,7 @@ class WhatsAppClient:
         app_secret: str = "",
         waha_api_url: str | None = None,
         waha_api_key: str | None = None,
+        session_name: str = "default",
     ) -> None:
         self._access_token = access_token
         self._phone_number_id = phone_number_id
@@ -38,6 +39,7 @@ class WhatsAppClient:
         self._base_url = f"{GRAPH_API_BASE}/{phone_number_id}/messages"
         self.waha_api_url = waha_api_url
         self.waha_api_key = waha_api_key
+        self.session_name = session_name
 
     async def send_text(self, to: str, body: str) -> dict[str, Any]:
         """Send a text message to a WhatsApp user."""
@@ -55,13 +57,14 @@ class WhatsAppClient:
 
     async def _send_waha(self, to: str, body: str) -> dict[str, Any]:
         """Send message via WAHA (WhatsApp Web bridge)."""
-        # Ensure 'to' has @c.us for WAHA if it doesn't
-        chat_id = to if "@" in to else f"{to}@c.us"
+        # Ensure 'to' has @c.us for WAHA and strip any :9 suffixes from user_id
+        clean_to = to.split("@")[0].split(":")[0]
+        chat_id = f"{clean_to}@c.us"
         
         payload = {
             "chatId": chat_id,
             "text": body,
-            "session": "default"
+            "session": self.session_name
         }
         
         headers = {"Content-Type": "application/json"}

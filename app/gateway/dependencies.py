@@ -26,7 +26,8 @@ llm_client = LLMClient(openai_api_key=settings.openai_api_key)
 swarm_router = SwarmRouter(llm=llm_client)
 
 # Active WebSockets (Ghost Mode)
-active_websockets = []
+# Dict of tenant_id -> list of WebSocket objects
+active_websockets: dict[int, list] = {}
 
 def get_redis_bus() -> RedisBus:
     return redis_bus
@@ -77,6 +78,7 @@ def get_whatsapp_client(tenant_id: int | None = None) -> WhatsAppClient:
     secret = ""
     waha_url = None
     waha_key = None
+    session_name = "default"
     
     if tenant_id is not None:
         token = _wa_setting("access_token", tenant_id)
@@ -86,6 +88,9 @@ def get_whatsapp_client(tenant_id: int | None = None) -> WhatsAppClient:
         # Load WAHA bridge settings (Persistence first, then Env)
         waha_url = persistence.get_setting("waha_api_url", tenant_id=tenant_id)
         waha_key = persistence.get_setting("waha_api_key", tenant_id=tenant_id)
+        
+        # Load session name (tenant slug)
+        session_name = persistence.get_tenant_slug(tenant_id) or "default"
         
     # Global fallbacks if tenant-specific settings are missing
     if not waha_url:
@@ -101,7 +106,8 @@ def get_whatsapp_client(tenant_id: int | None = None) -> WhatsAppClient:
             phone_number_id="",
             app_secret="",
             waha_api_url=waha_url,
-            waha_api_key=waha_key
+            waha_api_key=waha_key,
+            session_name=session_name
         )
 
     return WhatsAppClient(
@@ -109,5 +115,6 @@ def get_whatsapp_client(tenant_id: int | None = None) -> WhatsAppClient:
         phone_number_id=phone_id,
         app_secret=secret,
         waha_api_url=waha_url,
-        waha_api_key=waha_key
+        waha_api_key=waha_key,
+        session_name=session_name
     )

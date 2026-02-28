@@ -13,6 +13,7 @@ import { Modal } from "@/components/ui/Modal";
 import { T } from "@/lib/tokens";
 import { apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n/LanguageContext";
+import { getStoredUser } from "@/lib/auth";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 type Message = { role: string; content: string; timestamp: string; metadata?: string };
@@ -113,6 +114,7 @@ export default function LiveMonitorPage() {
   const [interventionText, setInterventionText] = useState("");
   const [sending, setSending] = useState(false);
 
+  const socketRef = useRef<WebSocket | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   /* ── Data Loading ─────────────────────────────────────────────────── */
@@ -195,24 +197,74 @@ export default function LiveMonitorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content: interventionText.trim(),
-          platform: activeSession?.platform || "telegram",
+          platform: activeSession?.platform || "whatsapp",
         }),
       });
       if (res.ok) {
         setInterventionText("");
-        fetchHistory(selectedId);
       }
     } finally {
       setSending(false);
     }
-  }, [selectedId, interventionText, sessions, fetchHistory]);
+  }, [selectedId, interventionText, sessions]);
+
+  /* ── WebSocket Integration ────────────────────────────────────────── */
+  useEffect(() => {
+    const user = getStoredUser();
+    if (!user) return;
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}/ws/control?tid=${user.tenant_id}`;
+
+    let reconnectTimer: any;
+
+    const connect = () => {
+      console.log("[WS] Connecting to", wsUrl);
+      const ws = new WebSocket(wsUrl);
+      socketRef.current = ws;
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "ghost.message_in" || data.type === "ghost.message_out") {
+            setSessions(prev => {
+              const sid = data.user_id;
+              const idx = prev.findIndex(s => s.user_id === sid);
+              if (idx === -1) { fetchSessions(); return prev; }
+              const updated = [...prev];
+              updated[idx] = { ...updated[idx], last_active: new Date().toISOString(), is_active: true };
+              return updated.sort((a, b) => new Date(b.last_active).getTime() - new Date(a.last_active).getTime());
+            });
+
+            if (data.user_id === selectedId) {
+              setHistory(prev => {
+                const isDuplicate = prev.some(m => m.content === (data.content || data.response) && m.timestamp.slice(0, 16) === new Date().toISOString().slice(0, 16));
+                if (isDuplicate) return prev;
+                return [...prev, {
+                  role: data.type === "ghost.message_in" ? "user" : "assistant",
+                  content: data.content || data.response,
+                  timestamp: new Date().toISOString(),
+                  metadata: JSON.stringify({ message_id: data.message_id })
+                }];
+              });
+            }
+          }
+        } catch (e) { console.error("[WS] Parse error", e); }
+      };
+
+      ws.onclose = () => { reconnectTimer = setTimeout(connect, 3000); };
+    };
+
+    connect();
+    return () => { if (socketRef.current) socketRef.current.close(); clearTimeout(reconnectTimer); };
+  }, [selectedId, fetchSessions]);
 
   /* ── Effects ──────────────────────────────────────────────────────── */
-  useEffect(() => { fetchSessions(); const t = setInterval(fetchSessions, 5000); return () => clearInterval(t); }, [fetchSessions]);
+  useEffect(() => { fetchSessions(); }, [fetchSessions]);
   useEffect(() => { if (selectedId) fetchHistory(selectedId); }, [selectedId, fetchHistory]);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [history]);
 
-  // Debounced member search
   useEffect(() => {
     const timer = setTimeout(() => { if (memberSearch.trim()) searchMembers(memberSearch); }, 300);
     return () => clearTimeout(timer);
@@ -238,7 +290,6 @@ export default function LiveMonitorPage() {
   /* ── Render ───────────────────────────────────────────────────────── */
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20, height: "calc(100vh - 120px)" }}>
-      {/* Header */}
       <SectionHeader
         title={t("live.title")}
         subtitle={t("live.subtitle")}
@@ -259,450 +310,83 @@ export default function LiveMonitorPage() {
         }
       />
 
-      {/* Status Alerts */}
-      {linkSuccess && (
-        <div style={{
-          padding: "12px 20px", borderRadius: 12,
-          background: T.successDim, border: `1px solid ${T.success}40`,
-          display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: T.success, fontWeight: 600,
-        }}>
-          <CheckCircle2 size={16} /> {linkSuccess}
-        </div>
-      )}
-
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card style={statCard}>
-          <div>
-            <div style={statLabel}>Sitzungen</div>
-            <div style={statValue()}>{sessions.length}</div>
-          </div>
+          <div><div style={statLabel}>Sitzungen</div><div style={statValue()}>{sessions.length}</div></div>
           <div style={statIcon(T.accent)}><Activity size={20} /></div>
         </Card>
         <Card style={statCard}>
-          <div>
-            <div style={statLabel}>Aktiv</div>
-            <div style={statValue(T.success)}>{activeSessions.length}</div>
-          </div>
+          <div><div style={statLabel}>Aktiv</div><div style={statValue(T.success)}>{activeSessions.length}</div></div>
           <div style={statIcon(T.success)}><MessageSquare size={20} /></div>
         </Card>
         <Card style={statCard}>
-          <div>
-            <div style={statLabel}>Verifiziert</div>
-            <div style={statValue(T.success)}>{verifiedCount}</div>
-          </div>
+          <div><div style={statLabel}>Verifiziert</div><div style={statValue(T.success)}>{verifiedCount}</div></div>
           <div style={statIcon(T.success)}><CheckCircle2 size={20} /></div>
         </Card>
         <Card style={statCard}>
-          <div>
-            <div style={statLabel}>Nicht verifiziert</div>
-            <div style={statValue(T.warning)}>{unverifiedCount}</div>
-          </div>
+          <div><div style={statLabel}>Nicht verifiziert</div><div style={statValue(T.warning)}>{unverifiedCount}</div></div>
           <div style={statIcon(T.warning)}><AlertTriangle size={20} /></div>
         </Card>
       </div>
 
-      {/* Main Content: Session List + Chat View */}
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4" style={{ flex: 1, minHeight: 0 }}>
-        {/* Session List */}
         <Card style={{ padding: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{
-            padding: "16px 16px 12px", borderBottom: `1px solid ${T.border}`,
-            background: `${T.surface}80`,
-          }}>
+          <div style={{ padding: "16px 16px 12px", borderBottom: `1px solid ${T.border}`, background: `${T.surface}80` }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Activity size={16} color={T.accent} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{t("live.sessions")}</span>
-              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Activity size={16} color={T.accent} /><span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{t("live.sessions")}</span></div>
               <Badge variant="success" size="xs">{filteredSessions.length}</Badge>
             </div>
-            <div style={{ position: "relative" }}>
-              <Search size={14} style={{ position: "absolute", left: 12, top: 11, color: T.textDim }} />
-              <input
-                style={{ ...inputBase, paddingLeft: 34, fontSize: 12 }}
-                placeholder="Sitzung suchen…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+            <div style={{ position: "relative" }}><Search size={14} style={{ position: "absolute", left: 12, top: 11, color: T.textDim }} /><input style={{ ...inputBase, paddingLeft: 34, fontSize: 12 }} placeholder="Sitzung suchen…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
           </div>
-
           <div style={{ flex: 1, overflowY: "auto", padding: 8 }} className="custom-scrollbar">
-            {filteredSessions.length === 0 && !loading ? (
-              <div style={{ padding: 32, textAlign: "center", color: T.textDim, fontSize: 12 }}>
-                <MessageSquare size={24} style={{ marginBottom: 8, opacity: 0.3 }} />
-                <div>{t("live.noSessions")}</div>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {filteredSessions.map((s) => {
-                  const isActive = selectedId === s.user_id;
-                  return (
-                    <button
-                      key={s.user_id}
-                      onClick={() => setSelectedId(s.user_id)}
-                      style={{
-                        width: "100%", textAlign: "left", padding: "14px 14px",
-                        borderRadius: 10, border: `1px solid ${isActive ? `${T.accent}60` : "transparent"}`,
-                        background: isActive ? T.accentDim : "transparent",
-                        cursor: "pointer", transition: "all 0.15s ease",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                        <span style={{
-                          fontSize: 12, fontWeight: isActive ? 700 : 600,
-                          color: isActive ? T.accentLight : T.text,
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                          maxWidth: 180,
-                        }}>
-                          {s.user_name || s.user_id.slice(0, 16)}
-                        </span>
-                        <PlatformBadge platform={s.platform} />
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <span style={{ fontSize: 10, color: isActive ? T.accentLight : T.textDim }}>
-                          {new Date(s.last_active).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          {s.member_id ? (
-                            <Badge variant="success" size="xs">Verifiziert</Badge>
-                          ) : s.active_token ? (
-                            <span style={{
-                              fontSize: 9, fontWeight: 800, color: T.warning,
-                              background: T.warningDim, padding: "2px 6px", borderRadius: 4,
-                              border: `1px solid ${T.warning}30`, fontFamily: "monospace",
-                            }}>
-                              {s.active_token}
-                            </span>
-                          ) : null}
-                          <ChevronRight size={12} style={{ color: isActive ? T.accent : T.textDim, opacity: isActive ? 1 : 0.3 }} />
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            {filteredSessions.map((s) => {
+              const isActive = selectedId === s.user_id;
+              return (
+                <button key={s.user_id} onClick={() => setSelectedId(s.user_id)} style={{ width: "100%", textAlign: "left", padding: "14px 14px", borderRadius: 10, border: `1px solid ${isActive ? `${T.accent}60` : "transparent"}`, background: isActive ? T.accentDim : "transparent", cursor: "pointer", transition: "all 0.15s ease" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}><span style={{ fontSize: 12, fontWeight: isActive ? 700 : 600, color: isActive ? T.accentLight : T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 180 }}>{s.user_name || s.user_id}</span><PlatformBadge platform={s.platform} /></div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ fontSize: 10, color: isActive ? T.accentLight : T.textDim }}>{new Date(s.last_active).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span><ChevronRight size={12} style={{ color: isActive ? T.accent : T.textDim, opacity: isActive ? 1 : 0.3 }} /></div>
+                </button>
+              );
+            })}
           </div>
         </Card>
 
-        {/* Chat Area */}
         <Card style={{ padding: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           {selectedId && activeSession ? (
             <>
-              {/* Chat Header */}
-              <div style={{
-                padding: "14px 20px", borderBottom: `1px solid ${T.border}`,
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                background: `${T.surface}80`, flexWrap: "wrap", gap: 10,
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{
-                    width: 40, height: 40, borderRadius: 12,
-                    background: activeSession.member_id ? `${T.success}15` : T.accentDim,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: activeSession.member_id ? T.success : T.accent,
-                    fontWeight: 800, fontSize: 14,
-                    border: `1px solid ${activeSession.member_id ? `${T.success}30` : `${T.accent}30`}`,
-                  }}>
-                    {(activeSession.user_name || "U")[0].toUpperCase()}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>
-                      {activeSession.user_name || selectedId}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
-                      <PlatformBadge platform={activeSession.platform} />
-                      {activeSession.member_id && (
-                        <span style={{ fontSize: 10, color: T.success, fontWeight: 600 }}>
-                          Mitglied: {activeSession.member_id}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 8 }}>
-                  {activeSession.member_id ? (
-                    <>
-                      <div style={{
-                        display: "flex", alignItems: "center", gap: 6,
-                        padding: "6px 12px", borderRadius: 8,
-                        background: `${T.success}15`, border: `1px solid ${T.success}30`,
-                        fontSize: 11, fontWeight: 700, color: T.success,
-                      }}>
-                        <Check size={14} /> Verifiziert
+              <div style={{ padding: "14px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: `${T.surface}80` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}><div style={{ width: 40, height: 40, borderRadius: 12, background: activeSession.member_id ? `${T.success}15` : T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", color: activeSession.member_id ? T.success : T.accent, fontWeight: 800, fontSize: 14, border: `1px solid ${activeSession.member_id ? `${T.success}30` : `${T.accent}30`}` }}>{(activeSession.user_name || "U")[0].toUpperCase()}</div><div><div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{activeSession.user_name || selectedId}</div><div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}><PlatformBadge platform={activeSession.platform} /></div></div></div>
+                <div style={{ display: "flex", gap: 8 }}>{activeSession.member_id ? <button onClick={() => unlinkMember(selectedId)} style={{ ...btnSecondary, borderColor: `${T.danger}40`, color: T.danger }}><Unlink size={14} /></button> : <button onClick={() => setLinkModal(selectedId)} style={btnPrimary}><Link2 size={14} /> {t("live.handoff.link")}</button>}</div>
+              </div>
+              <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }} className="custom-scrollbar">
+                {history.map((msg, idx) => {
+                  const isUser = msg.role === "user";
+                  return (
+                    <div key={idx} style={{ display: "flex", justifyContent: isUser ? "flex-start" : "flex-end" }}>
+                      <div style={{ maxWidth: "75%" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexDirection: isUser ? "row" : "row-reverse" }}><div style={{ width: 24, height: 24, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: isUser ? T.surfaceAlt : T.accentDim, color: isUser ? T.textDim : T.accent, border: `1px solid ${isUser ? T.border : `${T.accent}30`}` }}>{isUser ? <User size={12} /> : <Bot size={12} />}</div><span style={{ fontSize: 10, fontWeight: 700, color: T.textDim }}>{isUser ? (activeSession?.user_name || "Nutzer") : "ARIIA"}</span><span style={{ fontSize: 9, color: T.textDim }}>{new Date(msg.timestamp).toLocaleTimeString("de-DE")}</span></div>
+                        <div style={{ padding: "12px 16px", borderRadius: 14, fontSize: 13, background: isUser ? T.surfaceAlt : T.accent, color: isUser ? T.text : "#fff", borderTopLeftRadius: isUser ? 4 : 14, borderTopRightRadius: isUser ? 14 : 4, whiteSpace: "pre-wrap" }}>{msg.content}</div>
                       </div>
-                      <button
-                        onClick={() => unlinkMember(selectedId)}
-                        style={{ ...btnSecondary, borderColor: `${T.danger}40`, color: T.danger }}
-                        title="Verknüpfung aufheben"
-                      >
-                        <Unlink size={14} />
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setLinkModal(selectedId);
-                        setMemberSearch("");
-                        setMemberResults([]);
-                        setLinkError("");
-                      }}
-                      style={btnPrimary}
-                    >
-                      <Link2 size={14} /> {t("live.handoff.link")}
-                    </button>
-                  )}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
-
-              {/* Chat Messages */}
-              <div
-                ref={scrollRef}
-                style={{
-                  flex: 1, overflowY: "auto", padding: "20px 24px",
-                  display: "flex", flexDirection: "column", gap: 16,
-                }}
-                className="custom-scrollbar"
-              >
-                {loadingHistory ? (
-                  <div style={{ display: "flex", justifyContent: "center", padding: 32 }}>
-                    <RefreshCw size={24} style={{ animation: "spin 1s linear infinite", color: T.accent }} />
-                  </div>
-                ) : history.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: 48, color: T.textDim, fontSize: 12 }}>
-                    Keine Nachrichten in dieser Sitzung.
-                  </div>
-                ) : (
-                  history.map((msg, idx) => {
-                    const isUser = msg.role === "user";
-                    return (
-                      <div key={idx} style={{ display: "flex", justifyContent: isUser ? "flex-start" : "flex-end" }}>
-                        <div style={{ maxWidth: "75%" }}>
-                          <div style={{
-                            display: "flex", alignItems: "center", gap: 8,
-                            marginBottom: 6, flexDirection: isUser ? "row" : "row-reverse",
-                          }}>
-                            <div style={{
-                              width: 24, height: 24, borderRadius: 8,
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              background: isUser ? T.surfaceAlt : T.accentDim,
-                              color: isUser ? T.textDim : T.accent,
-                              border: `1px solid ${isUser ? T.border : `${T.accent}30`}`,
-                            }}>
-                              {isUser ? <User size={12} /> : <Bot size={12} />}
-                            </div>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                              {isUser ? (activeSession?.user_name || "Nutzer") : "ARIIA"}
-                            </span>
-                            <span style={{ fontSize: 9, color: T.textDim }}>
-                              {new Date(msg.timestamp).toLocaleTimeString("de-DE")}
-                            </span>
-                          </div>
-                          <div style={{
-                            padding: "12px 16px", borderRadius: 14,
-                            fontSize: 13, lineHeight: 1.6,
-                            background: isUser ? T.surfaceAlt : T.accent,
-                            color: isUser ? T.text : "#fff",
-                            border: `1px solid ${isUser ? T.border : T.accent}`,
-                            borderTopLeftRadius: isUser ? 4 : 14,
-                            borderTopRightRadius: isUser ? 14 : 4,
-                            whiteSpace: "pre-wrap", wordBreak: "break-word",
-                          }}>
-                            {msg.content}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Intervention Input */}
-              <div style={{
-                padding: "12px 20px", borderTop: `1px solid ${T.border}`,
-                display: "flex", alignItems: "center", gap: 10,
-                background: `${T.surface}80`,
-              }}>
-                <input
-                  style={{ ...inputBase, flex: 1 }}
-                  placeholder="Nachricht als Admin senden…"
-                  value={interventionText}
-                  onChange={(e) => setInterventionText(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendIntervention(); } }}
-                />
-                <button
-                  onClick={sendIntervention}
-                  disabled={sending || !interventionText.trim()}
-                  style={{
-                    ...btnPrimary,
-                    opacity: sending || !interventionText.trim() ? 0.4 : 1,
-                    padding: "10px 16px",
-                  }}
-                >
-                  {sending ? <RefreshCw size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={16} />}
-                </button>
-              </div>
+              <div style={{ padding: "12px 20px", borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 10, background: `${T.surface}80` }}><input style={{ ...inputBase, flex: 1 }} placeholder="Nachricht als Admin senden…" value={interventionText} onChange={(e) => setInterventionText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendIntervention(); } }} /><button onClick={sendIntervention} disabled={sending || !interventionText.trim()} style={{ ...btnPrimary, opacity: sending || !interventionText.trim() ? 0.4 : 1 }}><Send size={16} /></button></div>
             </>
           ) : (
-            /* Empty State */
-            <div style={{
-              flex: 1, display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center", padding: 48, textAlign: "center",
-            }}>
-              <div style={{
-                width: 72, height: 72, borderRadius: "50%",
-                background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center",
-                marginBottom: 20, border: `1px solid ${T.accent}30`,
-              }}>
-                <MessageSquare size={32} color={T.accent} strokeWidth={1.5} />
-              </div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8 }}>
-                {t("live.selectSession")}
-              </h3>
-              <p style={{ fontSize: 13, color: T.textMuted, maxWidth: 360, lineHeight: 1.6 }}>
-                Wählen Sie links eine Sitzung aus, um den Chatverlauf einzusehen und bei Bedarf einzugreifen.
-              </p>
-            </div>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 48, textAlign: "center" }}><div style={{ width: 72, height: 72, borderRadius: "50%", background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20, border: `1px solid ${T.accent}30` }}><MessageSquare size={32} color={T.accent} /></div><h3 style={{ fontSize: 16, fontWeight: 700, color: T.text }}>{t("live.selectSession")}</h3></div>
           )}
         </Card>
       </div>
 
-      {/* Link Member Modal */}
-      <Modal
-        open={!!linkModal}
-        onClose={() => setLinkModal(null)}
-        title={t("live.handoff.link")}
-        subtitle={t("live.handoff.hint")}
-        width="min(560px, 90vw)"
-      >
+      <Modal open={!!linkModal} onClose={() => setLinkModal(null)} title={t("live.handoff.link")} subtitle={t("live.handoff.hint")} width="min(560px, 90vw)">
         {linkModal && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "4px 0" }}>
-            {/* Search Input */}
-            <div style={{ position: "relative" }}>
-              <Search size={14} style={{ position: "absolute", left: 14, top: 13, color: T.textDim }} />
-              <input
-                style={{ ...inputBase, paddingLeft: 36 }}
-                placeholder="Mitglied suchen (Name, E-Mail, Telefon, Mitgliedsnr.)…"
-                value={memberSearch}
-                onChange={(e) => setMemberSearch(e.target.value)}
-                autoFocus
-              />
-              {searchingMembers && (
-                <RefreshCw size={14} style={{ position: "absolute", right: 14, top: 13, color: T.accent, animation: "spin 1s linear infinite" }} />
-              )}
-            </div>
-
-            {/* Error */}
-            {linkError && (
-              <div style={{
-                padding: "10px 14px", borderRadius: 10,
-                background: T.dangerDim, border: `1px solid ${T.danger}30`,
-                fontSize: 12, color: T.danger, display: "flex", alignItems: "center", gap: 8,
-              }}>
-                <XCircle size={14} /> {linkError}
-              </div>
-            )}
-
-            {/* Search Results */}
-            <div style={{
-              maxHeight: 300, overflowY: "auto", borderRadius: 10,
-              border: `1px solid ${T.border}`, background: T.surface,
-            }} className="custom-scrollbar">
-              {memberResults.length === 0 ? (
-                <div style={{ padding: 24, textAlign: "center", color: T.textDim, fontSize: 12 }}>
-                  {memberSearch.trim() ? (searchingMembers ? "Suche…" : "Keine Kontakte gefunden") : "Suchbegriff eingeben, um Kontakte zu finden"}
-                </div>
-              ) : (
-                memberResults.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => linkMember(linkModal, String(m.customer_id))}
-                    style={{
-                      width: "100%", textAlign: "left",
-                      padding: "14px 16px", borderBottom: `1px solid ${T.border}`,
-                      background: "transparent", border: "none", cursor: "pointer",
-                      color: T.text, transition: "background 0.15s ease",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = T.surfaceAlt)}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 4 }}>
-                          {m.first_name} {m.last_name}
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 11, color: T.textMuted }}>
-                          {m.member_number && (
-                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                              <Hash size={10} /> {m.member_number}
-                            </span>
-                          )}
-                          {m.email && (
-                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                              <Mail size={10} /> {m.email}
-                            </span>
-                          )}
-                          {m.phone_number && (
-                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                              <Phone size={10} /> {m.phone_number}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div style={{
-                        padding: "6px 12px", borderRadius: 8,
-                        background: T.accentDim, color: T.accent,
-                        fontSize: 11, fontWeight: 700,
-                        display: "flex", alignItems: "center", gap: 6,
-                      }}>
-                        <Link2 size={12} /> Verknüpfen
-                      </div>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-
-            {/* Manual ID Input */}
-            <div style={{
-              padding: "12px 16px", borderRadius: 10,
-              background: T.surfaceAlt, border: `1px solid ${T.border}`,
-            }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
-                Oder manuell verknüpfen
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  style={{ ...inputBase, flex: 1, fontSize: 12 }}
-                  placeholder={t("live.handoff.placeholder")}
-                  value={memberSearch}
-                  onChange={(e) => setMemberSearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && memberSearch.trim()) {
-                      linkMember(linkModal, memberSearch.trim());
-                    }
-                  }}
-                />
-                <button
-                  onClick={() => {
-                    if (memberSearch.trim()) linkMember(linkModal, memberSearch.trim());
-                  }}
-                  style={{ ...btnPrimary, padding: "8px 14px" }}
-                >
-                  <Link2 size={14} /> Verknüpfen
-                </button>
-              </div>
-            </div>
-
-            {/* Cancel */}
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button onClick={() => setLinkModal(null)} style={btnSecondary}>
-                Abbrechen
-              </button>
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <input style={{ ...inputBase }} placeholder="Mitglied suchen…" value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} />
+            {memberResults.map((m) => (
+              <button key={m.id} onClick={() => linkMember(linkModal, String(m.customer_id))} style={{ textAlign: "left", padding: 12 }}>{m.first_name} {m.last_name}</button>
+            ))}
+            <button onClick={() => setLinkModal(null)} style={btnSecondary}>Abbrechen</button>
           </div>
         )}
       </Modal>

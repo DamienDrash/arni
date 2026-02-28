@@ -458,7 +458,7 @@ async def webhook_waha_tenant(
                 slug=tenant_slug, 
                 event_name=payload.get("event"),
                 session=payload.get("session"),
-                headers=dict(request.headers))
+                payload_data=payload)
 
     # Special case: system-admin scans QR, WAHA gets configured with /system slug.
     # We map this to the demo tenant if no specific tenant is found.
@@ -488,29 +488,34 @@ async def webhook_waha_tenant(
 
     data = payload.get("payload", {})
     # WAHA message structure: from (sender), body (text), id (message_id)
-    sender = data.get("from")
+    sender_jid = data.get("from", "")
     body = data.get("body", "")
     msg_id = data.get("id", str(uuid4()))
     
-    if not sender or not body:
+    if not sender_jid or not body:
         return {"status": "ignored", "detail": "Missing sender or body"}
 
     # --- 2. Idempotency Check (Redis) ---
-    # Prevent double processing if WAHA retries due to local timeout
-    from app.core.redis_bus import get_redis
-    bus = await get_redis()
+    # ... (rest of logic unchanged) ...
     try:
         lock_key = f"msg_lock:waha:{msg_id}"
-        is_new = await bus.client.set(lock_key, "1", ex=300, nx=True) # 5 min TTL
+        is_new = await redis_bus.client.set(lock_key, "1", ex=300, nx=True) # 5 min TTL
         if not is_new:
             logger.warning("webhook.waha.duplicate_ignored", msg_id=msg_id, tenant=effective_slug)
             return {"status": "ok", "detail": "already_processed"}
-    finally:
-        await bus.disconnect()
+    except Exception as e:
+        logger.warning("webhook.waha.idempotency_failed", error=str(e))
+        pass
 
-    # WAHA usually sends sender as "491761234567@c.us"
-    # We strip the @c.us for internal matching if needed, or keep it as user_id
-    user_id = sender.split("@")[0]
+    # WAHA NOWEB (Baileys) special handling:
+    # Real phone number is often in _data.key.remoteJidAlt
+    # LID is in data.from
+    real_jid = data.get("_data", {}).get("key", {}).get("remoteJidAlt", "")
+    if not real_jid or "@s.whatsapp.net" not in real_jid:
+        real_jid = sender_jid
+        
+    # Extract clean user_id (pure phone number)
+    user_id = real_jid.split("@")[0].split(":")[0]
 
     inbound = InboundMessage(
         message_id=msg_id,
@@ -518,7 +523,7 @@ async def webhook_waha_tenant(
         user_id=user_id,
         content=body,
         content_type="text",
-        metadata={"waha_session": payload.get("session", "default"), "full_sender": sender},
+        metadata={"waha_session": payload.get("session", "default"), "full_sender": sender_jid, "original_from": sender_jid},
         tenant_id=tenant_id,
     )
     
@@ -526,11 +531,23 @@ async def webhook_waha_tenant(
 
     # Publish to Redis Bus for real-time workers
     channel = redis_bus.get_tenant_channel(RedisBus.CHANNEL_INBOUND, tenant_id)
-    await redis_bus.publish(channel, inbound.model_dump_json())
+    sub_count = await redis_bus.publish(channel, inbound.model_dump_json())
+    logger.debug("webhook.waha.redis_pub", channel=channel, subscribers=sub_count)
 
     # Async persist and process
     asyncio.create_task(save_inbound_to_db(inbound))
     asyncio.create_task(process_and_reply(inbound))
+    
+    # Also directly notify dashboard for UI responsiveness
+    from app.gateway.utils import broadcast_to_admins
+    asyncio.create_task(broadcast_to_admins({
+        "type": "ghost.message_in",
+        "user_id": user_id,
+        "tenant_id": tenant_id,
+        "platform": "whatsapp",
+        "content": body,
+        "message_id": msg_id
+    }, tenant_id=tenant_id))
 
     return {"status": "ok", "processed": "1"}
 
