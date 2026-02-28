@@ -452,9 +452,15 @@ async def webhook_waha_tenant(
     payload: dict[str, Any],
 ) -> dict[str, str]:
     """Inbound from WAHA (WhatsApp Web bridge)."""
-    tenant_id = _resolve_tenant_id_by_slug(tenant_slug)
+    # Special case: system-admin scans QR, WAHA gets configured with /system slug.
+    # We map this to the demo tenant if no specific tenant is found.
+    effective_slug = tenant_slug
+    if effective_slug == "system":
+        effective_slug = "ariia-demo"
+        
+    tenant_id = _resolve_tenant_id_by_slug(effective_slug)
     if tenant_id is None:
-        logger.error("webhook.waha.unknown_tenant", slug=tenant_slug)
+        logger.error("webhook.waha.unknown_tenant", slug=tenant_slug, effective=effective_slug)
         raise HTTPException(status_code=404, detail="Unknown tenant")
 
     event_type = payload.get("event")

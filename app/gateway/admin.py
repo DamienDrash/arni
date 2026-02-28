@@ -3252,8 +3252,28 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
                 else:
                     # Check if already connected
                     for s in sessions:
-                        if s["name"] == session_name and s.get("status") == "WORKING":
-                            raise HTTPException(status_code=404, detail="CONNECTED")
+                        if s["name"] == session_name:
+                            # Update webhook dynamically even if session exists
+                            webhook_url = f"http://ariia-core:8000/webhook/waha/{slug}"
+                            try:
+                                await client.post(
+                                    f"{waha_url}/api/sessions/{session_name}/webhooks",
+                                    headers={"X-Api-Key": waha_key, "Content-Type": "application/json"},
+                                    json={
+                                        "webhooks": [
+                                            {
+                                                "url": webhook_url,
+                                                "events": ["message"],
+                                                "hmac": waha_key
+                                            }
+                                        ]
+                                    }
+                                )
+                            except Exception:
+                                pass # Best effort for older WAHA versions
+                            
+                            if s.get("status") == "WORKING":
+                                raise HTTPException(status_code=404, detail="CONNECTED")
             
             # 2. Get QR code as PNG (with retry)
             qr_resp = None
