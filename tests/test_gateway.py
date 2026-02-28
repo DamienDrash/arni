@@ -41,7 +41,7 @@ class TestHealthEndpoint:
         assert "status" in data
         assert "service" in data
         assert data["service"] == "ariia-gateway"
-        assert data["version"] == "1.4.0"
+        assert data["version"] == "2.0.0"
         assert "timestamp" in data
 
     @pytest.mark.anyio
