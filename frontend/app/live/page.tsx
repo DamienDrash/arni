@@ -228,19 +228,32 @@ export default function LiveMonitorPage() {
         try {
           const data = JSON.parse(event.data);
           if (data.type === "ghost.message_in" || data.type === "ghost.message_out") {
+            // 1. Update Session List
             setSessions(prev => {
               const sid = data.user_id;
               const idx = prev.findIndex(s => s.user_id === sid);
-              if (idx === -1) { fetchSessions(); return prev; }
+              
+              if (idx === -1) {
+                // Unknown session (e.g. new email contact). Refresh all.
+                fetchSessions();
+                return prev;
+              }
+              
               const updated = [...prev];
               updated[idx] = { ...updated[idx], last_active: new Date().toISOString(), is_active: true };
               return updated.sort((a, b) => new Date(b.last_active).getTime() - new Date(a.last_active).getTime());
             });
 
-            if (data.user_id === selectedId) {
+            // 2. Update Active Chat History
+            if (selectedId && (data.user_id === selectedId || data.type === "ghost.message_out")) {
               setHistory(prev => {
-                const isDuplicate = prev.some(m => m.content === (data.content || data.response) && m.timestamp.slice(0, 16) === new Date().toISOString().slice(0, 16));
+                // Check for duplicates via message_id or timestamp/content
+                const isDuplicate = prev.some(m => 
+                  (m.metadata && JSON.parse(m.metadata).message_id === data.message_id) ||
+                  (m.content === (data.content || data.response) && Math.abs(new Date(m.timestamp).getTime() - new Date().getTime()) < 2000)
+                );
                 if (isDuplicate) return prev;
+
                 return [...prev, {
                   role: data.type === "ghost.message_in" ? "user" : "assistant",
                   content: data.content || data.response,
