@@ -3228,11 +3228,24 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
                 sessions = sessions_resp.json()
                 session_names = [s["name"] for s in sessions]
                 if session_name not in session_names:
-                    # Create session
+                    # Create session with dynamic webhook for this tenant
+                    # Use internal docker networking (ariia-core:8000)
+                    webhook_url = f"http://ariia-core:8000/webhook/waha/{slug}"
                     await client.post(
                         f"{waha_url}/api/sessions/start",
                         headers={"X-Api-Key": waha_key, "Content-Type": "application/json"},
-                        json={"name": session_name}
+                        json={
+                            "name": session_name,
+                            "config": {
+                                "webhooks": [
+                                    {
+                                        "url": webhook_url,
+                                        "events": ["message"],
+                                        "hmac": waha_key
+                                    }
+                                ]
+                            }
+                        }
                     )
                     import asyncio
                     await asyncio.sleep(5)
