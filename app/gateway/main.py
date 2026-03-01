@@ -207,6 +207,25 @@ try:
 except Exception as _tel_err:
     logger.warning("ariia.gateway.telemetry_skipped", error=str(_tel_err))
 
+# --- Phase 6: Skalierung & Ökosystem ---
+try:
+    from app.core.sso import create_sso_router
+    app.include_router(create_sso_router())
+except Exception as _sso_err:
+    logger.warning("ariia.gateway.sso_skipped", error=str(_sso_err))
+
+try:
+    from app.platform.api.public_api import create_public_api_router
+    app.include_router(create_public_api_router())
+except Exception as _api_err:
+    logger.warning("ariia.gateway.public_api_skipped", error=str(_api_err))
+
+try:
+    from app.platform.ghost_mode_v2 import create_ghost_mode_v2_router
+    app.include_router(create_ghost_mode_v2_router())
+except Exception as _gm_err:
+    logger.warning("ariia.gateway.ghost_mode_v2_skipped", error=str(_gm_err))
+
 # --- ACP Router ---
 from app.acp.server import router as acp_router
 app.include_router(acp_router)

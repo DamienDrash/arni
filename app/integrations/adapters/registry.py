@@ -42,6 +42,18 @@ class AdapterRegistry:
         except ImportError as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="magicline", error=str(e))
 
+        try:
+            from app.integrations.adapters.shopify_adapter import ShopifyAdapter
+            self.register(ShopifyAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="shopify", error=str(e))
+
+        try:
+            from app.integrations.adapters.manual_crm_adapter import ManualCrmAdapter
+            self.register(ManualCrmAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="manual_crm", error=str(e))
+
     def register(self, adapter: BaseAdapter) -> None:
         """Register an adapter instance."""
         self._adapters[adapter.integration_id] = adapter
