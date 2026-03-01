@@ -268,6 +268,32 @@ async def test_connection(
                     return {"status": "error", "message": f"Postmark API Fehler: {resp.status_code}"}
         except Exception as e:
             return {"status": "error", "message": f"Netzwerkfehler bei Postmark-Verbindung: {e}"}
+
+    if normalized == "calendly":
+        token = _val("api_key").strip()
+        if not token:
+            return {"status": "error", "message": "Calendly Personal Access Token fehlt"}
+            
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    "https://api.calendly.com/users/me",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json"
+                    }
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    user_name = data.get("resource", {}).get("name", "Unbekannt")
+                    return {"status": "ok", "message": f"Calendly Verbindung erfolgreich! Verbunden als {user_name}."}
+                elif resp.status_code in (401, 403):
+                    return {"status": "error", "message": "Calendly Token ungültig oder abgelaufen."}
+                else:
+                    return {"status": "error", "message": f"Calendly API Fehler: {resp.status_code}"}
+        except Exception as e:
+            return {"status": "error", "message": f"Netzwerkfehler bei Calendly-Verbindung: {e}"}
     
     elif connector_id == "telegram":
         # Test Telegram bot token
