@@ -1,8 +1,12 @@
 """app/swarm/llm.py — Gold-Standard LLM Client with Cost Tracking.
 
+@ARCH: Phase 1, Meilenstein 1.4 – Modernes Tool-Calling
 Resolves configuration (Provider, URL, Key) from the database settings.
 Supports OpenAI, Gemini, Mistral, Groq, Anthropic, xAI and more.
 Tracks token usage and costs per request in llm_usage_log.
+
+Refactored: Added native tool calling support via `chat_with_tools()`.
+The old `chat()` method is preserved for backward compatibility.
 """
 import time
 import structlog
@@ -32,6 +36,27 @@ class LLMResponse:
     latency_ms: int = 0
     success: bool = True
     error: str = ""
+    tool_calls: list = None  # Native tool calls from the LLM
+    raw_response: dict = None  # Full API response for tool-calling loop
+    finish_reason: str = ""  # 'stop', 'tool_calls', etc.
+
+    def __post_init__(self):
+        if self.tool_calls is None:
+            self.tool_calls = []
+        if self.raw_response is None:
+            self.raw_response = {}
+
+    @property
+    def has_tool_calls(self) -> bool:
+        return bool(self.tool_calls)
+
+    @property
+    def assistant_message(self) -> dict:
+        """Return the assistant message dict for the conversation history."""
+        msg = {"role": "assistant", "content": self.content or None}
+        if self.tool_calls:
+            msg["tool_calls"] = self.tool_calls
+        return msg
 
 
 # ── Cost Cache ─────────────────────────────────────────────────────────────────
@@ -336,6 +361,169 @@ class LLMClient:
                        0, 0, 0, 0, 0, 0, latency, False, str(e))
             logger.error("llm.request_failed", error=str(e))
             return f"LLM Connection Failed: {str(e)}"
+
+    async def chat_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        *,
+        tenant_id: int = 1,
+        user_id: Optional[str] = None,
+        agent_name: Optional[str] = None,
+        provider_id: Optional[str] = None,
+        provider_url: Optional[str] = None,
+        model: Optional[str] = None,
+        api_key: Optional[str] = None,
+        temperature: float = 0.3,
+        max_tokens: int = 1000,
+        tool_choice: str = "auto",
+    ) -> LLMResponse:
+        """Execute a chat completion with native tool calling support.
+
+        This is the new preferred method for agent interactions.
+        Returns a full LLMResponse with tool_calls if the LLM wants to use tools.
+
+        Args:
+            messages: Conversation history.
+            tools: List of tool definitions in OpenAI format.
+            tool_choice: 'auto', 'none', or 'required'.
+
+        Returns:
+            LLMResponse with content and/or tool_calls.
+        """
+        # Resolve provider config (same logic as chat())
+        effective_provider_id = provider_id or "unknown"
+        effective_model = model
+        effective_url = provider_url
+        effective_key = api_key
+
+        if not (effective_url and effective_key and effective_model):
+            # Resolve from DB
+            providers_json = persistence.get_setting("platform_llm_providers_json", "[]", tenant_id=1)
+            configured_providers = json.loads(providers_json)
+
+            provider = None
+            if provider_id:
+                provider = next((p for p in configured_providers if p["id"] == provider_id), None)
+            elif configured_providers:
+                provider = configured_providers[0]
+
+            if provider:
+                effective_key = effective_key or persistence.get_setting(f"platform_llm_key_{provider['id']}", "", tenant_id=1)
+                effective_url = provider.get("base_url", "")
+                effective_model = effective_model or provider["models"][0]
+                effective_provider_id = provider["id"]
+            else:
+                effective_key = effective_key or self._env_key
+                effective_url = "https://api.openai.com/v1"
+                effective_model = effective_model or "gpt-4o-mini"
+                effective_provider_id = "openai"
+
+        if not effective_key:
+            return LLMResponse(
+                content=f"Error: API Key for provider {effective_provider_id} missing.",
+                success=False,
+                error="missing_api_key",
+            )
+
+        start_time = time.time()
+
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                payload = {
+                    "model": effective_model,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                }
+
+                # Add tools if provided (not supported for Gemini native API)
+                if tools:
+                    payload["tools"] = tools
+                    payload["tool_choice"] = tool_choice
+
+                resp = await client.post(
+                    f"{effective_url.rstrip('/')}/chat/completions",
+                    headers={"Authorization": f"Bearer {effective_key}", "Content-Type": "application/json"},
+                    json=payload,
+                )
+                data = resp.json()
+
+                if resp.status_code != 200:
+                    error_msg = data.get("error", {}).get("message", resp.text[:200])
+                    latency = round((time.time() - start_time) * 1000)
+                    _log_usage(tenant_id, user_id, agent_name, effective_provider_id,
+                               effective_model or "unknown", 0, 0, 0, 0, 0, 0, latency, False, error_msg)
+                    return LLMResponse(
+                        content=f"LLM Error ({resp.status_code})",
+                        model=effective_model or "unknown",
+                        provider_id=effective_provider_id,
+                        latency_ms=latency,
+                        success=False,
+                        error=error_msg,
+                    )
+
+                choice = data.get("choices", [{}])[0]
+                message = choice.get("message", {})
+                content = message.get("content", "") or ""
+                tool_calls_raw = message.get("tool_calls", [])
+                finish_reason = choice.get("finish_reason", "stop")
+
+                prompt_tokens, completion_tokens, total_tokens = _extract_usage_openai(data)
+                latency = round((time.time() - start_time) * 1000)
+                input_cost, output_cost, total_cost = _calculate_cost(
+                    effective_model or "unknown", prompt_tokens, completion_tokens
+                )
+
+                _log_usage(
+                    tenant_id=tenant_id, user_id=user_id, agent_name=agent_name,
+                    provider_id=effective_provider_id, model_id=effective_model or "unknown",
+                    prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
+                    total_tokens=total_tokens, input_cost_cents=input_cost,
+                    output_cost_cents=output_cost, total_cost_cents=total_cost,
+                    latency_ms=latency, success=True,
+                )
+
+                logger.info(
+                    "llm.tool_calling.success",
+                    model=effective_model,
+                    latency_ms=latency,
+                    provider=effective_provider_id,
+                    tokens=total_tokens,
+                    tool_calls=len(tool_calls_raw),
+                    finish_reason=finish_reason,
+                )
+
+                return LLMResponse(
+                    content=content,
+                    model=effective_model or "unknown",
+                    provider_id=effective_provider_id,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    input_cost_cents=input_cost,
+                    output_cost_cents=output_cost,
+                    total_cost_cents=total_cost,
+                    latency_ms=latency,
+                    success=True,
+                    tool_calls=tool_calls_raw,
+                    raw_response=data,
+                    finish_reason=finish_reason,
+                )
+
+        except Exception as e:
+            latency = round((time.time() - start_time) * 1000)
+            _log_usage(tenant_id, user_id, agent_name, effective_provider_id,
+                       effective_model or "unknown", 0, 0, 0, 0, 0, 0, latency, False, str(e))
+            logger.error("llm.tool_calling.failed", error=str(e))
+            return LLMResponse(
+                content=f"LLM Connection Failed: {str(e)}",
+                model=effective_model or "unknown",
+                provider_id=effective_provider_id,
+                latency_ms=latency,
+                success=False,
+                error=str(e),
+            )
 
     async def ask(self, prompt: str, system_prompt: str = "You are a helpful assistant.",
                   tenant_id: int = 1) -> str:

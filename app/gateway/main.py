@@ -1,7 +1,8 @@
 """ARIIA v2.0 – Hybrid Gateway (Project Titan).
 
-@BACKEND: High-End SaaS Architecture (Phase 1)
+@BACKEND: High-End SaaS Architecture (Phase 1, Refactored)
 Decoupled entry point. Logic moved to app/gateway/routers/.
+Security: HMAC verification, rate limiting, input sanitization.
 """
 
 import asyncio
@@ -22,6 +23,7 @@ from app.gateway.admin import router as admin_router
 from app.core.instrumentation import setup_instrumentation
 from app.core.auth import ensure_default_tenant_and_admin
 from app.core.db import run_migrations
+from app.core.security import SecurityMiddleware, get_rate_limiter
 from config.settings import get_settings
 
 logger = structlog.get_logger()
@@ -136,6 +138,9 @@ async def maintenance_middleware(request: Request, call_next):
         )
             
     return await call_next(request)
+
+# Setup Security Middleware (Rate Limiting on webhook paths)
+app.add_middleware(SecurityMiddleware)
 
 # Setup Instrumentation
 setup_instrumentation(app)

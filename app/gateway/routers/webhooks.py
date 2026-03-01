@@ -38,6 +38,11 @@ from app.core.redis_keys import (
 )
 from app.gateway.member_matching import match_member_by_phone
 from app.gateway.persistence_helpers import save_inbound_to_db, save_outbound_to_db
+from app.core.security import (
+    verify_hmac_signature,
+    sanitize_input,
+    get_deduplicator,
+)
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["webhooks"])
@@ -360,11 +365,22 @@ async def webhook_verify(
     return {"error": "Legacy verification disabled. Use /webhook/whatsapp/{tenant_slug}"}
 
 async def _process_whatsapp_payload(raw_body: bytes, x_hub_signature_256: str | None, tenant_id: int | None) -> int:
-    """Shared logic for WhatsApp payload processing."""
+    """Shared logic for WhatsApp payload processing.
+    
+    Security: HMAC verification is MANDATORY when app_secret is configured.
+    Input sanitization is applied to all message content.
+    Message deduplication prevents replay attacks.
+    """
     wa_client = get_whatsapp_client(tenant_id)
+    
+    # HMAC Verification (Zero-Trust: mandatory when secret exists)
     if wa_client.app_secret:
-        if not wa_client.verify_webhook_signature(raw_body, x_hub_signature_256 or ""):
+        if not verify_hmac_signature(raw_body, x_hub_signature_256 or "", wa_client.app_secret):
+            logger.warning("security.hmac.whatsapp_rejected", tenant_id=tenant_id)
             raise HTTPException(status_code=403, detail="Invalid webhook signature")
+    elif tenant_id is not None:
+        # In production, warn about missing HMAC secret
+        logger.warning("security.hmac.no_secret_configured", tenant_id=tenant_id, channel="whatsapp")
 
     try:
         payload = WebhookPayload.model_validate_json(raw_body)
@@ -384,13 +400,27 @@ async def _process_whatsapp_payload(raw_body: bytes, x_hub_signature_256: str | 
                     logger.warning("webhook.tenant_resolution_failed", platform="whatsapp")
                     raise HTTPException(status_code=403, detail="Tenant resolution failed. Mapping required.")
 
+                msg_id = msg.get("id", str(uuid4()))
+                
+                # Deduplication check
+                dedup = get_deduplicator()
+                if dedup.is_duplicate(msg_id):
+                    logger.debug("webhook.whatsapp.duplicate_skipped", message_id=msg_id)
+                    continue
+                
+                # Input sanitization
+                raw_content = msg.get("text", {}).get("body", "")
+                sanitized_content, violations = sanitize_input(raw_content)
+                if violations:
+                    logger.info("security.input.violations", message_id=msg_id, violations=violations)
+                
                 inbound = InboundMessage(
-                    message_id=msg.get("id", str(uuid4())),
+                    message_id=msg_id,
                     platform=Platform.WHATSAPP,
                     user_id=msg.get("from", "unknown"),
-                    content=msg.get("text", {}).get("body", ""),
+                    content=sanitized_content,
                     content_type=msg.get("type", "text"),
-                    metadata={"raw_type": msg.get("type"), "profile": value.get("contacts", [])},
+                    metadata={"raw_type": msg.get("type"), "profile": value.get("contacts", []), "input_violations": violations},
                     tenant_id=resolved_tid,
                 )
                 
@@ -526,13 +556,18 @@ async def webhook_waha_tenant(
     # Extract clean user_id (pure phone number)
     user_id = real_jid.split("@")[0].split(":")[0]
 
+    # Input sanitization
+    sanitized_body, input_violations = sanitize_input(body)
+    if input_violations:
+        logger.info("security.input.violations", message_id=msg_id, violations=input_violations)
+    
     inbound = InboundMessage(
         message_id=msg_id,
         platform=Platform.WHATSAPP,
         user_id=user_id,
-        content=body,
+        content=sanitized_body,
         content_type="text",
-        metadata={"waha_session": payload.get("session", "default"), "full_sender": sender_jid, "original_from": sender_jid},
+        metadata={"waha_session": payload.get("session", "default"), "full_sender": sender_jid, "original_from": sender_jid, "input_violations": input_violations},
         tenant_id=tenant_id,
     )
     
@@ -624,13 +659,26 @@ async def webhook_telegram_tenant(
                 await send_to_user(str(contact["user_id"]), Platform.TELEGRAM, "Ich konnte deine Nummer leider keinem Mitglied zuordnen. Bitte wende dich an das Team vor Ort.", tenant_id=tenant_id)
                 return {"status": "ok"}
 
+    # Input sanitization
+    sanitized_content, tg_violations = sanitize_input(norm["content"])
+    if tg_violations:
+        logger.info("security.input.violations", message_id=norm["message_id"], violations=tg_violations)
+    
+    # Deduplication
+    dedup = get_deduplicator()
+    if dedup.is_duplicate(norm["message_id"]):
+        return {"status": "ok", "detail": "duplicate"}
+    
+    tg_metadata = norm.get("metadata", {})
+    tg_metadata["input_violations"] = tg_violations
+    
     inbound = InboundMessage(
         message_id=norm["message_id"],
         platform=Platform.TELEGRAM,
         user_id=norm["user_id"],
-        content=norm["content"],
+        content=sanitized_content,
         content_type=norm.get("content_type", "text"),
-        metadata=norm.get("metadata", {}),
+        metadata=tg_metadata,
         tenant_id=tenant_id,
     )
     
