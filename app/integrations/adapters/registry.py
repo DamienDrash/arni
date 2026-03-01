@@ -113,6 +113,25 @@ class AdapterRegistry:
         except ImportError as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="mollie", error=str(e))
 
+        # ─── Sprint 4 Adapters (Scheduling & Booking) ──────────────────────
+        try:
+            from app.integrations.adapters.calendly_adapter import CalendlyAdapter
+            self.register(CalendlyAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="calendly", error=str(e))
+
+        try:
+            from app.integrations.adapters.calcom_adapter import CalComAdapter
+            self.register(CalComAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="calcom", error=str(e))
+
+        try:
+            from app.integrations.adapters.acuity_adapter import AcuityAdapter
+            self.register(AcuityAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="acuity", error=str(e))
+
     def register(self, adapter: BaseAdapter) -> None:
         """Register an adapter instance."""
         self._adapters[adapter.integration_id] = adapter
