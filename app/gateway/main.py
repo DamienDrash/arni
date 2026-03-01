@@ -226,6 +226,13 @@ try:
 except Exception as _gm_err:
     logger.warning("ariia.gateway.ghost_mode_v2_skipped", error=str(_gm_err))
 
+# --- Contacts v2 Router (Refactoring) ---
+try:
+    from app.contacts.router import router as contacts_v2_router
+    app.include_router(contacts_v2_router)
+except Exception as _contacts_err:
+    logger.warning("ariia.gateway.contacts_v2_skipped", error=str(_contacts_err))
+
 # --- ACP Router ---
 from app.acp.server import router as acp_router
 app.include_router(acp_router)
