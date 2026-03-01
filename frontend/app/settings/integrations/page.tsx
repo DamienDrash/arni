@@ -2340,7 +2340,7 @@ export default function SettingsIntegrationsPage() {
                   </div>
                   <p style={{ fontSize: 11, color: T.textMuted, margin: "0 0 8px", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{doc.overview || doc.description}</p>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, background: `${T.primary}15`, color: T.primary, fontWeight: 600 }}>{doc.category}</span>
+                    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, background: `${T.accent}15`, color: T.accent, fontWeight: 600 }}>{doc.category}</span>
                     <span style={{ fontSize: 10, color: T.textDim, display: "flex", alignItems: "center", gap: 4 }}><Clock size={10} /> {doc.estimated_time}</span>
                   </div>
                 </div>
