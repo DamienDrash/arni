@@ -15,6 +15,24 @@ export const HOP_BY_HOP_HEADERS = new Set([
 export const AUTH_COOKIE = "ariia_access_token";
 export const CSRF_COOKIE = "ariia_csrf_token";
 
+/**
+ * Determine if we should set the Secure flag on cookies.
+ * In production (HTTPS), always set Secure. In development (HTTP), omit it.
+ */
+function isSecureContext(): boolean {
+  const nodeEnv = process.env.NODE_ENV || "production";
+  const forceSecure = process.env.COOKIE_SECURE;
+  if (forceSecure !== undefined) return forceSecure === "true";
+  // If GATEWAY_INTERNAL_URL or NEXTAUTH_URL hints at https, use Secure
+  const gatewayUrl = process.env.GATEWAY_INTERNAL_URL || "";
+  const appUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || "";
+  if (appUrl.startsWith("https://")) return true;
+  // Default: secure in production, not in development
+  return nodeEnv === "production" && !gatewayUrl.startsWith("http://");
+}
+
+const SECURE_FLAG = isSecureContext() ? " Secure;" : "";
+
 export function isMutatingMethod(method: string) {
   return !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase());
 }
@@ -70,11 +88,11 @@ export function clearAuthCookieHeaders() {
   const headers = new Headers();
   headers.append(
     "set-cookie",
-    `${AUTH_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
+    `${AUTH_COOKIE}=; Path=/; Max-Age=0; HttpOnly;${SECURE_FLAG} SameSite=Lax`,
   );
   headers.append(
     "set-cookie",
-    `${CSRF_COOKIE}=; Path=/; Max-Age=0; Secure; SameSite=Lax`,
+    `${CSRF_COOKIE}=; Path=/; Max-Age=0;${SECURE_FLAG} SameSite=Lax`,
   );
   return headers;
 }
@@ -83,7 +101,7 @@ export function setAuthCookieHeaders(token: string) {
   const headers = new Headers();
   headers.append(
     "set-cookie",
-    `${AUTH_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax`,
+    `${AUTH_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly;${SECURE_FLAG} SameSite=Lax`,
   );
   return headers;
 }
@@ -93,7 +111,7 @@ export function setCsrfCookieHeaders(value?: string) {
   const csrfToken = value || randomUUID();
   headers.append(
     "set-cookie",
-    `${CSRF_COOKIE}=${encodeURIComponent(csrfToken)}; Path=/; Secure; SameSite=Lax`,
+    `${CSRF_COOKIE}=${encodeURIComponent(csrfToken)}; Path=/;${SECURE_FLAG} SameSite=Lax`,
   );
   return headers;
 }
