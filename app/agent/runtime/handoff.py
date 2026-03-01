@@ -327,12 +327,9 @@ class HandoffManager:
         Current: Redis pub/sub notification.
         """
         try:
-            from app.core.redis_keys import RedisKeyBuilder
             import redis.asyncio as aioredis
             import json
 
-            # Publish to support notification channel
-            key_builder = RedisKeyBuilder(ticket.tenant_id)
             channel = f"ariia:tenant:{ticket.tenant_id}:support:notifications"
 
             notification = {
@@ -345,7 +342,7 @@ class HandoffManager:
             try:
                 from config.settings import get_settings
                 settings = get_settings()
-                r = aioredis.from_url(settings.REDIS_URL)
+                r = aioredis.from_url(settings.redis_url)
                 await r.publish(channel, json.dumps(notification))
                 await r.close()
             except Exception:
@@ -365,7 +362,7 @@ class HandoffManager:
 
             from config.settings import get_settings
             settings = get_settings()
-            r = aioredis.from_url(settings.REDIS_URL)
+            r = aioredis.from_url(settings.redis_url)
 
             key = f"ariia:tenant:{ticket.tenant_id}:handoff:{ticket.ticket_id}"
             await r.setex(
