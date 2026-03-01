@@ -1554,7 +1554,7 @@ export default function ContactsPage() {
 
       {/* ── Create / Edit Modal ─────────────────────────────────────────── */}
       {(showCreateModal || showEditModal) && (
-        <Modal title={showCreateModal ? "Neuer Kontakt" : "Kontakt bearbeiten"} onClose={() => { setShowCreateModal(false); setShowEditModal(false); resetForm(); }} size="lg">
+        <Modal open={true} title={showCreateModal ? "Neuer Kontakt" : "Kontakt bearbeiten"} onClose={() => { setShowCreateModal(false); setShowEditModal(false); resetForm(); }} width="min(720px, 100%)">
           {/* Duplicate Warning */}
           {showDuplicateWarning && formDuplicates.length > 0 && (
             <div style={{ padding: 14, borderRadius: 10, background: `${T.warning}15`, border: `1px solid ${T.warning}40`, marginBottom: 16 }}>
@@ -1637,7 +1637,7 @@ export default function ContactsPage() {
 
       {/* ── Bulk Edit Modal ─────────────────────────────────────────────── */}
       {showBulkModal && (
-        <Modal title={`${selectedIds.size} Kontakte bearbeiten`} onClose={() => setShowBulkModal(false)}>
+        <Modal open={true} title={`${selectedIds.size} Kontakte bearbeiten`} onClose={() => setShowBulkModal(false)}>
           <div style={S.formGroup}>
             <label style={S.formLabel}>Lifecycle-Phase ändern</label>
             <select style={S.formSelect} value={bulkLifecycle} onChange={(e) => setBulkLifecycle(e.target.value)}>
@@ -1664,7 +1664,7 @@ export default function ContactsPage() {
 
       {/* ── Segment Builder Modal ───────────────────────────────────────── */}
       {showSegmentBuilder && (
-        <Modal title="Segment-Builder" onClose={() => setShowSegmentBuilder(false)} size="xl">
+        <Modal open={true} title="Segment-Builder" onClose={() => setShowSegmentBuilder(false)} width="min(960px, 100%)">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
             <div style={S.formGroup}><label style={S.formLabel}>Segment-Name *</label><input style={S.formInput} value={segBuilderName} onChange={(e) => setSegBuilderName(e.target.value)} placeholder="z.B. VIP-Kunden" /></div>
             <div style={S.formGroup}><label style={S.formLabel}>Beschreibung</label><input style={S.formInput} value={segBuilderDesc} onChange={(e) => setSegBuilderDesc(e.target.value)} placeholder="Optional..." /></div>
@@ -1771,7 +1771,7 @@ export default function ContactsPage() {
 
       {/* ── Merge Wizard Modal ──────────────────────────────────────────── */}
       {showMergeWizard && mergeSource && mergeTarget && (
-        <Modal title="Kontakte zusammenführen" onClose={() => { setShowMergeWizard(false); setMergeSource(null); setMergeTarget(null); }} size="xl">
+        <Modal open={true} title="Kontakte zusammenführen" onClose={() => { setShowMergeWizard(false); setMergeSource(null); setMergeTarget(null); }} width="min(960px, 100%)">
           <div style={{ padding: 14, borderRadius: 10, background: `${T.warning}10`, border: `1px solid ${T.warning}30`, marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <AlertTriangle size={16} style={{ color: T.warning }} />
@@ -1840,7 +1840,7 @@ export default function ContactsPage() {
 
       {/* ── Duplicates Modal ────────────────────────────────────────────── */}
       {showDuplicatesModal && (
-        <Modal title="Duplikat-Erkennung" onClose={() => setShowDuplicatesModal(false)} size="lg">
+        <Modal open={true} title="Duplikat-Erkennung" onClose={() => setShowDuplicatesModal(false)} width="min(720px, 100%)">
           {duplicatesLoading ? (
             <div style={{ textAlign: "center", padding: 40 }}><Loader2 size={24} style={{ color: T.accent, animation: "spin 1s linear infinite" }} /></div>
           ) : duplicateGroups.length === 0 ? (
@@ -1891,7 +1891,7 @@ export default function ContactsPage() {
 
       {/* ── Import V2 Wizard Modal ──────────────────────────────────────── */}
       {showImportModal && (
-        <Modal title="Kontakte importieren" onClose={() => setShowImportModal(false)} size="xl">
+        <Modal open={true} title="Kontakte importieren" onClose={() => setShowImportModal(false)} width="min(960px, 100%)">
           {/* Wizard Steps */}
           <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
             {[
@@ -2047,7 +2047,7 @@ export default function ContactsPage() {
 
       {/* ── Export V2 Modal ─────────────────────────────────────────────── */}
       {showExportModal && (
-        <Modal title="Kontakte exportieren" onClose={() => setShowExportModal(false)}>
+        <Modal open={true} title="Kontakte exportieren" onClose={() => setShowExportModal(false)}>
           <div style={S.formGroup}>
             <label style={S.formLabel}>Format</label>
             <select style={S.formSelect} value={exportFormat} onChange={(e) => setExportFormat(e.target.value as "csv" | "xlsx")}>
@@ -2076,7 +2076,7 @@ export default function ContactsPage() {
 
       {/* ── Custom Fields Admin Modal ───────────────────────────────────── */}
       {showCustomFieldsAdmin && (
-        <Modal title="Benutzerdefinierte Felder verwalten" onClose={() => setShowCustomFieldsAdmin(false)} size="lg">
+        <Modal open={true} title="Benutzerdefinierte Felder verwalten" onClose={() => setShowCustomFieldsAdmin(false)} width="min(720px, 100%)">
           {/* Existing Fields */}
           {customFields.length > 0 && (
             <div style={{ marginBottom: 20 }}>
