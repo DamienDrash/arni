@@ -185,6 +185,10 @@ app.include_router(campaigns.router)
 app.include_router(docker_management.router)
 app.include_router(smtp_config.router)
 
+# --- Integration Registry API (Phase 2) ---
+from app.platform.api.integrations import router as integration_registry_router
+app.include_router(integration_registry_router)
+
 # --- ACP Router ---
 from app.acp.server import router as acp_router
 app.include_router(acp_router)
