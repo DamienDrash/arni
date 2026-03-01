@@ -94,6 +94,25 @@ class AdapterRegistry:
         except ImportError as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="member_memory", error=str(e))
 
+        # ─── Sprint 3 Adapters (Payment & Billing) ─────────────────────────
+        try:
+            from app.integrations.adapters.stripe_adapter import StripeAdapter
+            self.register(StripeAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="stripe", error=str(e))
+
+        try:
+            from app.integrations.adapters.paypal_adapter import PayPalAdapter
+            self.register(PayPalAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="paypal", error=str(e))
+
+        try:
+            from app.integrations.adapters.mollie_adapter import MollieAdapter
+            self.register(MollieAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="mollie", error=str(e))
+
     def register(self, adapter: BaseAdapter) -> None:
         """Register an adapter instance."""
         self._adapters[adapter.integration_id] = adapter

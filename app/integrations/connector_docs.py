@@ -777,4 +777,217 @@ CONNECTOR_DOCS: Dict[str, Dict[str, Any]] = {
             {"label": "GA4 Measurement Protocol", "url": "https://developers.google.com/analytics/devguides/collection/protocol/ga4"},
         ],
     },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PAYMENT & BILLING
+    # ══════════════════════════════════════════════════════════════════════════
+
+    "stripe": {
+        "title": "Stripe Payment & Billing",
+        "overview": "Verbinde Stripe für automatische Zahlungsabwicklung, Abonnement-Verwaltung und verbrauchsbasierte Abrechnung. ARIIA verwaltet den kompletten Billing-Lifecycle deiner Kunden.",
+        "difficulty": "medium",
+        "estimated_time": "10–15 Min.",
+        "prerequisites": [
+            "Ein Stripe-Konto (stripe.com)",
+            "Zugang zum Stripe Dashboard",
+            "Secret Key und Publishable Key aus dem Dashboard",
+        ],
+        "use_cases": [
+            "Automatische Abonnement-Verwaltung (Upgrade, Downgrade, Kündigung)",
+            "Checkout-Sessions für neue Kunden erstellen",
+            "Rechnungen und Zahlungshistorie abrufen",
+            "Verbrauchsbasierte Abrechnung (Conversations, API-Calls, Tokens)",
+            "Plan-Limits und Feature-Gates durchsetzen",
+        ],
+        "steps": [
+            {
+                "title": "Stripe-Konto vorbereiten",
+                "description": "Melde dich bei **stripe.com** an und stelle sicher, dass dein Konto aktiviert ist. Für Tests kannst du den Testmodus verwenden.",
+                "tip": "Im Testmodus kannst du mit Testkarten (z.B. 4242 4242 4242 4242) Zahlungen simulieren, ohne echtes Geld zu bewegen.",
+            },
+            {
+                "title": "API-Keys kopieren",
+                "description": "Gehe zu **Stripe Dashboard** > Developers > API Keys. Kopiere den **Secret Key** (beginnt mit sk_test_ oder sk_live_). Füge ihn hier in das Feld 'API Key' ein.",
+                "tip": "Verwende für die Ersteinrichtung den Test-Key. Wechsle erst nach erfolgreichen Tests zum Live-Key.",
+            },
+            {
+                "title": "Webhook einrichten",
+                "description": "Gehe zu **Stripe Dashboard** > Developers > Webhooks > Add Endpoint. Trage die Webhook-URL ein, die dir ARIIA anzeigt. Wähle die Events: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted, invoice.paid, invoice.payment_failed.",
+                "tip": "Das Webhook-Signing-Secret (whsec_...) wird benötigt, um die Echtheit der Events zu verifizieren.",
+            },
+            {
+                "title": "Produkte & Preise anlegen",
+                "description": "Erstelle in Stripe unter Products deine Abo-Pläne (z.B. Starter, Professional, Business). Notiere die Price IDs (price_...) – diese werden für Checkout-Sessions benötigt.",
+                "tip": "ARIIA synchronisiert die Pläne automatisch. Änderungen in Stripe werden beim nächsten Sync übernommen.",
+            },
+            {
+                "title": "Verbindung testen",
+                "description": "Klicke auf 'Verbindung testen'. ARIIA prüft den API-Key und zeigt den Kontostatus an.",
+            },
+        ],
+        "faq": [
+            {
+                "question": "Was passiert bei einem Plan-Upgrade?",
+                "answer": "Bei einem Upgrade wird automatisch eine anteilige Berechnung (Proration) erstellt. Der Kunde zahlt nur die Differenz für den Rest der Abrechnungsperiode.",
+            },
+            {
+                "question": "Kann ich den Testmodus verwenden?",
+                "answer": "Ja! Verwende den Test-Secret-Key (sk_test_...) und Stripe-Testkarten. Alle Funktionen arbeiten identisch zum Live-Modus.",
+            },
+            {
+                "question": "Wie funktioniert die verbrauchsbasierte Abrechnung?",
+                "answer": "ARIIA trackt automatisch Conversations, API-Calls und Token-Verbrauch. Am Ende jeder Abrechnungsperiode wird der Verbrauch an Stripe gemeldet.",
+            },
+        ],
+        "troubleshooting": [
+            {
+                "issue": "Webhook-Events kommen nicht an",
+                "solution": "Prüfe im Stripe Dashboard unter Webhooks > Recent Events, ob Events gesendet werden. Stelle sicher, dass die Webhook-URL korrekt ist und das Signing Secret übereinstimmt.",
+            },
+            {
+                "issue": "Checkout-Session zeigt Fehler",
+                "solution": "Stelle sicher, dass die Price ID gültig ist und der Stripe-Account aktiviert ist. Im Testmodus müssen Test-Price-IDs verwendet werden.",
+            },
+        ],
+        "links": [
+            {"label": "Stripe API Dokumentation", "url": "https://stripe.com/docs/api"},
+            {"label": "Stripe Checkout Guide", "url": "https://stripe.com/docs/payments/checkout"},
+            {"label": "Stripe Webhooks", "url": "https://stripe.com/docs/webhooks"},
+        ],
+    },
+
+    "paypal": {
+        "title": "PayPal Payment",
+        "overview": "Verbinde PayPal für Zahlungen, Abonnements und Auszahlungen. Ideal als zusätzliche Zahlungsoption neben Stripe – besonders beliebt bei Endkunden.",
+        "difficulty": "medium",
+        "estimated_time": "10–15 Min.",
+        "prerequisites": [
+            "Ein PayPal Business-Konto (paypal.com)",
+            "Zugang zum PayPal Developer Portal (developer.paypal.com)",
+            "Eine App mit Client ID und Secret im Developer Portal",
+        ],
+        "use_cases": [
+            "Einmalzahlungen über PayPal Checkout",
+            "Wiederkehrende Abonnements über PayPal Billing",
+            "Auszahlungen an Partner und Affiliates",
+            "PayPal als alternative Zahlungsmethode anbieten",
+        ],
+        "steps": [
+            {
+                "title": "PayPal Developer App erstellen",
+                "description": "Gehe zu **developer.paypal.com** > My Apps & Credentials. Klicke auf 'Create App' und vergib einen Namen (z.B. 'ARIIA Integration'). Wähle 'Merchant' als App-Typ.",
+                "tip": "Erstelle zuerst eine Sandbox-App zum Testen. Du kannst später zur Live-App wechseln.",
+            },
+            {
+                "title": "Client ID und Secret kopieren",
+                "description": "Nach dem Erstellen der App siehst du die **Client ID** und den **Secret**. Kopiere beide Werte und füge sie hier in die entsprechenden Felder ein.",
+                "tip": "Der Secret wird nur einmal angezeigt. Speichere ihn sicher ab.",
+            },
+            {
+                "title": "Sandbox/Live-Modus wählen",
+                "description": "Wähle den **Sandbox-Modus** für Tests oder den **Live-Modus** für echte Zahlungen. Im Sandbox-Modus kannst du mit Test-Konten Zahlungen simulieren.",
+                "tip": "PayPal stellt automatisch Sandbox-Käufer- und Verkäufer-Konten bereit, die du unter Sandbox > Accounts findest.",
+            },
+            {
+                "title": "Webhooks einrichten (optional)",
+                "description": "Gehe zu deiner App > Webhooks > Add Webhook. Trage die von ARIIA angezeigte URL ein und wähle relevante Events (PAYMENT.CAPTURE.COMPLETED, BILLING.SUBSCRIPTION.*).",
+            },
+            {
+                "title": "Verbindung testen",
+                "description": "Klicke auf 'Verbindung testen'. ARIIA authentifiziert sich bei PayPal und zeigt den Status an.",
+            },
+        ],
+        "faq": [
+            {
+                "question": "Kann ich PayPal und Stripe gleichzeitig nutzen?",
+                "answer": "Ja! Viele Unternehmen bieten beide Optionen an. Kunden können bei der Zahlung wählen, welche Methode sie bevorzugen.",
+            },
+            {
+                "question": "Wie funktionieren Auszahlungen?",
+                "answer": "Über die Payout-Funktion kannst du Geld direkt an PayPal-Email-Adressen senden – ideal für Affiliate-Provisionen oder Partner-Vergütungen.",
+            },
+        ],
+        "troubleshooting": [
+            {
+                "issue": "OAuth-Token kann nicht bezogen werden",
+                "solution": "Prüfe, ob Client ID und Secret korrekt sind und zum gewählten Modus (Sandbox/Live) passen. Sandbox-Credentials funktionieren nicht im Live-Modus und umgekehrt.",
+            },
+            {
+                "issue": "Zahlung wird abgelehnt",
+                "solution": "Im Sandbox-Modus: Verwende die Standard-Sandbox-Käufer-Credentials. Im Live-Modus: Stelle sicher, dass das PayPal-Konto verifiziert und nicht eingeschränkt ist.",
+            },
+        ],
+        "links": [
+            {"label": "PayPal REST API Dokumentation", "url": "https://developer.paypal.com/docs/api/overview/"},
+            {"label": "PayPal Checkout Integration", "url": "https://developer.paypal.com/docs/checkout/"},
+            {"label": "PayPal Webhooks Guide", "url": "https://developer.paypal.com/docs/api-basics/notifications/webhooks/"},
+        ],
+    },
+
+    "mollie": {
+        "title": "Mollie Payment",
+        "overview": "Verbinde Mollie für europäische Zahlungsmethoden wie iDEAL, SEPA-Lastschrift, Bancontact und Sofort. Perfekt für den europäischen Markt mit einfacher Integration.",
+        "difficulty": "easy",
+        "estimated_time": "5–10 Min.",
+        "prerequisites": [
+            "Ein Mollie-Konto (mollie.com)",
+            "API Key aus dem Mollie Dashboard",
+        ],
+        "use_cases": [
+            "Europäische Zahlungsmethoden anbieten (iDEAL, SEPA, Bancontact, Sofort)",
+            "Kreditkartenzahlungen über Mollie abwickeln",
+            "Wiederkehrende Zahlungen und Abonnements",
+            "Rückerstattungen direkt aus ARIIA verarbeiten",
+        ],
+        "steps": [
+            {
+                "title": "Mollie-Konto erstellen",
+                "description": "Registriere dich bei **mollie.com** und vervollständige die Verifizierung deines Unternehmens. Mollie prüft dein Unternehmen und aktiviert die gewünschten Zahlungsmethoden.",
+                "tip": "Die Verifizierung dauert in der Regel 1–2 Werktage. Du kannst aber sofort im Testmodus starten.",
+            },
+            {
+                "title": "API Key kopieren",
+                "description": "Gehe zu **Mollie Dashboard** > Developers > API Keys. Kopiere den **Test API Key** (beginnt mit test_) oder den **Live API Key** (beginnt mit live_). Füge ihn hier ein.",
+                "tip": "Der Test-Key funktioniert mit simulierten Zahlungen. Wechsle zum Live-Key, sobald du bereit für echte Zahlungen bist.",
+            },
+            {
+                "title": "Zahlungsmethoden aktivieren",
+                "description": "Gehe im Mollie Dashboard zu **Settings** > Payment Methods und aktiviere die gewünschten Methoden (iDEAL, Kreditkarte, SEPA, etc.).",
+                "tip": "Einige Methoden (z.B. Kreditkarte) erfordern eine zusätzliche Aktivierung durch Mollie.",
+            },
+            {
+                "title": "Verbindung testen",
+                "description": "Klicke auf 'Verbindung testen'. ARIIA prüft den API-Key und zeigt die verfügbaren Zahlungsmethoden an.",
+            },
+        ],
+        "faq": [
+            {
+                "question": "Welche Zahlungsmethoden unterstützt Mollie?",
+                "answer": "Mollie unterstützt über 20 Methoden: iDEAL, Kreditkarte, SEPA-Lastschrift, Bancontact, Sofort, Giropay, EPS, Przelewy24, Apple Pay, und mehr.",
+            },
+            {
+                "question": "Was kostet Mollie?",
+                "answer": "Mollie berechnet nur pro Transaktion – keine monatlichen Gebühren. Die Kosten variieren je nach Zahlungsmethode (z.B. iDEAL: €0,29, Kreditkarte: 1,8% + €0,25).",
+            },
+            {
+                "question": "Kann ich Mollie und Stripe gleichzeitig nutzen?",
+                "answer": "Ja! Mollie eignet sich besonders für europäische Methoden wie iDEAL und SEPA, während Stripe global stärker ist. Beide können parallel betrieben werden.",
+            },
+        ],
+        "troubleshooting": [
+            {
+                "issue": "API Key wird nicht akzeptiert",
+                "solution": "Stelle sicher, dass du den vollständigen Key kopiert hast (beginnt mit test_ oder live_). Prüfe, ob dein Mollie-Konto aktiv ist.",
+            },
+            {
+                "issue": "Zahlungsmethode nicht verfügbar",
+                "solution": "Prüfe im Mollie Dashboard, ob die Methode aktiviert ist. Einige Methoden sind nur für bestimmte Währungen oder Länder verfügbar.",
+            },
+        ],
+        "links": [
+            {"label": "Mollie API Dokumentation", "url": "https://docs.mollie.com/"},
+            {"label": "Mollie Zahlungsmethoden", "url": "https://www.mollie.com/payments"},
+            {"label": "Mollie Recurring Payments", "url": "https://docs.mollie.com/payments/recurring"},
+        ],
+    },
 }
