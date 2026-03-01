@@ -1,19 +1,25 @@
-"""app/gateway/routers/connector_hub.py — Connector Hub API (PR 3).
+"""app/gateway/routers/connector_hub.py — Connector Hub API (PR 3 + Sprint 2).
 
 Unified API for managing all integration settings.
+- Tenant-Admin: configure & test own integrations
+- System-Admin: CRUD connectors globally, manage registry, view all tenants
 """
 from __future__ import annotations
 
 import structlog
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from pydantic import BaseModel
 
 from app.core.auth import AuthContext, get_current_user, require_role
 from app.gateway.persistence import persistence
 import smtplib
-from app.integrations.connector_registry import list_connectors, get_connector_meta, CONNECTOR_REGISTRY
+from app.integrations.connector_registry import (
+    list_connectors, get_connector_meta, CONNECTOR_REGISTRY,
+    CONNECTOR_DOCS,
+)
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/admin/connector-hub", tags=["connector-hub"])
@@ -24,12 +30,17 @@ router = APIRouter(prefix="/admin/connector-hub", tags=["connector-hub"])
 def _require_admin(user: AuthContext):
     require_role(user, {"system_admin", "tenant_admin"})
 
+def _require_system_admin(user: AuthContext):
+    require_role(user, {"system_admin"})
+
 def _get_config_key(tenant_id: int, connector_id: str, field_key: str) -> str:
     """Standardized config key: integration_{connector_id}_{tenant_id}_{field_key}"""
     return f"integration_{connector_id}_{tenant_id}_{field_key}"
 
 
-# ── Endpoints ──────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# CATALOG & CONFIG (Tenant-Admin + System-Admin)
+# ══════════════════════════════════════════════════════════════════════════════
 
 @router.get("/catalog")
 def get_catalog(user: AuthContext = Depends(get_current_user)) -> List[Dict[str, Any]]:
@@ -48,11 +59,9 @@ def get_catalog(user: AuthContext = Depends(get_current_user)) -> List[Dict[str,
         # Special handling for WhatsApp (check real session status)
         if conn_id == "whatsapp":
             slug = persistence.get_tenant_slug(user.tenant_id)
-            # If we have a working session status stored, we are connected
             wa_status = persistence.get_setting(f"wa_session_status_{slug}", tenant_id=user.tenant_id)
             if wa_status == "WORKING":
                 status = "connected"
-                # Auto-repair enabled flag if missing
                 if not is_enabled:
                     persistence.upsert_setting(enabled_key, "true", tenant_id=user.tenant_id)
         
@@ -181,31 +190,23 @@ async def test_connection(
     
     # Helper to get value from body (live) or DB (persisted)
     def _val(key: str, default: str = "") -> str:
-        # 1. Try body config first
         config = body.get("config") or {}
         val = config.get(key)
         if val is None:
-            # Try without prefix
             shorthand = key.replace(f"{normalized}_", "")
             val = config.get(shorthand)
             
         if val is not None:
             final_val = str(val or "")
-            # If it is a redact placeholder, we MUST use the DB value
             if final_val not in ("__REDACTED__", "********") and final_val.strip() != "":
                 return final_val
         
-        # 2. Fallback to DB
         db_key = _get_config_key(user.tenant_id, normalized, key)
         db_val = persistence.get_setting(db_key, tenant_id=user.tenant_id)
         if not db_val:
-            # Try legacy key if it is a known one
             db_val = persistence.get_setting(key, None, tenant_id=user.tenant_id)
         return db_val or default
 
-    # Generic stub logic - in reality, delegate to specific integration module
-    # based on connector_id.
-    
     if normalized == "smtp_email":
         host = _val("host").strip()
         port_raw = _val("port", "587").strip()
@@ -216,7 +217,6 @@ async def test_connection(
             return {"status": "error", "message": "SMTP-Konfiguration unvollständig"}
         
         try:
-            # 1. Test SMTP (Outbound)
             port = int(port_raw or "587")
             if port == 465:
                 with smtplib.SMTP_SSL(host, port, timeout=15) as srv:
@@ -230,7 +230,6 @@ async def test_connection(
                     srv.login(username, password)
                     srv.noop()
             
-            # 2. Test IMAP (Inbound)
             imap_host = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "imap_host"), "", tenant_id=user.tenant_id).strip()
             imap_port_raw = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "imap_port"), "993", tenant_id=user.tenant_id).strip()
             
@@ -336,7 +335,6 @@ async def test_connection(
                 if resp.status_code == 200:
                     return {"status": "ok", "message": f"PayPal ({mode}) Verbindung erfolgreich! Authentifizierung bestätigt."}
                 else:
-                    # Parse error message from PayPal if possible
                     try:
                         err_data = resp.json()
                         err_msg = err_data.get("error_description") or err_data.get("message") or resp.text
@@ -346,9 +344,7 @@ async def test_connection(
         except Exception as e:
             return {"status": "error", "message": f"Netzwerkfehler bei PayPal-Verbindung: {e}"}
     
-    elif connector_id == "telegram":
-        # Test Telegram bot token
-        import httpx
+    if normalized == "telegram":
         bot_token = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "bot_token"), "", tenant_id=user.tenant_id)
         if not bot_token:
             return {"status": "error", "message": "Bot Token nicht konfiguriert"}
@@ -363,15 +359,56 @@ async def test_connection(
                 return {"status": "error", "message": f"Telegram API Fehler: {resp.status_code}"}
         except Exception as e:
             return {"status": "error", "message": f"Telegram Verbindungsfehler: {e}"}
-    
-    elif connector_id == "stripe":
-        # Call billing test logic...
-        pass
-    elif connector_id == "shopify":
-        # Call shopify test logic...
-        pass
         
     return {"status": "ok", "message": "Connection test successful"}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DOCUMENTATION (n8n-Style Connector Docs)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/{connector_id}/docs")
+def get_connector_docs(
+    connector_id: str,
+    user: AuthContext = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get comprehensive n8n-style documentation for a connector."""
+    meta = get_connector_meta(connector_id)
+    if not meta:
+        raise HTTPException(status_code=404, detail="Connector not found")
+    
+    docs = CONNECTOR_DOCS.get(connector_id, {})
+    
+    return {
+        "connector_id": connector_id,
+        "name": meta.get("name", connector_id),
+        "category": meta.get("category", ""),
+        "description": meta.get("description", ""),
+        "icon": meta.get("icon", ""),
+        "docs": docs,
+    }
+
+
+@router.get("/docs/all")
+def get_all_connector_docs(
+    user: AuthContext = Depends(get_current_user)
+) -> List[Dict[str, Any]]:
+    """Get documentation summaries for all connectors."""
+    result = []
+    for conn_id, meta in CONNECTOR_REGISTRY.items():
+        docs = CONNECTOR_DOCS.get(conn_id, {})
+        result.append({
+            "id": conn_id,
+            "name": meta.get("name", conn_id),
+            "category": meta.get("category", ""),
+            "description": meta.get("description", ""),
+            "icon": meta.get("icon", ""),
+            "has_docs": bool(docs),
+            "overview": docs.get("overview", ""),
+            "difficulty": docs.get("difficulty", "medium"),
+            "estimated_time": docs.get("estimated_time", "5 min"),
+        })
+    return result
 
 
 @router.get("/{connector_id}/setup-docs")
@@ -379,9 +416,27 @@ def get_setup_docs(
     connector_id: str,
     user: AuthContext = Depends(get_current_user)
 ) -> Dict[str, str]:
-    """Get setup documentation markdown."""
-    # In real app, load from disk or DB
-    return {"content": f"# Setup Guide for {connector_id}\n\n1. Step one...\n2. Step two..."}
+    """Get setup documentation markdown (legacy endpoint, now redirects to docs)."""
+    docs = CONNECTOR_DOCS.get(connector_id, {})
+    if docs:
+        # Build markdown from structured docs
+        md_parts = [f"# {docs.get('title', connector_id)} Setup Guide\n"]
+        if docs.get("overview"):
+            md_parts.append(f"{docs['overview']}\n")
+        if docs.get("prerequisites"):
+            md_parts.append("## Voraussetzungen\n")
+            for p in docs["prerequisites"]:
+                md_parts.append(f"- {p}\n")
+        if docs.get("steps"):
+            md_parts.append("\n## Einrichtungsschritte\n")
+            for i, step in enumerate(docs["steps"], 1):
+                md_parts.append(f"\n### Schritt {i}: {step.get('title', '')}\n")
+                md_parts.append(f"{step.get('description', '')}\n")
+                if step.get("tip"):
+                    md_parts.append(f"\n> **Tipp:** {step['tip']}\n")
+        return {"content": "\n".join(md_parts)}
+    
+    return {"content": f"# Setup Guide for {connector_id}\n\nDocumentation coming soon."}
 
 
 @router.get("/{connector_id}/webhook-info")
@@ -389,9 +444,7 @@ def get_webhook_info(
     connector_id: str,
     user: AuthContext = Depends(get_current_user)
 ) -> Dict[str, Any]:
-    """Return the webhook URL and verify token for a connector.
-    This info is shown to tenants so they can configure it in their provider (e.g. Meta).
-    """
+    """Return the webhook URL and verify token for a connector."""
     _require_admin(user)
     
     from app.core.db import SessionLocal
@@ -403,14 +456,12 @@ def get_webhook_info(
     finally:
         db.close()
     
-    # Build the public webhook URL
     base_url = "https://www.ariia.ai"
     
     result: Dict[str, Any] = {"connector_id": connector_id, "tenant_slug": tenant_slug}
     
     if connector_id == "whatsapp":
         result["webhook_url"] = f"{base_url}/webhook/whatsapp/{tenant_slug}"
-        # Get or generate verify token
         vt_key = _get_config_key(user.tenant_id, "whatsapp", "verify_token")
         verify_token = persistence.get_setting(vt_key, tenant_id=user.tenant_id)
         if not verify_token:
@@ -440,3 +491,156 @@ def get_webhook_info(
         result["instructions"] = "Dieser Connector benötigt keinen Webhook."
     
     return result
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SYSTEM-ADMIN: Global Connector Management (CRUD)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class ConnectorCreateRequest(BaseModel):
+    id: str
+    name: str
+    category: str
+    description: str = ""
+    icon: str = "plug"
+    fields: List[Dict[str, Any]] = []
+    setup_doc: str = ""
+
+class ConnectorUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    fields: Optional[List[Dict[str, Any]]] = None
+    setup_doc: Optional[str] = None
+
+
+@router.get("/system/connectors")
+def system_list_connectors(
+    user: AuthContext = Depends(get_current_user)
+) -> List[Dict[str, Any]]:
+    """System-Admin: List all registered connectors with usage stats."""
+    _require_system_admin(user)
+    
+    result = []
+    for conn_id, meta in CONNECTOR_REGISTRY.items():
+        result.append({
+            "id": conn_id,
+            **meta,
+            "field_count": len(meta.get("fields", [])),
+            "has_docs": conn_id in CONNECTOR_DOCS,
+        })
+    return result
+
+
+@router.post("/system/connectors")
+def system_create_connector(
+    body: ConnectorCreateRequest,
+    user: AuthContext = Depends(get_current_user)
+) -> Dict[str, str]:
+    """System-Admin: Register a new connector in the global registry."""
+    _require_system_admin(user)
+    
+    if body.id in CONNECTOR_REGISTRY:
+        raise HTTPException(status_code=409, detail=f"Connector '{body.id}' already exists")
+    
+    CONNECTOR_REGISTRY[body.id] = {
+        "name": body.name,
+        "category": body.category,
+        "description": body.description,
+        "icon": body.icon,
+        "fields": body.fields,
+        "setup_doc": body.setup_doc,
+    }
+    
+    logger.info("connector_created", connector_id=body.id, admin=user.email)
+    return {"status": "created", "connector_id": body.id}
+
+
+@router.put("/system/connectors/{connector_id}")
+def system_update_connector(
+    connector_id: str,
+    body: ConnectorUpdateRequest,
+    user: AuthContext = Depends(get_current_user)
+) -> Dict[str, str]:
+    """System-Admin: Update an existing connector definition."""
+    _require_system_admin(user)
+    
+    if connector_id not in CONNECTOR_REGISTRY:
+        raise HTTPException(status_code=404, detail="Connector not found")
+    
+    existing = CONNECTOR_REGISTRY[connector_id]
+    if body.name is not None:
+        existing["name"] = body.name
+    if body.category is not None:
+        existing["category"] = body.category
+    if body.description is not None:
+        existing["description"] = body.description
+    if body.icon is not None:
+        existing["icon"] = body.icon
+    if body.fields is not None:
+        existing["fields"] = body.fields
+    if body.setup_doc is not None:
+        existing["setup_doc"] = body.setup_doc
+    
+    logger.info("connector_updated", connector_id=connector_id, admin=user.email)
+    return {"status": "updated"}
+
+
+@router.delete("/system/connectors/{connector_id}")
+def system_delete_connector(
+    connector_id: str,
+    user: AuthContext = Depends(get_current_user)
+) -> Dict[str, str]:
+    """System-Admin: Remove a connector from the global registry."""
+    _require_system_admin(user)
+    
+    if connector_id not in CONNECTOR_REGISTRY:
+        raise HTTPException(status_code=404, detail="Connector not found")
+    
+    del CONNECTOR_REGISTRY[connector_id]
+    
+    # Also remove docs if present
+    if connector_id in CONNECTOR_DOCS:
+        del CONNECTOR_DOCS[connector_id]
+    
+    logger.info("connector_deleted", connector_id=connector_id, admin=user.email)
+    return {"status": "deleted"}
+
+
+@router.get("/system/usage-overview")
+def system_usage_overview(
+    user: AuthContext = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """System-Admin: Get global integration usage statistics."""
+    _require_system_admin(user)
+    
+    from app.core.db import SessionLocal
+    from app.core.models import Tenant
+    db = SessionLocal()
+    try:
+        tenants = db.query(Tenant).all()
+        
+        stats = {
+            "total_connectors": len(CONNECTOR_REGISTRY),
+            "total_tenants": len(tenants),
+            "categories": {},
+            "connector_usage": {},
+        }
+        
+        # Count connectors per category
+        for conn_id, meta in CONNECTOR_REGISTRY.items():
+            cat = meta.get("category", "other")
+            stats["categories"][cat] = stats["categories"].get(cat, 0) + 1
+        
+        # Count active connections per connector across all tenants
+        for tenant in tenants:
+            for conn_id in CONNECTOR_REGISTRY:
+                enabled_key = _get_config_key(tenant.id, conn_id, "enabled")
+                is_enabled = (persistence.get_setting(enabled_key, "false", tenant_id=tenant.id) or "").lower() == "true"
+                if is_enabled:
+                    stats["connector_usage"][conn_id] = stats["connector_usage"].get(conn_id, 0) + 1
+        
+        return stats
+    finally:
+        db.close()

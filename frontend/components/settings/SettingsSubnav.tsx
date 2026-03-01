@@ -30,7 +30,7 @@ export default function SettingsSubnav() {
 
   const visibleTabs =
     role === "system_admin"
-      ? tabs.filter((tab) => ["/settings", "/settings/account", "/settings/ai", "/settings/general"].includes(tab.href))
+      ? tabs.filter((tab) => ["/settings", "/settings/account", "/settings/ai", "/settings/general", "/settings/integrations"].includes(tab.href))
       : role === "tenant_admin"
         ? tabs.filter((tab) =>
             ["/settings", "/settings/integrations", "/settings/account", "/settings/prompts", "/settings/billing", "/settings/branding", "/settings/ai"].includes(tab.href)

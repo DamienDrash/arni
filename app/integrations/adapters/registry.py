@@ -81,6 +81,19 @@ class AdapterRegistry:
         except ImportError as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="sms_voice", error=str(e))
 
+        # ─── Sprint 2 Adapters (Agent Tools & Knowledge) ───────────────────
+        try:
+            from app.integrations.adapters.knowledge_adapter import KnowledgeAdapter
+            self.register(KnowledgeAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="knowledge", error=str(e))
+
+        try:
+            from app.integrations.adapters.member_memory_adapter import MemberMemoryAdapter
+            self.register(MemberMemoryAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="member_memory", error=str(e))
+
     def register(self, adapter: BaseAdapter) -> None:
         """Register an adapter instance."""
         self._adapters[adapter.integration_id] = adapter

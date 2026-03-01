@@ -1,8 +1,9 @@
-"""app/integrations/connector_registry.py — Connector Metadata Registry (PR 3).
+"""app/integrations/connector_registry.py — Connector Metadata Registry (PR 3 + Sprint 2).
 
-Central definition of all integrations.
+Central definition of all integrations + structured documentation.
 """
 from typing import List, Dict, Any
+from app.integrations.connector_docs import CONNECTOR_DOCS  # noqa: F401
 
 CONNECTOR_REGISTRY = {
     # ══════════════════════════════════════════════════════════════════════════

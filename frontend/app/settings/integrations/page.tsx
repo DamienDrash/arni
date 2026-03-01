@@ -22,6 +22,7 @@ import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/tokens";
 import { usePermissions } from "@/lib/permissions";
 import { useI18n } from "@/lib/i18n/LanguageContext";
+import { getStoredUser } from "@/lib/auth";
 
 // ══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -30,7 +31,7 @@ import { useI18n } from "@/lib/i18n/LanguageContext";
 type CategoryId = "messaging" | "payments" | "scheduling" | "ai_voice" | "analytics" | "members" | "crm";
 type PlanTier = "starter" | "professional" | "pro" | "business" | "enterprise";
 type IntegrationStatus = "connected" | "disconnected" | "error" | "pending";
-type ViewState = "hub" | "onboarding" | "manage";
+type ViewState = "hub" | "onboarding" | "manage" | "docs" | "system_admin";
 
 interface IntegrationDef {
   id: string;
@@ -954,6 +955,127 @@ export default function SettingsIntegrationsPage() {
   const [setupDocs, setSetupDocs] = useState<string>("");
   const [webhookInfo, setWebhookInfo] = useState<{ webhook_url?: string; verify_token?: string; instructions?: string } | null>(null);
   const [copiedField, setCopiedField] = useState<string>("");
+
+  // ── Role Detection ─────────────────────────────────────────────────────────
+  const currentUser = getStoredUser();
+  const isSystemAdmin = currentUser?.role === "system_admin";
+
+  // ── System-Admin State ─────────────────────────────────────────────────────
+  const [systemConnectors, setSystemConnectors] = useState<any[]>([]);
+  const [systemLoading, setSystemLoading] = useState(false);
+  const [usageStats, setUsageStats] = useState<any>(null);
+  const [editingConnector, setEditingConnector] = useState<any>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [createForm, setCreateForm] = useState({ id: "", name: "", category: "messaging", description: "", icon: "plug" });
+
+  // ── Docs State ─────────────────────────────────────────────────────────────
+  const [connectorDocs, setConnectorDocs] = useState<any>(null);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [selectedDocsConnector, setSelectedDocsConnector] = useState<string | null>(null);
+  const [allDocsOverview, setAllDocsOverview] = useState<any[]>([]);
+
+  // ── Auto-redirect System-Admin ─────────────────────────────────────────────
+  useEffect(() => {
+    if (isSystemAdmin && view === "hub") {
+      setView("system_admin");
+    }
+  }, [isSystemAdmin]);
+
+  // ── System-Admin Data Fetching ─────────────────────────────────────────────
+  async function fetchSystemConnectors() {
+    setSystemLoading(true);
+    try {
+      const res = await apiFetch("/admin/connector-hub/system/connectors");
+      if (res.ok) setSystemConnectors(await res.json());
+    } catch { /* best effort */ }
+    finally { setSystemLoading(false); }
+  }
+
+  async function fetchUsageStats() {
+    try {
+      const res = await apiFetch("/admin/connector-hub/system/usage-overview");
+      if (res.ok) setUsageStats(await res.json());
+    } catch { /* best effort */ }
+  }
+
+  async function createConnector() {
+    try {
+      const res = await apiFetch("/admin/connector-hub/system/connectors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createForm),
+      });
+      if (res.ok) {
+        setShowCreateModal(false);
+        setCreateForm({ id: "", name: "", category: "messaging", description: "", icon: "plug" });
+        fetchSystemConnectors();
+      }
+    } catch { /* best effort */ }
+  }
+
+  async function updateConnector(connectorId: string, data: any) {
+    try {
+      const res = await apiFetch(`/admin/connector-hub/system/connectors/${connectorId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        setEditingConnector(null);
+        fetchSystemConnectors();
+      }
+    } catch { /* best effort */ }
+  }
+
+  async function deleteConnector(connectorId: string) {
+    try {
+      const res = await apiFetch(`/admin/connector-hub/system/connectors/${connectorId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setShowDeleteConfirm(null);
+        fetchSystemConnectors();
+      }
+    } catch { /* best effort */ }
+  }
+
+  // ── Docs Data Fetching ─────────────────────────────────────────────────────
+  async function fetchAllDocsOverview() {
+    try {
+      const res = await apiFetch("/admin/connector-hub/docs/all");
+      if (res.ok) setAllDocsOverview(await res.json());
+    } catch { /* best effort */ }
+  }
+
+  async function fetchConnectorDocs(connectorId: string) {
+    setDocsLoading(true);
+    try {
+      const res = await apiFetch(`/admin/connector-hub/${connectorId}/docs`);
+      if (res.ok) {
+        const data = await res.json();
+        setConnectorDocs(data);
+      }
+    } catch { /* best effort */ }
+    finally { setDocsLoading(false); }
+  }
+
+  useEffect(() => {
+    if (view === "system_admin") {
+      fetchSystemConnectors();
+      fetchUsageStats();
+    }
+    if (view === "docs") {
+      fetchAllDocsOverview();
+    }
+  }, [view]);
+
+  useEffect(() => {
+    if (selectedDocsConnector) {
+      fetchConnectorDocs(selectedDocsConnector);
+    }
+  }, [selectedDocsConnector]);
+
   // Fetch webhook info when entering onboarding for a connector
   useEffect(() => {
     if (view !== "onboarding" || !selectedIntegration?.connectorId) {
@@ -1197,6 +1319,23 @@ export default function SettingsIntegrationsPage() {
                   <strong style={{ color: T.text }}>{INTEGRATIONS.length}</strong> {t("integrations.hub.total")}
                 </span>
               </div>
+            </div>
+
+            {/* Docs Button */}
+            <div style={{ marginTop: 16 }}>
+              <button
+                onClick={() => { setView("docs"); setSelectedDocsConnector(null); setConnectorDocs(null); }}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                  padding: "9px 18px", borderRadius: 10,
+                  background: T.surfaceAlt, border: `1px solid ${T.border}`,
+                  color: T.accent, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                <BookOpen size={14} />
+                {t("integrations.docs.openDocs")}
+              </button>
             </div>
           </div>
         </div>
@@ -1953,6 +2092,553 @@ export default function SettingsIntegrationsPage() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  // DOCS VIEW (n8n-Style Connector Documentation)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function renderDocsView() {
+    const difficultyColors: Record<string, string> = { easy: T.success, medium: T.warning, advanced: T.danger };
+    const difficultyLabels: Record<string, string> = { easy: t("integrations.docs.easy"), medium: t("integrations.docs.medium"), advanced: t("integrations.docs.advanced") };
+
+    // Detail view for a specific connector
+    if (selectedDocsConnector && connectorDocs?.docs) {
+      const docs = connectorDocs.docs;
+      return (
+        <motion.div {...fadeSlide} key="docs-detail" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Back button */}
+          <button
+            onClick={() => { setSelectedDocsConnector(null); setConnectorDocs(null); }}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, alignSelf: "flex-start",
+              padding: "8px 14px", borderRadius: 8, background: T.surfaceAlt,
+              border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 12,
+              fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            <ArrowLeft size={14} /> {t("integrations.docs.backToHub")}
+          </button>
+
+          {/* Header */}
+          <Card style={{ padding: "28px 32px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent }}>
+                <BookOpen size={24} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h1 style={{ fontSize: 22, fontWeight: 800, color: T.text, margin: 0 }}>{docs.title || connectorDocs.name}</h1>
+                <p style={{ fontSize: 13, color: T.textMuted, margin: "4px 0 0", lineHeight: 1.5 }}>{docs.overview}</p>
+              </div>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: `${difficultyColors[docs.difficulty || "medium"]}15`, border: `1px solid ${difficultyColors[docs.difficulty || "medium"]}30` }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: difficultyColors[docs.difficulty || "medium"] }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: difficultyColors[docs.difficulty || "medium"] }}>{difficultyLabels[docs.difficulty || "medium"]}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: T.surfaceAlt, border: `1px solid ${T.border}` }}>
+                  <Clock size={12} color={T.textDim} />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: T.textMuted }}>{docs.estimated_time}</span>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Use Cases */}
+          {docs.use_cases?.length > 0 && (
+            <Card style={{ padding: "20px 24px" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: "0 0 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                <Sparkles size={16} color={T.accent} /> {t("integrations.docs.useCases")}
+              </h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
+                {docs.use_cases.map((uc: string, i: number) => (
+                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 14px", borderRadius: 10, background: T.surfaceAlt, border: `1px solid ${T.border}` }}>
+                    <CheckCircle2 size={14} color={T.success} style={{ marginTop: 2, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: T.text, lineHeight: 1.5 }}>{uc}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Prerequisites */}
+          {docs.prerequisites?.length > 0 && (
+            <Card style={{ padding: "20px 24px" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: "0 0 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                <Shield size={16} color={T.warning} /> {t("integrations.docs.prerequisites")}
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {docs.prerequisites.map((p: string, i: number) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 8, background: `${T.warning}08`, border: `1px solid ${T.warning}18` }}>
+                    <div style={{ width: 22, height: 22, borderRadius: 6, background: `${T.warning}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: T.warning, flexShrink: 0 }}>{i + 1}</div>
+                    <span style={{ fontSize: 12, color: T.text }}>{p}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Steps */}
+          {docs.steps?.length > 0 && (
+            <Card style={{ padding: "20px 24px" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: "0 0 18px", display: "flex", alignItems: "center", gap: 8 }}>
+                <Play size={16} color={T.accent} /> {t("integrations.docs.steps")}
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {docs.steps.map((step: any, i: number) => (
+                  <div key={i} style={{ position: "relative", paddingLeft: 36 }}>
+                    {i < docs.steps.length - 1 && (
+                      <div style={{ position: "absolute", left: 15, top: 32, bottom: -16, width: 2, background: T.border }} />
+                    )}
+                    <div style={{ position: "absolute", left: 0, top: 0, width: 32, height: 32, borderRadius: 10, background: T.accentDim, border: `1.5px solid ${T.accent}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: T.accent }}>{i + 1}</div>
+                    <div style={{ paddingTop: 2 }}>
+                      <h4 style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: "0 0 6px" }}>{step.title}</h4>
+                      <p style={{ fontSize: 13, color: T.textMuted, margin: 0, lineHeight: 1.6 }}>{step.description}</p>
+                      {step.tip && (
+                        <div style={{ marginTop: 10, display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 14px", borderRadius: 8, background: `${T.info}08`, border: `1px solid ${T.info}20` }}>
+                          <Info size={14} color={T.info} style={{ marginTop: 1, flexShrink: 0 }} />
+                          <span style={{ fontSize: 12, color: T.info, lineHeight: 1.5 }}><strong>{t("integrations.docs.tip")}:</strong> {step.tip}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* FAQ */}
+          {docs.faq?.length > 0 && (
+            <Card style={{ padding: "20px 24px" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: "0 0 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                <HelpCircle size={16} color={T.info} /> {t("integrations.docs.faq")}
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {docs.faq.map((item: any, i: number) => (
+                  <div key={i} style={{ padding: "14px 18px", borderRadius: 10, background: T.surfaceAlt, border: `1px solid ${T.border}` }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: T.text, margin: "0 0 8px" }}>{item.question}</p>
+                    <p style={{ fontSize: 12, color: T.textMuted, margin: 0, lineHeight: 1.6 }}>{item.answer}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Troubleshooting */}
+          {docs.troubleshooting?.length > 0 && (
+            <Card style={{ padding: "20px 24px" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: "0 0 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                <AlertCircle size={16} color={T.danger} /> {t("integrations.docs.troubleshooting")}
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {docs.troubleshooting.map((item: any, i: number) => (
+                  <div key={i} style={{ padding: "14px 18px", borderRadius: 10, background: `${T.danger}06`, border: `1px solid ${T.danger}18` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                      <AlertCircle size={12} color={T.danger} />
+                      <span style={{ fontSize: 12, fontWeight: 700, color: T.danger }}>{t("integrations.docs.issue")}: {item.issue}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+                      <CheckCircle2 size={12} color={T.success} style={{ marginTop: 2 }} />
+                      <span style={{ fontSize: 12, color: T.text, lineHeight: 1.5 }}><strong style={{ color: T.success }}>{t("integrations.docs.solution")}:</strong> {item.solution}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* External Links */}
+          {docs.links?.length > 0 && (
+            <Card style={{ padding: "20px 24px" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: "0 0 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                <ExternalLink size={16} color={T.accent} /> {t("integrations.docs.externalLinks")}
+              </h3>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {docs.links.map((link: any, i: number) => (
+                  <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "8px 16px", borderRadius: 8, background: T.surfaceAlt,
+                    border: `1px solid ${T.border}`, color: T.accent, fontSize: 12,
+                    fontWeight: 600, textDecoration: "none", transition: "all 0.2s",
+                  }}>
+                    <ExternalLink size={12} /> {link.label}
+                  </a>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Setup Button */}
+          <div style={{ display: "flex", justifyContent: "center", paddingTop: 8 }}>
+            <button
+              onClick={() => {
+                const integration = INTEGRATIONS.find(i => i.connectorId === selectedDocsConnector);
+                if (integration) {
+                  setSelectedIntegration(integration);
+                  setOnboardingStep(0);
+                  setConfigValues({});
+                  setTestResult(null);
+                  setView("onboarding");
+                }
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "12px 28px", borderRadius: 12,
+                background: T.accent, border: "none",
+                color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              <Zap size={16} /> Jetzt einrichten
+            </button>
+          </div>
+        </motion.div>
+      );
+    }
+
+    // Overview: list all connectors with docs
+    return (
+      <motion.div {...fadeSlide} key="docs-overview" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {/* Back button */}
+        <button
+          onClick={() => setView(isSystemAdmin ? "system_admin" : "hub")}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6, alignSelf: "flex-start",
+            padding: "8px 14px", borderRadius: 8, background: T.surfaceAlt,
+            border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 12,
+            fontWeight: 600, cursor: "pointer",
+          }}
+        >
+          <ArrowLeft size={14} /> {isSystemAdmin ? t("integrations.admin.title") : t("integrations.onboarding.backToHub")}
+        </button>
+
+        {/* Header */}
+        <Card style={{ padding: "28px 32px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent }}>
+              <BookOpen size={24} />
+            </div>
+            <div>
+              <h1 style={{ fontSize: 22, fontWeight: 800, color: T.text, margin: 0 }}>{t("integrations.docs.title")}</h1>
+              <p style={{ fontSize: 13, color: T.textMuted, margin: "4px 0 0" }}>{t("integrations.docs.subtitle")}</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Connector Docs Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }}>
+          {allDocsOverview.filter(d => d.has_docs).map((doc) => (
+            <Card key={doc.id} style={{ padding: "20px 24px", cursor: "pointer", transition: "all 0.2s" }}
+              onClick={() => setSelectedDocsConnector(doc.id)}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, flexShrink: 0 }}>
+                  <BookOpen size={18} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: 0 }}>{doc.name}</h3>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 6, background: `${difficultyColors[doc.difficulty || "medium"]}12`, border: `1px solid ${difficultyColors[doc.difficulty || "medium"]}25` }}>
+                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: difficultyColors[doc.difficulty || "medium"] }} />
+                      <span style={{ fontSize: 10, fontWeight: 700, color: difficultyColors[doc.difficulty || "medium"] }}>{difficultyLabels[doc.difficulty || "medium"]}</span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 11, color: T.textMuted, margin: "0 0 8px", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{doc.overview || doc.description}</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Badge style={{ fontSize: 10, padding: "2px 8px" }}>{doc.category}</Badge>
+                    <span style={{ fontSize: 10, color: T.textDim, display: "flex", alignItems: "center", gap: 4 }}><Clock size={10} /> {doc.estimated_time}</span>
+                  </div>
+                </div>
+                <ArrowRight size={16} color={T.textDim} style={{ marginTop: 4 }} />
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {allDocsOverview.filter(d => d.has_docs).length === 0 && !docsLoading && (
+          <Card style={{ padding: 40, textAlign: "center" }}>
+            <BookOpen size={32} color={T.textDim} style={{ margin: "0 auto 12px" }} />
+            <p style={{ fontSize: 14, color: T.textMuted }}>{t("integrations.docs.noDocs")}</p>
+          </Card>
+        )}
+      </motion.div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SYSTEM-ADMIN VIEW (Global Connector CRUD Management)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function renderSystemAdminView() {
+    const categoryColors: Record<string, string> = {
+      messaging: T.whatsapp, payments: "#6772E5", scheduling: "#0069FF",
+      ai_voice: "#F97316", analytics: "#8B5CF6", members: T.info, crm: T.success,
+    };
+
+    return (
+      <motion.div {...fadeSlide} key="system-admin" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {/* Hero */}
+        <div style={{
+          position: "relative", padding: "32px 32px", borderRadius: 20,
+          background: `linear-gradient(135deg, ${T.surface} 0%, ${T.surfaceAlt} 100%)`,
+          border: `1px solid ${T.border}`, overflow: "hidden",
+        }}>
+          <div style={{ position: "absolute", top: -60, right: -40, width: 200, height: 200, borderRadius: "50%", background: `radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)`, pointerEvents: "none" }} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: T.dangerDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.danger }}>
+                <Settings size={24} />
+              </div>
+              <div>
+                <h1 style={{ fontSize: 22, fontWeight: 800, color: T.text, margin: 0, letterSpacing: "-0.03em" }}>{t("integrations.admin.title")}</h1>
+                <p style={{ fontSize: 13, color: T.textMuted, margin: 0 }}>{t("integrations.admin.subtitle")}</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => { setView("docs"); setSelectedDocsConnector(null); setConnectorDocs(null); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "9px 16px", borderRadius: 9,
+                  background: T.surfaceAlt, border: `1px solid ${T.border}`,
+                  color: T.accent, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                <BookOpen size={14} /> {t("integrations.docs.openDocs")}
+              </button>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "9px 16px", borderRadius: 9,
+                  background: T.accent, border: "none",
+                  color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                }}
+              >
+                <Zap size={14} /> {t("integrations.admin.create")}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Usage Stats */}
+        {usageStats && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+            <Card style={{ padding: "18px 20px" }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: T.textDim, margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{t("integrations.admin.totalConnectors")}</p>
+              <p style={{ fontSize: 28, fontWeight: 800, color: T.text, margin: 0 }}>{usageStats.total_connectors}</p>
+            </Card>
+            <Card style={{ padding: "18px 20px" }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: T.textDim, margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{t("integrations.admin.totalTenants")}</p>
+              <p style={{ fontSize: 28, fontWeight: 800, color: T.text, margin: 0 }}>{usageStats.total_tenants}</p>
+            </Card>
+            <Card style={{ padding: "18px 20px" }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: T.textDim, margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{t("integrations.admin.activeConnections")}</p>
+              <p style={{ fontSize: 28, fontWeight: 800, color: T.accent, margin: 0 }}>{Object.values(usageStats.connector_usage || {}).reduce((a: number, b: any) => a + (b as number), 0)}</p>
+            </Card>
+            <Card style={{ padding: "18px 20px" }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: T.textDim, margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Kategorien</p>
+              <p style={{ fontSize: 28, fontWeight: 800, color: T.text, margin: 0 }}>{Object.keys(usageStats.categories || {}).length}</p>
+            </Card>
+          </div>
+        )}
+
+        {/* Connectors Table */}
+        <Card style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ padding: "16px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: 0 }}>Registrierte Connectors ({systemConnectors.length})</h3>
+            <button onClick={fetchSystemConnectors} style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim, display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
+              <RefreshCw size={12} /> Aktualisieren
+            </button>
+          </div>
+
+          {systemLoading ? (
+            <div style={{ padding: 40, textAlign: "center" }}>
+              <Loader2 size={24} color={T.accent} className="animate-spin" style={{ margin: "0 auto" }} />
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: T.surfaceAlt }}>
+                    <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }}>Connector</th>
+                    <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }}>Kategorie</th>
+                    <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }}>Felder</th>
+                    <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }}>Nutzung</th>
+                    <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }}>Docs</th>
+                    <th style={{ padding: "10px 16px", textAlign: "right", fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }}>Aktionen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {systemConnectors.map((conn) => (
+                    <tr key={conn.id} style={{ borderBottom: `1px solid ${T.border}` }}>
+                      <td style={{ padding: "12px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 8, background: `${categoryColors[conn.category] || T.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", color: categoryColors[conn.category] || T.accent }}>
+                            <PlugZap size={14} />
+                          </div>
+                          <div>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: T.text, margin: 0 }}>{conn.name}</p>
+                            <p style={{ fontSize: 10, color: T.textDim, margin: 0, fontFamily: "monospace" }}>{conn.id}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <Badge style={{ fontSize: 10, padding: "2px 8px", background: `${categoryColors[conn.category] || T.accent}12`, color: categoryColors[conn.category] || T.accent, border: `1px solid ${categoryColors[conn.category] || T.accent}25` }}>
+                          {conn.category}
+                        </Badge>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <span style={{ fontSize: 12, color: T.textMuted }}>{conn.field_count} {t("integrations.admin.fields")}</span>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: usageStats?.connector_usage?.[conn.id] ? T.success : T.textDim }}>
+                          {usageStats?.connector_usage?.[conn.id] || 0} {t("integrations.admin.tenants")}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        {conn.has_docs ? (
+                          <button onClick={() => { setSelectedDocsConnector(conn.id); setView("docs"); }} style={{ background: "none", border: "none", cursor: "pointer", color: T.accent, fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                            <BookOpen size={12} /> Anzeigen
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: 11, color: T.textDim }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                          <button
+                            onClick={() => setEditingConnector(conn)}
+                            style={{
+                              padding: "5px 10px", borderRadius: 6, background: T.surfaceAlt,
+                              border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 11,
+                              fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
+                            }}
+                          >
+                            <Settings size={11} /> {t("integrations.admin.edit")}
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteConfirm(conn.id)}
+                            style={{
+                              padding: "5px 10px", borderRadius: 6, background: T.dangerDim,
+                              border: "none", color: T.danger, fontSize: 11,
+                              fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
+                            }}
+                          >
+                            <Trash2 size={11} /> {t("integrations.admin.delete")}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+
+        {/* Create Modal */}
+        {showCreateModal && (
+          <Modal onClose={() => setShowCreateModal(false)}>
+            <div style={{ padding: 24, maxWidth: 480 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: T.text, margin: "0 0 20px" }}>{t("integrations.admin.create")}</h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div>
+                  <label style={labelStyle}>{t("integrations.admin.connectorId")}</label>
+                  <input value={createForm.id} onChange={(e) => setCreateForm(f => ({ ...f, id: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") }))} placeholder="z.B. my_crm" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>{t("integrations.admin.connectorName")}</label>
+                  <input value={createForm.name} onChange={(e) => setCreateForm(f => ({ ...f, name: e.target.value }))} placeholder="z.B. Mein CRM" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>{t("integrations.admin.category")}</label>
+                  <select value={createForm.category} onChange={(e) => setCreateForm(f => ({ ...f, category: e.target.value }))} style={{ ...inputStyle, cursor: "pointer" }}>
+                    <option value="messaging">Kommunikation</option>
+                    <option value="payments">Zahlungen</option>
+                    <option value="scheduling">Termine</option>
+                    <option value="ai_voice">KI & Sprache</option>
+                    <option value="analytics">Analytik</option>
+                    <option value="members">Mitglieder</option>
+                    <option value="crm">CRM</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>{t("integrations.admin.description")}</label>
+                  <input value={createForm.description} onChange={(e) => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder="Kurze Beschreibung..." style={inputStyle} />
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 24 }}>
+                <button onClick={() => setShowCreateModal(false)} style={{ padding: "9px 18px", borderRadius: 9, background: T.surfaceAlt, border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  {t("integrations.admin.cancel")}
+                </button>
+                <button onClick={createConnector} disabled={!createForm.id || !createForm.name} style={{ padding: "9px 18px", borderRadius: 9, background: T.accent, border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: (!createForm.id || !createForm.name) ? 0.5 : 1 }}>
+                  {t("integrations.admin.save")}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* Edit Modal */}
+        {editingConnector && (
+          <Modal onClose={() => setEditingConnector(null)}>
+            <div style={{ padding: 24, maxWidth: 480 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: T.text, margin: "0 0 20px" }}>{t("integrations.admin.edit")}: {editingConnector.name}</h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div>
+                  <label style={labelStyle}>{t("integrations.admin.connectorName")}</label>
+                  <input value={editingConnector.name} onChange={(e) => setEditingConnector((c: any) => ({ ...c, name: e.target.value }))} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>{t("integrations.admin.category")}</label>
+                  <select value={editingConnector.category} onChange={(e) => setEditingConnector((c: any) => ({ ...c, category: e.target.value }))} style={{ ...inputStyle, cursor: "pointer" }}>
+                    <option value="messaging">Kommunikation</option>
+                    <option value="payments">Zahlungen</option>
+                    <option value="scheduling">Termine</option>
+                    <option value="ai_voice">KI & Sprache</option>
+                    <option value="analytics">Analytik</option>
+                    <option value="members">Mitglieder</option>
+                    <option value="crm">CRM</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>{t("integrations.admin.description")}</label>
+                  <input value={editingConnector.description || ""} onChange={(e) => setEditingConnector((c: any) => ({ ...c, description: e.target.value }))} style={inputStyle} />
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 24 }}>
+                <button onClick={() => setEditingConnector(null)} style={{ padding: "9px 18px", borderRadius: 9, background: T.surfaceAlt, border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  {t("integrations.admin.cancel")}
+                </button>
+                <button onClick={() => updateConnector(editingConnector.id, { name: editingConnector.name, category: editingConnector.category, description: editingConnector.description })} style={{ padding: "9px 18px", borderRadius: 9, background: T.accent, border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  {t("integrations.admin.save")}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* Delete Confirmation */}
+        {showDeleteConfirm && (
+          <Modal onClose={() => setShowDeleteConfirm(null)}>
+            <div style={{ padding: 24, maxWidth: 400, textAlign: "center" }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: T.dangerDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.danger, margin: "0 auto 16px" }}>
+                <Trash2 size={24} />
+              </div>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: "0 0 8px" }}>{t("integrations.admin.delete")}</h2>
+              <p style={{ fontSize: 13, color: T.textMuted, margin: "0 0 24px" }}>{t("integrations.admin.deleteConfirm")}</p>
+              <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
+                <button onClick={() => setShowDeleteConfirm(null)} style={{ padding: "9px 18px", borderRadius: 9, background: T.surfaceAlt, border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  {t("integrations.admin.cancel")}
+                </button>
+                <button onClick={() => deleteConnector(showDeleteConfirm)} style={{ padding: "9px 18px", borderRadius: 9, background: T.danger, border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  {t("integrations.admin.delete")}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </motion.div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // RENDER
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -1977,6 +2663,8 @@ export default function SettingsIntegrationsPage() {
         {view === "hub" && renderHub()}
         {view === "onboarding" && renderOnboarding()}
         {view === "manage" && renderManage()}
+        {view === "docs" && renderDocsView()}
+        {view === "system_admin" && renderSystemAdminView()}
       </AnimatePresence>
     </div>
   );
