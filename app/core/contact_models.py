@@ -38,6 +38,9 @@ from sqlalchemy.orm import relationship
 
 from app.core.db import Base
 
+# Ensure dependent models are registered with SQLAlchemy before defining FK references
+import app.core.models  # noqa: F401 – registers Tenant, StudioMember, etc.
+
 
 # ─── Enums ────────────────────────────────────────────────────────────────────
 
