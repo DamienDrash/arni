@@ -608,4 +608,3 @@ class ContactSearchParams(BaseModel):
     sort_order: str = Field("desc", description="Sortierrichtung: asc oder desc")
     page: int = Field(1, ge=1, description="Seitennummer")
     page_size: int = Field(50, ge=1, le=500, description="Einträge pro Seite")
-"""
