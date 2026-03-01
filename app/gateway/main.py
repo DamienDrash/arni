@@ -189,6 +189,24 @@ app.include_router(smtp_config.router)
 from app.platform.api.integrations import router as integration_registry_router
 app.include_router(integration_registry_router)
 
+# --- Phase 5: Enterprise Features & Self-Service ---
+from app.platform.api.tenant_portal import router as tenant_portal_router
+from app.platform.api.marketplace import router as marketplace_router
+from app.platform.api.analytics import router as analytics_router
+app.include_router(tenant_portal_router)
+app.include_router(marketplace_router)
+app.include_router(analytics_router)
+
+# --- Telemetry & Metrics (Phase 5) ---
+try:
+    from app.core.telemetry import get_tracer, get_metrics, TelemetryMiddleware, create_metrics_router
+    _tel_tracer = get_tracer()
+    _tel_metrics = get_metrics()
+    app.add_middleware(TelemetryMiddleware, tracer=_tel_tracer, metrics=_tel_metrics)
+    app.include_router(create_metrics_router(_tel_tracer, _tel_metrics))
+except Exception as _tel_err:
+    logger.warning("ariia.gateway.telemetry_skipped", error=str(_tel_err))
+
 # --- ACP Router ---
 from app.acp.server import router as acp_router
 app.include_router(acp_router)
