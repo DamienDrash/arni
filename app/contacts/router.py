@@ -85,14 +85,26 @@ from app.contacts.schemas import (
     ContactUpdate,
     CustomFieldDefinitionCreate,
     CustomFieldDefinitionResponse,
+    CustomFieldDefinitionUpdate,
+    CustomFieldValueResponse,
+    CustomFieldValueSet,
     DuplicateCheckResponse,
     DuplicateGroupListResponse,
+    ExportRequest,
+    ImportColumnMapping,
     ImportLogResponse,
+    ImportPreviewResponse,
+    ImportV2Request,
+    LifecycleConfigResponse,
+    LifecycleConfigUpdate,
+    LifecycleTransitionRequest,
     NoteCreate,
     NoteResponse,
     NoteUpdate,
     SegmentCreate,
+    SegmentFilterGroup,
     SegmentListResponse,
+    SegmentPreviewResponse,
     SegmentResponse,
     SegmentUpdate,
     TagAssignRequest,
@@ -402,13 +414,30 @@ def delete_segment(
 @router.get("/segments/{segment_id}/evaluate", response_model=ContactListResponse)
 def evaluate_segment(
     segment_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
     user: AuthContext = Depends(get_current_user),
 ):
     """Evaluate a dynamic segment and return matching contacts."""
-    result = contact_service.evaluate_segment(user.tenant_id, segment_id)
+    result = contact_service.evaluate_segment(user.tenant_id, segment_id, page, page_size)
     if not result:
         raise HTTPException(status_code=404, detail="Segment nicht gefunden oder keine Filter definiert")
     return result
+
+
+@router.post("/segments/preview", response_model=SegmentPreviewResponse)
+@router.post("/segments/preview/", response_model=SegmentPreviewResponse)
+def preview_segment(
+    filter_groups: List[SegmentFilterGroup],
+    group_connector: str = Query("and"),
+    user: AuthContext = Depends(get_current_user),
+):
+    """Preview segment evaluation without saving (count + sample)."""
+    return contact_service.preview_segment(
+        tenant_id=user.tenant_id,
+        filter_groups=filter_groups,
+        group_connector=group_connector,
+    )
 
 
 # ── Custom Fields ────────────────────────────────────────────────────────────
@@ -437,6 +466,60 @@ def create_custom_field(
         options=data.options,
         display_order=data.display_order,
         description=data.description,
+    )
+
+
+# ── Custom Fields (Extended Phase 3) ──────────────────────────────────────
+
+@router.put("/custom-fields/{field_id}", response_model=CustomFieldDefinitionResponse)
+def update_custom_field(
+    field_id: int,
+    data: CustomFieldDefinitionUpdate,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Update a custom field definition."""
+    _require_admin(user)
+    result = contact_service.update_custom_field_definition(user.tenant_id, field_id, data)
+    if not result:
+        raise HTTPException(status_code=404, detail="Custom Field nicht gefunden")
+    return result
+
+
+@router.delete("/custom-fields/{field_id}", response_model=Dict[str, Any])
+def delete_custom_field(
+    field_id: int,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Delete a custom field definition and all its values."""
+    _require_admin(user)
+    result = contact_service.delete_custom_field_definition(user.tenant_id, field_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Custom Field nicht gefunden")
+    return {"deleted": True}
+
+
+# ── Lifecycle Config (Phase 3) ─────────────────────────────────────────
+
+@router.get("/lifecycle-config", response_model=LifecycleConfigResponse)
+def get_lifecycle_config(
+    user: AuthContext = Depends(get_current_user),
+):
+    """Get lifecycle stage configuration for the tenant."""
+    return contact_service.get_lifecycle_config(user.tenant_id)
+
+
+@router.put("/lifecycle-config", response_model=LifecycleConfigResponse)
+@router.put("/lifecycle-config/", response_model=LifecycleConfigResponse)
+def update_lifecycle_config(
+    data: LifecycleConfigUpdate,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Update lifecycle stage configuration for the tenant."""
+    _require_admin(user)
+    return contact_service.update_lifecycle_config(
+        tenant_id=user.tenant_id,
+        stages=data.stages,
+        default_stage=data.default_stage,
     )
 
 
@@ -637,7 +720,144 @@ def remove_tag_from_contact(
     return {"status": "tag_removed" if result else "tag_not_found", "tag": tag_name}
 
 
-# ── CSV Import/Export ─────────────────────────────────────────────────────────
+
+# ── Custom Field Values on Contact (Phase 3) ───────────────────────────────
+
+@router.get("/{contact_id}/custom-fields", response_model=List[CustomFieldValueResponse])
+def get_contact_custom_fields(
+    contact_id: int,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Get all custom field values for a contact."""
+    return contact_service.get_contact_custom_fields(user.tenant_id, contact_id)
+
+
+@router.put("/{contact_id}/custom-fields", response_model=Dict[str, Any])
+@router.put("/{contact_id}/custom-fields/", response_model=Dict[str, Any])
+def set_contact_custom_fields(
+    contact_id: int,
+    data: List[CustomFieldValueSet],
+    user: AuthContext = Depends(get_current_user),
+):
+    """Set custom field values on a contact."""
+    _require_admin(user)
+    result = contact_service.set_contact_custom_fields(
+        tenant_id=user.tenant_id,
+        contact_id=contact_id,
+        field_values=data,
+        performed_by=user.user_id,
+        performed_by_name=user.email,
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Kontakt nicht gefunden")
+    return {"updated": len(data)}
+
+
+# ── Lifecycle Transition (Phase 3) ──────────────────────────────────────────
+
+@router.post("/{contact_id}/lifecycle-transition", response_model=ContactResponse)
+@router.post("/{contact_id}/lifecycle-transition/", response_model=ContactResponse)
+def transition_lifecycle(
+    contact_id: int,
+    data: LifecycleTransitionRequest,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Manually transition a contact's lifecycle stage with audit trail."""
+    _require_admin(user)
+    result = contact_service.transition_lifecycle(
+        tenant_id=user.tenant_id,
+        contact_id=contact_id,
+        new_stage=data.new_stage,
+        reason=data.reason,
+        performed_by=user.user_id,
+        performed_by_name=user.email,
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Kontakt nicht gefunden")
+    return result
+
+
+# ── Import V2 (Phase 3 – with Preview, Mapping, Progress) ──────────────────
+
+@router.post("/import/preview", response_model=ImportPreviewResponse)
+@router.post("/import/preview/", response_model=ImportPreviewResponse)
+async def import_preview(
+    file: UploadFile = File(...),
+    user: AuthContext = Depends(get_current_user),
+):
+    """Upload a CSV and get a preview with auto-detected column mappings."""
+    _require_admin(user)
+    content = await file.read()
+    text_content = content.decode("utf-8")
+    return contact_service.preview_import(
+        tenant_id=user.tenant_id,
+        csv_content=text_content,
+        filename=file.filename or "upload.csv",
+    )
+
+
+@router.post("/import/execute", response_model=Dict[str, Any])
+@router.post("/import/execute/", response_model=Dict[str, Any])
+def import_execute(
+    data: ImportV2Request,
+    background_tasks: BackgroundTasks,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Execute import with custom column mappings (background)."""
+    _require_admin(user)
+    background_tasks.add_task(
+        _process_import_v2,
+        tenant_id=user.tenant_id,
+        request=data,
+        user_id=user.user_id,
+        user_email=user.email,
+    )
+    return {"status": "import_started", "filename": data.filename}
+
+
+def _process_import_v2(
+    tenant_id: int,
+    request: ImportV2Request,
+    user_id: int,
+    user_email: str,
+):
+    """Background task for Import V2 with column mapping."""
+    contact_service.execute_import_v2(
+        tenant_id=tenant_id,
+        request=request,
+        performed_by=user_id,
+        performed_by_name=user_email,
+    )
+
+
+@router.get("/import/logs", response_model=List[ImportLogResponse])
+@router.get("/import/logs/", response_model=List[ImportLogResponse])
+def list_import_logs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user: AuthContext = Depends(get_current_user),
+):
+    """List import history logs."""
+    return contact_service.list_import_logs(
+        tenant_id=user.tenant_id,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/import/logs/{log_id}", response_model=ImportLogResponse)
+def get_import_log(
+    log_id: int,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Get details of a specific import log."""
+    result = contact_service.get_import_log(user.tenant_id, log_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Import-Log nicht gefunden")
+    return result
+
+
+# ── Legacy CSV Import ───────────────────────────────────────────────────────
 
 @router.post("/import/csv", response_model=Dict[str, Any])
 @router.post("/import/csv/", response_model=Dict[str, Any])
@@ -646,7 +866,7 @@ async def import_csv(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     user: AuthContext = Depends(get_current_user),
 ):
-    """Import contacts from CSV in background."""
+    """Import contacts from CSV in background (legacy)."""
     _require_admin(user)
     content = await file.read()
     text_content = content.decode("utf-8")
@@ -664,7 +884,7 @@ def _process_csv_import(
     user_email: str,
     filename: str,
 ):
-    """Background task for CSV import."""
+    """Background task for CSV import (legacy)."""
     db = SessionLocal()
     from app.contacts.repository import contact_repo
     from app.core.contact_models import Contact, ContactImportLog, ActivityType
@@ -694,7 +914,6 @@ def _process_csv_import(
                     skipped_count += 1
                     continue
 
-                # Check for existing contact by email
                 existing = None
                 if email:
                     existing = contact_repo.find_by_email(db, tenant_id, email)
@@ -760,10 +979,32 @@ def _process_csv_import(
         db.close()
 
 
+# ── Export V2 (Phase 3 – with Filters, Segments, Custom Fields) ─────────────
+
+@router.post("/export", response_model=Dict[str, Any])
+@router.post("/export/", response_model=Dict[str, Any])
+def export_contacts_v2(
+    data: ExportRequest,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Export contacts with filters, segment, and custom fields."""
+    result = contact_service.export_contacts_v2(
+        tenant_id=user.tenant_id,
+        export_request=data,
+    )
+    if data.format == "csv":
+        return StreamingResponse(
+            iter([result]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=contacts_export.csv"},
+        )
+    return {"data": result, "format": data.format}
+
+
 @router.get("/export/csv")
 @router.get("/export/csv/")
 def export_csv(user: AuthContext = Depends(get_current_user)):
-    """Export all contacts as CSV."""
+    """Export all contacts as CSV (legacy)."""
     db = SessionLocal()
     try:
         contacts = (

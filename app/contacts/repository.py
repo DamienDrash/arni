@@ -30,6 +30,7 @@ from app.core.contact_models import (
     ContactCustomFieldValue,
     ContactIdentifier,
     ContactImportLog,
+    ContactLifecycleConfig,
     ContactNote,
     ContactSegment,
     ContactTag,
@@ -925,11 +926,7 @@ class ContactRepository:
 
     def evaluate_segment(self, db: Session, tenant_id: int,
                          filter_json: Dict[str, Any]) -> Tuple[List[Contact], int]:
-        """Evaluate a segment filter and return matching contacts.
-        
-        Supports filter keys: lifecycle_stage, source, tags, has_email, has_phone,
-        score_min, score_max, created_after, created_before, company, gender.
-        """
+        """Evaluate a legacy flat segment filter."""
         return self.list_contacts(
             db, tenant_id,
             lifecycle_stage=filter_json.get("lifecycle_stage"),
@@ -942,8 +939,132 @@ class ContactRepository:
             company=filter_json.get("company"),
             gender=filter_json.get("gender"),
             page=1,
-            page_size=10000,  # Segments return all matching contacts
+            page_size=10000,
         )
+
+    def evaluate_segment_v2(self, db: Session, tenant_id: int,
+                            filter_groups: List[Dict], group_connector: str = "and",
+                            page: int = 1, page_size: int = 50) -> Tuple[List[Contact], int]:
+        """Evaluate segment with Phase 3 AND/OR rule groups.
+
+        Each group has a connector (and/or) and a list of rules.
+        Groups are connected by group_connector.
+        """
+        base_q = db.query(Contact).filter(
+            Contact.tenant_id == tenant_id,
+            Contact.deleted_at.is_(None),
+        )
+
+        group_conditions = []
+        for group in filter_groups:
+            connector = group.get("connector", "and")
+            rules = group.get("rules", [])
+            rule_conditions = []
+            for rule in rules:
+                cond = self._build_rule_condition(db, tenant_id, rule)
+                if cond is not None:
+                    rule_conditions.append(cond)
+            if rule_conditions:
+                if connector == "or":
+                    group_conditions.append(or_(*rule_conditions))
+                else:
+                    group_conditions.append(and_(*rule_conditions))
+
+        if group_conditions:
+            if group_connector == "or":
+                base_q = base_q.filter(or_(*group_conditions))
+            else:
+                base_q = base_q.filter(and_(*group_conditions))
+
+        total = base_q.count()
+        offset = (page - 1) * page_size
+        contacts = base_q.order_by(Contact.created_at.desc()).offset(offset).limit(page_size).all()
+        return contacts, total
+
+    def _build_rule_condition(self, db: Session, tenant_id: int, rule: Dict):
+        """Build a SQLAlchemy condition from a single segment rule."""
+        field = rule.get("field", "")
+        operator = rule.get("operator", "equals")
+        value = rule.get("value")
+        value2 = rule.get("value2")
+
+        # Tag-based rules
+        if field == "tag":
+            tag_ids = db.query(ContactTag.id).filter(
+                ContactTag.tenant_id == tenant_id,
+                ContactTag.name == value,
+            ).subquery()
+            contact_ids_with_tag = db.query(ContactTagAssociation.contact_id).filter(
+                ContactTagAssociation.tag_id.in_(tag_ids.select())
+            ).distinct().subquery()
+            if operator in ("equals", "in_list"):
+                return Contact.id.in_(contact_ids_with_tag.select())
+            elif operator in ("not_equals", "not_in_list"):
+                return ~Contact.id.in_(contact_ids_with_tag.select())
+            return None
+
+        # Custom field rules (custom:slug)
+        if field.startswith("custom:"):
+            slug = field.split(":", 1)[1]
+            defn = db.query(ContactCustomFieldDefinition).filter(
+                ContactCustomFieldDefinition.tenant_id == tenant_id,
+                ContactCustomFieldDefinition.field_slug == slug,
+            ).first()
+            if not defn:
+                return None
+            cfv_subq = db.query(ContactCustomFieldValue.contact_id).filter(
+                ContactCustomFieldValue.field_definition_id == defn.id,
+            )
+            if operator == "equals":
+                cfv_subq = cfv_subq.filter(ContactCustomFieldValue.value == str(value))
+            elif operator == "not_equals":
+                cfv_subq = cfv_subq.filter(ContactCustomFieldValue.value != str(value))
+            elif operator == "contains":
+                cfv_subq = cfv_subq.filter(ContactCustomFieldValue.value.ilike(f"%{value}%"))
+            elif operator == "is_set":
+                pass  # just check existence
+            elif operator == "is_not_set":
+                return ~Contact.id.in_(cfv_subq.subquery().select())
+            return Contact.id.in_(cfv_subq.subquery().select())
+
+        # Standard contact fields
+        col = getattr(Contact, field, None)
+        if col is None:
+            return None
+
+        if operator == "equals":
+            return col == value
+        elif operator == "not_equals":
+            return col != value
+        elif operator == "contains":
+            return col.ilike(f"%{value}%")
+        elif operator == "not_contains":
+            return ~col.ilike(f"%{value}%")
+        elif operator == "starts_with":
+            return col.ilike(f"{value}%")
+        elif operator == "ends_with":
+            return col.ilike(f"%{value}")
+        elif operator == "greater_than":
+            return col > value
+        elif operator == "less_than":
+            return col < value
+        elif operator == "greater_equal":
+            return col >= value
+        elif operator == "less_equal":
+            return col <= value
+        elif operator == "between":
+            return and_(col >= value, col <= value2)
+        elif operator == "is_set":
+            return and_(col.isnot(None), col != "")
+        elif operator == "is_not_set":
+            return or_(col.is_(None), col == "")
+        elif operator == "in_list":
+            vals = value if isinstance(value, list) else [value]
+            return col.in_(vals)
+        elif operator == "not_in_list":
+            vals = value if isinstance(value, list) else [value]
+            return ~col.in_(vals)
+        return None
 
     # ── Custom Fields ─────────────────────────────────────────────────────
 
@@ -1018,6 +1139,117 @@ class ContactRepository:
                 setattr(log, key, value)
         db.flush()
         return log
+
+    def get_import_log(self, db: Session, tenant_id: int, log_id: int) -> Optional[ContactImportLog]:
+        """Get an import log by ID."""
+        return db.query(ContactImportLog).filter(
+            ContactImportLog.id == log_id,
+            ContactImportLog.tenant_id == tenant_id,
+        ).first()
+
+    def list_import_logs(self, db: Session, tenant_id: int) -> List[ContactImportLog]:
+        """List all import logs for a tenant."""
+        return (
+            db.query(ContactImportLog)
+            .filter(ContactImportLog.tenant_id == tenant_id)
+            .order_by(ContactImportLog.started_at.desc())
+            .all()
+        )
+
+    # ── Custom Fields Extended ──────────────────────────────────────────
+
+    def get_custom_field_definition(self, db: Session, tenant_id: int,
+                                     field_id: int) -> Optional[ContactCustomFieldDefinition]:
+        """Get a custom field definition by ID."""
+        return db.query(ContactCustomFieldDefinition).filter(
+            ContactCustomFieldDefinition.id == field_id,
+            ContactCustomFieldDefinition.tenant_id == tenant_id,
+        ).first()
+
+    def get_custom_field_by_slug(self, db: Session, tenant_id: int,
+                                  slug: str) -> Optional[ContactCustomFieldDefinition]:
+        """Get a custom field definition by slug."""
+        return db.query(ContactCustomFieldDefinition).filter(
+            ContactCustomFieldDefinition.tenant_id == tenant_id,
+            ContactCustomFieldDefinition.field_slug == slug,
+        ).first()
+
+    def update_custom_field_definition(self, db: Session,
+                                        defn: ContactCustomFieldDefinition,
+                                        **kwargs) -> ContactCustomFieldDefinition:
+        """Update a custom field definition."""
+        for key, value in kwargs.items():
+            if hasattr(defn, key) and value is not None:
+                setattr(defn, key, value)
+        defn.updated_at = datetime.now(timezone.utc)
+        db.flush()
+        return defn
+
+    def delete_custom_field_definition(self, db: Session, field_id: int,
+                                        tenant_id: int) -> bool:
+        """Delete a custom field definition and all its values."""
+        db.query(ContactCustomFieldValue).filter(
+            ContactCustomFieldValue.field_definition_id == field_id,
+        ).delete(synchronize_session=False)
+        count = db.query(ContactCustomFieldDefinition).filter(
+            ContactCustomFieldDefinition.id == field_id,
+            ContactCustomFieldDefinition.tenant_id == tenant_id,
+        ).delete(synchronize_session=False)
+        db.flush()
+        return count > 0
+
+    def get_custom_field_values_detailed(self, db: Session, contact_id: int) -> List[Dict[str, Any]]:
+        """Get all custom field values for a contact with definition info."""
+        values = (
+            db.query(ContactCustomFieldValue, ContactCustomFieldDefinition)
+            .join(ContactCustomFieldDefinition,
+                  ContactCustomFieldValue.field_definition_id == ContactCustomFieldDefinition.id)
+            .filter(ContactCustomFieldValue.contact_id == contact_id)
+            .all()
+        )
+        result = []
+        for val, defn in values:
+            options = None
+            if defn.options_json:
+                try:
+                    options = json.loads(defn.options_json)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            result.append({
+                "field_slug": defn.field_slug,
+                "field_name": defn.field_name,
+                "field_type": defn.field_type,
+                "value": val.value,
+                "options": options,
+            })
+        return result
+
+    # ── Lifecycle Config ───────────────────────────────────────────────
+
+    def get_lifecycle_config(self, db: Session, tenant_id: int) -> Optional[ContactLifecycleConfig]:
+        """Get lifecycle configuration for a tenant."""
+        return db.query(ContactLifecycleConfig).filter(
+            ContactLifecycleConfig.tenant_id == tenant_id,
+        ).first()
+
+    def upsert_lifecycle_config(self, db: Session, tenant_id: int,
+                                 stages_json: str, default_stage: str) -> ContactLifecycleConfig:
+        """Create or update lifecycle configuration for a tenant."""
+        existing = self.get_lifecycle_config(db, tenant_id)
+        if existing:
+            existing.stages_json = stages_json
+            existing.default_stage = default_stage
+            existing.updated_at = datetime.now(timezone.utc)
+            db.flush()
+            return existing
+        config = ContactLifecycleConfig(
+            tenant_id=tenant_id,
+            stages_json=stages_json,
+            default_stage=default_stage,
+        )
+        db.add(config)
+        db.flush()
+        return config
 
 
 # Singleton instance

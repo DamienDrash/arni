@@ -1,6 +1,6 @@
 """ARIIA v2.0 – Contact Management Pydantic Schemas.
 
-@ARCH: Contacts Refactoring, Phase 2 – Request/Response Models (Extended)
+@ARCH: Contacts Refactoring, Phase 3 – Request/Response Models (Full)
 Defines all Pydantic v2 models for the Contact Management API.
 Strict validation, serialization, and documentation support.
 
@@ -180,7 +180,7 @@ class ContactMergeRequest(BaseModel):
 class DuplicateContactResponse(BaseModel):
     """A potential duplicate contact with match info."""
     contact: ContactResponse
-    match_reason: str = Field(..., description="Grund für den Match (email_exact, phone_exact, name_exact, name_partial)")
+    match_reason: str = Field(..., description="Grund für den Match")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Konfidenz-Score (0.0 - 1.0)")
 
 
@@ -338,6 +338,27 @@ class CustomFieldDefinitionCreate(BaseModel):
         return v
 
 
+class CustomFieldDefinitionUpdate(BaseModel):
+    """Schema for updating a custom field definition."""
+    field_name: Optional[str] = Field(None, min_length=1, max_length=100, description="Anzeigename")
+    field_type: Optional[str] = Field(None, description="Feldtyp")
+    is_required: Optional[bool] = Field(None, description="Pflichtfeld")
+    is_visible: Optional[bool] = Field(None, description="In Tabelle sichtbar")
+    options: Optional[List[str]] = Field(None, description="Optionen für Select-Felder")
+    display_order: Optional[int] = Field(None, description="Anzeigereihenfolge")
+    description: Optional[str] = Field(None, max_length=500, description="Beschreibung")
+
+    @field_validator("field_type")
+    @classmethod
+    def validate_field_type(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        allowed = ["text", "number", "date", "boolean", "select", "multi_select", "url", "email"]
+        if v not in allowed:
+            raise ValueError(f"Feldtyp muss einer der folgenden Werte sein: {', '.join(allowed)}")
+        return v
+
+
 class CustomFieldDefinitionResponse(BaseModel):
     """Custom field definition response."""
     id: int
@@ -354,7 +375,71 @@ class CustomFieldDefinitionResponse(BaseModel):
         from_attributes = True
 
 
+class CustomFieldValueSet(BaseModel):
+    """Schema for setting a custom field value on a contact."""
+    field_slug: str = Field(..., description="Technischer Slug des Feldes")
+    value: Optional[str] = Field(None, description="Wert (als String, wird je nach Feldtyp interpretiert)")
+
+
+class CustomFieldValueResponse(BaseModel):
+    """Custom field value with definition info."""
+    field_slug: str
+    field_name: str
+    field_type: str
+    value: Optional[str] = None
+    options: Optional[List[str]] = None
+
+
 # ─── Import/Export Schemas ────────────────────────────────────────────────────
+
+class ImportColumnMapping(BaseModel):
+    """Mapping of a CSV column to a contact field."""
+    csv_column: str = Field(..., description="Name der CSV-Spalte")
+    contact_field: str = Field(..., description="Ziel-Kontaktfeld (z.B. first_name, email, custom:slug)")
+    is_mapped: bool = Field(True, description="Ob diese Spalte gemappt wird")
+
+
+class ImportV2Request(BaseModel):
+    """Request for Import V2 with column mapping."""
+    filename: str = Field(..., description="Name der hochgeladenen Datei")
+    mappings: List[ImportColumnMapping] = Field(..., description="Spalten-Mappings")
+    skip_duplicates: bool = Field(True, description="Duplikate überspringen")
+    update_existing: bool = Field(False, description="Bestehende Kontakte aktualisieren")
+    default_lifecycle: str = Field("subscriber", description="Standard-Lifecycle für neue Kontakte")
+    default_source: str = Field("csv", description="Standard-Quelle")
+
+
+class ImportPreviewRow(BaseModel):
+    """Preview of a single import row."""
+    row_number: int
+    data: Dict[str, Any]
+    status: str = Field("ok", description="ok, warning, error")
+    message: Optional[str] = None
+
+
+class ImportPreviewResponse(BaseModel):
+    """Preview of import data with detected columns and sample rows."""
+    filename: str
+    total_rows: int
+    columns: List[str]
+    sample_rows: List[Dict[str, Any]]
+    suggested_mappings: List[ImportColumnMapping]
+    warnings: List[str] = []
+
+
+class ImportProgressResponse(BaseModel):
+    """Progress of a running import."""
+    import_id: int
+    status: str
+    total_rows: int
+    processed: int
+    imported: int
+    updated: int
+    skipped: int
+    errors: int
+    progress_percent: float
+    error_details: List[str] = []
+
 
 class ImportLogResponse(BaseModel):
     """Import log response."""
@@ -374,23 +459,71 @@ class ImportLogResponse(BaseModel):
         from_attributes = True
 
 
-# ─── Segment Schemas ──────────────────────────────────────────────────────────
+class ExportRequest(BaseModel):
+    """Request for exporting contacts."""
+    format: str = Field("csv", description="Export-Format: csv oder xlsx")
+    segment_id: Optional[int] = Field(None, description="Segment-ID für gefilterten Export")
+    contact_ids: Optional[List[int]] = Field(None, description="Spezifische Kontakt-IDs")
+    fields: Optional[List[str]] = Field(None, description="Zu exportierende Felder")
+    include_custom_fields: bool = Field(True, description="Custom Fields einschließen")
+    include_tags: bool = Field(True, description="Tags einschließen")
+
+
+# ─── Segment Schemas (Phase 3 – Extended with Rule Builder) ─────────────────
+
+class SegmentFilterRule(BaseModel):
+    """A single filter rule for segment building."""
+    field: str = Field(..., description="Feld-Name (z.B. lifecycle_stage, email, score, tag, custom:slug)")
+    operator: str = Field(..., description="Operator: equals, not_equals, contains, not_contains, starts_with, ends_with, greater_than, less_than, between, is_set, is_not_set, in_list, not_in_list")
+    value: Optional[Any] = Field(None, description="Filterwert")
+    value2: Optional[Any] = Field(None, description="Zweiter Wert (für between-Operator)")
+
+    @field_validator("operator")
+    @classmethod
+    def validate_operator(cls, v: str) -> str:
+        allowed = [
+            "equals", "not_equals", "contains", "not_contains",
+            "starts_with", "ends_with", "greater_than", "less_than",
+            "greater_equal", "less_equal", "between",
+            "is_set", "is_not_set", "in_list", "not_in_list",
+        ]
+        if v not in allowed:
+            raise ValueError(f"Operator muss einer der folgenden Werte sein: {', '.join(allowed)}")
+        return v
+
+
+class SegmentFilterGroup(BaseModel):
+    """A group of filter rules connected by AND/OR."""
+    connector: str = Field("and", description="Verknüpfung: and oder or")
+    rules: List[SegmentFilterRule] = Field(..., min_length=1, description="Filter-Regeln in dieser Gruppe")
+
+    @field_validator("connector")
+    @classmethod
+    def validate_connector(cls, v: str) -> str:
+        if v not in ("and", "or"):
+            raise ValueError("Connector muss 'and' oder 'or' sein")
+        return v
+
 
 class SegmentCreate(BaseModel):
-    """Schema for creating a contact segment."""
+    """Schema for creating a contact segment with rule builder."""
     name: str = Field(..., min_length=1, max_length=255, description="Segment-Name")
     description: Optional[str] = Field(None, description="Beschreibung")
-    filter_json: Optional[Dict[str, Any]] = Field(None, description="Filter-Kriterien als JSON")
-    is_dynamic: bool = Field(True, description="Dynamisches Segment (wird bei Abfrage neu berechnet)")
+    filter_groups: Optional[List[SegmentFilterGroup]] = Field(None, description="Filter-Regelgruppen (AND/OR)")
+    filter_json: Optional[Dict[str, Any]] = Field(None, description="Legacy: Filter-Kriterien als JSON")
+    is_dynamic: bool = Field(True, description="Dynamisches Segment")
+    group_connector: str = Field("and", description="Verknüpfung zwischen Gruppen: and oder or")
 
 
 class SegmentUpdate(BaseModel):
     """Schema for updating a contact segment."""
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
+    filter_groups: Optional[List[SegmentFilterGroup]] = None
     filter_json: Optional[Dict[str, Any]] = None
     is_dynamic: Optional[bool] = None
     is_active: Optional[bool] = None
+    group_connector: Optional[str] = None
 
 
 class SegmentResponse(BaseModel):
@@ -399,6 +532,8 @@ class SegmentResponse(BaseModel):
     name: str
     description: Optional[str] = None
     filter_json: Optional[Dict[str, Any]] = None
+    filter_groups: Optional[List[SegmentFilterGroup]] = None
+    group_connector: str = "and"
     is_dynamic: bool
     contact_count: int
     is_active: bool
@@ -413,6 +548,44 @@ class SegmentListResponse(BaseModel):
     """List of segments."""
     items: List[SegmentResponse]
     total: int
+
+
+class SegmentPreviewResponse(BaseModel):
+    """Preview of segment evaluation (count only, no full data)."""
+    contact_count: int
+    sample_contacts: List[ContactResponse] = []
+
+
+# ─── Lifecycle Schemas (Phase 3) ─────────────────────────────────────────────
+
+class LifecycleStageConfig(BaseModel):
+    """Configuration for a single lifecycle stage."""
+    key: str = Field(..., description="Technischer Schlüssel (z.B. 'lead', 'customer')")
+    label: str = Field(..., description="Anzeigename (z.B. 'Lead', 'Kunde')")
+    color: str = Field("#6C5CE7", description="Hex-Farbcode")
+    order: int = Field(0, description="Reihenfolge in der Pipeline")
+    is_active: bool = Field(True, description="Aktiv/sichtbar")
+    auto_transition_from: Optional[List[str]] = Field(None, description="Automatischer Übergang von diesen Stages")
+    auto_transition_trigger: Optional[str] = Field(None, description="Trigger: first_chat, first_purchase, inactivity_30d, etc.")
+
+
+class LifecycleConfigResponse(BaseModel):
+    """Full lifecycle configuration for a tenant."""
+    tenant_id: int
+    stages: List[LifecycleStageConfig]
+    default_stage: str = "subscriber"
+
+
+class LifecycleConfigUpdate(BaseModel):
+    """Update lifecycle configuration."""
+    stages: List[LifecycleStageConfig] = Field(..., min_length=1, description="Lifecycle-Stages")
+    default_stage: str = Field("subscriber", description="Standard-Stage für neue Kontakte")
+
+
+class LifecycleTransitionRequest(BaseModel):
+    """Request for manually transitioning a contact's lifecycle stage."""
+    new_stage: str = Field(..., description="Neue Lifecycle-Phase")
+    reason: Optional[str] = Field(None, description="Grund für den Übergang")
 
 
 # ─── Search / Filter Schemas ─────────────────────────────────────────────────
@@ -435,3 +608,4 @@ class ContactSearchParams(BaseModel):
     sort_order: str = Field("desc", description="Sortierrichtung: asc oder desc")
     page: int = Field(1, ge=1, description="Seitennummer")
     page_size: int = Field(50, ge=1, le=500, description="Einträge pro Seite")
+"""

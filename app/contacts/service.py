@@ -35,16 +35,24 @@ from app.contacts.schemas import (
     ContactResponse,
     ContactUpdate,
     CustomFieldDefinitionResponse,
+    CustomFieldDefinitionUpdate,
+    CustomFieldValueResponse,
     DuplicateCheckResponse,
     DuplicateContactResponse,
     DuplicateGroupListResponse,
     DuplicateGroupResponse,
     ImportLogResponse,
+    ImportPreviewResponse,
+    ImportColumnMapping,
+    LifecycleConfigResponse,
+    LifecycleStageConfig,
     NoteCreate,
     NoteResponse,
     NoteUpdate,
     SegmentCreate,
+    SegmentFilterGroup,
     SegmentListResponse,
+    SegmentPreviewResponse,
     SegmentResponse,
     SegmentUpdate,
     TagResponse,
@@ -54,6 +62,7 @@ from app.core.contact_models import (
     Contact,
     ContactActivity,
     ContactCustomFieldDefinition,
+    ContactLifecycleConfig,
     ContactNote,
     ContactSegment,
     ContactTag,
@@ -179,11 +188,24 @@ class ContactService:
             except Exception:
                 pass
 
+        # Parse filter_groups
+        filter_groups = None
+        if hasattr(segment, 'filter_groups_json') and segment.filter_groups_json:
+            try:
+                fg_raw = json.loads(segment.filter_groups_json) if isinstance(segment.filter_groups_json, str) else segment.filter_groups_json
+                filter_groups = [SegmentFilterGroup(**g) for g in fg_raw]
+            except Exception:
+                filter_groups = None
+
+        gc = getattr(segment, 'group_connector', 'and') or 'and'
+
         return SegmentResponse(
             id=segment.id,
             name=segment.name,
             description=segment.description,
             filter_json=filter_data,
+            filter_groups=filter_groups,
+            group_connector=gc,
             is_dynamic=segment.is_dynamic,
             contact_count=contact_count,
             is_active=segment.is_active,
@@ -952,25 +974,34 @@ class ContactService:
         tenant_id: int,
         data: SegmentCreate,
     ) -> SegmentResponse:
-        """Create a new contact segment."""
+        """Create a new contact segment (supports legacy and V2 rule groups)."""
         db = SessionLocal()
         try:
-            segment = contact_repo.create_segment(
-                db, tenant_id,
+            kwargs = dict(
                 name=data.name,
                 description=data.description,
                 filter_json=data.filter_json,
                 is_dynamic=data.is_dynamic,
             )
+            # Phase 3: filter_groups support
+            if data.filter_groups:
+                kwargs['filter_groups_json'] = json.dumps([g.model_dump() for g in data.filter_groups])
+                kwargs['group_connector'] = data.group_connector
+
+            segment = contact_repo.create_segment(db, tenant_id, **kwargs)
 
             # Evaluate initial count
-            if data.filter_json and data.is_dynamic:
+            if data.filter_groups and data.is_dynamic:
+                fg = [g.model_dump() for g in data.filter_groups]
+                _, count = contact_repo.evaluate_segment_v2(db, tenant_id, fg, data.group_connector, page_size=10000)
+                segment.contact_count = count
+                db.flush()
+            elif data.filter_json and data.is_dynamic:
                 _, count = contact_repo.evaluate_segment(db, tenant_id, data.filter_json)
                 segment.contact_count = count
                 db.flush()
 
             db.commit()
-
             return self._serialize_segment(db, segment, tenant_id)
         except Exception:
             db.rollback()
@@ -1005,7 +1036,7 @@ class ContactService:
         segment_id: int,
         data: SegmentUpdate,
     ) -> Optional[SegmentResponse]:
-        """Update a segment."""
+        """Update a segment (supports legacy and V2 rule groups)."""
         db = SessionLocal()
         try:
             segment = contact_repo.get_segment_by_id(db, tenant_id, segment_id)
@@ -1013,11 +1044,24 @@ class ContactService:
                 return None
 
             update_data = data.model_dump(exclude_unset=True)
+
+            # Phase 3: filter_groups support
+            if 'filter_groups' in update_data and update_data['filter_groups']:
+                update_data['filter_groups_json'] = json.dumps(update_data.pop('filter_groups'))
+            else:
+                update_data.pop('filter_groups', None)
+
             segment = contact_repo.update_segment(db, segment, **update_data)
 
-            # Re-evaluate count if filter changed
-            if "filter_json" in update_data and update_data["filter_json"]:
-                _, count = contact_repo.evaluate_segment(db, tenant_id, update_data["filter_json"])
+            # Re-evaluate count
+            if segment.filter_groups_json:
+                fg = json.loads(segment.filter_groups_json)
+                gc = segment.group_connector or 'and'
+                _, count = contact_repo.evaluate_segment_v2(db, tenant_id, fg, gc, page_size=10000)
+                segment.contact_count = count
+                db.flush()
+            elif 'filter_json' in update_data and update_data.get('filter_json'):
+                _, count = contact_repo.evaluate_segment(db, tenant_id, update_data['filter_json'])
                 segment.contact_count = count
                 db.flush()
 
@@ -1046,34 +1090,60 @@ class ContactService:
         self,
         tenant_id: int,
         segment_id: int,
+        page: int = 1,
+        page_size: int = 50,
     ) -> Optional[ContactListResponse]:
-        """Evaluate a segment and return matching contacts."""
+        """Evaluate a segment and return matching contacts (supports V2 rule groups)."""
         db = SessionLocal()
         try:
             segment = contact_repo.get_segment_by_id(db, tenant_id, segment_id)
-            if not segment or not segment.filter_json:
+            if not segment:
                 return None
 
-            filter_data = json.loads(segment.filter_json) if isinstance(segment.filter_json, str) else segment.filter_json
-            contacts, total = contact_repo.evaluate_segment(db, tenant_id, filter_data)
+            # Phase 3: Use filter_groups if available
+            if segment.filter_groups_json:
+                fg = json.loads(segment.filter_groups_json) if isinstance(segment.filter_groups_json, str) else segment.filter_groups_json
+                gc = segment.group_connector or 'and'
+                contacts, total = contact_repo.evaluate_segment_v2(db, tenant_id, fg, gc, page, page_size)
+            elif segment.filter_json:
+                filter_data = json.loads(segment.filter_json) if isinstance(segment.filter_json, str) else segment.filter_json
+                contacts, total = contact_repo.evaluate_segment(db, tenant_id, filter_data)
+            else:
+                return None
 
             items = [self._serialize_contact(db, c) for c in contacts]
 
-            # Update cached count
             segment.contact_count = total
             db.flush()
             db.commit()
 
+            total_pages = math.ceil(total / page_size) if page_size > 0 else 1
             return ContactListResponse(
                 items=items,
                 total=total,
-                page=1,
-                page_size=total,
-                total_pages=1,
+                page=page,
+                page_size=page_size,
+                total_pages=total_pages,
             )
         except Exception:
             db.rollback()
             raise
+        finally:
+            db.close()
+
+    def preview_segment(
+        self,
+        tenant_id: int,
+        filter_groups: List[SegmentFilterGroup],
+        group_connector: str = "and",
+    ) -> SegmentPreviewResponse:
+        """Preview segment evaluation without saving (count + sample)."""
+        db = SessionLocal()
+        try:
+            fg = [g.model_dump() for g in filter_groups]
+            contacts, total = contact_repo.evaluate_segment_v2(db, tenant_id, fg, group_connector, page=1, page_size=5)
+            sample = [self._serialize_contact(db, c) for c in contacts]
+            return SegmentPreviewResponse(contact_count=total, sample_contacts=sample)
         finally:
             db.close()
 
@@ -1142,6 +1212,239 @@ class ContactService:
         except Exception:
             db.rollback()
             raise
+        finally:
+            db.close()
+
+    # ── Custom Fields Extended ───────────────────────────────────────────
+
+    def update_custom_field_definition(
+        self, tenant_id: int, field_id: int, data: CustomFieldDefinitionUpdate
+    ) -> Optional[CustomFieldDefinitionResponse]:
+        """Update a custom field definition."""
+        db = SessionLocal()
+        try:
+            defn = contact_repo.get_custom_field_definition(db, tenant_id, field_id)
+            if not defn:
+                return None
+            update_data = data.model_dump(exclude_unset=True)
+            if 'options' in update_data and update_data['options'] is not None:
+                update_data['options_json'] = json.dumps(update_data.pop('options'))
+            else:
+                update_data.pop('options', None)
+            defn = contact_repo.update_custom_field_definition(db, defn, **update_data)
+            db.commit()
+            options = None
+            if defn.options_json:
+                try:
+                    options = json.loads(defn.options_json)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            return CustomFieldDefinitionResponse(
+                id=defn.id, field_name=defn.field_name, field_slug=defn.field_slug,
+                field_type=defn.field_type, is_required=defn.is_required,
+                is_visible=defn.is_visible, options=options,
+                display_order=defn.display_order, description=defn.description,
+            )
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    def delete_custom_field_definition(self, tenant_id: int, field_id: int) -> bool:
+        """Delete a custom field definition and all its values."""
+        db = SessionLocal()
+        try:
+            result = contact_repo.delete_custom_field_definition(db, field_id, tenant_id)
+            db.commit()
+            return result
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    def set_contact_custom_field(
+        self, tenant_id: int, contact_id: int, field_slug: str, value: Optional[str]
+    ) -> Optional[CustomFieldValueResponse]:
+        """Set a custom field value on a contact."""
+        db = SessionLocal()
+        try:
+            contact = contact_repo.get_by_id(db, tenant_id, contact_id)
+            if not contact:
+                return None
+            defn = contact_repo.get_custom_field_by_slug(db, tenant_id, field_slug)
+            if not defn:
+                return None
+            contact_repo.set_custom_field_value(db, contact_id, defn.id, value or '')
+            db.commit()
+            options = None
+            if defn.options_json:
+                try:
+                    options = json.loads(defn.options_json)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            return CustomFieldValueResponse(
+                field_slug=defn.field_slug, field_name=defn.field_name,
+                field_type=defn.field_type, value=value, options=options,
+            )
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    def get_contact_custom_fields(
+        self, tenant_id: int, contact_id: int
+    ) -> List[CustomFieldValueResponse]:
+        """Get all custom field values for a contact."""
+        db = SessionLocal()
+        try:
+            contact = contact_repo.get_by_id(db, tenant_id, contact_id)
+            if not contact:
+                return []
+            details = contact_repo.get_custom_field_values_detailed(db, contact_id)
+            return [CustomFieldValueResponse(**d) for d in details]
+        finally:
+            db.close()
+
+    # ── Lifecycle Config ───────────────────────────────────────────────
+
+    DEFAULT_LIFECYCLE_STAGES = [
+        {'key': 'subscriber', 'label': 'Subscriber', 'color': '#74B9FF', 'order': 1, 'is_active': True},
+        {'key': 'lead', 'label': 'Lead', 'color': '#FDCB6E', 'order': 2, 'is_active': True},
+        {'key': 'opportunity', 'label': 'Opportunity', 'color': '#E17055', 'order': 3, 'is_active': True},
+        {'key': 'customer', 'label': 'Kunde', 'color': '#00B894', 'order': 4, 'is_active': True},
+        {'key': 'churned', 'label': 'Abgewandert', 'color': '#636E72', 'order': 5, 'is_active': True},
+        {'key': 'other', 'label': 'Sonstige', 'color': '#B2BEC3', 'order': 6, 'is_active': True},
+    ]
+
+    def get_lifecycle_config(self, tenant_id: int) -> LifecycleConfigResponse:
+        """Get lifecycle configuration for a tenant (returns defaults if not configured)."""
+        db = SessionLocal()
+        try:
+            config = contact_repo.get_lifecycle_config(db, tenant_id)
+            if config:
+                stages_raw = json.loads(config.stages_json) if isinstance(config.stages_json, str) else config.stages_json
+                stages = [LifecycleStageConfig(**s) for s in stages_raw]
+                return LifecycleConfigResponse(
+                    tenant_id=tenant_id, stages=stages, default_stage=config.default_stage,
+                )
+            return LifecycleConfigResponse(
+                tenant_id=tenant_id,
+                stages=[LifecycleStageConfig(**s) for s in self.DEFAULT_LIFECYCLE_STAGES],
+                default_stage='subscriber',
+            )
+        finally:
+            db.close()
+
+    def update_lifecycle_config(
+        self, tenant_id: int, stages: List[LifecycleStageConfig], default_stage: str
+    ) -> LifecycleConfigResponse:
+        """Create or update lifecycle configuration for a tenant."""
+        db = SessionLocal()
+        try:
+            stages_json = json.dumps([s.model_dump() for s in stages])
+            config = contact_repo.upsert_lifecycle_config(db, tenant_id, stages_json, default_stage)
+            db.commit()
+            return LifecycleConfigResponse(
+                tenant_id=tenant_id, stages=stages, default_stage=default_stage,
+            )
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    # ── Import V2 ─────────────────────────────────────────────────────
+
+    CONTACT_FIELD_MAP = {
+        'first_name': 'first_name', 'vorname': 'first_name', 'firstname': 'first_name',
+        'last_name': 'last_name', 'nachname': 'last_name', 'lastname': 'last_name', 'name': 'last_name',
+        'email': 'email', 'e-mail': 'email', 'mail': 'email', 'email_address': 'email',
+        'phone': 'phone', 'telefon': 'phone', 'phone_number': 'phone', 'tel': 'phone',
+        'company': 'company', 'firma': 'company', 'unternehmen': 'company', 'organization': 'company',
+        'job_title': 'job_title', 'position': 'job_title', 'titel': 'job_title', 'title': 'job_title',
+        'gender': 'gender', 'geschlecht': 'gender',
+        'date_of_birth': 'date_of_birth', 'geburtsdatum': 'date_of_birth', 'birthday': 'date_of_birth',
+        'lifecycle_stage': 'lifecycle_stage', 'status': 'lifecycle_stage',
+        'source': 'source', 'quelle': 'source',
+    }
+
+    def preview_import(
+        self, tenant_id: int, csv_content: str, filename: str
+    ) -> ImportPreviewResponse:
+        """Preview CSV import: detect columns, suggest mappings, return sample rows."""
+        import csv as csv_module
+        import io
+        reader = csv_module.DictReader(io.StringIO(csv_content))
+        columns = reader.fieldnames or []
+        rows = list(reader)
+
+        # Auto-suggest mappings
+        suggested = []
+        for col in columns:
+            col_lower = col.strip().lower().replace(' ', '_')
+            mapped_field = self.CONTACT_FIELD_MAP.get(col_lower, '')
+            suggested.append(ImportColumnMapping(
+                csv_column=col,
+                contact_field=mapped_field or f'custom:{col_lower}',
+                is_mapped=bool(mapped_field),
+            ))
+
+        sample = rows[:10]
+        warnings = []
+        if not any(m.contact_field in ('first_name', 'last_name') for m in suggested if m.is_mapped):
+            warnings.append('Keine Spalte f\u00fcr Vor- oder Nachname erkannt.')
+
+        return ImportPreviewResponse(
+            filename=filename,
+            total_rows=len(rows),
+            columns=columns,
+            sample_rows=[dict(r) for r in sample],
+            suggested_mappings=suggested,
+            warnings=warnings,
+        )
+
+    def list_import_logs(self, tenant_id: int) -> List[ImportLogResponse]:
+        """List all import logs for a tenant."""
+        db = SessionLocal()
+        try:
+            logs = contact_repo.list_import_logs(db, tenant_id)
+            return [
+                ImportLogResponse(
+                    id=l.id, source=l.source, status=l.status,
+                    filename=l.filename, total_rows=l.total_rows,
+                    imported=l.imported, updated=l.updated,
+                    skipped=l.skipped, errors=l.errors,
+                    started_at=l.started_at, completed_at=l.completed_at,
+                ) for l in logs
+            ]
+        finally:
+            db.close()
+
+    def get_import_progress(self, tenant_id: int, import_id: int) -> Optional[Dict[str, Any]]:
+        """Get progress of a running import."""
+        db = SessionLocal()
+        try:
+            log = contact_repo.get_import_log(db, tenant_id, import_id)
+            if not log:
+                return None
+            processed = log.imported + log.updated + log.skipped + log.errors
+            progress = round(processed / log.total_rows * 100, 1) if log.total_rows > 0 else 0
+            error_details = []
+            if log.error_log:
+                try:
+                    error_details = json.loads(log.error_log)
+                except (json.JSONDecodeError, TypeError):
+                    error_details = [log.error_log]
+            return {
+                'import_id': log.id, 'status': log.status,
+                'total_rows': log.total_rows, 'processed': processed,
+                'imported': log.imported, 'updated': log.updated,
+                'skipped': log.skipped, 'errors': log.errors,
+                'progress_percent': progress, 'error_details': error_details,
+            }
         finally:
             db.close()
 
@@ -1232,6 +1535,342 @@ class ContactService:
                 "recent_activities_7d": recent_activities,
                 "tag_count": tag_count,
             }
+        finally:
+            db.close()
+
+
+    # ── Import V2 Execute (Phase 3) ──────────────────────────────────────
+
+    def execute_import_v2(
+        self,
+        tenant_id: int,
+        request,  # ImportV2Request
+        performed_by: int,
+        performed_by_name: str,
+    ) -> None:
+        """Execute Import V2 with column mapping in background."""
+        db = SessionLocal()
+        try:
+            log = contact_repo.create_import_log(db, tenant_id, "csv_v2", request.filename)
+            db.commit()
+
+            # Read cached CSV content from /tmp
+            import os
+            csv_path = f"/tmp/import_{tenant_id}_{request.filename}"
+            if not os.path.exists(csv_path):
+                log.status = "failed"
+                log.error_log = "CSV-Datei nicht gefunden. Bitte erneut hochladen."
+                log.completed_at = datetime.now(timezone.utc)
+                db.commit()
+                return
+
+            with open(csv_path, "r", encoding="utf-8") as f:
+                csv_content = f.read()
+
+            reader = csv.DictReader(io.StringIO(csv_content))
+            rows = list(reader)
+            log.total_rows = len(rows)
+
+            # Build mapping dict: csv_column -> contact_field
+            field_map = {}
+            for m in request.mappings:
+                if m.is_mapped:
+                    field_map[m.csv_column] = m.contact_field
+
+            imported = 0
+            updated = 0
+            skipped = 0
+            errors = 0
+            error_details = []
+
+            for i, row in enumerate(rows):
+                try:
+                    mapped = {}
+                    custom_fields = {}
+                    for csv_col, contact_field in field_map.items():
+                        val = row.get(csv_col, "").strip()
+                        if not val:
+                            continue
+                        if contact_field.startswith("custom:"):
+                            custom_fields[contact_field[7:]] = val
+                        else:
+                            mapped[contact_field] = val
+
+                    first_name = mapped.get("first_name", "")
+                    last_name = mapped.get("last_name", "")
+                    email = mapped.get("email", "")
+
+                    if not first_name and not last_name:
+                        skipped += 1
+                        continue
+
+                    # Check for duplicates
+                    existing = None
+                    if email and request.skip_duplicates:
+                        existing = contact_repo.find_by_email(db, tenant_id, email)
+
+                    if existing and request.update_existing:
+                        for field, val in mapped.items():
+                            if field not in ("first_name", "last_name", "email") or val:
+                                setattr(existing, field, val)
+                        existing.updated_at = datetime.now(timezone.utc)
+                        updated += 1
+                    elif existing:
+                        skipped += 1
+                        continue
+                    else:
+                        contact = Contact(
+                            tenant_id=tenant_id,
+                            first_name=first_name or "Unbekannt",
+                            last_name=last_name or "Unbekannt",
+                            email=email or None,
+                            phone=mapped.get("phone"),
+                            company=mapped.get("company"),
+                            job_title=mapped.get("job_title"),
+                            source=request.default_source,
+                            lifecycle_stage=mapped.get("lifecycle_stage", request.default_lifecycle),
+                            gender=mapped.get("gender"),
+                        )
+                        db.add(contact)
+                        db.flush()
+
+                        # Set custom fields
+                        for slug, val in custom_fields.items():
+                            contact_repo.set_custom_field_value(
+                                db, contact.id, tenant_id, slug, val
+                            )
+
+                        imported += 1
+
+                    if (i + 1) % 100 == 0:
+                        db.commit()
+
+                except Exception as row_err:
+                    errors += 1
+                    error_details.append(f"Zeile {i + 1}: {str(row_err)}")
+
+            db.commit()
+
+            log.imported = imported
+            log.updated = updated
+            log.skipped = skipped
+            log.errors = errors
+            log.error_log = json.dumps(error_details) if error_details else None
+            log.status = "completed"
+            log.completed_at = datetime.now(timezone.utc)
+            db.commit()
+
+            # Cleanup temp file
+            try:
+                os.remove(csv_path)
+            except Exception:
+                pass
+
+            logger.info(
+                "contact.import_v2_completed",
+                tenant_id=tenant_id,
+                imported=imported,
+                updated=updated,
+                errors=errors,
+            )
+
+        except Exception as e:
+            log.status = "failed"
+            log.error_log = str(e)
+            log.completed_at = datetime.now(timezone.utc)
+            db.commit()
+            logger.error("contact.import_v2_failed", tenant_id=tenant_id, error=str(e))
+        finally:
+            db.close()
+
+    # ── Export V2 (Phase 3) ──────────────────────────────────────────────
+
+    def export_contacts_v2(
+        self,
+        tenant_id: int,
+        export_request,  # ExportRequest
+    ) -> str:
+        """Export contacts with filters, segment, and custom fields."""
+        db = SessionLocal()
+        try:
+            query = (
+                db.query(Contact)
+                .filter(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None))
+            )
+
+            # Filter by specific IDs
+            if export_request.contact_ids:
+                query = query.filter(Contact.id.in_(export_request.contact_ids))
+
+            # Filter by segment
+            if export_request.segment_id:
+                segment = contact_repo.get_segment_by_id(db, tenant_id, export_request.segment_id)
+                if segment and segment.filter_json:
+                    filters = segment.filter_json if isinstance(segment.filter_json, dict) else json.loads(segment.filter_json)
+                    if "lifecycle_stage" in filters:
+                        query = query.filter(Contact.lifecycle_stage == filters["lifecycle_stage"])
+                    if "source" in filters:
+                        query = query.filter(Contact.source == filters["source"])
+
+            contacts = query.all()
+
+            # Determine fields to export
+            default_fields = [
+                "id", "first_name", "last_name", "email", "phone",
+                "company", "job_title", "lifecycle_stage", "source",
+                "gender", "preferred_language", "score",
+                "consent_email", "consent_sms", "consent_phone", "consent_whatsapp",
+                "created_at",
+            ]
+            fields = export_request.fields or default_fields
+
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # Add custom field headers
+            custom_field_slugs = []
+            if export_request.include_custom_fields:
+                defs = contact_repo.list_custom_field_definitions(db, tenant_id)
+                custom_field_slugs = [d.field_slug for d in defs]
+                fields = fields + [f"custom:{s}" for s in custom_field_slugs]
+
+            if export_request.include_tags:
+                fields = fields + ["tags"]
+
+            writer.writerow(fields)
+
+            for c in contacts:
+                row = []
+                for f in fields:
+                    if f.startswith("custom:"):
+                        slug = f[7:]
+                        cf_vals = contact_repo.get_custom_field_values(db, c.id)
+                        row.append(cf_vals.get(slug, ""))
+                    elif f == "tags":
+                        tags = contact_repo.get_contact_tags(db, c.id)
+                        row.append(", ".join(t.name for t in tags))
+                    elif f == "created_at":
+                        row.append(c.created_at.isoformat() if c.created_at else "")
+                    else:
+                        row.append(getattr(c, f, ""))
+                writer.writerow(row)
+
+            output.seek(0)
+            return output.getvalue()
+        finally:
+            db.close()
+
+    # ── Import Log Detail (Phase 3) ──────────────────────────────────────
+
+    def get_import_log(
+        self, tenant_id: int, log_id: int
+    ) -> Optional[ImportLogResponse]:
+        """Get a specific import log by ID."""
+        db = SessionLocal()
+        try:
+            log = contact_repo.get_import_log(db, tenant_id, log_id)
+            if not log:
+                return None
+            return ImportLogResponse(
+                id=log.id,
+                source=log.source,
+                status=log.status,
+                filename=log.filename,
+                total_rows=log.total_rows or 0,
+                imported=log.imported or 0,
+                updated=log.updated or 0,
+                skipped=log.skipped or 0,
+                errors=log.errors or 0,
+                started_at=log.started_at,
+                completed_at=log.completed_at,
+            )
+        finally:
+            db.close()
+
+    # ── Custom Field Values on Contact (Phase 3) ─────────────────────────
+
+    def set_contact_custom_fields(
+        self,
+        tenant_id: int,
+        contact_id: int,
+        field_values: list,  # List[CustomFieldValueSet]
+        performed_by: int,
+        performed_by_name: str,
+    ) -> bool:
+        """Set multiple custom field values on a contact."""
+        db = SessionLocal()
+        try:
+            contact = contact_repo.get_by_id(db, tenant_id, contact_id)
+            if not contact:
+                return False
+
+            for fv in field_values:
+                contact_repo.set_custom_field_value(
+                    db, contact_id, tenant_id, fv.field_slug, fv.value
+                )
+
+            contact_repo.add_activity(
+                db, contact_id, tenant_id,
+                activity_type="updated",
+                title="Custom Fields aktualisiert",
+                description=f"{len(field_values)} Felder aktualisiert",
+                performed_by=performed_by,
+                performed_by_name=performed_by_name,
+            )
+
+            db.commit()
+            return True
+        except Exception as e:
+            db.rollback()
+            logger.error("contact.set_custom_fields_failed", error=str(e))
+            return False
+        finally:
+            db.close()
+
+    # ── Lifecycle Transition (Phase 3) ────────────────────────────────────
+
+    def transition_lifecycle(
+        self,
+        tenant_id: int,
+        contact_id: int,
+        new_stage: str,
+        reason: Optional[str] = None,
+        performed_by: Optional[int] = None,
+        performed_by_name: Optional[str] = None,
+    ) -> Optional[ContactResponse]:
+        """Transition a contact's lifecycle stage with audit trail."""
+        db = SessionLocal()
+        try:
+            contact = contact_repo.get_by_id(db, tenant_id, contact_id)
+            if not contact:
+                return None
+
+            old_stage = contact.lifecycle_stage
+            contact.lifecycle_stage = new_stage
+            contact.updated_at = datetime.now(timezone.utc)
+
+            # Log the transition as an activity
+            description = f"Lifecycle: {old_stage} → {new_stage}"
+            if reason:
+                description += f" (Grund: {reason})"
+
+            contact_repo.add_activity(
+                db, contact_id, tenant_id,
+                activity_type="lifecycle_change",
+                title=f"Lifecycle-Übergang: {new_stage}",
+                description=description,
+                performed_by=performed_by,
+                performed_by_name=performed_by_name,
+                metadata={"old_stage": old_stage, "new_stage": new_stage, "reason": reason},
+            )
+
+            db.commit()
+            db.refresh(contact)
+            return self._serialize_contact(db, contact)
+        except Exception as e:
+            db.rollback()
+            logger.error("contact.lifecycle_transition_failed", error=str(e))
+            return None
         finally:
             db.close()
 

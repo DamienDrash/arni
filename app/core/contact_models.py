@@ -395,7 +395,9 @@ class ContactSegment(Base):
 
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    filter_json = Column(Text, nullable=True)  # JSON: structured filter rules
+    filter_json = Column(Text, nullable=True)  # JSON: legacy flat filter rules
+    filter_groups_json = Column(Text, nullable=True)  # JSON: Phase 3 rule groups
+    group_connector = Column(String(10), nullable=False, default="and")
     is_dynamic = Column(Boolean, nullable=False, default=True)
     contact_count = Column(Integer, nullable=False, default=0)
     is_active = Column(Boolean, nullable=False, default=True)
@@ -407,6 +409,20 @@ class ContactSegment(Base):
 
 
 # ─── Contact Import Log ──────────────────────────────────────────────────────
+
+class ContactLifecycleConfig(Base):
+    """Tenant-specific lifecycle stage configuration."""
+    __tablename__ = "contact_lifecycle_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, unique=True, index=True)
+    stages_json = Column(Text, nullable=False)
+    default_stage = Column(String(100), nullable=False, default="subscriber")
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=False,
+                        default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+
 
 class ContactImportLog(Base):
     """Log of bulk import operations for contacts."""
