@@ -294,6 +294,27 @@ async def test_connection(
                     return {"status": "error", "message": f"Calendly API Fehler: {resp.status_code}"}
         except Exception as e:
             return {"status": "error", "message": f"Netzwerkfehler bei Calendly-Verbindung: {e}"}
+
+    if normalized == "stripe":
+        key = _val("secret_key").strip()
+        if not key:
+            return {"status": "error", "message": "Stripe Secret Key fehlt"}
+            
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    "https://api.stripe.com/v1/account",
+                    auth=(key, "")
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    acc_name = data.get("settings", {}).get("dashboard", {}).get("display_name", "Unbekannt")
+                    return {"status": "ok", "message": f"Stripe Verbindung erfolgreich! Verbunden mit Account: {acc_name}."}
+                else:
+                    return {"status": "error", "message": "Stripe Secret Key ist ungültig."}
+        except Exception as e:
+            return {"status": "error", "message": f"Netzwerkfehler bei Stripe-Verbindung: {e}"}
     
     elif connector_id == "telegram":
         # Test Telegram bot token
