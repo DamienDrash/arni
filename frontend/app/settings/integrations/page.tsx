@@ -2340,7 +2340,7 @@ export default function SettingsIntegrationsPage() {
                   </div>
                   <p style={{ fontSize: 11, color: T.textMuted, margin: "0 0 8px", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{doc.overview || doc.description}</p>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Badge style={{ fontSize: 10, padding: "2px 8px" }}>{doc.category}</Badge>
+                    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, background: `${T.primary}15`, color: T.primary, fontWeight: 600 }}>{doc.category}</span>
                     <span style={{ fontSize: 10, color: T.textDim, display: "flex", alignItems: "center", gap: 4 }}><Clock size={10} /> {doc.estimated_time}</span>
                   </div>
                 </div>
@@ -2479,9 +2479,9 @@ export default function SettingsIntegrationsPage() {
                         </div>
                       </td>
                       <td style={{ padding: "12px 16px" }}>
-                        <Badge style={{ fontSize: 10, padding: "2px 8px", background: `${categoryColors[conn.category] || T.accent}12`, color: categoryColors[conn.category] || T.accent, border: `1px solid ${categoryColors[conn.category] || T.accent}25` }}>
+                        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, background: `${categoryColors[conn.category] || T.accent}12`, color: categoryColors[conn.category] || T.accent, border: `1px solid ${categoryColors[conn.category] || T.accent}25`, fontWeight: 600 }}>
                           {conn.category}
-                        </Badge>
+                        </span>
                       </td>
                       <td style={{ padding: "12px 16px" }}>
                         <span style={{ fontSize: 12, color: T.textMuted }}>{conn.field_count} {t("integrations.admin.fields")}</span>
