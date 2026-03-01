@@ -1,6 +1,7 @@
 """ARIIA v2.0 – Adapter Registry.
 
 @ARCH: Phase 2, Meilenstein 2.3 – Integration & Skills
+       Sprint 1 – Messaging Core Adapter Registration
 Dynamic adapter loading and registration. Maps integration IDs to
 their adapter classes, supporting both static registration and
 dynamic loading via fully-qualified class names.
@@ -36,6 +37,7 @@ class AdapterRegistry:
 
     def _register_builtin_adapters(self) -> None:
         """Register all built-in adapters."""
+        # ─── Phase 2 Adapters (CRM & E-Commerce) ────────────────────────
         try:
             from app.integrations.adapters.magicline_adapter import MagiclineAdapter
             self.register(MagiclineAdapter())
@@ -53,6 +55,31 @@ class AdapterRegistry:
             self.register(ManualCrmAdapter())
         except ImportError as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="manual_crm", error=str(e))
+
+        # ─── Sprint 1 Adapters (Messaging Core) ─────────────────────────
+        try:
+            from app.integrations.adapters.whatsapp_adapter import WhatsAppAdapter
+            self.register(WhatsAppAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="whatsapp", error=str(e))
+
+        try:
+            from app.integrations.adapters.telegram_adapter import TelegramAdapter
+            self.register(TelegramAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="telegram", error=str(e))
+
+        try:
+            from app.integrations.adapters.email_adapter import EmailAdapter
+            self.register(EmailAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="email", error=str(e))
+
+        try:
+            from app.integrations.adapters.sms_voice_adapter import SmsVoiceAdapter
+            self.register(SmsVoiceAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="sms_voice", error=str(e))
 
     def register(self, adapter: BaseAdapter) -> None:
         """Register an adapter instance."""
@@ -111,8 +138,28 @@ class AdapterRegistry:
         """Return a dict of integration_id → adapter class name."""
         return {k: type(v).__name__ for k, v in self._adapters.items()}
 
+    def get_adapters_by_category(self, category: str) -> dict[str, BaseAdapter]:
+        """Return all adapters matching a capability category prefix.
+
+        Args:
+            category: Capability prefix (e.g., 'messaging', 'crm', 'voice').
+
+        Returns:
+            Dict of integration_id → adapter for adapters with matching capabilities.
+        """
+        result = {}
+        for integration_id, adapter in self._adapters.items():
+            for cap in adapter.supported_capabilities:
+                if cap.startswith(category):
+                    result[integration_id] = adapter
+                    break
+        return result
+
     def __contains__(self, integration_id: str) -> bool:
         return integration_id in self._adapters
+
+    def __len__(self) -> int:
+        return len(self._adapters)
 
 
 # Singleton instance
