@@ -111,7 +111,11 @@ class PersistenceService:
         return (key or "").strip().lower() in GLOBAL_SYSTEM_SETTING_KEYS
 
     def _is_sensitive_setting(self, key: str) -> bool:
-        return (key or "").strip().lower() in SENSITIVE_SETTING_KEYS
+        k = (key or "").strip().lower()
+        if k in SENSITIVE_SETTING_KEYS:
+            return True
+        # Dynamic check for integration tokens/secrets
+        return any(word in k for word in ["token", "secret", "password", "key"])
 
     def _settings_tenant_id_for_key(self, key: str, tenant_id: int | None = None) -> int:
         if self.is_global_system_setting(key):

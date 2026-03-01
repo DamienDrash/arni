@@ -37,12 +37,27 @@ async def _send_sms_via_twilio(*, to: str, content: str, tenant_id: int | None) 
 
 async def _send_email_via_postmark(*, to_email: str, subject: str, content: str, tenant_id: int | None) -> None:
     resolved_tenant = tenant_id or persistence.get_system_tenant_id()
-    token = persistence.get_setting("postmark_server_token", "", tenant_id=resolved_tenant) or ""
-    from_email = persistence.get_setting("email_outbound_from", "", tenant_id=resolved_tenant) or ""
+    
+    # Priority 1: Connector Hub
+    cid = "postmark"
+    token = persistence.get_setting(f"integration_{cid}_{resolved_tenant}_server_token", "", tenant_id=resolved_tenant)
+    from_email = persistence.get_setting(f"integration_{cid}_{resolved_tenant}_from_email", "", tenant_id=resolved_tenant)
+    from_name = persistence.get_setting(f"integration_{cid}_{resolved_tenant}_from_name", "ARIIA", tenant_id=resolved_tenant)
+    
+    # Priority 2: Legacy
+    if not token:
+        token = persistence.get_setting("postmark_server_token", "", tenant_id=resolved_tenant)
+    if not from_email:
+        from_email = persistence.get_setting("email_outbound_from", "", tenant_id=resolved_tenant)
+    
     if not token or not from_email:
         raise RuntimeError(f"Postmark email config incomplete for tenant {resolved_tenant}")
+        
+    token = token.strip()
+    from_email = from_email.strip()
+    
     payload = {
-        "From": from_email,
+        "From": f"{from_name} <{from_email}>" if from_name else from_email,
         "To": to_email,
         "Subject": subject,
         "TextBody": content,

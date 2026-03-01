@@ -147,22 +147,48 @@ def reset_connector_config(
 
 
 @router.post("/{connector_id}/test")
-def test_connection(
+async def test_connection(
     connector_id: str,
-    user: AuthContext = Depends(get_current_user)
+    user: AuthContext = Depends(get_current_user),
+    body: Dict[str, Any] = Body(default={})
 ):
     """Test connection for a specific connector."""
     _require_admin(user)
     
+    normalized = (connector_id or "").lower().strip()
+    
+    # Helper to get value from body (live) or DB (persisted)
+    def _val(key: str, default: str = "") -> str:
+        # 1. Try body config first
+        config = body.get("config") or {}
+        val = config.get(key)
+        if val is None:
+            # Try without prefix
+            shorthand = key.replace(f"{normalized}_", "")
+            val = config.get(shorthand)
+            
+        if val is not None:
+            final_val = str(val or "")
+            # If it is a redact placeholder, we MUST use the DB value
+            if final_val not in ("__REDACTED__", "********") and final_val.strip() != "":
+                return final_val
+        
+        # 2. Fallback to DB
+        db_key = _get_config_key(user.tenant_id, normalized, key)
+        db_val = persistence.get_setting(db_key, tenant_id=user.tenant_id)
+        if not db_val:
+            # Try legacy key if it is a known one
+            db_val = persistence.get_setting(key, None, tenant_id=user.tenant_id)
+        return db_val or default
+
     # Generic stub logic - in reality, delegate to specific integration module
     # based on connector_id.
     
-    if connector_id == "smtp_email":
-        # Real SMTP connection test
-        host = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "host"), "", tenant_id=user.tenant_id).strip()
-        port_raw = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "port"), "587", tenant_id=user.tenant_id).strip()
-        username = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "username"), "", tenant_id=user.tenant_id).strip()
-        password = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "password"), "", tenant_id=user.tenant_id).strip()
+    if normalized == "smtp_email":
+        host = _val("host").strip()
+        port_raw = _val("port", "587").strip()
+        username = _val("username").strip()
+        password = _val("password").strip()
         
         if not all([host, username, password]):
             return {"status": "error", "message": "SMTP-Konfiguration unvollständig"}
@@ -199,6 +225,27 @@ def test_connection(
             return {"status": "error", "message": f"SMTP-Authentifizierung fehlgeschlagen: {e}"}
         except Exception as e:
             return {"status": "error", "message": f"SMTP-Verbindungsfehler: {e}"}
+
+    if normalized == "postmark":
+        token = _val("server_token").strip()
+        if not token:
+            return {"status": "error", "message": "Postmark Server Token fehlt"}
+            
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    "https://api.postmarkapp.com/server",
+                    headers={"X-Postmark-Server-Token": token, "Accept": "application/json"}
+                )
+                if resp.status_code == 200:
+                    return {"status": "ok", "message": "Postmark API Verbindung erfolgreich! Token ist gültig."}
+                elif resp.status_code in (401, 403):
+                    return {"status": "error", "message": "Postmark Server Token ungültig oder abgelaufen."}
+                else:
+                    return {"status": "error", "message": f"Postmark API Fehler: {resp.status_code}"}
+        except Exception as e:
+            return {"status": "error", "message": f"Netzwerkfehler bei Postmark-Verbindung: {e}"}
     
     elif connector_id == "telegram":
         # Test Telegram bot token
