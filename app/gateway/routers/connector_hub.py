@@ -315,6 +315,36 @@ async def test_connection(
                     return {"status": "error", "message": "Stripe Secret Key ist ungültig."}
         except Exception as e:
             return {"status": "error", "message": f"Netzwerkfehler bei Stripe-Verbindung: {e}"}
+
+    if normalized == "paypal":
+        client_id = _val("client_id").strip()
+        client_secret = _val("client_secret").strip()
+        mode = _val("mode", "sandbox").strip()
+        
+        if not client_id or not client_secret:
+            return {"status": "error", "message": "PayPal Credentials unvollständig"}
+            
+        try:
+            import httpx
+            base_url = "https://api-m.paypal.com" if mode == "live" else "https://api-m.sandbox.paypal.com"
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    f"{base_url}/v1/oauth2/token",
+                    auth=(client_id, client_secret),
+                    data={"grant_type": "client_credentials"}
+                )
+                if resp.status_code == 200:
+                    return {"status": "ok", "message": f"PayPal ({mode}) Verbindung erfolgreich! Authentifizierung bestätigt."}
+                else:
+                    # Parse error message from PayPal if possible
+                    try:
+                        err_data = resp.json()
+                        err_msg = err_data.get("error_description") or err_data.get("message") or resp.text
+                    except:
+                        err_msg = resp.text
+                    return {"status": "error", "message": f"PayPal Authentifizierung fehlgeschlagen ({mode}): {err_msg}"}
+        except Exception as e:
+            return {"status": "error", "message": f"Netzwerkfehler bei PayPal-Verbindung: {e}"}
     
     elif connector_id == "telegram":
         # Test Telegram bot token
