@@ -32,9 +32,13 @@ export async function apiFetch(path: string, init?: RequestInit) {
   const method = (init?.method || "GET").toUpperCase();
   const isRetryableRead = isRetryableMethod(method);
   
-  // Internal API routes go through our Next.js proxy at /proxy/...
+  // Routes starting with /api/ are Next.js API routes (with cookie→bearer conversion).
+  // All other routes go through the Next.js rewrite proxy at /proxy/...
+  const isApiRoute = normalizedPath.startsWith("/api/");
   const candidates = [
-    withBasePath(`/proxy${normalizedPath}`)
+    isApiRoute
+      ? withBasePath(normalizedPath)
+      : withBasePath(`/proxy${normalizedPath}`)
   ];
 
   const uniqueCandidates = [...new Set(candidates)];

@@ -264,7 +264,7 @@ export default function ContactsPage() {
       if (filterLifecycle) params.set("lifecycle_stage", filterLifecycle);
       if (filterSource) params.set("source", filterSource);
 
-      const res = await apiFetch(`/v2/contacts?${params}`);
+      const res = await apiFetch(`/api/v2/contacts?${params}`);
       if (res.ok) {
         const data: ContactListResponse = await res.json();
         setContacts(data.items);
@@ -280,7 +280,7 @@ export default function ContactsPage() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await apiFetch("/v2/contacts/stats");
+      const res = await apiFetch("/api/v2/contacts/stats");
       if (res.ok) setStats(await res.json());
     } catch { /* best effort */ }
   }, []);
@@ -305,8 +305,8 @@ export default function ContactsPage() {
     setLoadingDetail(true);
     try {
       const [actRes, noteRes] = await Promise.all([
-        apiFetch(`/v2/contacts/${contact.id}/activities?page_size=50`),
-        apiFetch(`/v2/contacts/${contact.id}/notes`),
+        apiFetch(`/api/v2/contacts/${contact.id}/activities?page_size=50`),
+        apiFetch(`/api/v2/contacts/${contact.id}/notes`),
       ]);
       if (actRes.ok) {
         const data = await actRes.json();
@@ -341,7 +341,7 @@ export default function ContactsPage() {
       if (!body.job_title) delete body.job_title;
       if (!body.gender) delete body.gender;
 
-      const res = await apiFetch("/v2/contacts", {
+      const res = await apiFetch("/api/v2/contacts", {
         method: "POST",
         body: JSON.stringify(body),
       });
@@ -375,7 +375,7 @@ export default function ContactsPage() {
       if (formData.lifecycle_stage) body.lifecycle_stage = formData.lifecycle_stage;
       if (formData.gender) body.gender = formData.gender;
 
-      const res = await apiFetch(`/v2/contacts/${selectedContact.id}`, {
+      const res = await apiFetch(`/api/v2/contacts/${selectedContact.id}`, {
         method: "PUT",
         body: JSON.stringify(body),
       });
@@ -397,7 +397,7 @@ export default function ContactsPage() {
   const handleDelete = async (ids: number[]) => {
     if (!confirm(`${ids.length} Kontakt(e) wirklich löschen?`)) return;
     try {
-      const res = await apiFetch("/v2/contacts/bulk-delete", {
+      const res = await apiFetch("/api/v2/contacts/bulk-delete", {
         method: "POST",
         body: JSON.stringify({ ids, permanent: false }),
       });
@@ -413,7 +413,7 @@ export default function ContactsPage() {
   const handleAddNote = async () => {
     if (!selectedContact || !newNote.trim()) return;
     try {
-      const res = await apiFetch(`/v2/contacts/${selectedContact.id}/notes`, {
+      const res = await apiFetch(`/api/v2/contacts/${selectedContact.id}/notes`, {
         method: "POST",
         body: JSON.stringify({ content: newNote, is_pinned: false }),
       });
@@ -422,7 +422,7 @@ export default function ContactsPage() {
         setNotes((prev) => [note, ...prev]);
         setNewNote("");
         // Refresh activities
-        const actRes = await apiFetch(`/v2/contacts/${selectedContact.id}/activities?page_size=50`);
+        const actRes = await apiFetch(`/api/v2/contacts/${selectedContact.id}/activities?page_size=50`);
         if (actRes.ok) {
           const data = await actRes.json();
           setActivities(data.items || []);
@@ -433,7 +433,7 @@ export default function ContactsPage() {
 
   const handleExport = async () => {
     try {
-      const res = await apiFetch("/v2/contacts/export/csv");
+      const res = await apiFetch("/api/v2/contacts/export/csv");
       if (res.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -450,7 +450,7 @@ export default function ContactsPage() {
     const fd = new FormData();
     fd.append("file", file);
     try {
-      const res = await apiFetch("/v2/contacts/import/csv", {
+      const res = await apiFetch("/api/v2/contacts/import/csv", {
         method: "POST",
         body: fd,
       });
