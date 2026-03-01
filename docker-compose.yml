@@ -48,6 +48,7 @@ services:
       - ./config:/app/config
       - ./scripts:/app/scripts
       - ./app:/app/app
+      - ./alembic:/app/alembic
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - ariia-network

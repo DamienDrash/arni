@@ -124,6 +124,22 @@ class CircuitBreaker:
         # HALF_OPEN: allow one probe request
         return True
 
+    def get_status(self) -> dict[str, Any]:
+        """Return current circuit breaker status for monitoring."""
+        return {
+            "name": self.name,
+            "state": self.state.value,
+            "failure_count": self.failure_count,
+            "success_count": self.success_count,
+            "last_failure_time": self.last_failure_time,
+            "last_state_change": self.last_state_change,
+            "config": {
+                "failure_threshold": self.config.failure_threshold,
+                "success_threshold": self.config.success_threshold,
+                "timeout_seconds": self.config.timeout_seconds,
+            },
+        }
+
     async def __aenter__(self):
         if not self._should_allow_request():
             raise CircuitBreakerOpenError(
