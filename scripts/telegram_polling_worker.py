@@ -87,28 +87,62 @@ async def poll_bot(tenant_id: int, tenant_slug: str, token: str):
 
 async def main():
     logger.info("enterprise_polling.started", target=GATEWAY_URL)
-    active_tasks = {}
+    # Mapping of tenant_id -> { "task": Task, "token": str }
+    active_workers = {}
 
     while True:
         db = SessionLocal()
         try:
-            # Only poll bots for active tenants
+            # 1. Identify currently active tenants
             tenants = db.query(Tenant).filter(Tenant.is_active.is_(True)).all()
+            active_tenant_ids = {t.id for t in tenants}
+            
+            # 2. Cleanup workers for tenants that are no longer active
+            for tid in list(active_workers.keys()):
+                if tid not in active_tenant_ids:
+                    logger.info("polling.stopping_worker", tenant_id=tid, reason="tenant_inactive")
+                    active_workers[tid]["task"].cancel()
+                    del active_workers[tid]
+
+            # 3. Check/Spawn workers for active tenants
             for t in tenants:
-                if t.id in active_tasks:
-                    if active_tasks[t.id].done():
-                        logger.warning("polling.worker_restart", tenant=t.slug)
-                        del active_tasks[t.id]
-                    else:
-                        continue
+                # Try Connector Hub key first, then legacy
+                cid = "telegram"
+                token = persistence.get_setting(f"integration_{cid}_{t.id}_bot_token", tenant_id=t.id)
+                if not token:
+                    token = persistence.get_setting("telegram_bot_token", tenant_id=t.id)
                 
-                # Fetch token with explicit tenant_id
-                token = persistence.get_setting("telegram_bot_token", tenant_id=t.id)
-                if token:
+                existing = active_workers.get(t.id)
+                
+                # Case A: Token was removed -> Stop worker
+                if not token and existing:
+                    logger.info("polling.stopping_worker", tenant=t.slug, reason="token_removed")
+                    existing["task"].cancel()
+                    del active_workers[t.id]
+                    continue
+                
+                # Case B: Token changed -> Restart worker
+                if token and existing and existing["token"] != token:
+                    logger.info("polling.restarting_worker", tenant=t.slug, reason="token_changed")
+                    existing["task"].cancel()
+                    task = asyncio.create_task(poll_bot(t.id, t.slug, token))
+                    active_workers[t.id] = {"task": task, "token": token}
+                    continue
+                
+                # Case C: New worker needed
+                if token and not existing:
                     logger.info("polling.spawn_tenant_worker", tenant=t.slug)
                     task = asyncio.create_task(poll_bot(t.id, t.slug, token))
-                    active_tasks[t.id] = task
-            
+                    active_workers[t.id] = {"task": task, "token": token}
+                
+                # Case D: Check if task crashed
+                if existing and existing["task"].done():
+                    try:
+                        existing["task"].result() # Raise exception if any
+                    except Exception as e:
+                        logger.warning("polling.worker_crashed", tenant=t.slug, error=str(e))
+                    del active_workers[t.id]
+
         except Exception as e:
             logger.error("polling.manager_loop_error", error=str(e))
         finally:

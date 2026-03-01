@@ -43,10 +43,32 @@ def get_catalog(user: AuthContext = Depends(get_current_user)) -> List[Dict[str,
         enabled_key = _get_config_key(user.tenant_id, conn_id, "enabled")
         is_enabled = (persistence.get_setting(enabled_key, "false", tenant_id=user.tenant_id) or "").lower() == "true"
         
+        status = "connected" if is_enabled else "disconnected"
+        
+        # Special handling for WhatsApp (check real session status)
+        if conn_id == "whatsapp":
+            slug = persistence.get_tenant_slug(user.tenant_id)
+            # If we have a working session status stored, we are connected
+            wa_status = persistence.get_setting(f"wa_session_status_{slug}", tenant_id=user.tenant_id)
+            if wa_status == "WORKING":
+                status = "connected"
+                # Auto-repair enabled flag if missing
+                if not is_enabled:
+                    persistence.upsert_setting(enabled_key, "true", tenant_id=user.tenant_id)
+        
+        # Special handling for Telegram
+        if conn_id == "telegram":
+            token_key = _get_config_key(user.tenant_id, "telegram", "bot_token")
+            token = persistence.get_setting(token_key, tenant_id=user.tenant_id)
+            if token and token.strip():
+                status = "connected"
+                if not is_enabled:
+                    persistence.upsert_setting(enabled_key, "true", tenant_id=user.tenant_id)
+
         catalog.append({
             **meta,
-            "status": "connected" if is_enabled else "disconnected",
-            "setup_progress": 100 if is_enabled else 0 # simplified
+            "status": status,
+            "setup_progress": 100 if status == "connected" else 0
         })
     return catalog
 

@@ -479,8 +479,17 @@ async def webhook_waha_tenant(
         new_status = status_data.get("status")
         session_name = payload.get("session")
         logger.info("webhook.waha.session_status", tenant=effective_slug, session=session_name, status=new_status)
-        # We could persist this to a 'whatsapp_status' setting or table
+        
+        # Persist status
         persistence.upsert_setting(f"wa_session_status_{session_name}", new_status, tenant_id=tenant_id)
+        
+        # Auto-update 'enabled' flag for Connector Hub
+        enabled_key = f"integration_whatsapp_{tenant_id}_enabled"
+        if new_status == "WORKING":
+            persistence.upsert_setting(enabled_key, "true", tenant_id=tenant_id)
+        elif new_status in {"STOPPED", "FAILED"}:
+            persistence.upsert_setting(enabled_key, "false", tenant_id=tenant_id)
+            
         return {"status": "ok", "type": "status_updated"}
 
     if event_type != "message":
@@ -649,14 +658,15 @@ async def webhook_email_tenant(
 
     # Real-time Broadcast to Dashboard
     from app.gateway.utils import broadcast_to_admins
-    asyncio.create_task(broadcast_to_admins({
+    await broadcast_to_admins({
         "type": "ghost.message_in",
         "user_id": norm.user_id,
         "tenant_id": tenant_id,
         "platform": "email",
         "content": norm.content,
-        "message_id": norm.message_id
-    }, tenant_id=tenant_id))
+        "message_id": norm.message_id,
+        "metadata": {"subject": payload.get("Subject", "(Kein Betreff)")}
+    }, tenant_id=tenant_id)
 
     return {"status": "ok"}
 

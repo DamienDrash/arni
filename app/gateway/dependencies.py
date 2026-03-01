@@ -36,19 +36,29 @@ def get_swarm_router() -> SwarmRouter:
     return swarm_router
 
 def get_telegram_bot(tenant_id: int | None = None) -> TelegramBot:
-    """Returns a tenant-aware TelegramBot instance."""
+    """Returns a tenant-aware TelegramBot instance.
+    Supports both legacy and Connector Hub keys.
+    """
     token = ""
     admin_id = ""
     if tenant_id is not None:
-        token = persistence.get_setting("telegram_bot_token", tenant_id=tenant_id) or ""
-        admin_id = persistence.get_setting("telegram_admin_chat_id", tenant_id=tenant_id) or ""
+        # Priority 1: Connector Hub
+        cid = "telegram"
+        token = persistence.get_setting(f"integration_{cid}_{tenant_id}_bot_token", tenant_id=tenant_id)
+        admin_id = persistence.get_setting(f"integration_{cid}_{tenant_id}_admin_chat_id", tenant_id=tenant_id)
+        
+        # Priority 2: Legacy
+        if not token:
+            token = persistence.get_setting("telegram_bot_token", tenant_id=tenant_id)
+        if not admin_id:
+            admin_id = persistence.get_setting("telegram_admin_chat_id", tenant_id=tenant_id)
     
     if not token:
         logger.warning("gateway.telegram_bot.missing_token", tenant_id=tenant_id)
         
     return TelegramBot(
-        bot_token=token,
-        admin_chat_id=admin_id,
+        bot_token=(token or "").strip(),
+        admin_chat_id=(admin_id or "").strip(),
     )
 
 def _wa_setting(key: str, tenant_id: int) -> str:
