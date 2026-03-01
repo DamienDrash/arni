@@ -2534,7 +2534,7 @@ export default function SettingsIntegrationsPage() {
 
         {/* Create Modal */}
         {showCreateModal && (
-          <Modal onClose={() => setShowCreateModal(false)}>
+          <Modal open={showCreateModal} title={t("integrations.admin.create")} onClose={() => setShowCreateModal(false)}>
             <div style={{ padding: 24, maxWidth: 480 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: T.text, margin: "0 0 20px" }}>{t("integrations.admin.create")}</h2>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -2577,7 +2577,7 @@ export default function SettingsIntegrationsPage() {
 
         {/* Edit Modal */}
         {editingConnector && (
-          <Modal onClose={() => setEditingConnector(null)}>
+          <Modal open={!!editingConnector} title={`${t("integrations.admin.edit")}: ${editingConnector?.name || ""}`} onClose={() => setEditingConnector(null)}>
             <div style={{ padding: 24, maxWidth: 480 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: T.text, margin: "0 0 20px" }}>{t("integrations.admin.edit")}: {editingConnector.name}</h2>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -2616,7 +2616,7 @@ export default function SettingsIntegrationsPage() {
 
         {/* Delete Confirmation */}
         {showDeleteConfirm && (
-          <Modal onClose={() => setShowDeleteConfirm(null)}>
+          <Modal open={!!showDeleteConfirm} title={t("integrations.admin.delete")} onClose={() => setShowDeleteConfirm(null)}>
             <div style={{ padding: 24, maxWidth: 400, textAlign: "center" }}>
               <div style={{ width: 48, height: 48, borderRadius: 14, background: T.dangerDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.danger, margin: "0 auto 16px" }}>
                 <Trash2 size={24} />
