@@ -132,6 +132,25 @@ class AdapterRegistry:
         except ImportError as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="acuity", error=str(e))
 
+        # ─── Sprint 5 Adapters (CRM & E-Commerce) ─────────────────────────
+        try:
+            from app.integrations.adapters.woocommerce_adapter import WooCommerceAdapter
+            self.register(WooCommerceAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="woocommerce", error=str(e))
+
+        try:
+            from app.integrations.adapters.hubspot_adapter import HubSpotAdapter
+            self.register(HubSpotAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="hubspot", error=str(e))
+
+        try:
+            from app.integrations.adapters.salesforce_adapter import SalesforceAdapter
+            self.register(SalesforceAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="salesforce", error=str(e))
+
     def register(self, adapter: BaseAdapter) -> None:
         """Register an adapter instance."""
         self._adapters[adapter.integration_id] = adapter

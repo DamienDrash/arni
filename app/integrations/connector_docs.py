@@ -1105,4 +1105,121 @@ CONNECTOR_DOCS: Dict[str, Dict[str, Any]] = {
             {"label": "Acuity Hilfe-Center", "url": "https://support.acuityscheduling.com/"},
         ],
     },
+
+    # ═══════════════════════════════════════════════════════════════
+    # Sprint 5 – CRM & E-Commerce
+    # ═══════════════════════════════════════════════════════════════
+
+    "woocommerce": {
+        "title": "WooCommerce",
+        "overview": "Verbinde deinen WooCommerce-Shop mit ARIIA für automatisierte Kunden-, Bestell- und Produktverwaltung.",
+        "difficulty": "medium",
+        "estimated_time": "5–10 Min.",
+        "prerequisites": [
+            "Ein WordPress-Shop mit WooCommerce 3.5+",
+            "Admin-Zugang zum WordPress-Backend",
+            "HTTPS muss aktiviert sein",
+        ],
+        "use_cases": [
+            "Automatische Kundensuche und -anlage",
+            "Bestellstatus-Abfragen durch den AI-Assistenten",
+            "Produktkatalog-Suche für Kundenberatung",
+            "Echtzeit-Benachrichtigungen bei neuen Bestellungen",
+        ],
+        "steps": [
+            {"title": "API-Schlüssel erstellen", "description": "Gehe in deinem WooCommerce-Shop zu **Einstellungen → Erweitert → REST-API** und erstelle einen neuen API-Schlüssel mit Lese-/Schreibberechtigung.", "tip": "Wähle 'Lesen/Schreiben' als Berechtigung, damit ARIIA auch Kunden anlegen kann."},
+            {"title": "Shop-URL eingeben", "description": "Gib die URL deines WooCommerce-Shops ein (z.B. https://meinshop.de)."},
+            {"title": "Zugangsdaten eintragen", "description": "Trage den **Consumer Key** und das **Consumer Secret** in ARIIA ein."},
+            {"title": "Verbindung testen", "description": "Klicke auf 'Verbindung testen', um sicherzustellen, dass ARIIA auf deinen Shop zugreifen kann."},
+        ],
+        "faq": [
+            {"question": "Welche WooCommerce-Version wird unterstützt?", "answer": "WooCommerce 3.5+ mit REST API v3."},
+            {"question": "Funktioniert es auch mit WordPress Multisite?", "answer": "Ja, jede Site benötigt eigene API-Schlüssel."},
+            {"question": "Muss mein Shop HTTPS verwenden?", "answer": "Ja, für die OAuth 1.0a-Authentifizierung ist HTTPS erforderlich."},
+        ],
+        "troubleshooting": [
+            {"issue": "401 Unauthorized", "solution": "Prüfe, ob Consumer Key und Secret korrekt sind und die API-Schlüssel Lese-/Schreibrechte haben."},
+            {"issue": "404 Not Found", "solution": "Stelle sicher, dass die Permalinks in WordPress auf 'Beitragsname' gesetzt sind (nicht 'Einfach')."},
+            {"issue": "Keine Produkte sichtbar", "solution": "Prüfe, ob Produkte den Status 'Veröffentlicht' haben."},
+        ],
+        "links": [
+            {"label": "WooCommerce REST API Docs", "url": "https://woocommerce.github.io/woocommerce-rest-api-docs/"},
+            {"label": "WooCommerce API-Schlüssel erstellen", "url": "https://woocommerce.com/document/woocommerce-rest-api/"},
+        ],
+    },
+
+    "hubspot": {
+        "title": "HubSpot CRM",
+        "overview": "Verbinde HubSpot CRM mit ARIIA für automatisierte Kontakt-, Deal- und Ticket-Verwaltung.",
+        "difficulty": "medium",
+        "estimated_time": "5–10 Min.",
+        "prerequisites": [
+            "Ein HubSpot-Konto (Free CRM oder höher)",
+            "Admin-Zugang zu HubSpot Settings",
+        ],
+        "use_cases": [
+            "Automatische Kontaktsuche und -erstellung",
+            "Deal-Tracking und Pipeline-Management",
+            "Unternehmensdaten-Abfragen",
+            "Support-Ticket-Erstellung durch den AI-Assistenten",
+        ],
+        "steps": [
+            {"title": "Private App erstellen", "description": "Gehe in HubSpot zu **Settings → Integrations → Private Apps** und erstelle eine neue App.", "tip": "Gib der App einen aussagekräftigen Namen wie 'ARIIA Integration'."},
+            {"title": "Berechtigungen festlegen", "description": "Wähle die Scopes: **crm.objects.contacts** (read/write), **crm.objects.deals** (read/write), **crm.objects.companies** (read), **tickets** (read/write)."},
+            {"title": "Token kopieren", "description": "Kopiere den generierten **Access Token** und trage ihn in ARIIA ein."},
+            {"title": "Verbindung testen", "description": "Klicke auf 'Verbindung testen', um den Zugriff zu verifizieren."},
+        ],
+        "faq": [
+            {"question": "Welche HubSpot-Pläne werden unterstützt?", "answer": "Alle Pläne inkl. Free CRM. Einige Features erfordern Professional oder Enterprise."},
+            {"question": "Gibt es ein Rate Limit?", "answer": "Ja, HubSpot erlaubt 100 Requests pro 10 Sekunden für Private Apps."},
+        ],
+        "troubleshooting": [
+            {"issue": "401 Unauthorized", "solution": "Prüfe, ob der Private App Token gültig ist und nicht widerrufen wurde."},
+            {"issue": "403 Forbidden", "solution": "Stelle sicher, dass die Private App die erforderlichen Scopes hat."},
+            {"issue": "429 Rate Limit", "solution": "Reduziere die Anfrage-Frequenz. ARIIA implementiert automatisches Retry."},
+        ],
+        "links": [
+            {"label": "HubSpot API Dokumentation", "url": "https://developers.hubspot.com/docs/api/overview"},
+            {"label": "Private Apps erstellen", "url": "https://developers.hubspot.com/docs/api/private-apps"},
+        ],
+    },
+
+    "salesforce": {
+        "title": "Salesforce CRM",
+        "overview": "Verbinde Salesforce CRM mit ARIIA für Enterprise-Kontakt-, Lead-, Opportunity- und Case-Management.",
+        "difficulty": "advanced",
+        "estimated_time": "15–20 Min.",
+        "prerequisites": [
+            "Ein Salesforce-Konto (Professional Edition oder höher)",
+            "Admin-Zugang zu Salesforce Setup",
+            "API-Zugang muss in der Edition enthalten sein",
+        ],
+        "use_cases": [
+            "Kontakt- und Lead-Management durch den AI-Assistenten",
+            "Opportunity-Tracking und Vertriebsunterstützung",
+            "Automatische Case-Erstellung bei Kundenanfragen",
+            "Beliebige Datenabfragen per SOQL",
+        ],
+        "steps": [
+            {"title": "Connected App erstellen", "description": "Gehe in Salesforce Setup zu **App Manager → New Connected App**. Aktiviere OAuth und wähle die benötigten Scopes (api, refresh_token).", "tip": "Wähle 'Refresh Token' als Scope, damit ARIIA den Token automatisch erneuern kann."},
+            {"title": "OAuth-Flow durchführen", "description": "Führe den OAuth-Authorization-Flow durch, um einen Access Token zu erhalten."},
+            {"title": "Instance URL eintragen", "description": "Trage deine Salesforce Instance URL ein (z.B. https://mycompany.salesforce.com)."},
+            {"title": "Token eintragen und testen", "description": "Trage den Access Token in ARIIA ein und klicke auf 'Verbindung testen'."},
+        ],
+        "faq": [
+            {"question": "Welche Salesforce-Editionen werden unterstützt?", "answer": "Alle Editionen mit API-Zugang: Professional+, Enterprise, Unlimited, Developer."},
+            {"question": "Kann ich Custom Objects abfragen?", "answer": "Ja, über die SOQL-Capability können beliebige Standard- und Custom-Objects abgefragt werden."},
+            {"question": "Wie oft wird der Token erneuert?", "answer": "ARIIA unterstützt Refresh Tokens für automatische Erneuerung."},
+        ],
+        "troubleshooting": [
+            {"issue": "401 Unauthorized", "solution": "Der Access Token ist abgelaufen. Führe den OAuth-Flow erneut durch oder prüfe den Refresh Token."},
+            {"issue": "403 Forbidden", "solution": "Der Benutzer hat keine ausreichenden Berechtigungen. Prüfe das Profil und die Permission Sets."},
+            {"issue": "SOQL-Fehler", "solution": "Prüfe die SOQL-Syntax. Verwende den Salesforce Query Editor zum Testen."},
+        ],
+        "links": [
+            {"label": "Salesforce REST API Docs", "url": "https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/"},
+            {"label": "Connected App erstellen", "url": "https://help.salesforce.com/s/articleView?id=sf.connected_app_create.htm"},
+            {"label": "SOQL Reference", "url": "https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/"},
+        ],
+    },
 }
