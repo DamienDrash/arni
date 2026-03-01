@@ -1,39 +1,62 @@
 """ARIIA v2.0 – Contact Management API Router (v2).
 
-@ARCH: Contacts Refactoring, Phase 1 – REST API
-New v2 API endpoints for the Contact Management module.
+@ARCH: Contacts Refactoring, Phase 2 – REST API (Extended)
+Full v2 API endpoints for the Contact Management module.
 Replaces the legacy /admin/members/ endpoints with a clean,
 RESTful API following Enterprise CRM best practices.
 
 Endpoints
 ---------
-GET    /v2/contacts              – List contacts (paginated, filterable)
-POST   /v2/contacts              – Create a new contact
-GET    /v2/contacts/{id}         – Get a single contact
-PUT    /v2/contacts/{id}         – Update a contact
-DELETE /v2/contacts/{id}         – Soft-delete a contact
-POST   /v2/contacts/bulk-delete  – Bulk delete contacts
+# Contact CRUD
+GET    /v2/contacts                    – List contacts (paginated, filterable)
+POST   /v2/contacts                    – Create a new contact
+GET    /v2/contacts/stats              – Contact statistics
+GET    /v2/contacts/{id}               – Get a single contact
+PUT    /v2/contacts/{id}               – Update a contact
+DELETE /v2/contacts/{id}               – Soft-delete a contact
+POST   /v2/contacts/bulk-delete        – Bulk delete contacts
+POST   /v2/contacts/bulk-update        – Bulk update contacts
 
-GET    /v2/contacts/{id}/notes       – List notes
-POST   /v2/contacts/{id}/notes       – Add a note
-PUT    /v2/contacts/{id}/notes/{nid} – Update a note
-DELETE /v2/contacts/{id}/notes/{nid} – Delete a note
+# Duplicate Detection & Merge
+POST   /v2/contacts/check-duplicates   – Check for duplicates
+GET    /v2/contacts/duplicates         – List all duplicate groups
+POST   /v2/contacts/merge              – Merge two contacts
 
-GET    /v2/contacts/{id}/activities  – Activity timeline
+# Notes
+GET    /v2/contacts/{id}/notes         – List notes
+POST   /v2/contacts/{id}/notes         – Add a note
+PUT    /v2/contacts/{id}/notes/{nid}   – Update a note
+DELETE /v2/contacts/{id}/notes/{nid}   – Delete a note
 
-POST   /v2/contacts/{id}/tags       – Add a tag
-DELETE /v2/contacts/{id}/tags/{name} – Remove a tag
+# Activities
+GET    /v2/contacts/{id}/activities    – Activity timeline
+POST   /v2/contacts/{id}/activities    – Add an activity
 
-GET    /v2/contacts/tags             – List all tags
-POST   /v2/contacts/tags             – Create a tag
+# Tags (tenant-level)
+GET    /v2/contacts/tags               – List all tags
+POST   /v2/contacts/tags               – Create a tag
+PUT    /v2/contacts/tags/{id}          – Update a tag
+DELETE /v2/contacts/tags/{id}          – Delete a tag
 
-GET    /v2/contacts/custom-fields    – List custom field definitions
-POST   /v2/contacts/custom-fields    – Create a custom field definition
+# Tags (contact-level)
+POST   /v2/contacts/{id}/tags         – Add a tag to contact
+DELETE /v2/contacts/{id}/tags/{name}   – Remove a tag from contact
 
-GET    /v2/contacts/stats            – Contact statistics
+# Segments
+GET    /v2/contacts/segments           – List segments
+POST   /v2/contacts/segments           – Create a segment
+GET    /v2/contacts/segments/{id}      – Get a segment
+PUT    /v2/contacts/segments/{id}      – Update a segment
+DELETE /v2/contacts/segments/{id}      – Delete a segment
+GET    /v2/contacts/segments/{id}/eval – Evaluate a segment
 
-POST   /v2/contacts/import/csv       – CSV import
-GET    /v2/contacts/export/csv       – CSV export
+# Custom Fields
+GET    /v2/contacts/custom-fields      – List custom field definitions
+POST   /v2/contacts/custom-fields      – Create a custom field definition
+
+# Import/Export
+POST   /v2/contacts/import/csv         – CSV import
+GET    /v2/contacts/export/csv         – CSV export
 """
 
 from __future__ import annotations
@@ -49,21 +72,30 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Qu
 from fastapi.responses import StreamingResponse
 
 from app.contacts.schemas import (
+    ActivityCreate,
     ActivityListResponse,
     ContactBulkDeleteRequest,
+    ContactBulkUpdateRequest,
+    ContactBulkUpdateResponse,
     ContactCreate,
     ContactListResponse,
+    ContactMergeRequest,
     ContactResponse,
     ContactSearchParams,
     ContactUpdate,
     CustomFieldDefinitionCreate,
     CustomFieldDefinitionResponse,
+    DuplicateCheckResponse,
+    DuplicateGroupListResponse,
     ImportLogResponse,
     NoteCreate,
     NoteResponse,
     NoteUpdate,
     SegmentCreate,
+    SegmentListResponse,
     SegmentResponse,
+    SegmentUpdate,
+    TagAssignRequest,
     TagCreate,
     TagResponse,
     TagUpdate,
@@ -96,6 +128,8 @@ def list_contacts(
     tags: Optional[str] = Query(None, description="Tags (kommagetrennt)"),
     has_email: Optional[bool] = Query(None, description="Hat E-Mail"),
     has_phone: Optional[bool] = Query(None, description="Hat Telefon"),
+    company: Optional[str] = Query(None, description="Firma"),
+    gender: Optional[str] = Query(None, description="Geschlecht"),
     sort_by: str = Query("created_at", description="Sortierfeld"),
     sort_order: str = Query("desc", description="Sortierrichtung"),
     page: int = Query(1, ge=1, description="Seite"),
@@ -113,6 +147,8 @@ def list_contacts(
         tags=tag_list,
         has_email=has_email,
         has_phone=has_phone,
+        company=company,
+        gender=gender,
         sort_by=sort_by,
         sort_order=sort_order,
         page=page,
@@ -145,6 +181,103 @@ def get_contact_stats(user: AuthContext = Depends(get_current_user)):
     return contact_service.get_statistics(user.tenant_id)
 
 
+# ── Bulk Operations ──────────────────────────────────────────────────────────
+
+@router.post("/bulk-delete", response_model=Dict[str, Any])
+@router.post("/bulk-delete/", response_model=Dict[str, Any])
+def bulk_delete_contacts(
+    data: ContactBulkDeleteRequest,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Bulk delete contacts (soft or hard delete)."""
+    _require_admin(user)
+    count = contact_service.delete_contacts(
+        tenant_id=user.tenant_id,
+        contact_ids=data.ids,
+        permanent=data.permanent,
+        performed_by=user.user_id,
+        performed_by_name=user.email,
+    )
+    return {"deleted": count, "permanent": data.permanent}
+
+
+@router.post("/bulk-update", response_model=ContactBulkUpdateResponse)
+@router.post("/bulk-update/", response_model=ContactBulkUpdateResponse)
+def bulk_update_contacts(
+    data: ContactBulkUpdateRequest,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Bulk update multiple contacts (lifecycle, tags, consent)."""
+    _require_admin(user)
+    return contact_service.bulk_update_contacts(
+        tenant_id=user.tenant_id,
+        data=data,
+        performed_by=user.user_id,
+        performed_by_name=user.email,
+    )
+
+
+# ── Duplicate Detection & Merge ──────────────────────────────────────────────
+
+@router.post("/check-duplicates", response_model=DuplicateCheckResponse)
+@router.post("/check-duplicates/", response_model=DuplicateCheckResponse)
+def check_duplicates(
+    email: Optional[str] = Query(None),
+    phone: Optional[str] = Query(None),
+    first_name: Optional[str] = Query(None),
+    last_name: Optional[str] = Query(None),
+    exclude_id: Optional[int] = Query(None),
+    user: AuthContext = Depends(get_current_user),
+):
+    """Check for potential duplicates before creating/updating a contact."""
+    return contact_service.check_duplicates(
+        tenant_id=user.tenant_id,
+        email=email,
+        phone=phone,
+        first_name=first_name,
+        last_name=last_name,
+        exclude_id=exclude_id,
+    )
+
+
+@router.get("/duplicates", response_model=DuplicateGroupListResponse)
+@router.get("/duplicates/", response_model=DuplicateGroupListResponse)
+def list_duplicate_groups(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user: AuthContext = Depends(get_current_user),
+):
+    """List all groups of potential duplicate contacts."""
+    return contact_service.list_duplicate_groups(
+        tenant_id=user.tenant_id,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.post("/merge", response_model=ContactResponse)
+@router.post("/merge/", response_model=ContactResponse)
+def merge_contacts(
+    data: ContactMergeRequest,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Merge two contacts into one."""
+    _require_admin(user)
+    result = contact_service.merge_contacts(
+        tenant_id=user.tenant_id,
+        primary_id=data.primary_id,
+        secondary_id=data.secondary_id,
+        fields_from_secondary=data.fields_from_secondary,
+        performed_by=user.user_id,
+        performed_by_name=user.email,
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Einer oder beide Kontakte nicht gefunden")
+    return result
+
+
+# ── Tags (Tenant-level) ─────────────────────────────────────────────────────
+
 @router.get("/tags", response_model=List[TagResponse])
 def list_tags(user: AuthContext = Depends(get_current_user)):
     """List all tags for the tenant."""
@@ -166,6 +299,119 @@ def create_tag(
         description=data.description,
     )
 
+
+@router.put("/tags/{tag_id}", response_model=TagResponse)
+def update_tag(
+    tag_id: int,
+    data: TagUpdate,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Update a tag."""
+    _require_admin(user)
+    result = contact_service.update_tag(
+        tenant_id=user.tenant_id,
+        tag_id=tag_id,
+        name=data.name,
+        color=data.color,
+        description=data.description,
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Tag nicht gefunden")
+    return result
+
+
+@router.delete("/tags/{tag_id}", response_model=Dict[str, Any])
+def delete_tag(
+    tag_id: int,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Delete a tag and all its associations."""
+    _require_admin(user)
+    result = contact_service.delete_tag(user.tenant_id, tag_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Tag nicht gefunden")
+    return {"deleted": True}
+
+
+# ── Segments ─────────────────────────────────────────────────────────────────
+
+@router.get("/segments", response_model=SegmentListResponse)
+@router.get("/segments/", response_model=SegmentListResponse)
+def list_segments(user: AuthContext = Depends(get_current_user)):
+    """List all contact segments."""
+    return contact_service.list_segments(user.tenant_id)
+
+
+@router.post("/segments", response_model=SegmentResponse, status_code=201)
+@router.post("/segments/", response_model=SegmentResponse, status_code=201)
+def create_segment(
+    data: SegmentCreate,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Create a new contact segment."""
+    _require_admin(user)
+    return contact_service.create_segment(
+        tenant_id=user.tenant_id,
+        data=data,
+    )
+
+
+@router.get("/segments/{segment_id}", response_model=SegmentResponse)
+def get_segment(
+    segment_id: int,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Get a segment by ID."""
+    segment = contact_service.get_segment(user.tenant_id, segment_id)
+    if not segment:
+        raise HTTPException(status_code=404, detail="Segment nicht gefunden")
+    return segment
+
+
+@router.put("/segments/{segment_id}", response_model=SegmentResponse)
+def update_segment(
+    segment_id: int,
+    data: SegmentUpdate,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Update a segment."""
+    _require_admin(user)
+    result = contact_service.update_segment(
+        tenant_id=user.tenant_id,
+        segment_id=segment_id,
+        data=data,
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Segment nicht gefunden")
+    return result
+
+
+@router.delete("/segments/{segment_id}", response_model=Dict[str, Any])
+def delete_segment(
+    segment_id: int,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Delete a segment."""
+    _require_admin(user)
+    result = contact_service.delete_segment(user.tenant_id, segment_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Segment nicht gefunden")
+    return {"deleted": True}
+
+
+@router.get("/segments/{segment_id}/evaluate", response_model=ContactListResponse)
+def evaluate_segment(
+    segment_id: int,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Evaluate a dynamic segment and return matching contacts."""
+    result = contact_service.evaluate_segment(user.tenant_id, segment_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Segment nicht gefunden oder keine Filter definiert")
+    return result
+
+
+# ── Custom Fields ────────────────────────────────────────────────────────────
 
 @router.get("/custom-fields", response_model=List[CustomFieldDefinitionResponse])
 def list_custom_fields(user: AuthContext = Depends(get_current_user)):
@@ -194,23 +440,7 @@ def create_custom_field(
     )
 
 
-@router.post("/bulk-delete", response_model=Dict[str, Any])
-@router.post("/bulk-delete/", response_model=Dict[str, Any])
-def bulk_delete_contacts(
-    data: ContactBulkDeleteRequest,
-    user: AuthContext = Depends(get_current_user),
-):
-    """Bulk delete contacts (soft or hard delete)."""
-    _require_admin(user)
-    count = contact_service.delete_contacts(
-        tenant_id=user.tenant_id,
-        contact_ids=data.ids,
-        permanent=data.permanent,
-        performed_by=user.user_id,
-        performed_by_name=user.email,
-    )
-    return {"deleted": count, "permanent": data.permanent}
-
+# ── Single Contact ───────────────────────────────────────────────────────────
 
 @router.get("/{contact_id}", response_model=ContactResponse)
 def get_contact(
@@ -347,26 +577,47 @@ def list_activities(
     )
 
 
+@router.post("/{contact_id}/activities", status_code=201)
+@router.post("/{contact_id}/activities/", status_code=201)
+def add_activity(
+    contact_id: int,
+    data: ActivityCreate,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Manually add an activity to a contact's timeline."""
+    result = contact_service.add_activity(
+        tenant_id=user.tenant_id,
+        contact_id=contact_id,
+        data=data,
+        performed_by=user.user_id,
+        performed_by_name=user.email,
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Kontakt nicht gefunden")
+    return result
+
+
 # ── Tags on Contact ──────────────────────────────────────────────────────────
 
 @router.post("/{contact_id}/tags", response_model=Dict[str, Any], status_code=201)
 @router.post("/{contact_id}/tags/", response_model=Dict[str, Any], status_code=201)
 def add_tag_to_contact(
     contact_id: int,
-    data: TagCreate,
+    data: TagAssignRequest,
     user: AuthContext = Depends(get_current_user),
 ):
     """Add a tag to a contact."""
     result = contact_service.add_tag_to_contact(
         tenant_id=user.tenant_id,
         contact_id=contact_id,
-        tag_name=data.name,
+        tag_name=data.tag_name,
+        color=data.color or "#6C5CE7",
         performed_by=user.user_id,
         performed_by_name=user.email,
     )
     if not result:
         raise HTTPException(status_code=404, detail="Kontakt nicht gefunden")
-    return {"status": "tag_added", "tag": data.name}
+    return {"status": "tag_added", "tag": data.tag_name}
 
 
 @router.delete("/{contact_id}/tags/{tag_name}", response_model=Dict[str, Any])
@@ -449,7 +700,6 @@ def _process_csv_import(
                     existing = contact_repo.find_by_email(db, tenant_id, email)
 
                 if existing:
-                    # Update existing
                     if first_name:
                         existing.first_name = first_name
                     if last_name:
@@ -461,7 +711,6 @@ def _process_csv_import(
                     existing.updated_at = datetime.now(timezone.utc)
                     updated_count += 1
                 else:
-                    # Create new
                     contact = Contact(
                         tenant_id=tenant_id,
                         first_name=first_name or "Unbekannt",
@@ -475,7 +724,6 @@ def _process_csv_import(
                     db.add(contact)
                     imported_count += 1
 
-                # Commit in batches of 100
                 if (i + 1) % 100 == 0:
                     db.commit()
 

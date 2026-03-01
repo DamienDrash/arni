@@ -1,6 +1,6 @@
 """ARIIA v2.0 – Contact Management Pydantic Schemas.
 
-@ARCH: Contacts Refactoring, Phase 1 – Request/Response Models
+@ARCH: Contacts Refactoring, Phase 2 – Request/Response Models (Extended)
 Defines all Pydantic v2 models for the Contact Management API.
 Strict validation, serialization, and documentation support.
 
@@ -135,6 +135,36 @@ class ContactBulkDeleteRequest(BaseModel):
     permanent: bool = Field(False, description="Permanent löschen statt Soft-Delete")
 
 
+class ContactBulkUpdateRequest(BaseModel):
+    """Request for bulk updating contacts."""
+    ids: List[int] = Field(..., min_length=1, description="Liste der zu aktualisierenden Kontakt-IDs")
+    lifecycle_stage: Optional[str] = Field(None, description="Neue Lifecycle-Phase")
+    add_tags: Optional[List[str]] = Field(None, description="Tags hinzufügen")
+    remove_tags: Optional[List[str]] = Field(None, description="Tags entfernen")
+    source: Optional[str] = Field(None, description="Neue Quelle")
+    consent_email: Optional[bool] = Field(None, description="E-Mail-Einwilligung")
+    consent_sms: Optional[bool] = Field(None, description="SMS-Einwilligung")
+    consent_phone: Optional[bool] = Field(None, description="Telefon-Einwilligung")
+    consent_whatsapp: Optional[bool] = Field(None, description="WhatsApp-Einwilligung")
+
+    @field_validator("lifecycle_stage")
+    @classmethod
+    def validate_lifecycle(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        allowed = ["subscriber", "lead", "opportunity", "customer", "churned", "other"]
+        if v not in allowed:
+            raise ValueError(f"Lifecycle-Phase muss einer der folgenden Werte sein: {', '.join(allowed)}")
+        return v
+
+
+class ContactBulkUpdateResponse(BaseModel):
+    """Response for bulk update operations."""
+    updated: int = Field(..., description="Anzahl aktualisierter Kontakte")
+    tags_added: int = Field(0, description="Anzahl hinzugefügter Tag-Zuordnungen")
+    tags_removed: int = Field(0, description="Anzahl entfernter Tag-Zuordnungen")
+
+
 class ContactMergeRequest(BaseModel):
     """Request for merging two contacts."""
     primary_id: int = Field(..., description="ID des primären Kontakts (wird beibehalten)")
@@ -143,6 +173,37 @@ class ContactMergeRequest(BaseModel):
         default_factory=list,
         description="Felder, die vom sekundären Kontakt übernommen werden sollen"
     )
+
+
+# ─── Duplicate Schemas ───────────────────────────────────────────────────────
+
+class DuplicateContactResponse(BaseModel):
+    """A potential duplicate contact with match info."""
+    contact: ContactResponse
+    match_reason: str = Field(..., description="Grund für den Match (email_exact, phone_exact, name_exact, name_partial)")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Konfidenz-Score (0.0 - 1.0)")
+
+
+class DuplicateCheckResponse(BaseModel):
+    """Response for duplicate check."""
+    has_duplicates: bool
+    duplicates: List[DuplicateContactResponse] = []
+
+
+class DuplicateGroupResponse(BaseModel):
+    """A group of potential duplicate contacts."""
+    match_type: str
+    match_value: str
+    confidence: float
+    contacts: List[ContactResponse]
+
+
+class DuplicateGroupListResponse(BaseModel):
+    """Paginated list of duplicate groups."""
+    groups: List[DuplicateGroupResponse]
+    total_groups: int
+    page: int
+    page_size: int
 
 
 # ─── Tag Schemas ──────────────────────────────────────────────────────────────
@@ -171,6 +232,12 @@ class TagResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TagAssignRequest(BaseModel):
+    """Request for assigning/removing a tag to/from a contact."""
+    tag_name: str = Field(..., min_length=1, max_length=100, description="Tag-Name")
+    color: Optional[str] = Field("#6C5CE7", max_length=7, description="Hex-Farbcode (nur bei Neuanlage)")
 
 
 # ─── Note Schemas ─────────────────────────────────────────────────────────────
@@ -203,6 +270,27 @@ class NoteResponse(BaseModel):
 
 
 # ─── Activity Schemas ─────────────────────────────────────────────────────────
+
+class ActivityCreate(BaseModel):
+    """Schema for manually creating a contact activity."""
+    activity_type: str = Field(..., description="Aktivitätstyp")
+    title: str = Field(..., min_length=1, max_length=500, description="Titel")
+    description: Optional[str] = Field(None, description="Beschreibung")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Zusätzliche Metadaten")
+
+    @field_validator("activity_type")
+    @classmethod
+    def validate_activity_type(cls, v: str) -> str:
+        allowed = [
+            "created", "updated", "note_added", "tag_added", "tag_removed",
+            "email_sent", "email_received", "chat_message", "call", "meeting",
+            "import", "merge", "lifecycle_change", "campaign_sent",
+            "campaign_opened", "campaign_clicked", "custom",
+        ]
+        if v not in allowed:
+            raise ValueError(f"Aktivitätstyp muss einer der folgenden Werte sein: {', '.join(allowed)}")
+        return v
+
 
 class ActivityResponse(BaseModel):
     """Activity timeline entry response."""
@@ -296,6 +384,15 @@ class SegmentCreate(BaseModel):
     is_dynamic: bool = Field(True, description="Dynamisches Segment (wird bei Abfrage neu berechnet)")
 
 
+class SegmentUpdate(BaseModel):
+    """Schema for updating a contact segment."""
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    filter_json: Optional[Dict[str, Any]] = None
+    is_dynamic: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
 class SegmentResponse(BaseModel):
     """Segment response."""
     id: int
@@ -312,6 +409,12 @@ class SegmentResponse(BaseModel):
         from_attributes = True
 
 
+class SegmentListResponse(BaseModel):
+    """List of segments."""
+    items: List[SegmentResponse]
+    total: int
+
+
 # ─── Search / Filter Schemas ─────────────────────────────────────────────────
 
 class ContactSearchParams(BaseModel):
@@ -326,6 +429,8 @@ class ContactSearchParams(BaseModel):
     created_before: Optional[datetime] = None
     score_min: Optional[int] = None
     score_max: Optional[int] = None
+    company: Optional[str] = None
+    gender: Optional[str] = None
     sort_by: str = Field("created_at", description="Sortierfeld")
     sort_order: str = Field("desc", description="Sortierrichtung: asc oder desc")
     page: int = Field(1, ge=1, description="Seitennummer")

@@ -1,9 +1,9 @@
 """ARIIA v2.0 – Contact Service (Business Logic Layer).
 
-@ARCH: Contacts Refactoring, Phase 1 – Service Layer
+@ARCH: Contacts Refactoring, Phase 2 – Service Layer (Extended)
 Encapsulates all business logic for the Contact module.
 Orchestrates repository calls, validation, activity logging,
-duplicate detection, and serialization.
+duplicate detection, merge, bulk operations, and serialization.
 
 Design Principles
 -----------------
@@ -25,17 +25,28 @@ from sqlalchemy.orm import Session
 
 from app.contacts.repository import contact_repo
 from app.contacts.schemas import (
+    ActivityCreate,
     ActivityListResponse,
     ActivityResponse,
+    ContactBulkUpdateRequest,
+    ContactBulkUpdateResponse,
     ContactCreate,
     ContactListResponse,
     ContactResponse,
     ContactUpdate,
     CustomFieldDefinitionResponse,
+    DuplicateCheckResponse,
+    DuplicateContactResponse,
+    DuplicateGroupListResponse,
+    DuplicateGroupResponse,
     ImportLogResponse,
     NoteCreate,
     NoteResponse,
     NoteUpdate,
+    SegmentCreate,
+    SegmentListResponse,
+    SegmentResponse,
+    SegmentUpdate,
     TagResponse,
 )
 from app.core.contact_models import (
@@ -44,6 +55,7 @@ from app.core.contact_models import (
     ContactActivity,
     ContactCustomFieldDefinition,
     ContactNote,
+    ContactSegment,
     ContactTag,
 )
 from app.core.db import SessionLocal
@@ -62,7 +74,6 @@ class ContactService:
 
     def _serialize_contact(self, db: Session, contact: Contact) -> ContactResponse:
         """Convert a Contact ORM object to a ContactResponse."""
-        # Get tags
         tags_orm = contact_repo.get_contact_tags(db, contact.id)
         tags = [
             TagResponse(
@@ -75,10 +86,8 @@ class ContactService:
             for t in tags_orm
         ]
 
-        # Get custom fields
         custom_fields = contact_repo.get_custom_field_values(db, contact.id)
 
-        # Parse external_ids
         external_ids = None
         if contact.external_ids:
             try:
@@ -149,6 +158,37 @@ class ContactService:
             performed_by=activity.performed_by,
             performed_by_name=activity.performed_by_name,
             created_at=activity.created_at,
+        )
+
+    def _serialize_segment(self, db: Session, segment: ContactSegment,
+                           tenant_id: int) -> SegmentResponse:
+        """Convert a ContactSegment ORM object to a SegmentResponse."""
+        filter_data = None
+        if segment.filter_json:
+            try:
+                filter_data = json.loads(segment.filter_json) if isinstance(segment.filter_json, str) else segment.filter_json
+            except (json.JSONDecodeError, TypeError):
+                filter_data = None
+
+        # Evaluate dynamic segment count
+        contact_count = segment.contact_count
+        if segment.is_dynamic and filter_data:
+            try:
+                _, count = contact_repo.evaluate_segment(db, tenant_id, filter_data)
+                contact_count = count
+            except Exception:
+                pass
+
+        return SegmentResponse(
+            id=segment.id,
+            name=segment.name,
+            description=segment.description,
+            filter_json=filter_data,
+            is_dynamic=segment.is_dynamic,
+            contact_count=contact_count,
+            is_active=segment.is_active,
+            created_at=segment.created_at,
+            updated_at=segment.updated_at,
         )
 
     # ── Contact CRUD ──────────────────────────────────────────────────────
@@ -297,12 +337,17 @@ class ContactService:
                 if old_val != new_val:
                     changes.append(f"{key}: {old_val} → {new_val}")
 
+            # ── Lifecycle Change Detection ────────────────────────────────
+            lifecycle_changed = False
+            old_lifecycle = contact.lifecycle_stage
+            if "lifecycle_stage" in update_data and update_data["lifecycle_stage"] != old_lifecycle:
+                lifecycle_changed = True
+
             # ── Apply Update ──────────────────────────────────────────────
             contact = contact_repo.update(db, contact, **update_data)
 
             # ── Update Identifiers ────────────────────────────────────────
             if "email" in update_data:
-                # Update or create email identifier
                 contact_repo.add_identifier(db, contact.id, tenant_id, "email", update_data["email"], is_primary=True)
             if "phone" in update_data:
                 contact_repo.add_identifier(db, contact.id, tenant_id, "phone", update_data["phone"], is_primary=True)
@@ -314,6 +359,20 @@ class ContactService:
                     activity_type=ActivityType.UPDATED,
                     title=f"Kontakt aktualisiert: {contact.full_name}",
                     description="; ".join(changes),
+                    performed_by=performed_by,
+                    performed_by_name=performed_by_name,
+                )
+
+            # ── Lifecycle Change Activity ─────────────────────────────────
+            if lifecycle_changed:
+                contact_repo.add_activity(
+                    db, contact.id, tenant_id,
+                    activity_type=ActivityType.LIFECYCLE_CHANGE,
+                    title=f"Lifecycle geändert: {old_lifecycle} → {update_data['lifecycle_stage']}",
+                    metadata_json=json.dumps({
+                        "old_stage": old_lifecycle,
+                        "new_stage": update_data["lifecycle_stage"],
+                    }),
                     performed_by=performed_by,
                     performed_by_name=performed_by_name,
                 )
@@ -350,16 +409,18 @@ class ContactService:
             else:
                 count = contact_repo.bulk_soft_delete(db, tenant_id, contact_ids)
 
-            # Log activity for each deleted contact (soft-delete only)
             if not permanent:
                 for cid in contact_ids:
-                    contact_repo.add_activity(
-                        db, cid, tenant_id,
-                        activity_type=ActivityType.UPDATED,
-                        title="Kontakt gelöscht (Soft-Delete)",
-                        performed_by=performed_by,
-                        performed_by_name=performed_by_name,
-                    )
+                    try:
+                        contact_repo.add_activity(
+                            db, cid, tenant_id,
+                            activity_type=ActivityType.UPDATED,
+                            title="Kontakt gelöscht (Soft-Delete)",
+                            performed_by=performed_by,
+                            performed_by_name=performed_by_name,
+                        )
+                    except Exception:
+                        pass  # Activity logging should not block deletion
 
             db.commit()
 
@@ -371,6 +432,210 @@ class ContactService:
             )
 
             return count
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    # ── Bulk Operations ──────────────────────────────────────────────────
+
+    def bulk_update_contacts(
+        self,
+        tenant_id: int,
+        data: ContactBulkUpdateRequest,
+        performed_by: Optional[int] = None,
+        performed_by_name: Optional[str] = None,
+    ) -> ContactBulkUpdateResponse:
+        """Bulk update multiple contacts (lifecycle, tags, consent)."""
+        db = SessionLocal()
+        try:
+            updated = 0
+            tags_added = 0
+            tags_removed = 0
+
+            # ── Field updates (lifecycle, source, consent) ────────────────
+            field_updates = {}
+            if data.lifecycle_stage:
+                field_updates["lifecycle_stage"] = data.lifecycle_stage
+            if data.source:
+                field_updates["source"] = data.source
+            if data.consent_email is not None:
+                field_updates["consent_email"] = data.consent_email
+            if data.consent_sms is not None:
+                field_updates["consent_sms"] = data.consent_sms
+            if data.consent_phone is not None:
+                field_updates["consent_phone"] = data.consent_phone
+            if data.consent_whatsapp is not None:
+                field_updates["consent_whatsapp"] = data.consent_whatsapp
+
+            if field_updates:
+                updated = contact_repo.bulk_update(db, tenant_id, data.ids, **field_updates)
+
+            # ── Tag operations ────────────────────────────────────────────
+            if data.add_tags:
+                for tag_name in data.add_tags:
+                    tags_added += contact_repo.bulk_add_tag(db, tenant_id, data.ids, tag_name)
+
+            if data.remove_tags:
+                for tag_name in data.remove_tags:
+                    tags_removed += contact_repo.bulk_remove_tag(db, tenant_id, data.ids, tag_name)
+
+            # ── Activity Log ──────────────────────────────────────────────
+            desc_parts = []
+            if field_updates:
+                desc_parts.append(f"Felder: {', '.join(field_updates.keys())}")
+            if data.add_tags:
+                desc_parts.append(f"Tags hinzugefügt: {', '.join(data.add_tags)}")
+            if data.remove_tags:
+                desc_parts.append(f"Tags entfernt: {', '.join(data.remove_tags)}")
+
+            for cid in data.ids:
+                try:
+                    contact_repo.add_activity(
+                        db, cid, tenant_id,
+                        activity_type=ActivityType.UPDATED,
+                        title=f"Bulk-Update ({len(data.ids)} Kontakte)",
+                        description="; ".join(desc_parts),
+                        performed_by=performed_by,
+                        performed_by_name=performed_by_name,
+                    )
+                except Exception:
+                    pass
+
+            db.commit()
+
+            logger.info(
+                "contact.bulk_updated",
+                tenant_id=tenant_id,
+                count=len(data.ids),
+                updated=updated,
+                tags_added=tags_added,
+                tags_removed=tags_removed,
+            )
+
+            return ContactBulkUpdateResponse(
+                updated=updated or len(data.ids),
+                tags_added=tags_added,
+                tags_removed=tags_removed,
+            )
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    # ── Duplicate Detection & Merge ──────────────────────────────────────
+
+    def check_duplicates(
+        self,
+        tenant_id: int,
+        email: Optional[str] = None,
+        phone: Optional[str] = None,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
+        exclude_id: Optional[int] = None,
+    ) -> DuplicateCheckResponse:
+        """Check for potential duplicates before creating/updating a contact."""
+        db = SessionLocal()
+        try:
+            dupes = contact_repo.find_duplicates(
+                db, tenant_id,
+                email=email, phone=phone,
+                first_name=first_name, last_name=last_name,
+                exclude_id=exclude_id,
+            )
+
+            duplicates = [
+                DuplicateContactResponse(
+                    contact=self._serialize_contact(db, contact),
+                    match_reason=reason,
+                    confidence=conf,
+                )
+                for contact, reason, conf in dupes
+            ]
+
+            return DuplicateCheckResponse(
+                has_duplicates=len(duplicates) > 0,
+                duplicates=duplicates,
+            )
+        finally:
+            db.close()
+
+    def list_duplicate_groups(
+        self,
+        tenant_id: int,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> DuplicateGroupListResponse:
+        """List all groups of potential duplicates."""
+        db = SessionLocal()
+        try:
+            groups, total = contact_repo.find_all_duplicate_groups(
+                db, tenant_id, page=page, page_size=page_size,
+            )
+
+            serialized_groups = []
+            for g in groups:
+                serialized_groups.append(DuplicateGroupResponse(
+                    match_type=g["match_type"],
+                    match_value=g["match_value"],
+                    confidence=g["confidence"],
+                    contacts=[self._serialize_contact(db, c) for c in g["contacts"]],
+                ))
+
+            return DuplicateGroupListResponse(
+                groups=serialized_groups,
+                total_groups=total,
+                page=page,
+                page_size=page_size,
+            )
+        finally:
+            db.close()
+
+    def merge_contacts(
+        self,
+        tenant_id: int,
+        primary_id: int,
+        secondary_id: int,
+        fields_from_secondary: Optional[List[str]] = None,
+        performed_by: Optional[int] = None,
+        performed_by_name: Optional[str] = None,
+    ) -> Optional[ContactResponse]:
+        """Merge two contacts into one."""
+        db = SessionLocal()
+        try:
+            primary = contact_repo.merge_contacts(
+                db, tenant_id, primary_id, secondary_id,
+                fields_from_secondary=fields_from_secondary,
+            )
+            if not primary:
+                return None
+
+            # Activity log for merge
+            contact_repo.add_activity(
+                db, primary_id, tenant_id,
+                activity_type=ActivityType.MERGE,
+                title=f"Kontakt zusammengeführt mit ID {secondary_id}",
+                description=f"Felder übernommen: {', '.join(fields_from_secondary or ['keine'])}",
+                metadata_json=json.dumps({
+                    "merged_from": secondary_id,
+                    "fields_from_secondary": fields_from_secondary or [],
+                }),
+                performed_by=performed_by,
+                performed_by_name=performed_by_name,
+            )
+
+            db.commit()
+
+            logger.info(
+                "contact.merged",
+                tenant_id=tenant_id,
+                primary_id=primary_id,
+                secondary_id=secondary_id,
+            )
+
+            return self._serialize_contact(db, primary)
         except Exception:
             db.rollback()
             raise
@@ -401,7 +666,6 @@ class ContactService:
                 created_by_name=performed_by_name,
             )
 
-            # Activity log
             contact_repo.add_activity(
                 db, contact_id, tenant_id,
                 activity_type=ActivityType.NOTE_ADDED,
@@ -484,6 +748,43 @@ class ContactService:
         finally:
             db.close()
 
+    def add_activity(
+        self,
+        tenant_id: int,
+        contact_id: int,
+        data: ActivityCreate,
+        performed_by: Optional[int] = None,
+        performed_by_name: Optional[str] = None,
+    ) -> Optional[ActivityResponse]:
+        """Manually add an activity to a contact's timeline."""
+        db = SessionLocal()
+        try:
+            contact = contact_repo.get_by_id(db, tenant_id, contact_id)
+            if not contact:
+                return None
+
+            metadata_json = None
+            if data.metadata:
+                metadata_json = json.dumps(data.metadata)
+
+            activity = contact_repo.add_activity(
+                db, contact_id, tenant_id,
+                activity_type=data.activity_type,
+                title=data.title,
+                description=data.description,
+                metadata_json=metadata_json,
+                performed_by=performed_by,
+                performed_by_name=performed_by_name,
+            )
+
+            db.commit()
+            return self._serialize_activity(activity)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
     # ── Tags ──────────────────────────────────────────────────────────────
 
     def list_tags(self, tenant_id: int) -> List[TagResponse]:
@@ -515,11 +816,69 @@ class ContactService:
         finally:
             db.close()
 
+    def update_tag(self, tenant_id: int, tag_id: int,
+                   name: Optional[str] = None,
+                   color: Optional[str] = None,
+                   description: Optional[str] = None) -> Optional[TagResponse]:
+        """Update a tag."""
+        db = SessionLocal()
+        try:
+            tag = contact_repo.get_tag_by_id(db, tenant_id, tag_id)
+            if not tag:
+                return None
+
+            update_kwargs = {}
+            if name is not None:
+                update_kwargs["name"] = name
+            if color is not None:
+                update_kwargs["color"] = color
+            if description is not None:
+                update_kwargs["description"] = description
+
+            tag = contact_repo.update_tag(db, tag, **update_kwargs)
+            db.commit()
+
+            # Get contact count
+            from sqlalchemy import func
+            from app.core.contact_models import ContactTagAssociation
+            count = (
+                db.query(func.count(ContactTagAssociation.id))
+                .filter(ContactTagAssociation.tag_id == tag.id)
+                .scalar() or 0
+            )
+
+            return TagResponse(
+                id=tag.id,
+                name=tag.name,
+                color=tag.color,
+                description=tag.description,
+                contact_count=count,
+            )
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    def delete_tag(self, tenant_id: int, tag_id: int) -> bool:
+        """Delete a tag and all its associations."""
+        db = SessionLocal()
+        try:
+            result = contact_repo.delete_tag(db, tag_id, tenant_id)
+            db.commit()
+            return result
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
     def add_tag_to_contact(
         self,
         tenant_id: int,
         contact_id: int,
         tag_name: str,
+        color: str = "#6C5CE7",
         performed_by: Optional[int] = None,
         performed_by_name: Optional[str] = None,
     ) -> bool:
@@ -530,7 +889,7 @@ class ContactService:
             if not contact:
                 return False
 
-            tag = contact_repo.get_or_create_tag(db, tenant_id, tag_name)
+            tag = contact_repo.get_or_create_tag(db, tenant_id, tag_name, color)
             contact_repo.add_tag_to_contact(db, contact_id, tag.id)
 
             contact_repo.add_activity(
@@ -586,6 +945,138 @@ class ContactService:
         finally:
             db.close()
 
+    # ── Segments ─────────────────────────────────────────────────────────
+
+    def create_segment(
+        self,
+        tenant_id: int,
+        data: SegmentCreate,
+    ) -> SegmentResponse:
+        """Create a new contact segment."""
+        db = SessionLocal()
+        try:
+            segment = contact_repo.create_segment(
+                db, tenant_id,
+                name=data.name,
+                description=data.description,
+                filter_json=data.filter_json,
+                is_dynamic=data.is_dynamic,
+            )
+
+            # Evaluate initial count
+            if data.filter_json and data.is_dynamic:
+                _, count = contact_repo.evaluate_segment(db, tenant_id, data.filter_json)
+                segment.contact_count = count
+                db.flush()
+
+            db.commit()
+
+            return self._serialize_segment(db, segment, tenant_id)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    def list_segments(self, tenant_id: int) -> SegmentListResponse:
+        """List all segments for a tenant."""
+        db = SessionLocal()
+        try:
+            segments = contact_repo.list_segments(db, tenant_id)
+            items = [self._serialize_segment(db, s, tenant_id) for s in segments]
+            return SegmentListResponse(items=items, total=len(items))
+        finally:
+            db.close()
+
+    def get_segment(self, tenant_id: int, segment_id: int) -> Optional[SegmentResponse]:
+        """Get a segment by ID."""
+        db = SessionLocal()
+        try:
+            segment = contact_repo.get_segment_by_id(db, tenant_id, segment_id)
+            if not segment:
+                return None
+            return self._serialize_segment(db, segment, tenant_id)
+        finally:
+            db.close()
+
+    def update_segment(
+        self,
+        tenant_id: int,
+        segment_id: int,
+        data: SegmentUpdate,
+    ) -> Optional[SegmentResponse]:
+        """Update a segment."""
+        db = SessionLocal()
+        try:
+            segment = contact_repo.get_segment_by_id(db, tenant_id, segment_id)
+            if not segment:
+                return None
+
+            update_data = data.model_dump(exclude_unset=True)
+            segment = contact_repo.update_segment(db, segment, **update_data)
+
+            # Re-evaluate count if filter changed
+            if "filter_json" in update_data and update_data["filter_json"]:
+                _, count = contact_repo.evaluate_segment(db, tenant_id, update_data["filter_json"])
+                segment.contact_count = count
+                db.flush()
+
+            db.commit()
+            return self._serialize_segment(db, segment, tenant_id)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    def delete_segment(self, tenant_id: int, segment_id: int) -> bool:
+        """Delete a segment."""
+        db = SessionLocal()
+        try:
+            result = contact_repo.delete_segment(db, segment_id, tenant_id)
+            db.commit()
+            return result
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    def evaluate_segment(
+        self,
+        tenant_id: int,
+        segment_id: int,
+    ) -> Optional[ContactListResponse]:
+        """Evaluate a segment and return matching contacts."""
+        db = SessionLocal()
+        try:
+            segment = contact_repo.get_segment_by_id(db, tenant_id, segment_id)
+            if not segment or not segment.filter_json:
+                return None
+
+            filter_data = json.loads(segment.filter_json) if isinstance(segment.filter_json, str) else segment.filter_json
+            contacts, total = contact_repo.evaluate_segment(db, tenant_id, filter_data)
+
+            items = [self._serialize_contact(db, c) for c in contacts]
+
+            # Update cached count
+            segment.contact_count = total
+            db.flush()
+            db.commit()
+
+            return ContactListResponse(
+                items=items,
+                total=total,
+                page=1,
+                page_size=total,
+                total_pages=1,
+            )
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
     # ── Custom Fields ─────────────────────────────────────────────────────
 
     def list_custom_field_definitions(self, tenant_id: int) -> List[CustomFieldDefinitionResponse]:
@@ -622,7 +1113,6 @@ class ContactService:
         """Create a custom field definition."""
         db = SessionLocal()
         try:
-            # Convert options list to JSON
             if "options" in kwargs and kwargs["options"]:
                 kwargs["options_json"] = json.dumps(kwargs.pop("options"))
             else:
@@ -704,6 +1194,32 @@ class ContactService:
                 .scalar() or 0
             )
 
+            # Average score
+            avg_score = (
+                db.query(func.avg(Contact.score))
+                .filter(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None))
+                .scalar() or 0
+            )
+
+            # Recent activity count (last 7 days)
+            from datetime import timedelta
+            week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+            recent_activities = (
+                db.query(func.count(ContactActivity.id))
+                .filter(
+                    ContactActivity.tenant_id == tenant_id,
+                    ContactActivity.created_at >= week_ago,
+                )
+                .scalar() or 0
+            )
+
+            # Tag count
+            tag_count = (
+                db.query(func.count(ContactTag.id))
+                .filter(ContactTag.tenant_id == tenant_id)
+                .scalar() or 0
+            )
+
             return {
                 "total": total,
                 "lifecycle_distribution": {stage: count for stage, count in lifecycle_dist},
@@ -712,6 +1228,9 @@ class ContactService:
                 "with_phone": with_phone,
                 "email_coverage": round(with_email / total * 100, 1) if total > 0 else 0,
                 "phone_coverage": round(with_phone / total * 100, 1) if total > 0 else 0,
+                "average_score": round(float(avg_score), 1),
+                "recent_activities_7d": recent_activities,
+                "tag_count": tag_count,
             }
         finally:
             db.close()
