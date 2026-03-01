@@ -214,7 +214,7 @@ const getActivityIcon = (type: string) => ACTIVITY_ICONS[type] || ACTIVITY_ICONS
 
 export default function ContactsPage() {
   const { role } = usePermissions();
-  const isAdmin = role === "admin" || role === "owner";
+  const isAdmin = role === "system_admin" || role === "tenant_admin";
   const searchTimeout = useRef<any>(null);
 
   // ── State ──────────────────────────────────────────────────────────────
