@@ -29,22 +29,38 @@ class SMTPMailer:
 
     def send_text_mail(self, to_email: str, subject: str, body: str) -> None:
         msg = EmailMessage()
-        msg["Subject"] = subject
-        msg["From"] = f"{self.from_name} <{self.from_email}>"
+        clean_subject = " ".join(subject.splitlines()).strip()
+        clean_from_name = " ".join(self.from_name.splitlines()).strip()
+        
+        msg["Subject"] = clean_subject
+        msg["From"] = f"{clean_from_name} <{self.from_email}>"
         msg["To"] = to_email
         msg.set_content(body)
 
-        # Support Port 465 (Direct SSL) vs Port 587 (STARTTLS)
-        if self.port == 465:
-            with smtplib.SMTP_SSL(self.host, self.port, timeout=30) as smtp:
+        smtp = None
+        try:
+            if self.port == 465:
+                smtp = smtplib.SMTP_SSL(self.host, self.port, timeout=30)
                 smtp.login(self.username, self.password)
                 smtp.send_message(msg)
-        else:
-            with smtplib.SMTP(self.host, self.port, timeout=30) as smtp:
+            else:
+                smtp = smtplib.SMTP(self.host, self.port, timeout=30)
                 smtp.ehlo()
                 if self.use_starttls:
                     smtp.starttls()
-                    smtp.ehlo()  # Required after starttls
+                    smtp.ehlo()
                 smtp.login(self.username, self.password)
                 smtp.send_message(msg)
-        logger.info("email.sent", to_email=to_email, subject=subject)
+        except smtplib.SMTPResponseException as e:
+            if e.code == 250:
+                pass
+            else:
+                raise e
+        finally:
+            if smtp:
+                try:
+                    smtp.quit()
+                except Exception:
+                    pass
+        
+        logger.info("email.sent", to_email=to_email, subject=clean_subject)

@@ -124,6 +124,26 @@ services:
     networks:
       - ariia-network
 
+  ariia-email-worker:
+    build: .
+    container_name: ariia_email_worker
+    restart: always
+    command: python scripts/email_polling_worker.py
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://ariia-redis:6379/0
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia
+      - AUTH_SECRET=${AUTH_SECRET}
+    depends_on:
+      - ariia-core
+      - ariia-redis
+      - ariia-postgres
+    volumes:
+      - .:/app
+      - ariia_data:/app/data
+    networks:
+      - ariia-network
+
   # --- Monitoring Stack ---
 
   prometheus:

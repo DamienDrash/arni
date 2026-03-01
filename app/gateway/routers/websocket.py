@@ -50,11 +50,23 @@ async def websocket_control(ws: WebSocket, tid: int | None = None) -> None:
     except Exception:
         pass
 
+    async def _heartbeat():
+        try:
+            while True:
+                await asyncio.sleep(20)
+                await ws.send_json({"type": "ping", "timestamp": datetime.now(timezone.utc).isoformat()})
+        except Exception:
+            pass
+
+    import asyncio
+    heartbeat_task = asyncio.create_task(_heartbeat())
+
     try:
         while True:
             data = await ws.receive_text()
             try:
                 payload = json.loads(data)
+                # ... (rest of logic)
                 
                 if payload.get("type") == "intervention":
                      user_id = payload.get("user_id")
@@ -110,3 +122,9 @@ async def websocket_control(ws: WebSocket, tid: int | None = None) -> None:
         if resolved_tid in active_websockets and ws in active_websockets[resolved_tid]:
             active_websockets[resolved_tid].remove(ws)
         logger.info("ws.disconnected", client_id=client_id, tenant_id=resolved_tid)
+    except Exception as e:
+        logger.error("ws.connection_error", error=str(e), client_id=client_id)
+        if resolved_tid in active_websockets and ws in active_websockets[resolved_tid]:
+            active_websockets[resolved_tid].remove(ws)
+    finally:
+        heartbeat_task.cancel()

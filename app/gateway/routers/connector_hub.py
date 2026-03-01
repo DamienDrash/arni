@@ -168,6 +168,7 @@ def test_connection(
             return {"status": "error", "message": "SMTP-Konfiguration unvollständig"}
         
         try:
+            # 1. Test SMTP (Outbound)
             port = int(port_raw or "587")
             if port == 465:
                 with smtplib.SMTP_SSL(host, port, timeout=15) as srv:
@@ -180,7 +181,20 @@ def test_connection(
                     srv.ehlo()
                     srv.login(username, password)
                     srv.noop()
-            return {"status": "ok", "message": "SMTP-Verbindung erfolgreich! Authentifizierung bestätigt."}
+            
+            # 2. Test IMAP (Inbound)
+            imap_host = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "imap_host"), "", tenant_id=user.tenant_id).strip()
+            imap_port_raw = persistence.get_setting(_get_config_key(user.tenant_id, connector_id, "imap_port"), "993", tenant_id=user.tenant_id).strip()
+            
+            if imap_host:
+                import imaplib
+                imap_port = int(imap_port_raw or "993")
+                with imaplib.IMAP4_SSL(imap_host, imap_port) as mail:
+                    mail.login(username, password)
+                    mail.logout()
+                return {"status": "ok", "message": "SMTP & IMAP Test erfolgreich! Versand und Empfang sind bereit."}
+            
+            return {"status": "ok", "message": "SMTP Test erfolgreich! (IMAP wurde übersprungen, da kein Host konfiguriert)"}
         except smtplib.SMTPAuthenticationError as e:
             return {"status": "error", "message": f"SMTP-Authentifizierung fehlgeschlagen: {e}"}
         except Exception as e:

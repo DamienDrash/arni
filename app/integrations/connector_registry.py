@@ -71,12 +71,14 @@ CONNECTOR_REGISTRY = {
         "icon": "mail",
     },
     "smtp_email": {
-        "name": "SMTP E-Mail",
+        "name": "E-Mail (SMTP & IMAP)",
         "category": "messaging",
-        "description": "Eigener SMTP-Server für E-Mail-Versand.",
+        "description": "Eigener Mail-Server für Versand (SMTP) und Empfang (IMAP).",
         "fields": [
             {"key": "host", "label": "SMTP Host", "type": "text"},
-            {"key": "port", "label": "Port", "type": "text"},
+            {"key": "port", "label": "SMTP Port", "type": "text"},
+            {"key": "imap_host", "label": "IMAP Host", "type": "text", "optional": True},
+            {"key": "imap_port", "label": "IMAP Port", "type": "text", "optional": True},
             {"key": "username", "label": "Benutzername", "type": "text"},
             {"key": "password", "label": "Passwort", "type": "password"},
             {"key": "from_email", "label": "Absender-E-Mail", "type": "text"},
