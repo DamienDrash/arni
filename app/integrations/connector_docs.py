@@ -1222,4 +1222,195 @@ CONNECTOR_DOCS: Dict[str, Dict[str, Any]] = {
             {"label": "SOQL Reference", "url": "https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/"},
         ],
     },
+
+    # ═══════════════════════════════════════════════════════════════════
+    # Sprint 6 – AI Voice & Speech
+    # ═══════════════════════════════════════════════════════════════════
+
+    "elevenlabs": {
+        "overview": "KI-Sprachsynthese und Voice Cloning mit ElevenLabs – natürlichste Stimmen am Markt.",
+        "title": "ElevenLabs Voice AI",
+        "difficulty": "easy",
+        "estimated_time": "5 Minuten",
+        "prerequisites": ["ElevenLabs-Account (kostenloser Plan verfügbar)", "API Key aus dem Dashboard"],
+        "use_cases": [
+            "Automatische Sprachausgabe für WhatsApp-Nachrichten",
+            "Voice Cloning für personalisierte Kundenkommunikation",
+            "Mehrsprachige Sprachsynthese (29+ Sprachen)",
+            "Audio-Transkription",
+        ],
+        "steps": [
+            {"step": 1, "title": "Account erstellen", "description": "Registriere dich kostenlos auf elevenlabs.io und bestätige deine E-Mail."},
+            {"step": 2, "title": "API Key generieren", "description": "Gehe zu Profile Settings → API Keys und erstelle einen neuen Key."},
+            {"step": 3, "title": "Key in ARIIA eintragen", "description": "Füge den API Key in der Integrations-Konfiguration ein."},
+            {"step": 4, "title": "Stimme auswählen", "description": "Wähle eine der vordefinierten Stimmen oder klone deine eigene."},
+        ],
+        "faq": [
+            {"q": "Welche Sprachen werden unterstützt?", "a": "ElevenLabs unterstützt 29+ Sprachen, darunter Deutsch, Englisch, Französisch, Spanisch und viele mehr."},
+            {"q": "Wie funktioniert Voice Cloning?", "a": "Lade 1-3 Minuten Audioaufnahme hoch. ElevenLabs erstellt daraus eine klonierte Stimme."},
+            {"q": "Was kostet ElevenLabs?", "a": "Der kostenlose Plan bietet 10.000 Zeichen/Monat. Bezahlpläne ab $5/Monat."},
+        ],
+        "troubleshooting": [
+            {"issue": "401 Unauthorized", "solution": "Prüfe, ob der API Key korrekt kopiert wurde und noch gültig ist."},
+            {"issue": "Stimme klingt unnatürlich", "solution": "Passe die Stability- und Similarity-Boost-Werte an (0.3-0.7 empfohlen)."},
+        ],
+        "links": [
+            {"label": "ElevenLabs Dokumentation", "url": "https://elevenlabs.io/docs"},
+            {"label": "API Reference", "url": "https://elevenlabs.io/docs/api-reference"},
+        ],
+    },
+
+    "openai_tts": {
+        "overview": "Text-to-Speech mit OpenAI – 10 natürliche Stimmen, HD-Qualität verfügbar.",
+        "title": "OpenAI Text-to-Speech",
+        "difficulty": "easy",
+        "estimated_time": "3 Minuten",
+        "prerequisites": ["OpenAI-Account mit API-Zugang", "API Key aus dem Dashboard"],
+        "use_cases": [
+            "Sprachausgabe für Chat-Nachrichten",
+            "Audio-Content-Erstellung",
+            "Barrierefreie Kommunikation",
+        ],
+        "steps": [
+            {"step": 1, "title": "OpenAI Account", "description": "Erstelle einen Account auf platform.openai.com."},
+            {"step": 2, "title": "API Key erstellen", "description": "Gehe zu API Keys und erstelle einen neuen Secret Key."},
+            {"step": 3, "title": "Key in ARIIA eintragen", "description": "Füge den API Key in der Integrations-Konfiguration ein."},
+        ],
+        "faq": [
+            {"q": "Welche Stimmen gibt es?", "a": "10 Stimmen: alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer."},
+            {"q": "Was ist der Unterschied zwischen tts-1 und tts-1-hd?", "a": "tts-1-hd bietet höhere Audioqualität, ist aber langsamer und teurer."},
+        ],
+        "troubleshooting": [
+            {"issue": "429 Rate Limit", "solution": "Reduziere die Anfragen-Frequenz oder upgrade deinen OpenAI-Plan."},
+        ],
+        "links": [
+            {"label": "OpenAI TTS Dokumentation", "url": "https://platform.openai.com/docs/guides/text-to-speech"},
+            {"label": "API Reference", "url": "https://platform.openai.com/docs/api-reference/audio/createSpeech"},
+        ],
+    },
+
+    "openai_whisper": {
+        "overview": "Speech-to-Text mit OpenAI Whisper – Transkription und Übersetzung in 57+ Sprachen.",
+        "title": "OpenAI Whisper (Speech-to-Text)",
+        "difficulty": "easy",
+        "estimated_time": "3 Minuten",
+        "prerequisites": ["OpenAI-Account mit API-Zugang", "API Key aus dem Dashboard"],
+        "use_cases": [
+            "Automatische Transkription von Sprachnachrichten",
+            "Übersetzung von Audio ins Englische",
+            "Meeting-Protokolle aus Audioaufnahmen",
+            "Untertitel-Generierung mit Timestamps",
+        ],
+        "steps": [
+            {"step": 1, "title": "OpenAI Account", "description": "Erstelle einen Account auf platform.openai.com."},
+            {"step": 2, "title": "API Key erstellen", "description": "Gehe zu API Keys und erstelle einen neuen Secret Key."},
+            {"step": 3, "title": "Key in ARIIA eintragen", "description": "Füge den API Key in der Integrations-Konfiguration ein."},
+        ],
+        "faq": [
+            {"q": "Welche Dateiformate werden unterstützt?", "a": "mp3, mp4, mpeg, mpga, m4a, wav, webm – max. 25 MB."},
+            {"q": "Kann Whisper Deutsch transkribieren?", "a": "Ja, Whisper unterstützt 57+ Sprachen, darunter Deutsch mit hoher Genauigkeit."},
+        ],
+        "troubleshooting": [
+            {"issue": "Datei zu groß", "solution": "Teile die Audiodatei in Segmente unter 25 MB auf."},
+            {"issue": "Schlechte Transkriptionsqualität", "solution": "Verwende den 'prompt'-Parameter mit Kontext-Hinweisen."},
+        ],
+        "links": [
+            {"label": "Whisper Dokumentation", "url": "https://platform.openai.com/docs/guides/speech-to-text"},
+            {"label": "API Reference", "url": "https://platform.openai.com/docs/api-reference/audio/createTranscription"},
+        ],
+    },
+
+    "deepgram": {
+        "overview": "Enterprise Speech AI – Echtzeit-Transkription, TTS und Audio Intelligence mit Deepgram.",
+        "title": "Deepgram Speech AI",
+        "difficulty": "easy",
+        "estimated_time": "5 Minuten",
+        "prerequisites": ["Deepgram-Account (kostenloser Plan mit $200 Credit)", "API Key aus der Console"],
+        "use_cases": [
+            "Echtzeit-Transkription von Telefongesprächen",
+            "Pre-recorded Audio-Transkription",
+            "Audio Intelligence (Sentiment, Topics, Zusammenfassung)",
+            "Text-to-Speech mit Aura-Stimmen",
+        ],
+        "steps": [
+            {"step": 1, "title": "Account erstellen", "description": "Registriere dich auf console.deepgram.com – $200 kostenloses Credit."},
+            {"step": 2, "title": "API Key erstellen", "description": "Gehe zu Settings → API Keys und erstelle einen neuen Key."},
+            {"step": 3, "title": "Key in ARIIA eintragen", "description": "Füge den API Key in der Integrations-Konfiguration ein."},
+        ],
+        "faq": [
+            {"q": "Was ist Nova-2?", "a": "Nova-2 ist Deepgrams neuestes STT-Modell mit der höchsten Genauigkeit."},
+            {"q": "Unterstützt Deepgram Echtzeit-Streaming?", "a": "Ja, über WebSocket-Verbindungen mit <300ms Latenz."},
+        ],
+        "troubleshooting": [
+            {"issue": "WebSocket-Verbindung bricht ab", "solution": "Sende regelmäßig KeepAlive-Nachrichten (alle 10 Sekunden)."},
+            {"issue": "Niedrige Genauigkeit", "solution": "Verwende das nova-2-Modell und aktiviere smart_format und punctuate."},
+        ],
+        "links": [
+            {"label": "Deepgram Dokumentation", "url": "https://developers.deepgram.com/docs"},
+            {"label": "API Reference", "url": "https://developers.deepgram.com/reference"},
+        ],
+    },
+
+    "google_tts": {
+        "overview": "Google Cloud Text-to-Speech – WaveNet und Neural2 Stimmen in 40+ Sprachen.",
+        "title": "Google Cloud Text-to-Speech",
+        "difficulty": "medium",
+        "estimated_time": "10 Minuten",
+        "prerequisites": ["Google Cloud Account", "Text-to-Speech API aktiviert", "API Key oder Service Account"],
+        "use_cases": [
+            "Hochwertige Sprachsynthese mit Neural2-Stimmen",
+            "SSML-basierte Sprachsteuerung (Pausen, Betonung, Geschwindigkeit)",
+            "Mehrsprachige Sprachausgabe (40+ Sprachen)",
+        ],
+        "steps": [
+            {"step": 1, "title": "Google Cloud Projekt", "description": "Erstelle ein Projekt in der Google Cloud Console."},
+            {"step": 2, "title": "API aktivieren", "description": "Aktiviere die Text-to-Speech API im API-Marketplace."},
+            {"step": 3, "title": "API Key erstellen", "description": "Gehe zu Credentials und erstelle einen API Key."},
+            {"step": 4, "title": "Key in ARIIA eintragen", "description": "Füge den API Key in der Integrations-Konfiguration ein."},
+        ],
+        "faq": [
+            {"q": "Was ist der Unterschied zwischen Standard und Neural2?", "a": "Neural2-Stimmen klingen natürlicher, kosten aber mehr pro Zeichen."},
+            {"q": "Was ist SSML?", "a": "Speech Synthesis Markup Language – erlaubt Kontrolle über Pausen, Betonung und Aussprache."},
+        ],
+        "troubleshooting": [
+            {"issue": "403 Forbidden", "solution": "Prüfe, ob die Text-to-Speech API im Projekt aktiviert ist."},
+            {"issue": "Stimme nicht verfügbar", "solution": "Prüfe die Sprachcode-Kompatibilität (z.B. de-DE für Deutsch)."},
+        ],
+        "links": [
+            {"label": "Google TTS Dokumentation", "url": "https://cloud.google.com/text-to-speech/docs"},
+            {"label": "Stimmen-Katalog", "url": "https://cloud.google.com/text-to-speech/docs/voices"},
+        ],
+    },
+
+    "azure_speech": {
+        "overview": "Azure Cognitive Services Speech – TTS, STT, Echtzeit-Transkription und Sprach-Übersetzung.",
+        "title": "Azure Speech Services",
+        "difficulty": "medium",
+        "estimated_time": "10 Minuten",
+        "prerequisites": ["Azure-Account", "Speech Service Ressource erstellt", "API Key und Region"],
+        "use_cases": [
+            "Text-to-Speech mit Neural Voices (400+ Stimmen)",
+            "Echtzeit-Transkription von Gesprächen",
+            "Sprach-Übersetzung in Echtzeit",
+            "Custom Neural Voice (eigene Stimme trainieren)",
+        ],
+        "steps": [
+            {"step": 1, "title": "Azure Account", "description": "Erstelle einen Azure-Account (kostenloser Tier verfügbar)."},
+            {"step": 2, "title": "Speech Ressource erstellen", "description": "Erstelle eine Speech Service Ressource im Azure Portal."},
+            {"step": 3, "title": "Key und Region notieren", "description": "Kopiere den API Key und die Region aus der Ressource."},
+            {"step": 4, "title": "In ARIIA eintragen", "description": "Füge API Key und Region in der Integrations-Konfiguration ein."},
+        ],
+        "faq": [
+            {"q": "Welche Region soll ich wählen?", "a": "Für DACH-Kunden empfehlen wir 'westeurope' oder 'germanywestcentral'."},
+            {"q": "Wie viele Stimmen gibt es?", "a": "Über 400 Neural Voices in 140+ Sprachen und Varianten."},
+        ],
+        "troubleshooting": [
+            {"issue": "401 Unauthorized", "solution": "Prüfe API Key und Region – beides muss zur gleichen Ressource gehören."},
+            {"issue": "Hohe Latenz", "solution": "Wähle eine Region näher an deinem Standort (z.B. westeurope)."},
+        ],
+        "links": [
+            {"label": "Azure Speech Dokumentation", "url": "https://learn.microsoft.com/azure/ai-services/speech-service/"},
+            {"label": "Stimmen-Galerie", "url": "https://speech.microsoft.com/portal/voicegallery"},
+        ],
+    },
 }

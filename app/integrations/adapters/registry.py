@@ -151,6 +151,43 @@ class AdapterRegistry:
         except ImportError as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="salesforce", error=str(e))
 
+        # ─── Sprint 6 Adapters (AI Voice & Speech) ────────────────────────
+        try:
+            from app.integrations.adapters.elevenlabs_adapter import ElevenLabsAdapter
+            self.register(ElevenLabsAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="elevenlabs", error=str(e))
+
+        try:
+            from app.integrations.adapters.openai_tts_adapter import OpenAITtsAdapter
+            self.register(OpenAITtsAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="openai_tts", error=str(e))
+
+        try:
+            from app.integrations.adapters.openai_whisper_adapter import OpenAIWhisperAdapter
+            self.register(OpenAIWhisperAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="openai_whisper", error=str(e))
+
+        try:
+            from app.integrations.adapters.deepgram_adapter import DeepgramAdapter
+            self.register(DeepgramAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="deepgram", error=str(e))
+
+        try:
+            from app.integrations.adapters.google_tts_adapter import GoogleTtsAdapter
+            self.register(GoogleTtsAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="google_tts", error=str(e))
+
+        try:
+            from app.integrations.adapters.azure_speech_adapter import AzureSpeechAdapter
+            self.register(AzureSpeechAdapter())
+        except ImportError as e:
+            logger.warning("adapter_registry.builtin_import_failed", adapter="azure_speech", error=str(e))
+
     def register(self, adapter: BaseAdapter) -> None:
         """Register an adapter instance."""
         self._adapters[adapter.integration_id] = adapter
