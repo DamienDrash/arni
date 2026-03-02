@@ -217,6 +217,7 @@ async def get_permissions(
             "/automations": True,
             "/campaign-analytics": True,
             "/planning": True,
+            "/sync": True,
         }
     else:
         # Standard SaaS logic for Tenants
@@ -279,6 +280,7 @@ async def get_permissions(
                 "/automations": False,
                 "/campaign-analytics": False,
                 "/planning": False,
+                "/sync": False,
             }
         else:
             pages_data = {
@@ -309,6 +311,7 @@ async def get_permissions(
             "/automations": features_data.get("automation", False),
             "/campaign-analytics": True,
             "/planning": True,
+            "/sync": features_data.get("api_access", False) or (plan and plan.slug not in ("starter", "trial")),
         }
 
     # 4. Usage Data
