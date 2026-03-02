@@ -168,7 +168,7 @@ class NotionService:
             "response_type": "code",
             "owner": "user",
             "redirect_uri": redirect_uri,
-            "state": str(tenant_id),
+            "state": f"tenant_{tenant_id}",
         }
         return {"auth_url": f"{NOTION_AUTH_URL}?{urlencode(params)}"}
 

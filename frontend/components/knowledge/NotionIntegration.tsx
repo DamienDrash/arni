@@ -329,6 +329,55 @@ export default function NotionIntegration({ isAdmin = false }: { isAdmin?: boole
     }
   }, [connection?.connected, loadPages, loadSyncedPages, loadSyncLogs]);
 
+  /* ── OAuth Callback Handler ────────────────────────────────────────── */
+  const handleOAuthCode = useCallback(async (code: string) => {
+    setConnecting(true);
+    setError("");
+    try {
+      const redirectUri = `${window.location.origin}/knowledge?notion_callback=true`;
+      const res = await apiFetch("/memory-platform/notion/oauth-callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, redirect_uri: redirectUri }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.detail || "OAuth-Austausch fehlgeschlagen");
+      } else {
+        await loadStatus();
+      }
+    } catch {
+      setError("Fehler beim Abschließen der Notion-Verbindung");
+    }
+    setConnecting(false);
+  }, [loadStatus]);
+
+  // Listen for OAuth callback from popup or URL params
+  useEffect(() => {
+    // Check URL params (if redirected back to this page)
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (code) {
+      handleOAuthCode(code);
+      // Clean up URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("code");
+      url.searchParams.delete("state");
+      url.searchParams.delete("notion_callback");
+      window.history.replaceState({}, "", url.toString());
+      return;
+    }
+
+    // Listen for messages from popup window
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin === window.location.origin && event.data?.type === "notion_oauth_callback" && event.data?.code) {
+        handleOAuthCode(event.data.code);
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [handleOAuthCode]);
+
   /* ── Actions ──────────────────────────────────────────────────────── */
   const connectNotion = async () => {
     setConnecting(true);
