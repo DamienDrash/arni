@@ -69,16 +69,17 @@ class ContactInsightsEngine:
         # Using raw SQL for performance with the analytics_events table
         events_query = text("""
             SELECT
-                cr.contact_id,
-                cr.channel,
+                cr.member_id AS contact_id,
+                c.channel,
                 ce.event_type,
                 ce.created_at
             FROM campaign_events ce
             JOIN campaign_recipients cr ON cr.id = ce.recipient_id
-            WHERE cr.tenant_id = :tenant_id
+            JOIN campaigns c ON c.id = cr.campaign_id
+            WHERE c.tenant_id = :tenant_id
               AND ce.created_at >= :cutoff
-              AND cr.contact_id IS NOT NULL
-            ORDER BY cr.contact_id, ce.created_at
+              AND cr.member_id IS NOT NULL
+            ORDER BY cr.member_id, ce.created_at
         """)
 
         try:
