@@ -410,7 +410,7 @@ export default function ContactsPage() {
     // Fetch activities
     try { const res = await apiFetch(`/api/v2/contacts/${contact.id}/activities`); if (res.ok) { const data = await res.json(); setDetailActivities(data.items || data); } } catch {}
     // Fetch custom field values
-    try { const res = await apiFetch(`/api/v2/contacts/${contact.id}/custom-fields`); if (res.ok) { const data = await res.json(); setContactCustomValues(data.values || data); } } catch {}
+    try { const res = await apiFetch(`/api/v2/contacts/${contact.id}/custom-fields`); if (res.ok) { const data = await res.json(); setContactCustomValues(Array.isArray(data) ? {} : (typeof data === 'object' && data !== null ? data : {})); } } catch {}
   };
 
   // ── Inline Edit ────────────────────────────────────────────────────────
