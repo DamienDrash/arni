@@ -243,6 +243,16 @@ class TenantIntegration(Base):
     last_health_check = Column(DateTime, nullable=True)
     last_error = Column(Text, nullable=True)
 
+    # ── Sync-specific columns (Contact-Sync Refactoring) ────────────────
+    last_sync_at = Column(DateTime, nullable=True)
+    last_sync_status = Column(String(16), default="idle")
+    last_sync_error = Column(Text, nullable=True)
+    sync_direction = Column(String(16), default="inbound")  # inbound, outbound, bidirectional
+    sync_mode = Column(String(16), default="full")  # full, incremental
+    records_synced_total = Column(Integer, default=0)
+    health_status = Column(String(16), default="unknown")  # healthy, degraded, unhealthy, unknown
+    health_checked_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
         DateTime,
@@ -256,6 +266,201 @@ class TenantIntegration(Base):
 
     # Relationships
     integration = relationship("IntegrationDefinition", back_populates="tenant_integrations")
+    sync_logs = relationship(
+        "SyncLog", back_populates="tenant_integration",
+        cascade="all, delete-orphan", order_by="SyncLog.created_at.desc()",
+    )
+    schedule = relationship(
+        "SyncSchedule", back_populates="tenant_integration",
+        uselist=False, cascade="all, delete-orphan",
+    )
+    webhook_endpoints = relationship(
+        "WebhookEndpoint", back_populates="tenant_integration",
+        cascade="all, delete-orphan",
+    )
+
+    def to_dict(self, include_definition: bool = False) -> dict:
+        """Serialize to dictionary for API responses."""
+        result = {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "integration_id": self.integration_id,
+            "status": self.status,
+            "enabled": self.enabled,
+            "last_sync_at": self.last_sync_at.isoformat() if self.last_sync_at else None,
+            "last_sync_status": self.last_sync_status,
+            "last_sync_error": self.last_sync_error,
+            "sync_direction": self.sync_direction,
+            "sync_mode": self.sync_mode,
+            "records_synced_total": self.records_synced_total or 0,
+            "health_status": self.health_status,
+            "health_checked_at": self.health_checked_at.isoformat() if self.health_checked_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+        if include_definition and self.integration:
+            result["definition"] = {
+                "id": self.integration.id,
+                "name": self.integration.name,
+                "description": self.integration.description,
+                "category": self.integration.category,
+                "logo_url": self.integration.logo_url,
+                "config_schema": self.integration.config_schema,
+                "min_plan": self.integration.min_plan,
+            }
+        return result
 
     def __repr__(self) -> str:
         return f"<TenantIntegration(tenant={self.tenant_id}, integration='{self.integration_id}', status='{self.status}')>"
+
+
+# ─── Sync Log ────────────────────────────────────────────────────────────────
+
+
+class SyncLog(Base):
+    """Detailed log entry for a single sync run.
+
+    Every sync operation (manual, scheduled, webhook-triggered) creates
+    exactly one SyncLog record that tracks the full lifecycle from
+    pending → running → success/failed.
+    """
+    __tablename__ = "sync_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_integration_id = Column(
+        Integer, ForeignKey("tenant_integrations.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    tenant_id = Column(
+        Integer, ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    sync_type = Column(String(32), nullable=False, default="full")  # full, incremental, webhook
+    trigger = Column(String(32), nullable=False, default="manual")  # manual, scheduled, webhook
+    status = Column(String(16), nullable=False, default="pending")  # pending, running, success, failed, cancelled
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    records_fetched = Column(Integer, nullable=False, default=0)
+    records_created = Column(Integer, nullable=False, default=0)
+    records_updated = Column(Integer, nullable=False, default=0)
+    records_deleted = Column(Integer, nullable=False, default=0)
+    records_unchanged = Column(Integer, nullable=False, default=0)
+    records_failed = Column(Integer, nullable=False, default=0)
+    error_message = Column(Text, nullable=True)
+    error_details = Column(JSONB, nullable=True)
+    metadata_json = Column(JSONB, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    tenant_integration = relationship("TenantIntegration", back_populates="sync_logs")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "tenant_integration_id": self.tenant_integration_id,
+            "sync_type": self.sync_type,
+            "trigger": self.trigger,
+            "status": self.status,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "finished_at": self.finished_at.isoformat() if self.finished_at else None,
+            "duration_ms": self.duration_ms,
+            "records_fetched": self.records_fetched or 0,
+            "records_created": self.records_created or 0,
+            "records_updated": self.records_updated or 0,
+            "records_deleted": self.records_deleted or 0,
+            "records_unchanged": self.records_unchanged or 0,
+            "records_failed": self.records_failed or 0,
+            "error_message": self.error_message,
+            "error_details": self.error_details,
+            "metadata_json": self.metadata_json,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# ─── Sync Schedule ───────────────────────────────────────────────────────────
+
+
+class SyncSchedule(Base):
+    """Cron-based schedule for automatic sync runs.
+
+    Each tenant_integration can have at most one schedule. The scheduler
+    loop checks next_run_at to determine when to trigger the next sync.
+    """
+    __tablename__ = "sync_schedules"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_integration_id = Column(
+        Integer, ForeignKey("tenant_integrations.id", ondelete="CASCADE"),
+        nullable=False, unique=True,
+    )
+    tenant_id = Column(
+        Integer, ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    is_enabled = Column(Boolean, nullable=False, default=False)
+    cron_expression = Column(String(64), nullable=False, default="0 */6 * * *")
+    last_run_at = Column(DateTime, nullable=True)
+    next_run_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    # Relationships
+    tenant_integration = relationship("TenantIntegration", back_populates="schedule")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "tenant_integration_id": self.tenant_integration_id,
+            "is_enabled": self.is_enabled,
+            "cron_expression": self.cron_expression,
+            "last_run_at": self.last_run_at.isoformat() if self.last_run_at else None,
+            "next_run_at": self.next_run_at.isoformat() if self.next_run_at else None,
+        }
+
+
+# ─── Webhook Endpoint ───────────────────────────────────────────────────────
+
+
+class WebhookEndpoint(Base):
+    """Registered webhook receiver for real-time sync events.
+
+    Each integration can register one or more webhook endpoints.
+    The endpoint_path is unique and used for routing incoming webhooks.
+    """
+    __tablename__ = "webhook_endpoints"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_integration_id = Column(
+        Integer, ForeignKey("tenant_integrations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    tenant_id = Column(
+        Integer, ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    endpoint_path = Column(String(255), nullable=False, unique=True)
+    secret_token = Column(String(255), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    events_filter = Column(JSONB, nullable=True)
+    last_received_at = Column(DateTime, nullable=True)
+    total_received = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    tenant_integration = relationship("TenantIntegration", back_populates="webhook_endpoints")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "tenant_integration_id": self.tenant_integration_id,
+            "endpoint_path": self.endpoint_path,
+            "is_active": self.is_active,
+            "events_filter": self.events_filter,
+            "last_received_at": self.last_received_at.isoformat() if self.last_received_at else None,
+            "total_received": self.total_received or 0,
+        }

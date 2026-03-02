@@ -1019,5 +1019,72 @@
       "noDocs": "No documentation available yet.",
       "viewFullDocs": "View Full Documentation"
     }
+  },
+  "sync": {
+    "title": "Contact Sync",
+    "subtitle": "Manage your data sources and synchronizations",
+    "dashboard": "Overview",
+    "marketplace": "Marketplace",
+    "history": "Sync History",
+    "addIntegration": "Add Integration",
+    "noIntegrations": "No integrations configured",
+    "noIntegrationsDesc": "Connect your external systems to automatically synchronize contact data.",
+    "firstSetup": "Set up first integration",
+    "activeIntegrations": "Active Integrations",
+    "errors": "Errors",
+    "contactsSynced": "Contacts synced",
+    "lastSync": "Last Sync",
+    "configuredIntegrations": "Configured Integrations",
+    "syncNow": "Sync now",
+    "fullSync": "Full Sync",
+    "incrementalSync": "Incremental Sync",
+    "setupWizard": {
+      "enterCredentials": "Enter your credentials",
+      "testingConnection": "Testing connection...",
+      "configureOptions": "Configure sync options",
+      "setupComplete": "Integration successfully set up!",
+      "testConnection": "Test Connection",
+      "saveAndActivate": "Save & Activate",
+      "connectionSuccess": "Connection successful!",
+      "connectionFailed": "Connection failed",
+      "syncDirection": "Sync Direction",
+      "syncInterval": "Sync Interval",
+      "inbound": "Inbound (Import)",
+      "outbound": "Outbound (Export)",
+      "bidirectional": "Bidirectional"
+    },
+    "detail": {
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "remove": "Remove Integration",
+      "removeConfirm": "really remove?",
+      "removeDesc": "All credentials and configurations will be deleted. Already synced contacts will be preserved.",
+      "removeForever": "Remove permanently"
+    },
+    "status": {
+      "connected": "Connected",
+      "configured": "Configured",
+      "syncing": "Syncing...",
+      "error": "Error",
+      "disconnected": "Disconnected"
+    },
+    "table": {
+      "status": "Status",
+      "mode": "Mode",
+      "fetched": "Fetched",
+      "created": "Created",
+      "updated": "Updated",
+      "errors": "Errors",
+      "duration": "Duration",
+      "triggeredBy": "Triggered by",
+      "timestamp": "Timestamp",
+      "success": "Success",
+      "error": "Error",
+      "full": "Full",
+      "incremental": "Incremental",
+      "manual": "Manual",
+      "scheduled": "Scheduled",
+      "webhook": "Webhook"
+    }
   }
 }

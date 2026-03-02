@@ -1019,5 +1019,72 @@
       "noDocs": "Noch keine Dokumentation verfügbar.",
       "viewFullDocs": "Vollständige Dokumentation anzeigen"
     }
+  },
+  "sync": {
+    "title": "Contact Sync",
+    "subtitle": "Verwalten Sie Ihre Datenquellen und Synchronisierungen",
+    "dashboard": "Übersicht",
+    "marketplace": "Marketplace",
+    "history": "Sync-Verlauf",
+    "addIntegration": "Integration hinzufügen",
+    "noIntegrations": "Keine Integrationen konfiguriert",
+    "noIntegrationsDesc": "Verbinden Sie Ihre externen Systeme, um Kontaktdaten automatisch zu synchronisieren.",
+    "firstSetup": "Erste Integration einrichten",
+    "activeIntegrations": "Aktive Integrationen",
+    "errors": "Fehler",
+    "contactsSynced": "Kontakte synchronisiert",
+    "lastSync": "Letzter Sync",
+    "configuredIntegrations": "Konfigurierte Integrationen",
+    "syncNow": "Jetzt synchronisieren",
+    "fullSync": "Full Sync",
+    "incrementalSync": "Inkrementeller Sync",
+    "setupWizard": {
+      "enterCredentials": "Geben Sie Ihre Zugangsdaten ein",
+      "testingConnection": "Verbindung wird getestet...",
+      "configureOptions": "Sync-Optionen konfigurieren",
+      "setupComplete": "Integration erfolgreich eingerichtet!",
+      "testConnection": "Verbindung testen",
+      "saveAndActivate": "Speichern & Aktivieren",
+      "connectionSuccess": "Verbindung erfolgreich!",
+      "connectionFailed": "Verbindung fehlgeschlagen",
+      "syncDirection": "Sync-Richtung",
+      "syncInterval": "Sync-Intervall",
+      "inbound": "Eingehend (Import)",
+      "outbound": "Ausgehend (Export)",
+      "bidirectional": "Bidirektional"
+    },
+    "detail": {
+      "deactivate": "Deaktivieren",
+      "activate": "Aktivieren",
+      "remove": "Integration entfernen",
+      "removeConfirm": "wirklich entfernen?",
+      "removeDesc": "Alle Zugangsdaten und Konfigurationen werden gelöscht. Bereits synchronisierte Kontakte bleiben erhalten.",
+      "removeForever": "Endgültig entfernen"
+    },
+    "status": {
+      "connected": "Verbunden",
+      "configured": "Konfiguriert",
+      "syncing": "Synchronisiert...",
+      "error": "Fehler",
+      "disconnected": "Nicht verbunden"
+    },
+    "table": {
+      "status": "Status",
+      "mode": "Modus",
+      "fetched": "Abgerufen",
+      "created": "Erstellt",
+      "updated": "Aktualisiert",
+      "errors": "Fehler",
+      "duration": "Dauer",
+      "triggeredBy": "Ausgelöst",
+      "timestamp": "Zeitpunkt",
+      "success": "Erfolg",
+      "error": "Fehler",
+      "full": "Vollständig",
+      "incremental": "Inkrementell",
+      "manual": "Manuell",
+      "scheduled": "Geplant",
+      "webhook": "Webhook"
+    }
   }
 }

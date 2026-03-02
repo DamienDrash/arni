@@ -75,6 +75,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("ariia.gateway.magicline_scheduler_skipped", error=str(e))
 
+    # Contact Sync Scheduler (Phase 3)
+    try:
+        from app.contacts.sync_scheduler import start_sync_scheduler
+        start_sync_scheduler()
+        logger.info("ariia.gateway.contact_sync_scheduler_started")
+    except Exception as e:
+        logger.warning("ariia.gateway.contact_sync_scheduler_skipped", error=str(e))
+
     # Data Retention & Maintenance Loop
     try:
         from app.core.maintenance import maintenance_loop
@@ -171,6 +179,7 @@ app.include_router(metrics_router)
 
 # --- New Routers (PR 2, 3, 4) ---
 from app.gateway.routers import members_crud, integrations_sync, connector_hub, permissions, platform_ai, plans_admin
+from app.gateway.routers.contact_sync_api import router as contact_sync_router, webhook_router as contact_sync_webhook_router
 from app.gateway.routers import revenue_analytics, tenant_llm, campaigns
 from app.gateway.routers import docker_management
 from app.gateway.routers import smtp_config
@@ -181,6 +190,8 @@ from app.gateway.routers import analytics_api
 from app.gateway.routers import ab_testing_api
 app.include_router(integrations_sync.router)
 app.include_router(connector_hub.router)
+app.include_router(contact_sync_router)
+app.include_router(contact_sync_webhook_router)
 app.include_router(permissions.router)
 app.include_router(platform_ai.router)
 app.include_router(plans_admin.router)
