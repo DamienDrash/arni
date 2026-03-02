@@ -384,8 +384,12 @@ export default function NotionIntegration({ isAdmin = false }: { isAdmin?: boole
 
     // Listen for messages from popup window
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin === window.location.origin && event.data?.type === "notion_oauth_callback" && event.data?.code) {
-        handleOAuthCode(event.data.code);
+      if (event.origin === window.location.origin && event.data?.type === "notion_oauth_callback") {
+        if (event.data.error) {
+          setError(`Notion-Autorisierung fehlgeschlagen: ${event.data.error}`);
+        } else if (event.data.code) {
+          handleOAuthCode(event.data.code);
+        }
       }
     };
     window.addEventListener("message", handleMessage);
@@ -407,9 +411,15 @@ export default function NotionIntegration({ isAdmin = false }: { isAdmin?: boole
       }
       const data = await res.json();
       if (data.oauth_url) {
-        // Redirect in same window – Notion callback will redirect back to /knowledge
-        window.location.href = data.oauth_url;
-        return; // Don't reset connecting state, page will navigate away
+        // Open Notion OAuth in a popup window
+        const w = 600, h = 700;
+        const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
+        const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
+        window.open(
+          data.oauth_url,
+          "notion_oauth",
+          `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`
+        );
       }
     } catch (e) {
       setError("Verbindungsfehler");
