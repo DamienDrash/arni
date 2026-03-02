@@ -5,10 +5,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: runner
-    container_name: ariia_frontend
     restart: always
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_ENABLE_WS=true
@@ -21,16 +20,15 @@ services:
   # 2. ARIIA Core (Production)
   ariia-core:
     build: .
-    container_name: ariia_core
     restart: always
     group_add:
       - 988
     ports:
-      - "8000:8000"
+      - "${CORE_PORT:-8000}:8000"
     command: ["uvicorn", "app.gateway.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*", "--workers", "2"]
     environment:
       - PYTHONPATH=/app
-      - REDIS_URL=redis://ariia-redis:6379/0
+      - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
       - QDRANT_URL=http://ariia-qdrant:6333
       - LOG_LEVEL=INFO
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -38,11 +36,18 @@ services:
       - SYSTEM_ADMIN_EMAIL=${SYSTEM_ADMIN_EMAIL:-admin@ariia.io}
       - SYSTEM_ADMIN_PASSWORD=${SYSTEM_ADMIN_PASSWORD:-Admin!Password2026}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
-      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia
+      - GATEWAY_PUBLIC_URL=${GATEWAY_PUBLIC_URL:-http://localhost:3000}
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
     depends_on:
-      - ariia-redis
-      - ariia-qdrant
-      - ariia-postgres
+      ariia-redis:
+        condition: service_started
+        required: false
+      ariia-qdrant:
+        condition: service_started
+        required: false
+      ariia-postgres:
+        condition: service_started
+        required: false
     volumes:
       - ariia_data:/app/data
       - ./config:/app/config
@@ -54,50 +59,53 @@ services:
     networks:
       - ariia-network
 
+  # 3. Infrastructure (disabled via profiles in staging)
   ariia-qdrant:
     image: qdrant/qdrant:latest
-    container_name: ariia_qdrant
     restart: always
     volumes:
       - qdrant_data:/qdrant/storage
     networks:
       - ariia-network
+    profiles:
+      - infra
 
   ariia-redis:
     image: redis:alpine
-    container_name: ariia_redis
     restart: always
     volumes:
       - redis_data:/data
     networks:
       - ariia-network
+    profiles:
+      - infra
 
   ariia-postgres:
     image: postgres:16-alpine
-    container_name: ariia_postgres
     restart: always
     environment:
-      - POSTGRES_DB=ariia
+      - POSTGRES_DB=${POSTGRES_DB:-ariia}
       - POSTGRES_USER=ariia
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ariia_dev_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - ariia-network
+    profiles:
+      - infra
 
+  # 4. Workers
   ariia-worker:
     build: .
-    container_name: ariia_worker
     restart: always
     command: python scripts/bulk_enrich_worker.py
     environment:
       - PYTHONPATH=/app
-      - REDIS_URL=redis://ariia-redis:6379/0
-      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia
+      - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
       - AUTH_SECRET=${AUTH_SECRET}
     depends_on:
-      - ariia-redis
-      - ariia-postgres
+      - ariia-core
     healthcheck:
       disable: true
     volumes:
@@ -107,18 +115,15 @@ services:
 
   ariia-telegram-polling:
     build: .
-    container_name: ariia_telegram_polling
     restart: always
     command: python scripts/telegram_polling_worker.py
     environment:
       - PYTHONPATH=/app
-      - REDIS_URL=redis://ariia-redis:6379/0
-      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia
+      - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
       - AUTH_SECRET=${AUTH_SECRET}
     depends_on:
       - ariia-core
-      - ariia-redis
-      - ariia-postgres
     healthcheck:
       disable: true
     volumes:
@@ -128,18 +133,15 @@ services:
 
   ariia-email-worker:
     build: .
-    container_name: ariia_email_worker
     restart: always
     command: python scripts/email_polling_worker.py
     environment:
       - PYTHONPATH=/app
-      - REDIS_URL=redis://ariia-redis:6379/0
-      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia
+      - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
       - AUTH_SECRET=${AUTH_SECRET}
     depends_on:
       - ariia-core
-      - ariia-redis
-      - ariia-postgres
     volumes:
       - .:/app
       - ariia_data:/app/data
@@ -148,19 +150,16 @@ services:
 
   ariia-campaign-scheduler:
     build: .
-    container_name: ariia_campaign_scheduler
     restart: always
     command: python scripts/campaign_scheduler_worker.py
     environment:
       - PYTHONPATH=/app
-      - REDIS_URL=redis://ariia-redis:6379/0
-      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia
+      - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
       - AUTH_SECRET=${AUTH_SECRET}
       - CAMPAIGN_POLL_INTERVAL=30
     depends_on:
       - ariia-core
-      - ariia-redis
-      - ariia-postgres
     healthcheck:
       disable: true
     volumes:
@@ -171,19 +170,16 @@ services:
   # 7b. Automation Engine Worker
   ariia-automation-engine:
     build: .
-    container_name: ariia_automation_engine
     restart: always
     command: python scripts/automation_engine_worker.py
     environment:
       - PYTHONPATH=/app
-      - REDIS_URL=redis://ariia-redis:6379/0
-      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia
+      - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
       - AUTH_SECRET=${AUTH_SECRET}
       - ENGINE_POLL_INTERVAL=10
     depends_on:
       - ariia-core
-      - ariia-redis
-      - ariia-postgres
     healthcheck:
       disable: true
     volumes:
@@ -194,19 +190,16 @@ services:
   # 7c. Contact Change Listener
   ariia-contact-listener:
     build: .
-    container_name: ariia_contact_listener
     restart: always
     command: python scripts/contact_change_listener_worker.py
     environment:
       - PYTHONPATH=/app
-      - REDIS_URL=redis://ariia-redis:6379/0
-      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia
+      - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
       - AUTH_SECRET=${AUTH_SECRET}
       - LISTENER_POLL_INTERVAL=60
     depends_on:
       - ariia-core
-      - ariia-redis
-      - ariia-postgres
     healthcheck:
       disable: true
     volumes:
@@ -217,19 +210,16 @@ services:
   # 7d. Analytics Processing Worker
   ariia-analytics-worker:
     build: .
-    container_name: ariia_analytics_worker
     restart: always
     command: python scripts/analytics_processing_worker.py
     environment:
       - PYTHONPATH=/app
-      - REDIS_URL=redis://ariia-redis:6379/0
-      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia
+      - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
       - AUTH_SECRET=${AUTH_SECRET}
       - ANALYTICS_POLL_INTERVAL=30
     depends_on:
       - ariia-core
-      - ariia-redis
-      - ariia-postgres
     healthcheck:
       disable: true
     volumes:
@@ -240,19 +230,16 @@ services:
   # 7e. Contact Insights Worker (AI Channel Affinity & Smart Send)
   ariia-contact-insights-worker:
     build: .
-    container_name: ariia_contact_insights_worker
     restart: always
     command: python scripts/contact_insights_worker.py
     environment:
       - PYTHONPATH=/app
-      - REDIS_URL=redis://ariia-redis:6379/0
-      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia
+      - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
       - AUTH_SECRET=${AUTH_SECRET}
       - INSIGHTS_POLL_INTERVAL=3600
     depends_on:
       - ariia-core
-      - ariia-redis
-      - ariia-postgres
     healthcheck:
       disable: true
     volumes:
@@ -260,11 +247,10 @@ services:
     networks:
       - ariia-network
 
-  # --- Monitoring Stack ---
+  # --- Monitoring Stack (only in production via profiles) ---
 
   prometheus:
     image: prom/prometheus:latest
-    container_name: ariia_prometheus
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
@@ -275,59 +261,68 @@ services:
     restart: always
     networks:
       - ariia-network
+    profiles:
+      - monitoring
 
   alertmanager:
     image: prom/alertmanager:latest
-    container_name: ariia_alertmanager
     volumes:
       - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
     restart: always
     networks:
       - ariia-network
+    profiles:
+      - monitoring
 
   grafana:
     image: grafana/grafana:latest
-    container_name: ariia_grafana
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
       - grafana_data:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=GoldStandard2026!
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_DOMAIN=www.ariia.ai
-      - GF_SERVER_ROOT_URL=https://www.ariia.ai/monitor/
+      - GF_SERVER_DOMAIN=${GRAFANA_DOMAIN:-www.ariia.ai}
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-https://www.ariia.ai/monitor/}
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
     restart: always
     ports:
-      - "3002:3000"
+      - "${GRAFANA_PORT:-3003}:3000"
     depends_on:
       - prometheus
     networks:
       - ariia-network
+    profiles:
+      - monitoring
 
   redis-exporter:
     image: oliver006/redis_exporter:latest
-    container_name: ariia_redis_exporter
     environment:
       - REDIS_ADDR=redis://ariia-redis:6379
     depends_on:
-      - ariia-redis
+      ariia-redis:
+        condition: service_started
+        required: false
     networks:
       - ariia-network
+    profiles:
+      - monitoring
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
-    container_name: ariia_postgres_exporter
     environment:
-      - DATA_SOURCE_NAME=postgresql://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia?sslmode=disable
+      - DATA_SOURCE_NAME=postgresql://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}?sslmode=disable
     depends_on:
-      - ariia-postgres
+      ariia-postgres:
+        condition: service_started
+        required: false
     networks:
       - ariia-network
+    profiles:
+      - monitoring
 
   node-exporter:
     image: prom/node-exporter:latest
-    container_name: ariia_node_exporter
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -339,10 +334,11 @@ services:
     restart: always
     networks:
       - ariia-network
+    profiles:
+      - monitoring
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
-    container_name: ariia_cadvisor
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -352,20 +348,22 @@ services:
     restart: always
     networks:
       - ariia-network
+    profiles:
+      - monitoring
 
   loki:
     image: grafana/loki:latest
-    container_name: ariia_loki
     volumes:
       - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml
     command: -config.file=/etc/loki/local-config.yaml
     restart: always
     networks:
       - ariia-network
+    profiles:
+      - monitoring
 
   promtail:
     image: grafana/promtail:latest
-    container_name: ariia_promtail
     volumes:
       - /var/log:/var/log
       - /var/run/docker.sock:/var/run/docker.sock
@@ -374,15 +372,15 @@ services:
     restart: always
     networks:
       - ariia-network
-
+    profiles:
+      - monitoring
 
   # WhatsApp WAHA Bridge (QR Code based)
   ariia-whatsapp-bridge:
     image: devlikeapro/waha-plus:noweb
-    container_name: ariia_whatsapp_bridge
     restart: always
     ports:
-      - "3002:3000"
+      - "${WHATSAPP_PORT:-3002}:3000"
     environment:
       - WHATSAPP_DEFAULT_ENGINE=NOWEB
       - WHATSAPP_RESTART_ALL_SESSIONS=true
@@ -394,6 +392,8 @@ services:
       - waha_sessions:/app/.sessions
     networks:
       - ariia-network
+    profiles:
+      - whatsapp
 
 volumes:
   waha_sessions:
