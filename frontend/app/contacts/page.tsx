@@ -2187,7 +2187,7 @@ export default function ContactsPage() {
 
       {/* ── Sync Panel Modal ─────────────────────────────────────────── */}
       {showSyncPanel && (
-        <Modal title="Integrations-Synchronisation" onClose={() => setShowSyncPanel(false)} width="560px">
+        <Modal open={showSyncPanel} title="Integrations-Synchronisation" onClose={() => setShowSyncPanel(false)} width="560px">
           <div style={{ padding: "8px 0" }}>
             <p style={{ fontSize: 12, color: T.textMuted, marginBottom: 16 }}>
               Synchronisieren Sie Kontakte aus Ihren verbundenen Plattformen. Aktivierte Integrationen werden hier angezeigt.
