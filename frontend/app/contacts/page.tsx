@@ -1223,7 +1223,7 @@ export default function ContactsPage() {
         {selectedContact && (
           <>
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.3)", zIndex: 999 }} onClick={() => setSelectedContact(null)} />
-          <div style={S.detailPanel}>
+          <div style={{ position: "fixed", top: 0, right: 0, width: 480, height: "100vh", background: T.surface, borderLeft: `1px solid ${T.border}`, zIndex: 1000, display: "flex", flexDirection: "column" as const, boxShadow: "-8px 0 30px rgba(0,0,0,.12)" }}>
             {/* Header */}
             <div style={S.detailHeader}>
               <div style={{ ...S.avatar, width: 48, height: 48, fontSize: 16, background: `${getAvatarColor(selectedContact.full_name)}22`, color: getAvatarColor(selectedContact.full_name) }}>
