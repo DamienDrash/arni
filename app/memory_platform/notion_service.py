@@ -47,8 +47,7 @@ def _get_platform_notion_credentials() -> tuple[str, str]:
     client_secret = ""
 
     try:
-        from app.gateway.persistence import get_store
-        store = get_store()
+        from app.gateway.persistence import persistence as store
         sys_tid = store.get_system_tenant_id()
         client_id = store.get_setting("platform_notion_client_id", tenant_id=sys_tid) or ""
         # persistence.get_setting already decrypts sensitive keys automatically
@@ -86,8 +85,7 @@ class NotionService:
         if not client_id:
             return {"error": "Client ID ist erforderlich"}
         
-        from app.gateway.persistence import get_store
-        store = get_store()
+        from app.gateway.persistence import persistence as store
         sys_tid = store.get_system_tenant_id()
         
         # Always save client_id
