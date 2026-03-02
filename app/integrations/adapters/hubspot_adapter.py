@@ -572,7 +572,7 @@ class HubSpotAdapter(BaseAdapter):
 
     def _get_tenant_token(self, tenant_id: int) -> str:
         """Resolve HubSpot token from Vault for capability execution."""
-        from app.core.security.vault import CredentialVault
+        from app.core.credential_vault import CredentialVault
         vault = CredentialVault()
         config = vault.get_credentials(tenant_id, "hubspot")
         token = (config.get("access_token") or "").strip()

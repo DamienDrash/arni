@@ -25,7 +25,7 @@ from fastapi import APIRouter, Request, Response, HTTPException
 
 from app.core.db import SessionLocal
 from app.core.integration_models import TenantIntegration, WebhookEndpoint, SyncLog
-from app.core.security.vault import credential_vault
+from app.core.credential_vault import credential_vault
 
 logger = structlog.get_logger()
 

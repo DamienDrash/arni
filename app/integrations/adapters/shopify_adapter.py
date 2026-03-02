@@ -440,7 +440,7 @@ class ShopifyAdapter(BaseAdapter):
 
     def _get_tenant_config(self, tenant_id: int) -> tuple[str, str, str]:
         """Resolve Shopify config from Vault/Settings for capability execution."""
-        from app.core.security.vault import CredentialVault
+        from app.core.credential_vault import CredentialVault
         vault = CredentialVault()
         config = vault.get_credentials(tenant_id, "shopify")
         domain = (config.get("shop_domain") or "").strip().replace("https://", "").replace("http://", "").rstrip("/")

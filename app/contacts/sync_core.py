@@ -36,7 +36,7 @@ from app.core.integration_models import (
     SyncSchedule,
     TenantIntegration,
 )
-from app.core.security.vault import CredentialVault
+from app.core.credential_vault import CredentialVault
 from app.integrations.adapters.base import (
     BaseAdapter,
     ConnectionTestResult,

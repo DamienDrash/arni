@@ -406,7 +406,7 @@ class WooCommerceAdapter(BaseAdapter):
 
     def _get_tenant_config(self, tenant_id: int) -> tuple[str, str, str]:
         """Resolve WooCommerce config from Vault for capability execution."""
-        from app.core.security.vault import CredentialVault
+        from app.core.credential_vault import CredentialVault
         vault = CredentialVault()
         config = vault.get_credentials(tenant_id, "woocommerce")
         store_url = (config.get("store_url") or "").strip()
