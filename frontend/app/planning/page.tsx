@@ -38,7 +38,7 @@ type ViewMode = "month" | "week" | "list";
    Styles
    ═══════════════════════════════════════════════════════════════════════ */
 
-const S: Record<string, CSSProperties> = {
+const S: Record<string, any> = {
   page: {
     minHeight: "100vh",
     background: T.bg,
