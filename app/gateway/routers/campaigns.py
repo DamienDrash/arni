@@ -1004,3 +1004,91 @@ def _count_segment_members(db: Session, tenant_id: int, filter_json: str | None)
     if not filter_json:
         return db.query(StudioMember).filter(StudioMember.tenant_id == tenant_id).count()
     return len(_apply_segment_filter(db, tenant_id, filter_json))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ORCHESTRATION STEPS CRUD
+# ═══════════════════════════════════════════════════════════════════════════
+
+class OrchStepSchema(BaseModel):
+    step_order: int
+    channel: str
+    template_id: int | None = None
+    content_override_json: str | None = None
+    wait_hours: int = 0
+    condition_type: str = "always"
+
+class OrchStepsBulk(BaseModel):
+    steps: list[OrchStepSchema]
+
+@router.get("/{campaign_id}/orchestration-steps")
+async def get_orchestration_steps(
+    campaign_id: int,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get all orchestration steps for a campaign."""
+    from app.core.analytics_models import CampaignOrchestrationStep
+    campaign = db.query(Campaign).filter(
+        Campaign.id == campaign_id,
+        Campaign.tenant_id == user.tenant_id,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    steps = (
+        db.query(CampaignOrchestrationStep)
+        .filter(CampaignOrchestrationStep.campaign_id == campaign_id)
+        .order_by(CampaignOrchestrationStep.step_order)
+        .all()
+    )
+    return [
+        {
+            "id": s.id,
+            "campaign_id": s.campaign_id,
+            "step_order": s.step_order,
+            "channel": s.channel,
+            "template_id": s.template_id,
+            "content_override_json": s.content_override_json,
+            "wait_hours": s.wait_hours,
+            "condition_type": s.condition_type,
+        }
+        for s in steps
+    ]
+
+
+@router.post("/{campaign_id}/orchestration-steps")
+async def save_orchestration_steps(
+    campaign_id: int,
+    payload: OrchStepsBulk,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Replace all orchestration steps for a campaign (bulk upsert)."""
+    from app.core.analytics_models import CampaignOrchestrationStep
+    campaign = db.query(Campaign).filter(
+        Campaign.id == campaign_id,
+        Campaign.tenant_id == user.tenant_id,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    # Delete existing steps
+    db.query(CampaignOrchestrationStep).filter(
+        CampaignOrchestrationStep.campaign_id == campaign_id
+    ).delete()
+
+    # Insert new steps
+    for s in payload.steps:
+        db.add(CampaignOrchestrationStep(
+            campaign_id=campaign_id,
+            step_order=s.step_order,
+            channel=s.channel,
+            template_id=s.template_id,
+            content_override_json=s.content_override_json,
+            wait_hours=s.wait_hours,
+            condition_type=s.condition_type,
+        ))
+
+    db.commit()
+    return {"status": "ok", "count": len(payload.steps)}

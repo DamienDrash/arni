@@ -1,6 +1,5 @@
 "use client";
-
-import { useCallback, useEffect, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import {
   Megaphone, Plus, Send, Clock, CheckCircle, XCircle, Eye, Pencil,
   Trash2, Sparkles, Mail, MessageSquare, Phone, Filter, Users,
@@ -10,6 +9,7 @@ import {
 } from "lucide-react";
 import { T } from "@/lib/tokens";
 import CreateCampaignWizard from "@/components/campaigns/CreateCampaignWizard";
+import OrchestrationSteps, { OrchestrationStep } from "@/components/campaigns/OrchestrationSteps";
 import { Card } from "@/components/ui/Card";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Badge } from "@/components/ui/Badge";
@@ -1810,6 +1810,9 @@ export default function CampaignsPage() {
             </div>
           )}
 
+          {/* Orchestration Steps (read-only display) */}
+          <OrchestrationsDetailView campaignId={c.id} />
+
           {/* Actions */}
           <div style={{ display: "flex", gap: 8, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
             {c.status === "pending_review" && (
@@ -1890,3 +1893,64 @@ const inputStyle: React.CSSProperties = {
   outline: "none",
   boxSizing: "border-box",
 };
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ORCHESTRATION DETAIL VIEW (inline sub-component)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function OrchestrationsDetailView({ campaignId }: { campaignId: number }) {
+  const [steps, setSteps] = React.useState<OrchestrationStep[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiFetch(`/admin/campaigns/${campaignId}/orchestration-steps`);
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) setSteps(data);
+        }
+      } catch { /* ignore */ }
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [campaignId]);
+
+  if (loading || steps.length === 0) return null;
+
+  const CHANNEL_LABELS: Record<string, string> = {
+    email: "E-Mail", whatsapp: "WhatsApp", sms: "SMS", telegram: "Telegram",
+  };
+  const CONDITION_LABELS: Record<string, string> = {
+    always: "Immer", if_not_opened: "Wenn nicht ge\u00f6ffnet", if_not_clicked: "Wenn nicht geklickt",
+  };
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label style={labelStyle}>Omnichannel-Sequenz ({steps.length} Schritte)</label>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {steps.map((s, i) => (
+          <div key={i} style={{
+            display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+            background: T.surfaceAlt, borderRadius: 8, border: `1px solid ${T.border}`,
+          }}>
+            <div style={{
+              width: 24, height: 24, borderRadius: "50%", background: T.accentDim,
+              color: T.accent, display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 11, fontWeight: 700, flexShrink: 0,
+            }}>{s.step_order}</div>
+            <span style={{ fontSize: 12, fontWeight: 600, color: T.text, minWidth: 70 }}>
+              {CHANNEL_LABELS[s.channel] || s.channel}
+            </span>
+            {i > 0 && (
+              <span style={{ fontSize: 11, color: T.textDim }}>
+                nach {s.wait_hours}h \u2022 {CONDITION_LABELS[s.condition_type] || s.condition_type}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

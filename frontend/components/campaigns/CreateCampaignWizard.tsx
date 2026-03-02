@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/tokens";
+import OrchestrationSteps, { OrchestrationStep } from "@/components/campaigns/OrchestrationSteps";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Types
@@ -84,6 +85,10 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
     use_knowledge: true, use_chat_history: false,
     content_subject: "", content_body: "", scheduled_at: "",
   });
+  const [orchSteps, setOrchSteps] = useState<OrchestrationStep[]>([
+    { step_order: 1, channel: "email", template_id: null, content_override_json: null, wait_hours: 0, condition_type: "always" },
+  ]);
+  const [showOrchestration, setShowOrchestration] = useState(false);
 
   /* ─── Load Data ──────────────────────────────────────────────────────── */
 
@@ -120,6 +125,16 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
       });
       if (!res.ok) { setAiError("Kampagne konnte nicht erstellt werden."); setCreating(false); return; }
       const created = await res.json();
+
+      /* Save orchestration steps if multi-step enabled */
+      if (showOrchestration && orchSteps.length > 1) {
+        try {
+          await apiFetch(`/admin/campaigns/${created.id}/orchestration-steps`, {
+            method: "POST",
+            body: JSON.stringify({ steps: orchSteps }),
+          });
+        } catch { /* non-blocking */ }
+      }
 
       if (form.ai_prompt.trim()) {
         setAiGenerating(true);
@@ -406,6 +421,43 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
               </div>
             )}
 
+            {/* Omnichannel Orchestration */}
+            <div>
+              <button
+                onClick={() => setShowOrchestration(!showOrchestration)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, width: "100%",
+                  padding: "14px 18px", borderRadius: 12,
+                  border: `1px solid ${showOrchestration ? T.accent : T.border}`,
+                  background: showOrchestration ? T.accentDim : T.surfaceAlt,
+                  cursor: "pointer", textAlign: "left" as const,
+                }}
+              >
+                <Globe size={18} style={{ color: showOrchestration ? T.accentLight : T.textDim }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: T.text, margin: 0 }}>Omnichannel-Sequenz</p>
+                  <p style={{ fontSize: 11, color: T.textDim, margin: 0 }}>Mehrstufige Kampagne über verschiedene Kanäle planen</p>
+                </div>
+                <div style={{
+                  width: 20, height: 20, borderRadius: 4,
+                  border: `2px solid ${showOrchestration ? T.accent : T.border}`,
+                  background: showOrchestration ? T.accent : "transparent",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {showOrchestration && <CheckCircle size={12} style={{ color: "#fff" }} />}
+                </div>
+              </button>
+              {showOrchestration && (
+                <div style={{ marginTop: 14 }}>
+                  <OrchestrationSteps
+                    steps={orchSteps}
+                    onChange={setOrchSteps}
+                    templates={templates.map(t => ({ id: t.id, name: t.name, channel: t.type }))}
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Summary */}
             <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 0 }}>
               <h4 style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 12 }}>Zusammenfassung</h4>
@@ -414,7 +466,8 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                 { label: "Kanal", value: CHANNELS.find(c => c.key === form.channel)?.label || form.channel },
                 { label: "Zielgruppe", value: form.target_type === "all_members" ? "Alle Kontakte" : form.target_type === "segment" ? "Segment" : form.target_type },
                 { label: "Versand", value: form.scheduled_at ? new Date(form.scheduled_at).toLocaleString("de-DE") : "Sofort nach Freigabe" },
-                { label: "KI-Inhalt", value: form.ai_prompt ? "Ja – wird nach Erstellung generiert" : "Manuell" },
+                { label: "KI-Inhalt", value: form.ai_prompt ? "Ja \u2013 wird nach Erstellung generiert" : "Manuell" },
+                { label: "Orchestrierung", value: showOrchestration && orchSteps.length > 1 ? `${orchSteps.length} Schritte (Omnichannel)` : "Einzelversand" },
               ].map((item, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${T.border}` }}>
                   <span style={{ fontSize: 12, color: T.textDim }}>{item.label}</span>
