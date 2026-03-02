@@ -140,6 +140,11 @@ class Contact(Base):
     # ── Scoring ───────────────────────────────────────────────────────────
     score = Column(Integer, nullable=False, default=0)
 
+    # ── AI Optimization ──────────────────────────────────────────────────
+    preferred_channel = Column(String(20), nullable=True)          # AI-determined preferred channel
+    optimal_send_hour_utc = Column(Integer, nullable=True)         # AI-determined optimal send hour (0-23)
+    channel_affinity_json = Column(Text, nullable=True)            # JSON: {"email": 0.7, "whatsapp": 0.9, "sms": 0.3}
+
     # ── External Mapping ──────────────────────────────────────────────────
     external_ids = Column(Text, nullable=True)  # JSON: {"magicline": "123", "hubspot": "456"}
 

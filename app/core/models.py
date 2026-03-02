@@ -481,6 +481,18 @@ class Campaign(Base):
     # A/B Testing
     is_ab_test = Column(Boolean, nullable=False, default=False)
     ab_winner_variant = Column(String, nullable=True)
+    ab_test_percentage = Column(Integer, nullable=False, default=20)       # % of recipients for test phase
+    ab_test_duration_hours = Column(Integer, nullable=False, default=4)    # Duration of test phase
+    ab_test_metric = Column(String(30), nullable=False, default="open_rate")  # open_rate | click_rate
+    ab_test_auto_send = Column(Boolean, nullable=False, default=True)      # Auto-send winner to rest
+
+    # Budget & Calendar
+    budget_planned = Column(Float, nullable=True)
+    budget_spent = Column(Float, nullable=True)
+    calendar_color = Column(String(7), nullable=True)  # Hex color for calendar view
+
+    # Smart Send
+    smart_send_enabled = Column(Boolean, nullable=False, default=False)
 
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -539,6 +551,13 @@ class CampaignVariant(Base):
     stats_sent = Column(Integer, nullable=False, default=0)
     stats_opened = Column(Integer, nullable=False, default=0)
     stats_clicked = Column(Integer, nullable=False, default=0)
+
+    # A/B Winner Tracking
+    is_winner = Column(Boolean, nullable=False, default=False)
+    winner_selected_at = Column(DateTime, nullable=True)
+    winner_metric = Column(String(30), nullable=True)       # open_rate | click_rate
+    confidence_level = Column(Float, nullable=True)          # 0.0–1.0
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 

@@ -178,6 +178,7 @@ from app.gateway.routers import campaign_templates
 from app.gateway.routers import automations
 from app.gateway.routers import analytics_tracking
 from app.gateway.routers import analytics_api
+from app.gateway.routers import ab_testing_api
 app.include_router(integrations_sync.router)
 app.include_router(connector_hub.router)
 app.include_router(permissions.router)
@@ -190,6 +191,7 @@ app.include_router(campaign_templates.router)
 app.include_router(automations.router)
 app.include_router(analytics_tracking.router)
 app.include_router(analytics_api.router)
+app.include_router(ab_testing_api.router)
 app.include_router(docker_management.router)
 app.include_router(smtp_config.router)
 

@@ -28,6 +28,7 @@ import {
   Cpu,
   Contact2,
   Layers,
+  CalendarDays,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
@@ -86,6 +87,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
         { name: "Vorlagen", href: "/templates", icon: Layers },
         { name: "Automations", href: "/automations", icon: Zap, feature: "automation" },
         { name: "Kampagnen-Analytics", href: "/campaign-analytics", icon: BarChart3 },
+        { name: "Planung & Kalender", href: "/planning", icon: CalendarDays },
       ],
     },
     {

@@ -9,6 +9,7 @@ import {
 import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/tokens";
 import OrchestrationSteps, { OrchestrationStep } from "@/components/campaigns/OrchestrationSteps";
+import ABTestConfig from "@/components/campaigns/ABTestConfig";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Types
@@ -90,6 +91,17 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
   ]);
   const [showOrchestration, setShowOrchestration] = useState(false);
 
+  // A/B Testing State
+  const [abEnabled, setAbEnabled] = useState(false);
+  const [abVariants, setAbVariants] = useState<{variant_name:string;content_subject:string;content_body:string;content_html:string;percentage:number}[]>([
+    { variant_name: "A", content_subject: "", content_body: "", content_html: "", percentage: 50 },
+    { variant_name: "B", content_subject: "", content_body: "", content_html: "", percentage: 50 },
+  ]);
+  const [abTestPct, setAbTestPct] = useState(20);
+  const [abDuration, setAbDuration] = useState(4);
+  const [abMetric, setAbMetric] = useState("open_rate");
+  const [abAutoSend, setAbAutoSend] = useState(true);
+
   /* ─── Load Data ──────────────────────────────────────────────────────── */
 
   useEffect(() => {
@@ -125,6 +137,22 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
       });
       if (!res.ok) { setAiError("Kampagne konnte nicht erstellt werden."); setCreating(false); return; }
       const created = await res.json();
+
+      /* Save A/B test config if enabled */
+      if (abEnabled && abVariants.length >= 2) {
+        try {
+          await apiFetch(`/v2/admin/campaigns/${created.id}/ab-test`, {
+            method: "POST",
+            body: JSON.stringify({
+              test_percentage: abTestPct,
+              duration_hours: abDuration,
+              metric: abMetric,
+              auto_send_winner: abAutoSend,
+              variants: abVariants,
+            }),
+          });
+        } catch { /* non-blocking */ }
+      }
 
       /* Save orchestration steps if multi-step enabled */
       if (showOrchestration && orchSteps.length > 1) {
@@ -458,6 +486,22 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
               )}
             </div>
 
+            {/* A/B Testing */}
+            <ABTestConfig
+              isEnabled={abEnabled}
+              onToggle={setAbEnabled}
+              variants={abVariants}
+              onVariantsChange={setAbVariants}
+              testPercentage={abTestPct}
+              onTestPercentageChange={setAbTestPct}
+              durationHours={abDuration}
+              onDurationHoursChange={setAbDuration}
+              metric={abMetric}
+              onMetricChange={setAbMetric}
+              autoSend={abAutoSend}
+              onAutoSendChange={setAbAutoSend}
+            />
+
             {/* Summary */}
             <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 0 }}>
               <h4 style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 12 }}>Zusammenfassung</h4>
@@ -468,6 +512,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                 { label: "Versand", value: form.scheduled_at ? new Date(form.scheduled_at).toLocaleString("de-DE") : "Sofort nach Freigabe" },
                 { label: "KI-Inhalt", value: form.ai_prompt ? "Ja \u2013 wird nach Erstellung generiert" : "Manuell" },
                 { label: "Orchestrierung", value: showOrchestration && orchSteps.length > 1 ? `${orchSteps.length} Schritte (Omnichannel)` : "Einzelversand" },
+                { label: "A/B-Test", value: abEnabled ? `${abVariants.length} Varianten, ${abTestPct}% Testanteil, ${abDuration}h` : "Deaktiviert" },
               ].map((item, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${T.border}` }}>
                   <span style={{ fontSize: 12, color: T.textDim }}>{item.label}</span>
