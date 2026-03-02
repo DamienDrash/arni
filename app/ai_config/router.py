@@ -478,6 +478,26 @@ def tenant_upsert_agent(
     )
 
 
+@tenant_router.get("/config")
+def tenant_config_overview(
+    user: AuthContext = Depends(_require_tenant_admin),
+    svc: AIConfigService = Depends(_get_service),
+):
+    """Get a simplified AI config overview for the tenant dashboard.
+
+    Returns provider, model, and BYOK status.
+    """
+    config = svc.resolve_llm_config(user.tenant_id)
+    # Check if tenant has any BYOK key
+    tenant_providers = svc.list_tenant_providers(user.tenant_id)
+    has_byok = any(tp.get("has_own_key", False) for tp in tenant_providers)
+    return {
+        "provider_slug": config.provider_slug,
+        "model": config.model,
+        "has_byok": has_byok or config.is_byok,
+    }
+
+
 @tenant_router.get("/config/resolved")
 def tenant_resolved_config(
     agent_slug: Optional[str] = Query(None),
@@ -502,6 +522,85 @@ def tenant_resolved_config(
         "is_byok": config.is_byok,
         "budget_remaining_tokens": config.budget_remaining_tokens,
         "budget_remaining_cents": config.budget_remaining_cents,
+    }
+
+
+@tenant_router.post("/byok")
+def tenant_save_byok(
+    body: dict,
+    user: AuthContext = Depends(_require_tenant_admin),
+    svc: AIConfigService = Depends(_get_service),
+):
+    """Save a BYOK (Bring Your Own Key) for a provider.
+
+    Expects: { "provider_slug": "openai", "api_key": "sk-..." }
+    Creates or updates the tenant provider with the given API key.
+    """
+    provider_slug = body.get("provider_slug", "openai")
+    api_key = body.get("api_key", "")
+    if not api_key:
+        raise HTTPException(400, "API key is required")
+
+    # Find the platform provider by slug
+    provider = svc.get_provider_by_slug(provider_slug)
+    if not provider:
+        raise HTTPException(404, f"Provider '{provider_slug}' not found")
+
+    # Check if tenant already has this provider configured
+    from app.ai_config.models import TenantLLMProvider
+    existing = svc.db.query(TenantLLMProvider).filter(
+        TenantLLMProvider.tenant_id == user.tenant_id,
+        TenantLLMProvider.provider_id == provider.id,
+    ).first()
+
+    from app.ai_config.encryption import encrypt_api_key
+    if existing:
+        existing.api_key_encrypted = encrypt_api_key(api_key)
+        existing.is_active = True
+        svc.db.commit()
+    else:
+        tp = TenantLLMProvider(
+            tenant_id=user.tenant_id,
+            provider_id=provider.id,
+            api_key_encrypted=encrypt_api_key(api_key),
+            is_active=True,
+            priority=100,
+        )
+        svc.db.add(tp)
+        svc.db.commit()
+
+    return {"status": "saved", "provider_slug": provider_slug}
+
+
+@tenant_router.put("/agents/{tac_id}")
+def tenant_update_agent_by_id(
+    tac_id: int,
+    body: TenantAgentConfigUpdate,
+    user: AuthContext = Depends(_require_tenant_admin),
+    svc: AIConfigService = Depends(_get_service),
+):
+    """Update a specific tenant agent config by its ID."""
+    from app.ai_config.models import TenantAgentConfig as _TAC
+    tac = svc.db.query(_TAC).filter(
+        _TAC.id == tac_id,
+        _TAC.tenant_id == user.tenant_id,
+    ).first()
+    if not tac:
+        raise HTTPException(404, "Agent config not found")
+
+    update_data = body.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        if hasattr(tac, key):
+            setattr(tac, key, value)
+    svc.db.commit()
+    svc.db.refresh(tac)
+
+    agent_def = svc.get_agent_definition(tac.agent_definition_id)
+    return {
+        "id": tac.id,
+        "agent_slug": agent_def.slug if agent_def else "unknown",
+        "agent_name": agent_def.name if agent_def else "Unknown",
+        "is_enabled": tac.is_enabled,
     }
 
 

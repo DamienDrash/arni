@@ -14,7 +14,7 @@ from typing import Optional
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func, text as sa_text
+from sqlalchemy import func, text as sa_text, Integer
 from sqlalchemy.orm import Session
 
 from app.core.auth import AuthContext, get_current_user, require_role
@@ -251,7 +251,7 @@ def _get_usage_summary(db: Session, year: int, month: int, tenant_id: Optional[i
     """Aggregate usage for a specific month."""
     q = db.query(
         func.count(LLMUsageLog.id).label("total"),
-        func.sum(func.cast(LLMUsageLog.success, type_=db.bind.dialect.type_descriptor(type(1)) if hasattr(db.bind, 'dialect') else None)).label("success_count"),
+        func.sum(func.cast(LLMUsageLog.success, Integer)).label("success_count"),
         func.sum(LLMUsageLog.total_tokens).label("tokens"),
         func.sum(LLMUsageLog.prompt_tokens).label("pt"),
         func.sum(LLMUsageLog.completion_tokens).label("ct"),

@@ -444,7 +444,7 @@ export default function PlanningPage() {
     try {
       const [campRes, autoRes] = await Promise.all([
         apiFetch("/v2/admin/campaigns/calendar").catch(() => null),
-        apiFetch("/admin/automations").catch(() => null),
+        apiFetch("/v2/admin/automations").catch(() => null),
       ]);
       if (campRes?.ok) setCampaigns(await campRes.json());
       if (autoRes?.ok) {
