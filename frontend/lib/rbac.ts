@@ -7,8 +7,8 @@ type RoleAccess = {
 
 const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
   system_admin: {
-    exact: ["/", "/dashboard", "/features", "/pricing", "/impressum", "/datenschutz", "/agb", "/users", "/tenants", "/system-prompt", "/plans", "/revenue", "/audit", "/campaigns", "/templates", "/automations", "/settings", "/settings/account", "/settings/integrations", "/settings/ai", "/settings/general", "/infrastructure", "/llm-costs"],
-    prefixes: ["/users/", "/tenants/", "/plans/", "/revenue/", "/audit/", "/campaigns/", "/templates/", "/automations/", "/settings/", "/settings/account/", "/settings/integrations/", "/settings/ai/", "/settings/general/", "/infrastructure", "/llm-costs/"],
+    exact: ["/", "/dashboard", "/features", "/pricing", "/impressum", "/datenschutz", "/agb", "/users", "/tenants", "/system-prompt", "/plans", "/revenue", "/audit", "/campaigns", "/templates", "/automations", "/campaign-analytics", "/settings", "/settings/account", "/settings/integrations", "/settings/ai", "/settings/general", "/infrastructure", "/llm-costs"],
+    prefixes: ["/users/", "/tenants/", "/plans/", "/revenue/", "/audit/", "/campaigns/", "/templates/", "/automations/", "/campaign-analytics/", "/settings/", "/settings/account/", "/settings/integrations/", "/settings/ai/", "/settings/general/", "/infrastructure", "/llm-costs/"],
   },
   tenant_admin: {
     exact: [
@@ -39,12 +39,14 @@ const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
       "/campaigns",
       "/templates",
       "/automations",
+      "/campaign-analytics",
     ],
     prefixes: [
       "/live/",
       "/campaigns/",
       "/templates/",
       "/automations/",
+      "/campaign-analytics/",
       "/escalations/",
       "/analytics/",
       "/members/",

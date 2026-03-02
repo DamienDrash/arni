@@ -562,6 +562,11 @@ class CampaignRecipient(Base):
     clicked_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
 
+    # Phase 3: Orchestration & Analytics extensions
+    current_step = Column(Integer, nullable=True, default=1)  # Current orchestration step
+    converted_at = Column(DateTime, nullable=True)             # Conversion timestamp
+    conversion_value = Column(Float, nullable=True)            # Conversion value in EUR
+
 
 class MemberSegment(Base):
     """Reusable member segments for targeting."""

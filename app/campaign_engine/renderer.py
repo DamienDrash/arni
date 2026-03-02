@@ -1,4 +1,4 @@
-"""ARIIA v2.1 – Message Renderer.
+"""ARIIA v2.2 – Message Renderer with Tracking.
 
 Combines campaign content with templates and personalizes via Jinja2.
 Supports email (full HTML wrapping), WhatsApp, SMS, and Telegram channels.
@@ -7,9 +7,11 @@ Supports email (full HTML wrapping), WhatsApp, SMS, and Telegram channels.
 """
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from typing import Optional
+from urllib.parse import quote as url_quote
 
 import jinja2
 import structlog
@@ -21,6 +23,13 @@ from app.core.contact_models import Contact
 logger = structlog.get_logger()
 
 
+# Base URL for tracking endpoints – configurable via env
+TRACKING_BASE_URL = os.environ.get(
+    "TRACKING_BASE_URL",
+    "https://api.ariia.app",
+)
+
+
 @dataclass
 class RenderedMessage:
     """Final, ready-to-send message."""
@@ -28,6 +37,7 @@ class RenderedMessage:
     body_html: str
     body_text: str
     channel: str
+    recipient_id: int | None = None
 
 
 class MessageRenderer:
@@ -52,6 +62,7 @@ class MessageRenderer:
         campaign: Campaign,
         contact: Contact,
         template_override: Optional[CampaignTemplate] = None,
+        recipient_id: Optional[int] = None,
     ) -> RenderedMessage:
         """Render a personalized message for a single contact."""
         # 1. Resolve template
@@ -90,11 +101,17 @@ class MessageRenderer:
             has_template=template is not None,
         )
 
+        # 7. Inject tracking (email only, requires recipient_id)
+        if campaign.channel == "email" and recipient_id:
+            full_html = self._inject_tracking_pixel(full_html, recipient_id)
+            full_html = self._rewrite_links(full_html, recipient_id)
+
         return RenderedMessage(
             subject=subject,
             body_html=full_html,
             body_text=body_text,
             channel=campaign.channel,
+            recipient_id=recipient_id,
         )
 
     def _resolve_template(
@@ -221,3 +238,30 @@ class MessageRenderer:
         text = re.sub(r'&lt;', '<', text)
         text = re.sub(r'&gt;', '>', text)
         return text.strip()
+
+    # ── Phase 3: Tracking ──────────────────────────────────────────────
+
+    def _inject_tracking_pixel(self, html: str, recipient_id: int) -> str:
+        """Inject a 1x1 transparent tracking pixel before </body>."""
+        pixel_url = f"{TRACKING_BASE_URL}/track/open/{recipient_id}"
+        pixel_tag = (
+            f'<img src="{pixel_url}" width="1" height="1" '
+            f'alt="" style="display:none;border:0;" />'
+        )
+        # Insert before </body> if present, otherwise append
+        if "</body>" in html:
+            return html.replace("</body>", f"{pixel_tag}\n</body>")
+        return html + pixel_tag
+
+    def _rewrite_links(self, html: str, recipient_id: int) -> str:
+        """Rewrite all <a href="..."> links to pass through the click tracker."""
+        def _replace_href(match: re.Match) -> str:
+            original_url = match.group(1)
+            # Skip tracking/unsubscribe/mailto links
+            if any(skip in original_url for skip in ["/track/", "mailto:", "tel:", "#"]):
+                return match.group(0)
+            encoded = url_quote(original_url, safe="")
+            tracker_url = f"{TRACKING_BASE_URL}/track/click/{recipient_id}?url={encoded}"
+            return f'href="{tracker_url}"'
+
+        return re.sub(r'href="([^"]+)"', _replace_href, html)

@@ -1,17 +1,17 @@
-"""ARIIA v2.1 – Campaign Scheduler Worker.
+"""ARIIA v2.2 – Campaign Scheduler Worker with Omnichannel Orchestration.
 
 Polls the database every 30 seconds for campaigns with status='scheduled'
 whose scheduled_at has passed, then dispatches them via the appropriate
-messaging adapter (email, WhatsApp, SMS, Telegram).
+messaging adapter. Supports multi-step orchestration sequences.
 
-@ARCH: Campaign Refactoring Phase 1, Task 1.6
+@ARCH: Campaign Refactoring Phase 1 Task 1.6, Phase 3 Task 3.5
 """
 import asyncio
 import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import structlog
 
@@ -32,6 +32,8 @@ POLL_INTERVAL = int(os.environ.get("CAMPAIGN_POLL_INTERVAL", "30"))
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_size=3)
 SessionLocal = sessionmaker(bind=engine)
 
+
+# ── Campaign Discovery ────────────────────────────────────────────────
 
 def get_due_campaigns(db: Session):
     """Find all campaigns that are scheduled and due for sending."""
@@ -62,6 +64,68 @@ def get_approved_campaigns(db: Session):
         .all()
     )
 
+
+def get_orchestration_pending(db: Session):
+    """Find recipients waiting for the next orchestration step."""
+    from app.core.models import CampaignRecipient, Campaign
+    from app.core.analytics_models import CampaignOrchestrationStep
+
+    now = datetime.now(timezone.utc)
+
+    # Find recipients in multi-step campaigns that need the next step
+    results = (
+        db.query(CampaignRecipient, Campaign)
+        .join(Campaign, CampaignRecipient.campaign_id == Campaign.id)
+        .filter(
+            Campaign.status == "sent",
+            CampaignRecipient.status.in_(["sent", "delivered"]),
+            CampaignRecipient.current_step.isnot(None),
+        )
+        .all()
+    )
+
+    pending = []
+    for recipient, campaign in results:
+        # Check if there's a next step
+        next_step = (
+            db.query(CampaignOrchestrationStep)
+            .filter(
+                CampaignOrchestrationStep.campaign_id == campaign.id,
+                CampaignOrchestrationStep.step_order == (recipient.current_step or 1) + 1,
+            )
+            .first()
+        )
+        if not next_step:
+            continue
+
+        # Check wait time
+        sent_at = recipient.sent_at or recipient.delivered_at
+        if not sent_at:
+            continue
+
+        wait_until = sent_at + timedelta(hours=next_step.wait_hours)
+        if now < wait_until:
+            continue
+
+        # Check condition
+        if _check_step_condition(recipient, next_step.condition_type):
+            pending.append((recipient, campaign, next_step))
+
+    return pending
+
+
+def _check_step_condition(recipient, condition_type: str | None) -> bool:
+    """Check if the condition for the next orchestration step is met."""
+    if not condition_type or condition_type == "always":
+        return True
+    if condition_type == "if_not_opened":
+        return recipient.opened_at is None
+    if condition_type == "if_not_clicked":
+        return recipient.clicked_at is None
+    return True
+
+
+# ── Recipient Resolution ──────────────────────────────────────────────
 
 async def resolve_recipients(db: Session, campaign) -> list:
     """Resolve the target audience to a list of contacts."""
@@ -96,13 +160,47 @@ async def resolve_recipients(db: Session, campaign) -> list:
     )
 
 
+# ── Orchestration Helpers ─────────────────────────────────────────────
+
+def get_orchestration_steps(db: Session, campaign_id: int) -> list:
+    """Get all orchestration steps for a campaign, ordered by step_order."""
+    from app.core.analytics_models import CampaignOrchestrationStep
+
+    return (
+        db.query(CampaignOrchestrationStep)
+        .filter(CampaignOrchestrationStep.campaign_id == campaign_id)
+        .order_by(CampaignOrchestrationStep.step_order)
+        .all()
+    )
+
+
+def get_step_channel(campaign, step=None) -> str:
+    """Determine the channel for sending. Uses step channel if available."""
+    if step and step.channel:
+        return step.channel
+    return campaign.channel
+
+
+# ── Rendering & Sending ──────────────────────────────────────────────
+
 async def render_and_send(db: Session, campaign, contacts: list):
-    """Render personalized messages and send via the appropriate adapter."""
+    """Render personalized messages and send via the appropriate adapter.
+
+    Supports both single-channel and multi-step orchestration campaigns.
+    """
     from app.campaign_engine.renderer import MessageRenderer
     from app.core.models import CampaignRecipient, Tenant
 
     renderer = MessageRenderer()
     tenant = db.query(Tenant).filter(Tenant.id == campaign.tenant_id).first()
+
+    # Check for orchestration steps
+    steps = get_orchestration_steps(db, campaign.id)
+    first_step = steps[0] if steps else None
+    has_orchestration = len(steps) > 1
+
+    # Determine channel for first step
+    channel = get_step_channel(campaign, first_step)
 
     # Update campaign status
     campaign.status = "sending"
@@ -114,28 +212,39 @@ async def render_and_send(db: Session, campaign, contacts: list):
 
     for contact in contacts:
         try:
-            # Render personalized message
-            rendered = await renderer.render(db, campaign, contact)
+            # Create recipient record first (needed for tracking)
+            recipient = CampaignRecipient(
+                campaign_id=campaign.id,
+                tenant_id=campaign.tenant_id,
+                member_id=getattr(contact, "id", None),
+                contact_id=getattr(contact, "id", None),
+                channel=channel,
+                status="pending",
+                current_step=1 if has_orchestration else None,
+            )
+            db.add(recipient)
+            db.flush()  # Get the recipient.id for tracking
+
+            # Render personalized message (with tracking pixel/link rewriting)
+            rendered = await renderer.render(
+                db, campaign, contact,
+                recipient_id=recipient.id,
+            )
 
             # Dispatch via adapter
             success = await dispatch_message(
                 db=db,
                 tenant=tenant,
-                channel=campaign.channel,
+                channel=channel,
                 contact=contact,
                 rendered=rendered,
             )
 
-            # Record recipient
-            recipient = CampaignRecipient(
-                campaign_id=campaign.id,
-                tenant_id=campaign.tenant_id,
-                member_id=getattr(contact, "id", None),
-                channel=campaign.channel,
-                status="sent" if success else "failed",
-                sent_at=datetime.now(timezone.utc) if success else None,
-            )
-            db.add(recipient)
+            # Update recipient status
+            recipient.status = "sent" if success else "failed"
+            recipient.sent_at = datetime.now(timezone.utc) if success else None
+            if not success:
+                recipient.error_message = "Dispatch failed"
 
             if success:
                 sent_count += 1
@@ -165,8 +274,85 @@ async def render_and_send(db: Session, campaign, contacts: list):
         total=len(contacts),
         sent=sent_count,
         failed=failed_count,
+        has_orchestration=has_orchestration,
+        steps_count=len(steps),
     )
 
+
+async def process_orchestration_step(db: Session, recipient, campaign, step):
+    """Process a single orchestration follow-up step for a recipient."""
+    from app.campaign_engine.renderer import MessageRenderer
+    from app.core.models import Tenant
+    from app.core.contact_models import Contact
+
+    renderer = MessageRenderer()
+    tenant = db.query(Tenant).filter(Tenant.id == campaign.tenant_id).first()
+    contact = db.query(Contact).filter(Contact.id == (recipient.contact_id or recipient.member_id)).first()
+
+    if not contact:
+        logger.warning("scheduler.orchestration_no_contact", recipient_id=recipient.id)
+        return
+
+    channel = step.channel
+
+    try:
+        # Render with step-specific content override if available
+        rendered = await renderer.render(
+            db, campaign, contact,
+            recipient_id=recipient.id,
+        )
+
+        # Override body if step has content_override
+        if step.content_override_json:
+            try:
+                override = json.loads(step.content_override_json)
+                if override.get("body"):
+                    rendered.body_html = override["body"]
+                    rendered.body_text = override.get("body_text", override["body"])
+                if override.get("subject"):
+                    rendered.subject = override["subject"]
+            except json.JSONDecodeError:
+                pass
+
+        success = await dispatch_message(
+            db=db,
+            tenant=tenant,
+            channel=channel,
+            contact=contact,
+            rendered=rendered,
+        )
+
+        # Update recipient
+        recipient.current_step = step.step_order
+        recipient.channel = channel
+        if success:
+            recipient.status = "sent"
+            recipient.sent_at = datetime.now(timezone.utc)
+        else:
+            recipient.status = "failed"
+            recipient.error_message = f"Orchestration step {step.step_order} failed"
+
+        db.commit()
+
+        logger.info(
+            "scheduler.orchestration_step_sent",
+            recipient_id=recipient.id,
+            campaign_id=campaign.id,
+            step_order=step.step_order,
+            channel=channel,
+            success=success,
+        )
+
+    except Exception as e:
+        logger.error(
+            "scheduler.orchestration_step_error",
+            recipient_id=recipient.id,
+            step_order=step.step_order,
+            error=str(e),
+        )
+
+
+# ── Message Dispatch ──────────────────────────────────────────────────
 
 async def dispatch_message(db, tenant, channel: str, contact, rendered) -> bool:
     """Dispatch a single message via the integration adapter."""
@@ -237,6 +423,8 @@ async def dispatch_message(db, tenant, channel: str, contact, rendered) -> bool:
         return False
 
 
+# ── Main Processing Loop ─────────────────────────────────────────────
+
 async def process_campaigns():
     """Main processing loop iteration."""
     db = SessionLocal()
@@ -265,6 +453,17 @@ async def process_campaigns():
                 campaign.status = "failed"
                 db.commit()
 
+        # 3. Process orchestration follow-up steps
+        pending_steps = get_orchestration_pending(db)
+        for recipient, campaign, step in pending_steps:
+            logger.info(
+                "scheduler.processing_orchestration",
+                recipient_id=recipient.id,
+                campaign_id=campaign.id,
+                step_order=step.step_order,
+            )
+            await process_orchestration_step(db, recipient, campaign, step)
+
     except Exception as e:
         logger.error("scheduler.process_error", error=str(e))
     finally:
@@ -277,6 +476,7 @@ async def main():
         "campaign_scheduler.started",
         poll_interval=POLL_INTERVAL,
         database=DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "configured",
+        features=["single_channel", "omnichannel_orchestration", "tracking"],
     )
 
     while True:

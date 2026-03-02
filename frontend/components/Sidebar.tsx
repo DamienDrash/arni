@@ -85,6 +85,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
         { name: "Kampagnen", href: "/campaigns", icon: Megaphone },
         { name: "Vorlagen", href: "/templates", icon: Layers },
         { name: "Automations", href: "/automations", icon: Zap, feature: "automation" },
+        { name: "Kampagnen-Analytics", href: "/campaign-analytics", icon: BarChart3 },
       ],
     },
     {
