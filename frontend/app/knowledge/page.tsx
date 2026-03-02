@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { marked } from "marked";
 import TurndownService from "turndown";
 import {
   BookOpen, FileText, Plus, RefreshCw, Save, Search, Database,
   ChevronRight, CheckCircle2, XCircle, AlertTriangle, Trash2,
   Info, Sparkles, Eye, Clock, BarChart3, Layers, ArrowRight,
+  Upload, File, FileType, FileSpreadsheet, FileImage, Globe,
+  Filter, Zap,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/Card";
@@ -31,6 +33,17 @@ type KnowledgeStatus = {
 };
 type FilePayload = { filename: string; content: string; mtime?: number };
 type TenantOption = { id: number; slug: string; name: string; is_active: boolean };
+type DocumentInfo = {
+  document_id: string;
+  filename: string;
+  source_type: string;
+  content_type: string;
+  file_size: number;
+  chunk_count: number;
+  status: string;
+  created_at: string;
+  error: string | null;
+};
 
 /* ── Styles ─────────────────────────────────────────────────────────── */
 const statCard: React.CSSProperties = {
@@ -68,16 +81,56 @@ const btnSecondary: React.CSSProperties = {
   display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12,
   transition: "all 0.2s ease",
 };
+const tabBtn: (active: boolean) => React.CSSProperties = (active) => ({
+  padding: "10px 20px", borderRadius: 10, border: "none",
+  background: active ? T.accentDim : "transparent",
+  color: active ? T.accentLight : T.textMuted,
+  fontWeight: 600, fontSize: 13, cursor: "pointer",
+  display: "inline-flex", alignItems: "center", gap: 8,
+  transition: "all 0.2s ease",
+});
+
+/* ── Helpers ────────────────────────────────────────────────────────── */
+function getFileIcon(filename: string) {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  if (["pdf"].includes(ext)) return <FileText size={16} style={{ color: T.danger }} />;
+  if (["doc", "docx"].includes(ext)) return <FileType size={16} style={{ color: T.info }} />;
+  if (["xls", "xlsx", "csv"].includes(ext)) return <FileSpreadsheet size={16} style={{ color: T.success }} />;
+  if (["png", "jpg", "jpeg", "gif"].includes(ext)) return <FileImage size={16} style={{ color: T.warning }} />;
+  if (["html", "htm"].includes(ext)) return <Globe size={16} style={{ color: T.accentLight }} />;
+  return <File size={16} style={{ color: T.textMuted }} />;
+}
+
+function formatFileSize(bytes: number): string {
+  if (!bytes) return "–";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return "–";
+  try {
+    return new Date(dateStr).toLocaleString("de-DE", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+  } catch { return dateStr; }
+}
 
 /* ── Component ──────────────────────────────────────────────────────── */
 export default function KnowledgePage() {
   const { t } = useI18n();
   const currentUser = getStoredUser();
   const isSystemAdmin = currentUser?.role === "system_admin";
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  /* ── Tab state ────────────────────────────────────────────────────── */
+  const [activeTab, setActiveTab] = useState<"editor" | "upload" | "documents">("editor");
+
+  /* ── Legacy editor state ──────────────────────────────────────────── */
   const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [selectedTenantSlug, setSelectedTenantSlug] = useState<string>("");
-
   const [files, setFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [contentHtml, setContentHtml] = useState("");
@@ -93,27 +146,39 @@ export default function KnowledgePage() {
   const [changeReason, setChangeReason] = useState("");
   const [search, setSearch] = useState("");
 
+  /* ── Document management state ────────────────────────────────────── */
+  const [documents, setDocuments] = useState<DocumentInfo[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const [docFilter, setDocFilter] = useState("all");
+
   const selectedExists = useMemo(() => (selectedFile ? files.includes(selectedFile) : false), [files, selectedFile]);
   const isIngestOk = meta?.last_ingest_status === "ok";
   const isIngestError = (meta?.last_ingest_status || "").startsWith("error");
   const ingestColor = isIngestError ? T.danger : isIngestOk ? T.success : T.textDim;
-
   const slugParam = isSystemAdmin && selectedTenantSlug ? `?tenant_slug=${encodeURIComponent(selectedTenantSlug)}` : "";
 
   const filteredFiles = useMemo(() => {
     return files.filter((f) => f.toLowerCase().includes(search.toLowerCase()));
   }, [files, search]);
 
-  /* ── Tenant Selector (System Admin) ───────────────────────────────── */
+  const filteredDocuments = useMemo(() => {
+    if (docFilter === "all") return documents;
+    return documents.filter((d) => d.status === docFilter || d.source_type === docFilter);
+  }, [documents, docFilter]);
+
+  const SUPPORTED_EXTENSIONS = "MD, PDF, DOCX, XLSX, CSV, HTML, TXT, JSON, PPTX, EML";
+  const SUPPORTED_ACCEPT = ".md,.pdf,.docx,.doc,.xlsx,.xls,.csv,.html,.htm,.txt,.json,.pptx,.eml";
+
+  /* ── Tenant Selector ──────────────────────────────────────────────── */
   useEffect(() => {
     if (!isSystemAdmin) return;
     apiFetch("/auth/tenants").then(async (res) => {
       if (!res.ok) return;
       const data = (await res.json()) as TenantOption[];
       setTenants(data);
-      if (data.length > 0 && !selectedTenantSlug) {
-        setSelectedTenantSlug(data[0].slug);
-      }
+      if (data.length > 0 && !selectedTenantSlug) setSelectedTenantSlug(data[0].slug);
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSystemAdmin]);
@@ -128,12 +193,7 @@ export default function KnowledgePage() {
   const loadFiles = useCallback(async () => {
     setError("");
     const res = await apiFetch(`/admin/knowledge${slugParam}`);
-    if (!res.ok) {
-      setError(`Fehler beim Laden der Dateien (${res.status}).`);
-      setFiles([]);
-      setSelectedFile(null);
-      return;
-    }
+    if (!res.ok) { setError(`Fehler beim Laden der Dateien (${res.status}).`); setFiles([]); setSelectedFile(null); return; }
     const data = await res.json();
     const next = Array.isArray(data) ? data : [];
     setFiles(next);
@@ -142,20 +202,20 @@ export default function KnowledgePage() {
   }, [slugParam, selectedFile]);
 
   const loadFile = useCallback(async (file: string) => {
-    setStatus("Lade…");
-    setError("");
+    setStatus("Lade…"); setError("");
     const res = await apiFetch(`/admin/knowledge/file/${file}${slugParam}`);
-    if (!res.ok) {
-      setStatus("");
-      setError(`Fehler beim Laden (${res.status}).`);
-      return;
-    }
+    if (!res.ok) { setStatus(""); setError(`Fehler beim Laden (${res.status}).`); return; }
     const data = (await res.json()) as FilePayload;
     setContentHtml(await marked.parse(data.content || ""));
     setLoadedMtime(typeof data.mtime === "number" ? data.mtime : null);
-    setDirty(false);
-    setConflict(false);
-    setStatus("Geladen");
+    setDirty(false); setConflict(false); setStatus("Geladen");
+  }, [slugParam]);
+
+  const loadDocuments = useCallback(async () => {
+    try {
+      const res = await apiFetch(`/memory-platform/knowledge/documents${slugParam}`);
+      if (res.ok) setDocuments(await res.json());
+    } catch { /* ignore */ }
   }, [slugParam]);
 
   /* ── Save ──────────────────────────────────────────────────────────── */
@@ -164,12 +224,9 @@ export default function KnowledgePage() {
     const reason = changeReason.trim();
     if (reason.length < 8) {
       if (opts?.silent) return;
-      setError(t("knowledge.reasonError"));
-      setStatus("");
-      return;
+      setError(t("knowledge.reasonError")); setStatus(""); return;
     }
-    setStatus(opts?.silent ? "Auto-Speichern…" : "Speichern…");
-    setError("");
+    setStatus(opts?.silent ? "Auto-Speichern…" : "Speichern…"); setError("");
     const markdown = turndownService.turndown(contentHtml || "");
     const res = await apiFetch(`/admin/knowledge/file/${selectedFile}${slugParam}`, {
       method: "POST",
@@ -177,48 +234,26 @@ export default function KnowledgePage() {
       body: JSON.stringify({ content: markdown, base_mtime: opts?.force ? null : loadedMtime, reason }),
     });
     if (!res.ok) {
-      if (res.status === 409) {
-        setConflict(true);
-        setStatus("Konflikt");
-        setError("Diese Datei wurde zwischenzeitlich von einer anderen Quelle geändert.");
-        return;
-      }
-      setStatus("");
-      setError(`Fehler beim Speichern (${res.status}).`);
-      return;
+      if (res.status === 409) { setConflict(true); setStatus("Konflikt"); setError("Diese Datei wurde zwischenzeitlich von einer anderen Quelle geändert."); return; }
+      setStatus(""); setError(`Fehler beim Speichern (${res.status}).`); return;
     }
     const body = (await res.json().catch(() => ({}))) as { mtime?: number };
     if (typeof body.mtime === "number") setLoadedMtime(body.mtime);
-    setDirty(false);
-    setConflict(false);
-    if (!opts?.silent) {
-      setSuccess("Erfolgreich gespeichert");
-      setTimeout(() => setSuccess(""), 3000);
-    }
+    setDirty(false); setConflict(false);
+    if (!opts?.silent) { setSuccess("Erfolgreich gespeichert"); setTimeout(() => setSuccess(""), 3000); }
     setStatus(opts?.silent ? "Auto-gespeichert" : "Gespeichert");
     await Promise.all([loadFiles(), loadMeta()]);
   }, [selectedFile, contentHtml, loadedMtime, loadFiles, loadMeta, changeReason, slugParam, t]);
 
   /* ── Reindex ──────────────────────────────────────────────────────── */
   async function reindexNow() {
-    setReindexing(true);
-    setStatus("Indiziere…");
-    setError("");
+    setReindexing(true); setStatus("Indiziere…"); setError("");
     try {
       const res = await apiFetch(`/admin/knowledge/reindex${slugParam}`, { method: "POST" });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setError(body?.detail || `Fehler (${res.status}).`);
-        setStatus("");
-        return;
-      }
-      setSuccess("Neu-Indizierung erfolgreich gestartet");
-      setTimeout(() => setSuccess(""), 3000);
-      setStatus("Indiziert");
-      await Promise.all([loadFiles(), loadMeta()]);
-    } finally {
-      setReindexing(false);
-    }
+      if (!res.ok) { const body = await res.json().catch(() => ({})); setError(body?.detail || `Fehler (${res.status}).`); setStatus(""); return; }
+      setSuccess("Neu-Indizierung erfolgreich gestartet"); setTimeout(() => setSuccess(""), 3000);
+      setStatus("Indiziert"); await Promise.all([loadFiles(), loadMeta()]);
+    } finally { setReindexing(false); }
   }
 
   /* ── Create Draft ─────────────────────────────────────────────────── */
@@ -228,35 +263,65 @@ export default function KnowledgePage() {
     if (!files.includes(safe)) setFiles((prev) => [safe, ...prev]);
     setSelectedFile(safe);
     setContentHtml(`<h1>${t("knowledge.newDocument")}</h1><p>${t("knowledge.selectFile")}</p>`);
-    setLoadedMtime(null);
-    setDirty(true);
-    setConflict(false);
-    setStatus("Entwurf erstellt");
-    setNewName("");
+    setLoadedMtime(null); setDirty(true); setConflict(false); setStatus("Entwurf erstellt"); setNewName("");
+  }
+
+  /* ── File Upload ──────────────────────────────────────────────────── */
+  async function handleFileUpload(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+    setUploading(true); setError(""); setSuccess("");
+    const results: string[] = [];
+    const errors: string[] = [];
+
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      setUploadProgress(`Lade hoch: ${file.name} (${i + 1}/${fileList.length})…`);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await apiFetch(`/memory-platform/knowledge/upload${slugParam}`, {
+          method: "POST", body: formData,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          results.push(`${file.name}: ${data.chunk_count || 0} Chunks`);
+        } else {
+          const data = await res.json().catch(() => ({ detail: "Unbekannter Fehler" }));
+          errors.push(`${file.name}: ${data.detail || "Fehler"}`);
+        }
+      } catch { errors.push(`${file.name}: Netzwerkfehler`); }
+    }
+
+    setUploading(false); setUploadProgress("");
+    if (results.length > 0) { setSuccess(`${results.length} Datei(en) erfolgreich hochgeladen`); setTimeout(() => setSuccess(""), 5000); }
+    if (errors.length > 0) setError(errors.join("; "));
+    void loadDocuments(); void loadMeta(); void loadFiles();
+  }
+
+  async function deleteDocument(docId: string) {
+    if (!confirm("Dokument wirklich löschen? Alle zugehörigen Chunks werden ebenfalls entfernt.")) return;
+    try {
+      const res = await apiFetch(`/memory-platform/knowledge/documents/${docId}${slugParam}`, { method: "DELETE" });
+      if (res.ok) {
+        setDocuments((prev) => prev.filter((d) => d.document_id !== docId));
+        setSuccess("Dokument gelöscht"); setTimeout(() => setSuccess(""), 3000);
+      } else setError("Löschen fehlgeschlagen");
+    } catch { setError("Netzwerkfehler"); }
   }
 
   /* ── Effects ──────────────────────────────────────────────────────── */
   useEffect(() => {
     if (isSystemAdmin && !selectedTenantSlug) return;
-    setSelectedFile(null);
-    setContentHtml("");
-    setMeta(null);
-    setFiles([]);
-    setDirty(false);
-    setConflict(false);
-    setStatus("");
-    setError("");
+    setSelectedFile(null); setContentHtml(""); setMeta(null); setFiles([]);
+    setDirty(false); setConflict(false); setStatus(""); setError("");
   }, [selectedTenantSlug, isSystemAdmin]);
 
   useEffect(() => {
     if (isSystemAdmin && !selectedTenantSlug) return;
-    Promise.all([loadFiles(), loadMeta()]).catch(() => setError("Dateiliste konnte nicht geladen werden."));
-  }, [loadFiles, loadMeta, isSystemAdmin, selectedTenantSlug]);
+    Promise.all([loadFiles(), loadMeta(), loadDocuments()]).catch(() => setError("Dateiliste konnte nicht geladen werden."));
+  }, [loadFiles, loadMeta, loadDocuments, isSystemAdmin, selectedTenantSlug]);
 
-  useEffect(() => {
-    const timer = setInterval(() => void loadMeta(), 30000);
-    return () => clearInterval(timer);
-  }, [loadMeta]);
+  useEffect(() => { const timer = setInterval(() => void loadMeta(), 30000); return () => clearInterval(timer); }, [loadMeta]);
 
   useEffect(() => {
     if (!selectedFile || !selectedExists) return;
@@ -265,11 +330,14 @@ export default function KnowledgePage() {
 
   useEffect(() => {
     if (!selectedFile || !dirty || conflict) return;
-    const timer = setTimeout(() => {
-      void save({ silent: true });
-    }, 2500);
+    const timer = setTimeout(() => { void save({ silent: true }); }, 2500);
     return () => clearTimeout(timer);
   }, [conflict, dirty, selectedFile, contentHtml, save]);
+
+  /* ── Drag & Drop ──────────────────────────────────────────────────── */
+  function handleDragOver(e: React.DragEvent) { e.preventDefault(); e.stopPropagation(); setDragOver(true); }
+  function handleDragLeave(e: React.DragEvent) { e.preventDefault(); e.stopPropagation(); setDragOver(false); }
+  function handleDrop(e: React.DragEvent) { e.preventDefault(); e.stopPropagation(); setDragOver(false); handleFileUpload(e.dataTransfer.files); }
 
   /* ── Render ───────────────────────────────────────────────────────── */
   return (
@@ -277,7 +345,7 @@ export default function KnowledgePage() {
       {/* Header */}
       <SectionHeader
         title={t("knowledge.title")}
-        subtitle="Verwalten Sie die Wissensdokumente, die Ihrer KI als Kontext dienen"
+        subtitle="Verwalten Sie Wissensdokumente, laden Sie Dateien hoch und verbinden Sie externe Quellen"
         action={
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => void reindexNow()} disabled={reindexing} style={btnSecondary}>
@@ -288,7 +356,7 @@ export default function KnowledgePage() {
         }
       />
 
-      {/* Tenant Selector (System Admin) */}
+      {/* Tenant Selector */}
       {isSystemAdmin && (
         <Card style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: 14 }}>
           <Badge variant="warning" size="xs">System Admin</Badge>
@@ -298,8 +366,8 @@ export default function KnowledgePage() {
             onChange={(e) => setSelectedTenantSlug(e.target.value)}
             style={{ ...inputBase, width: "auto", maxWidth: 320, padding: "8px 12px", fontSize: 12 }}
           >
-            {tenants.map((t) => (
-              <option key={t.slug} value={t.slug}>{t.name} ({t.slug})</option>
+            {tenants.map((tn) => (
+              <option key={tn.slug} value={tn.slug}>{tn.name} ({tn.slug})</option>
             ))}
           </select>
           {selectedTenantSlug && (
@@ -310,22 +378,14 @@ export default function KnowledgePage() {
         </Card>
       )}
 
-      {/* Status Alerts */}
+      {/* Alerts */}
       {success && (
-        <div style={{
-          padding: "12px 20px", borderRadius: 12,
-          background: T.successDim, border: `1px solid ${T.success}40`,
-          display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: T.success, fontWeight: 600,
-        }}>
+        <div style={{ padding: "12px 20px", borderRadius: 12, background: T.successDim, border: `1px solid ${T.success}40`, display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: T.success, fontWeight: 600 }}>
           <CheckCircle2 size={16} /> {success}
         </div>
       )}
       {error && (
-        <div style={{
-          padding: "12px 20px", borderRadius: 12,
-          background: T.dangerDim, border: `1px solid ${T.danger}40`,
-          display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: T.danger, fontWeight: 600,
-        }}>
+        <div style={{ padding: "12px 20px", borderRadius: 12, background: T.dangerDim, border: `1px solid ${T.danger}40`, display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: T.danger, fontWeight: 600 }}>
           <XCircle size={16} /> {error}
           <button onClick={() => setError("")} style={{ marginLeft: "auto", background: "none", border: "none", color: T.danger, cursor: "pointer" }}>✕</button>
         </div>
@@ -336,16 +396,23 @@ export default function KnowledgePage() {
         <Card style={statCard}>
           <div>
             <div style={statLabel}>{t("knowledge.documents")}</div>
-            <div style={statValue()}>{meta?.files_count ?? files.length}</div>
+            <div style={statValue()}>{(meta?.files_count ?? files.length) + documents.length}</div>
           </div>
           <div style={statIcon(T.accent)}><BookOpen size={20} /></div>
+        </Card>
+        <Card style={statCard}>
+          <div>
+            <div style={statLabel}>Hochgeladene Dateien</div>
+            <div style={statValue(T.info)}>{documents.length}</div>
+          </div>
+          <div style={statIcon(T.info)}><Upload size={20} /></div>
         </Card>
         <Card style={statCard}>
           <div>
             <div style={statLabel}>{t("knowledge.indexChunks")}</div>
             <div style={statValue(T.accent)}>{meta?.vector_count ?? 0}</div>
           </div>
-          <div style={statIcon(T.info)}><Layers size={20} /></div>
+          <div style={statIcon(T.success)}><Layers size={20} /></div>
         </Card>
         <Card style={statCard}>
           <div>
@@ -363,248 +430,311 @@ export default function KnowledgePage() {
             {isIngestOk ? <CheckCircle2 size={20} /> : isIngestError ? <XCircle size={20} /> : <Clock size={20} />}
           </div>
         </Card>
-        <Card style={statCard}>
-          <div>
-            <div style={statLabel}>Status</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: dirty ? T.warning : conflict ? T.danger : T.textMuted }}>
-              {conflict ? "Konflikt" : dirty ? "Ungespeichert" : status || "Bereit"}
-            </div>
-          </div>
-          <div style={statIcon(dirty ? T.warning : T.textDim)}>
-            <BarChart3 size={20} />
-          </div>
-        </Card>
       </div>
 
-      {/* Main Content: File Browser + Editor */}
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4" style={{ minHeight: "calc(100vh - 480px)" }}>
-        {/* File Browser Sidebar */}
-        <Card style={{ padding: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{
-            padding: "16px 16px 12px", borderBottom: `1px solid ${T.border}`,
-            background: `${T.surface}80`,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <BookOpen size={16} color={T.accent} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{t("knowledge.documents")}</span>
+      {/* Tab Navigation */}
+      <Card style={{ padding: "8px", display: "flex", gap: 4 }}>
+        <button style={tabBtn(activeTab === "editor")} onClick={() => setActiveTab("editor")}>
+          <FileText size={16} /> Markdown-Editor
+        </button>
+        <button style={tabBtn(activeTab === "upload")} onClick={() => setActiveTab("upload")}>
+          <Upload size={16} /> Datei-Upload
+        </button>
+        <button style={tabBtn(activeTab === "documents")} onClick={() => setActiveTab("documents")}>
+          <Database size={16} /> Alle Dokumente
+          {documents.length > 0 && <Badge variant="accent" size="xs">{documents.length}</Badge>}
+        </button>
+      </Card>
+
+      {/* ════════════════════════════════════════════════════════════════
+         TAB: Markdown Editor (original functionality preserved)
+         ════════════════════════════════════════════════════════════════ */}
+      {activeTab === "editor" && (
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4" style={{ minHeight: "calc(100vh - 520px)" }}>
+          {/* File Browser Sidebar */}
+          <Card style={{ padding: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ padding: "16px 16px 12px", borderBottom: `1px solid ${T.border}`, background: `${T.surface}80` }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <BookOpen size={16} color={T.accent} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{t("knowledge.documents")}</span>
+                </div>
+                <Badge variant="info" size="xs">{files.length}</Badge>
               </div>
-              <Badge variant="info" size="xs">{files.length}</Badge>
-            </div>
-
-            {/* New Document */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-              <input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && createDraftFile()}
-                placeholder={t("knowledge.newDocumentPlaceholder")}
-                style={{ ...inputBase, fontSize: 11, flex: 1 }}
-              />
-              <button onClick={createDraftFile} style={{ ...btnPrimary, padding: "8px 10px" }} title="Neues Dokument">
-                <Plus size={14} />
-              </button>
-            </div>
-
-            {/* Search */}
-            <div style={{ position: "relative" }}>
-              <Search size={14} style={{ position: "absolute", left: 12, top: 11, color: T.textDim }} />
-              <input
-                style={{ ...inputBase, paddingLeft: 34, fontSize: 11 }}
-                placeholder="Dokument suchen…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div style={{ flex: 1, overflowY: "auto", padding: 8 }} className="custom-scrollbar">
-            {filteredFiles.length === 0 ? (
-              <div style={{ padding: 32, textAlign: "center", color: T.textDim, fontSize: 12 }}>
-                <BookOpen size={24} style={{ marginBottom: 8, opacity: 0.3 }} />
-                <div>{t("knowledge.noDocuments")}</div>
+              <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && createDraftFile()} placeholder={t("knowledge.newDocumentPlaceholder")} style={{ ...inputBase, fontSize: 11, flex: 1 }} />
+                <button onClick={createDraftFile} style={{ ...btnPrimary, padding: "8px 10px" }} title="Neues Dokument"><Plus size={14} /></button>
               </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {filteredFiles.map((f) => {
-                  const isActive = selectedFile === f;
-                  return (
-                    <button
-                      key={f}
-                      onClick={() => setSelectedFile(f)}
-                      style={{
-                        width: "100%", textAlign: "left", padding: "12px 14px",
-                        borderRadius: 10, border: `1px solid ${isActive ? `${T.accent}60` : "transparent"}`,
+              <div style={{ position: "relative" }}>
+                <Search size={14} style={{ position: "absolute", left: 12, top: 11, color: T.textDim }} />
+                <input style={{ ...inputBase, paddingLeft: 34, fontSize: 11 }} placeholder="Dokument suchen…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: 8 }} className="custom-scrollbar">
+              {filteredFiles.length === 0 ? (
+                <div style={{ padding: 32, textAlign: "center", color: T.textDim, fontSize: 12 }}>
+                  <BookOpen size={24} style={{ marginBottom: 8, opacity: 0.3 }} />
+                  <div>{t("knowledge.noDocuments")}</div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {filteredFiles.map((f) => {
+                    const isActive = selectedFile === f;
+                    return (
+                      <button key={f} onClick={() => setSelectedFile(f)} style={{
+                        width: "100%", textAlign: "left", padding: "12px 14px", borderRadius: 10,
+                        border: `1px solid ${isActive ? `${T.accent}60` : "transparent"}`,
                         background: isActive ? T.accentDim : "transparent",
                         color: isActive ? T.accentLight : T.text,
-                        cursor: "pointer", display: "flex", alignItems: "center",
-                        justifyContent: "space-between", gap: 10,
+                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
                         transition: "all 0.15s ease",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                        <FileText size={14} style={{ flexShrink: 0, color: isActive ? T.accent : T.textDim }} />
-                        <span style={{
-                          fontSize: 12, fontWeight: isActive ? 700 : 500,
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                        }}>
-                          {f}
-                        </span>
-                      </div>
-                      <ChevronRight size={14} style={{
-                        flexShrink: 0, color: isActive ? T.accent : T.textDim,
-                        opacity: isActive ? 1 : 0.3,
-                      }} />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Editor Area */}
-        <Card style={{ padding: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {/* Editor Header */}
-          <div style={{
-            padding: "14px 20px",
-            borderBottom: `1px solid ${T.border}`,
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            background: `${T.surface}80`, flexWrap: "wrap", gap: 10,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: 10,
-                background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center",
-                color: T.accent,
-              }}>
-                <FileText size={18} />
-              </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "monospace" }}>
-                  {selectedFile || t("knowledge.selectFile")}
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                          <FileText size={14} style={{ flexShrink: 0, color: isActive ? T.accent : T.textDim }} />
+                          <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f}</span>
+                        </div>
+                        <ChevronRight size={14} style={{ flexShrink: 0, color: isActive ? T.accent : T.textDim, opacity: isActive ? 1 : 0.3 }} />
+                      </button>
+                    );
+                  })}
                 </div>
-                <div style={{ fontSize: 10, color: T.textDim, marginTop: 2 }}>
-                  {dirty ? "Ungespeicherte Änderungen" : status}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <input
-                value={changeReason}
-                onChange={(e) => setChangeReason(e.target.value)}
-                placeholder={t("knowledge.reasonPlaceholder")}
-                style={{ ...inputBase, width: 240, fontSize: 11 }}
-              />
-
-              {conflict && (
-                <>
-                  <button onClick={() => selectedFile && void loadFile(selectedFile)} style={btnSecondary}>
-                    Neu laden
-                  </button>
-                  <button onClick={() => void save({ force: true })} style={{ ...btnSecondary, borderColor: `${T.warning}60`, color: T.warning }}>
-                    Überschreiben
-                  </button>
-                </>
               )}
-
-              <button
-                onClick={() => void save()}
-                disabled={!selectedFile}
-                style={{
-                  ...btnPrimary,
-                  opacity: !selectedFile ? 0.4 : 1,
-                  padding: "8px 16px",
-                }}
-              >
-                <Save size={14} /> Speichern
-              </button>
             </div>
-          </div>
+          </Card>
 
-          {/* Editor Body */}
-          <div style={{ padding: 16, flex: 1, minHeight: 400 }}>
-            {error && !selectedFile ? (
-              <div style={{ color: T.danger, fontSize: 12, padding: 20 }}>{error}</div>
-            ) : selectedFile ? (
-              <TiptapEditor
-                content={contentHtml}
-                onChange={(next) => {
-                  setContentHtml(next);
-                  setDirty(true);
-                }}
-              />
-            ) : (
-              <div style={{
-                display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center",
-                height: "100%", padding: 48, textAlign: "center",
-              }}>
-                <div style={{
-                  width: 72, height: 72, borderRadius: "50%",
-                  background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center",
-                  marginBottom: 20, border: `1px solid ${T.accent}30`,
-                }}>
-                  <BookOpen size={32} color={T.accent} strokeWidth={1.5} />
+          {/* Editor Area */}
+          <Card style={{ padding: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ padding: "14px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: `${T.surface}80`, flexWrap: "wrap", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent }}>
+                  <FileText size={18} />
                 </div>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8 }}>
-                  Dokument auswählen
-                </h3>
-                <p style={{ fontSize: 13, color: T.textMuted, maxWidth: 360, lineHeight: 1.6 }}>
-                  {t("knowledge.selectFile")}
-                </p>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "monospace" }}>{selectedFile || t("knowledge.selectFile")}</div>
+                  <div style={{ fontSize: 10, color: T.textDim, marginTop: 2 }}>{dirty ? "Ungespeicherte Änderungen" : status}</div>
+                </div>
               </div>
-            )}
-            {meta?.last_ingest_error && (
-              <div style={{
-                marginTop: 12, padding: "10px 14px", borderRadius: 10,
-                background: T.dangerDim, border: `1px solid ${T.danger}30`,
-                fontSize: 12, color: T.danger,
-              }}>
-                <AlertTriangle size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
-                Ingest-Fehler: {meta.last_ingest_error}
-              </div>
-            )}
-          </div>
-
-          {/* Editor Footer */}
-          {selectedFile && (
-            <div style={{
-              padding: "8px 20px", borderTop: `1px solid ${T.border}`,
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              background: `${T.surface}60`, fontSize: 10, color: T.textDim,
-            }}>
-              <span>Datei: {selectedFile}</span>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {changeReason.trim().length >= 8 ? (
-                  <Badge variant="success" size="xs">Bereit zum Speichern</Badge>
-                ) : (
-                  <Badge variant="warning" size="xs">Änderungsgrund erforderlich (min. 8 Zeichen)</Badge>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <input value={changeReason} onChange={(e) => setChangeReason(e.target.value)} placeholder={t("knowledge.reasonPlaceholder")} style={{ ...inputBase, width: 240, fontSize: 11 }} />
+                {conflict && (
+                  <>
+                    <button onClick={() => selectedFile && void loadFile(selectedFile)} style={btnSecondary}>Neu laden</button>
+                    <button onClick={() => void save({ force: true })} style={{ ...btnSecondary, borderColor: `${T.warning}60`, color: T.warning }}>Überschreiben</button>
+                  </>
                 )}
+                <button onClick={() => void save()} disabled={!selectedFile} style={{ ...btnPrimary, opacity: !selectedFile ? 0.4 : 1, padding: "8px 16px" }}>
+                  <Save size={14} /> Speichern
+                </button>
               </div>
             </div>
+            <div style={{ padding: 16, flex: 1, minHeight: 400 }}>
+              {error && !selectedFile ? (
+                <div style={{ padding: 20, color: T.danger, fontSize: 13 }}>{error}</div>
+              ) : selectedFile ? (
+                <TiptapEditor content={contentHtml} onChange={(next: string) => { setContentHtml(next); setDirty(true); }} />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", padding: 48, textAlign: "center" }}>
+                  <div style={{ width: 72, height: 72, borderRadius: "50%", background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20, border: `1px solid ${T.accent}30` }}>
+                    <BookOpen size={32} color={T.accent} strokeWidth={1.5} />
+                  </div>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8 }}>Dokument auswählen</h3>
+                  <p style={{ fontSize: 13, color: T.textMuted, maxWidth: 360, lineHeight: 1.6 }}>{t("knowledge.selectFile")}</p>
+                </div>
+              )}
+              {meta?.last_ingest_error && (
+                <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 10, background: T.dangerDim, border: `1px solid ${T.danger}30`, fontSize: 12, color: T.danger }}>
+                  <AlertTriangle size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
+                  Ingest-Fehler: {meta.last_ingest_error}
+                </div>
+              )}
+            </div>
+            {selectedFile && (
+              <div style={{ padding: "8px 20px", borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: `${T.surface}60`, fontSize: 10, color: T.textDim }}>
+                <span>Datei: {selectedFile}</span>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {changeReason.trim().length >= 8 ? <Badge variant="success" size="xs">Bereit zum Speichern</Badge> : <Badge variant="warning" size="xs">Änderungsgrund erforderlich (min. 8 Zeichen)</Badge>}
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════
+         TAB: File Upload (NEW)
+         ════════════════════════════════════════════════════════════════ */}
+      {activeTab === "upload" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Drag & Drop Upload Zone */}
+          <Card
+            style={{
+              padding: 48, textAlign: "center", cursor: "pointer",
+              border: dragOver ? `2px dashed ${T.accent}` : `2px dashed ${T.border}`,
+              background: dragOver ? T.accentDim : T.surface,
+              transition: "all 0.2s ease",
+            }}
+            hover={false}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={SUPPORTED_ACCEPT}
+              style={{ display: "none" }}
+              onChange={(e) => handleFileUpload(e.target.files)}
+            />
+            <div style={{ width: 72, height: 72, borderRadius: 18, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+              <Upload size={32} style={{ color: T.accent }} />
+            </div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: T.text, margin: "0 0 8px" }}>
+              {uploading ? uploadProgress : "Dateien hierher ziehen oder klicken"}
+            </h3>
+            <p style={{ fontSize: 13, color: T.textMuted, margin: "0 0 4px" }}>
+              Unterstützte Formate: {SUPPORTED_EXTENSIONS}
+            </p>
+            <p style={{ fontSize: 11, color: T.textDim, margin: 0 }}>
+              Max. Dateigröße: 50 MB pro Datei – Mehrfachauswahl möglich
+            </p>
+            {uploading && (
+              <div style={{ marginTop: 20, height: 4, borderRadius: 2, background: T.surfaceAlt, overflow: "hidden", maxWidth: 400, margin: "20px auto 0" }}>
+                <div style={{ height: "100%", borderRadius: 2, background: `linear-gradient(90deg, ${T.accent}, ${T.accentLight})`, width: "60%", animation: "pulse 1.5s ease-in-out infinite" }} />
+              </div>
+            )}
+          </Card>
+
+          {/* Format Info Cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+            {[
+              { icon: <FileText size={18} />, color: T.danger, title: "PDF-Dokumente", desc: "Text wird automatisch extrahiert, OCR für gescannte Seiten. Tabellen und Bilder werden erkannt." },
+              { icon: <FileType size={18} />, color: T.info, title: "Word (DOCX)", desc: "Formatierter Text, Überschriften und Listen werden strukturiert übernommen." },
+              { icon: <FileSpreadsheet size={18} />, color: T.success, title: "Excel & CSV", desc: "Tabellendaten werden als strukturierter Text verarbeitet. Jedes Sheet wird separat indiziert." },
+              { icon: <Globe size={18} />, color: T.accentLight, title: "HTML & Web", desc: "HTML-Inhalte werden bereinigt, Navigation und Skripte entfernt, reiner Text indiziert." },
+              { icon: <Sparkles size={18} />, color: T.warning, title: "Präsentationen", desc: "PowerPoint-Folien werden als einzelne Abschnitte mit Notizen verarbeitet." },
+              { icon: <Zap size={18} />, color: T.accent, title: "Automatisch", desc: "Alle Dateien werden in Chunks aufgeteilt, vektorisiert und sofort für die KI verfügbar." },
+            ].map((item, i) => (
+              <Card key={i} style={{ padding: "16px 20px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+                <div style={{ ...statIcon(item.color), width: 40, height: 40, borderRadius: 10, flexShrink: 0 }}>{item.icon}</div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.text, marginBottom: 4 }}>{item.title}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, lineHeight: 1.5 }}>{item.desc}</div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════
+         TAB: All Documents (NEW)
+         ════════════════════════════════════════════════════════════════ */}
+      {activeTab === "documents" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Filter Bar */}
+          <Card style={{ padding: "12px 20px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <Filter size={14} style={{ color: T.textDim }} />
+            <span style={{ fontSize: 12, color: T.textMuted }}>Filter:</span>
+            {[
+              { key: "all", label: "Alle" },
+              { key: "indexed", label: "Indiziert" },
+              { key: "processing", label: "In Bearbeitung" },
+              { key: "error", label: "Fehler" },
+              { key: "notion", label: "Notion" },
+              { key: "upload", label: "Upload" },
+            ].map((f) => (
+              <button key={f.key} onClick={() => setDocFilter(f.key)} style={{
+                padding: "4px 12px", borderRadius: 8, border: "none",
+                background: docFilter === f.key ? T.accentDim : T.surfaceAlt,
+                color: docFilter === f.key ? T.accentLight : T.textMuted,
+                fontSize: 11, fontWeight: 600, cursor: "pointer",
+              }}>
+                {f.label}
+              </button>
+            ))}
+            <span style={{ marginLeft: "auto", fontSize: 11, color: T.textDim }}>
+              {filteredDocuments.length} Dokument(e)
+            </span>
+          </Card>
+
+          {/* Document Table */}
+          {filteredDocuments.length === 0 ? (
+            <Card style={{ padding: 48, textAlign: "center" }}>
+              <Database size={48} style={{ color: T.textDim, opacity: 0.3, margin: "0 auto 16px", display: "block" }} />
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: T.text, margin: "0 0 8px" }}>Keine Dokumente gefunden</h3>
+              <p style={{ fontSize: 13, color: T.textMuted, margin: 0 }}>Laden Sie Dateien hoch oder erstellen Sie Markdown-Dokumente im Editor</p>
+            </Card>
+          ) : (
+            <Card style={{ padding: 0, overflow: "hidden" }}>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                      {["Datei", "Quelle", "Größe", "Chunks", "Status", "Erstellt", ""].map((h, i) => (
+                        <th key={i} style={{ padding: "12px 16px", textAlign: "left", fontSize: 10, fontWeight: 800, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDocuments.map((doc) => (
+                      <tr key={doc.document_id} style={{ borderBottom: `1px solid ${T.border}`, transition: "background 0.15s" }}>
+                        <td style={{ padding: "12px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            {getFileIcon(doc.filename)}
+                            <div>
+                              <div style={{ fontSize: 13, color: T.text, fontWeight: 500 }}>{doc.filename}</div>
+                              {doc.error && <div style={{ fontSize: 10, color: T.danger, marginTop: 2 }}>{doc.error}</div>}
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <Badge variant={doc.source_type === "notion" ? "info" : doc.source_type === "upload" ? "accent" : "default"} size="xs">
+                            {doc.source_type === "notion" ? "Notion" : doc.source_type === "upload" ? "Upload" : doc.source_type === "markdown" ? "Markdown" : doc.source_type}
+                          </Badge>
+                        </td>
+                        <td style={{ padding: "12px 16px", fontSize: 12, color: T.textMuted }}>{formatFileSize(doc.file_size)}</td>
+                        <td style={{ padding: "12px 16px", fontSize: 12, color: T.textMuted }}>{doc.chunk_count}</td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <Badge variant={doc.status === "indexed" ? "success" : doc.status === "processing" ? "warning" : doc.status === "error" ? "danger" : "default"} size="xs">
+                            {doc.status === "indexed" ? "Indiziert" : doc.status === "processing" ? "Verarbeitung…" : doc.status === "error" ? "Fehler" : doc.status}
+                          </Badge>
+                        </td>
+                        <td style={{ padding: "12px 16px", fontSize: 11, color: T.textDim }}>{formatDate(doc.created_at)}</td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <button onClick={() => deleteDocument(doc.document_id)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim, padding: 4 }} title="Löschen">
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           )}
-        </Card>
-      </div>
+        </div>
+      )}
 
       {/* Info Card */}
       <Card style={{ padding: "16px 20px", display: "flex", alignItems: "flex-start", gap: 14 }}>
-        <div style={statIcon(T.info)}>
-          <Info size={18} />
-        </div>
+        <div style={statIcon(T.info)}><Info size={18} /></div>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 4 }}>
-            Wie funktioniert die Wissensdatenbank?
-          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 4 }}>Wie funktioniert die Wissensdatenbank?</div>
           <p style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.6, margin: 0 }}>
-            Die Wissensdatenbank speichert Dokumente, die der KI als Kontext für Gespräche dienen.
-            Dokumente werden in Chunks aufgeteilt und vektorisiert, sodass die KI relevante Informationen
-            semantisch abrufen kann. Verwenden Sie den Rich-Text-Editor, um Dokumente zu erstellen und zu bearbeiten.
-            Nach dem Speichern wird automatisch eine Neu-Indizierung angestoßen.
+            Die Wissensdatenbank speichert Dokumente, die der KI als Kontext für Gespräche und Kampagnen dienen.
+            Sie können Markdown-Dokumente im Editor erstellen oder Dateien in verschiedenen Formaten (PDF, Word, Excel, CSV, HTML, PowerPoint) hochladen.
+            Alle Dokumente werden automatisch in Chunks aufgeteilt und vektorisiert, sodass die KI relevante Informationen semantisch abrufen kann.
+            Über die Notion-Integration können Sie auch externe Wissensdatenbanken anbinden.
           </p>
         </div>
       </Card>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+      `}</style>
     </div>
   );
 }
