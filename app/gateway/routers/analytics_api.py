@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, case, and_
 from sqlalchemy.orm import Session
 
-from app.core.auth import AuthContext, get_auth_context
+from app.core.auth import AuthContext, get_current_user
 from app.core.db import get_db
 from app.core.models import Campaign, CampaignRecipient
 from app.core.analytics_models import AnalyticsEvent, CampaignOrchestrationStep
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/v2/admin/analytics", tags=["analytics"])
 
 @router.get("/overview")
 async def analytics_overview(
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(get_current_user),
     db: Session = Depends(get_db),
     days: int = Query(30, ge=1, le=365, description="Lookback period in days"),
 ):
@@ -106,7 +106,7 @@ async def analytics_overview(
 @router.get("/funnel")
 async def analytics_funnel(
     campaign_id: int = Query(..., description="Campaign ID"),
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Get funnel data for a specific campaign.
@@ -157,7 +157,7 @@ async def analytics_funnel(
 
 @router.get("/campaigns")
 async def analytics_campaigns(
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(get_current_user),
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
@@ -213,7 +213,7 @@ async def analytics_campaigns(
 
 @router.get("/by-channel")
 async def analytics_by_channel(
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(get_current_user),
     db: Session = Depends(get_db),
     days: int = Query(30, ge=1, le=365),
 ):
@@ -261,7 +261,7 @@ async def analytics_by_channel(
 @router.get("/orchestration/{campaign_id}")
 async def analytics_orchestration(
     campaign_id: int,
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Get per-step performance for a multi-channel campaign."""
@@ -313,7 +313,7 @@ async def analytics_orchestration(
 
 @router.get("/events")
 async def analytics_events(
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(get_current_user),
     db: Session = Depends(get_db),
     campaign_id: int = Query(None, description="Filter by campaign"),
     event_type: str = Query(None, description="Filter by event type"),
