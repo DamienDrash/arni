@@ -16,8 +16,12 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
+  // Determine the correct external origin from headers (behind reverse proxy)
+  const proto = request.headers.get("x-forwarded-proto") || "https";
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "www.ariia.ai";
+  const baseUrl = `${proto}://${host}`;
+
   // Build the redirect URL to the knowledge page
-  const baseUrl = request.nextUrl.origin;
   const redirectUrl = new URL("/knowledge", baseUrl);
 
   if (error) {
