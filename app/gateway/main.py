@@ -263,6 +263,10 @@ from app.gateway.auth import router as auth_router
 app.include_router(auth_router)
 app.include_router(llm_costs_router, prefix="/admin")
 
+# --- Memory Platform Router ---
+from app.memory_platform.api import router as memory_platform_router
+app.include_router(memory_platform_router)
+
 # --- Health Check ---
 @app.get("/health")
 async def health_check() -> dict[str, Any]:
