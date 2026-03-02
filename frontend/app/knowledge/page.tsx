@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/Badge";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Modal } from "@/components/ui/Modal";
 import TiptapEditor from "@/components/TiptapEditor";
+import NotionIntegration from "@/components/knowledge/NotionIntegration";
 import { T } from "@/lib/tokens";
 import { apiFetch } from "@/lib/api";
 import { getStoredUser } from "@/lib/auth";
@@ -126,7 +127,7 @@ export default function KnowledgePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* ── Tab state ────────────────────────────────────────────────────── */
-  const [activeTab, setActiveTab] = useState<"editor" | "upload" | "documents">("editor");
+  const [activeTab, setActiveTab] = useState<"editor" | "upload" | "documents" | "notion">("editor");
 
   /* ── Legacy editor state ──────────────────────────────────────────── */
   const [tenants, setTenants] = useState<TenantOption[]>([]);
@@ -444,6 +445,9 @@ export default function KnowledgePage() {
           <Database size={16} /> Alle Dokumente
           {documents.length > 0 && <Badge variant="accent" size="xs">{documents.length}</Badge>}
         </button>
+        <button style={tabBtn(activeTab === "notion")} onClick={() => setActiveTab("notion")}>
+          <BookOpen size={16} /> Notion
+        </button>
       </Card>
 
       {/* ════════════════════════════════════════════════════════════════
@@ -715,6 +719,13 @@ export default function KnowledgePage() {
             </Card>
           )}
         </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════
+         TAB: Notion Integration
+         ════════════════════════════════════════════════════════════════ */}
+      {activeTab === "notion" && (
+        <NotionIntegration />
       )}
 
       {/* Info Card */}

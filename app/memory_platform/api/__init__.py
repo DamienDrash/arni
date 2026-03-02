@@ -304,7 +304,16 @@ async def get_member_context(
     }
 
 
-# ── Notion Connector Endpoints ───────────────────────────────────────
+# ── Notion Connector Endpoints (Multi-Tenant, DB-backed) ────────────
+
+@router.get("/notion/status")
+async def get_notion_status(
+    user=Depends(_get_auth()),
+) -> dict[str, Any]:
+    """Get the current Notion connection status for the tenant."""
+    from app.memory_platform.notion_service import get_notion_service
+    return get_notion_service().get_status(user.tenant_id)
+
 
 @router.get("/notion/oauth-url")
 async def get_notion_oauth_url(
@@ -312,11 +321,11 @@ async def get_notion_oauth_url(
     user=Depends(_get_auth()),
 ) -> dict[str, str]:
     """Get the Notion OAuth authorization URL."""
-    from app.memory_platform.connectors.notion import get_notion_connector
-
-    connector = get_notion_connector()
-    url = connector.get_oauth_url(redirect_uri)
-    return {"oauth_url": url}
+    from app.memory_platform.notion_service import get_notion_service
+    result = get_notion_service().get_oauth_url(user.tenant_id, redirect_uri)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return {"oauth_url": result["auth_url"]}
 
 
 @router.post("/notion/oauth-callback")
@@ -324,20 +333,16 @@ async def notion_oauth_callback(
     body: NotionOAuthRequest,
     user=Depends(_get_auth()),
 ) -> dict[str, Any]:
-    """Exchange the Notion OAuth code for an access token."""
-    from app.memory_platform.connectors.notion import get_notion_connector
-
-    connector = get_notion_connector()
-    result = await connector.exchange_code(body.code, body.redirect_uri)
-
+    """Exchange the Notion OAuth code for an access token (per tenant)."""
+    from app.memory_platform.notion_service import get_notion_service
+    result = await get_notion_service().exchange_code(
+        tenant_id=user.tenant_id,
+        code=body.code,
+        redirect_uri=body.redirect_uri,
+    )
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
-
-    return {
-        "status": "connected",
-        "workspace_name": result.get("workspace_name"),
-        "workspace_id": result.get("workspace_id"),
-    }
+    return result
 
 
 @router.get("/notion/pages")
@@ -346,54 +351,63 @@ async def list_notion_pages(
     user=Depends(_get_auth()),
 ) -> list[dict[str, Any]]:
     """List available pages in the connected Notion workspace."""
-    from app.memory_platform.connectors.notion import get_notion_connector
+    from app.memory_platform.notion_service import get_notion_service
+    return await get_notion_service().list_pages(user.tenant_id, query=query)
 
-    connector = get_notion_connector()
-    if not connector.is_connected:
-        raise HTTPException(status_code=400, detail="Notion nicht verbunden")
 
-    return await connector.list_pages(query=query)
+@router.get("/notion/synced-pages")
+async def get_synced_pages(
+    user=Depends(_get_auth()),
+) -> list[dict[str, Any]]:
+    """Get all synced pages for the tenant."""
+    from app.memory_platform.notion_service import get_notion_service
+    return get_notion_service().get_synced_pages(user.tenant_id)
+
+
+@router.post("/notion/pages/{page_id}/sync")
+async def toggle_page_sync(
+    page_id: str,
+    enable: bool = Query(True),
+    user=Depends(_get_auth()),
+) -> dict[str, Any]:
+    """Enable or disable sync for a specific Notion page."""
+    from app.memory_platform.notion_service import get_notion_service
+    result = await get_notion_service().sync_page(user.tenant_id, page_id, enable)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
 
 @router.post("/notion/sync")
 async def sync_notion(
-    body: NotionSyncRequest,
+    body: NotionSyncRequest = Body(default=NotionSyncRequest()),
     user=Depends(_get_auth()),
 ) -> dict[str, Any]:
-    """Sync content from Notion to the knowledge base."""
-    from app.memory_platform.connectors.notion import get_notion_connector
-
-    connector = get_notion_connector()
-    if not connector.is_connected:
-        raise HTTPException(status_code=400, detail="Notion nicht verbunden")
-
-    if body.incremental:
-        return await connector.incremental_sync(user.tenant_id)
-    else:
-        return await connector.sync(user.tenant_id, page_ids=body.page_ids)
+    """Trigger a full sync of all enabled Notion pages."""
+    from app.memory_platform.notion_service import get_notion_service
+    result = await get_notion_service().trigger_full_sync(user.tenant_id)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
 
-@router.post("/notion/webhook")
-async def notion_webhook(
-    payload: dict[str, Any] = Body(...),
+@router.get("/notion/sync-logs")
+async def get_sync_logs(
+    limit: int = Query(20, ge=1, le=100),
+    user=Depends(_get_auth()),
+) -> list[dict[str, Any]]:
+    """Get Notion sync history for the tenant."""
+    from app.memory_platform.notion_service import get_notion_service
+    return get_notion_service().get_sync_logs(user.tenant_id, limit=limit)
+
+
+@router.post("/notion/disconnect")
+async def disconnect_notion(
     user=Depends(_get_auth()),
 ) -> dict[str, Any]:
-    """Handle incoming Notion webhook events."""
-    from app.memory_platform.connectors.notion import get_notion_connector
-
-    connector = get_notion_connector()
-    return await connector.handle_webhook(user.tenant_id, payload)
-
-
-@router.get("/notion/status")
-async def get_notion_status(
-    user=Depends(_get_auth()),
-) -> dict[str, Any]:
-    """Get the current Notion connection status."""
-    from app.memory_platform.connectors.notion import get_notion_connector
-
-    connector = get_notion_connector()
-    return connector.get_status()
+    """Disconnect Notion for the tenant."""
+    from app.memory_platform.notion_service import get_notion_service
+    return get_notion_service().disconnect(user.tenant_id)
 
 
 # ── Consent Management Endpoints ─────────────────────────────────────
