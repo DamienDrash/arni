@@ -72,7 +72,8 @@ const LIFECYCLE_STAGES: Record<string, { label: string; color: string; icon: any
 };
 
 const SOURCE_LABELS: Record<string, string> = {
-  manual: "Manuell", magicline: "Magicline", import: "Import", api: "API",
+  manual: "Manuell", magicline: "Magicline", shopify: "Shopify",
+  woocommerce: "WooCommerce", hubspot: "HubSpot", import: "Import", api: "API",
   website: "Website", referral: "Empfehlung", social: "Social Media",
 };
 
@@ -273,6 +274,9 @@ export default function ContactsPage() {
   const [showMergeWizard, setShowMergeWizard] = useState(false);
   const [showCustomFieldsAdmin, setShowCustomFieldsAdmin] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showSyncPanel, setShowSyncPanel] = useState(false);
+  const [syncIntegrations, setSyncIntegrations] = useState<{source: string; enabled: boolean; last_sync?: string; status: string; last_result?: string; last_error?: string}[]>([]);
+  const [syncLoading, setSyncLoading] = useState(false);
 
   // Form
   const [formData, setFormData] = useState<any>({
@@ -393,6 +397,46 @@ export default function ContactsPage() {
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
   useEffect(() => { fetchStats(); fetchTags(); fetchSegments(); fetchCustomFields(); }, []);
+
+  // ── Sync Functions ──────────────────────────────────────────────────
+
+  const fetchSyncStatus = async () => {
+    try {
+      const res = await apiFetch("/api/v2/contacts/sync/status");
+      if (res.ok) {
+        const data = await res.json();
+        setSyncIntegrations(data.integrations || []);
+      }
+    } catch {}
+  };
+
+  const triggerSync = async (source: string) => {
+    setSyncLoading(true);
+    try {
+      const res = await apiFetch(`/api/v2/contacts/sync/${source}`, { method: "POST" });
+      if (res.ok) {
+        // Update status to running
+        setSyncIntegrations(prev => prev.map(i => i.source === source ? { ...i, status: "running" } : i));
+        // Poll for completion
+        const poll = setInterval(async () => {
+          const statusRes = await apiFetch("/api/v2/contacts/sync/status");
+          if (statusRes.ok) {
+            const data = await statusRes.json();
+            const updated = data.integrations || [];
+            setSyncIntegrations(updated);
+            const src = updated.find((i: any) => i.source === source);
+            if (src && src.status !== "running") {
+              clearInterval(poll);
+              fetchContacts();
+              fetchStats();
+            }
+          }
+        }, 3000);
+        // Safety: stop polling after 5 minutes
+        setTimeout(() => clearInterval(poll), 300000);
+      }
+    } catch {} finally { setSyncLoading(false); }
+  };
 
   const handleSearchChange = (val: string) => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
@@ -893,6 +937,11 @@ export default function ContactsPage() {
             {isAdmin && (
               <button style={S.actionBtnSecondary} onClick={() => setShowCustomFieldsAdmin(true)}>
                 <Database size={14} /> Felder
+              </button>
+            )}
+            {isAdmin && (
+              <button style={{...S.actionBtnSecondary, background: syncIntegrations.some(i => i.status === "running") ? T.accentDim : T.surface}} onClick={() => { fetchSyncStatus(); setShowSyncPanel(true); }}>
+                <RefreshCw size={14} className={syncIntegrations.some(i => i.status === "running") ? "animate-spin" : ""} /> Sync
               </button>
             )}
             <button style={S.actionBtnSecondary} onClick={() => setShowExportModal(true)}>
@@ -2136,6 +2185,65 @@ export default function ContactsPage() {
         </Modal>
       )}
 
+      {/* ── Sync Panel Modal ─────────────────────────────────────────── */}
+      {showSyncPanel && (
+        <Modal title="Integrations-Synchronisation" onClose={() => setShowSyncPanel(false)} width={560}>
+          <div style={{ padding: "8px 0" }}>
+            <p style={{ fontSize: 12, color: T.textMuted, marginBottom: 16 }}>
+              Synchronisieren Sie Kontakte aus Ihren verbundenen Plattformen. Aktivierte Integrationen werden hier angezeigt.
+            </p>
+            {syncIntegrations.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "30px 0", color: T.textDim }}>
+                <RefreshCw size={32} style={{ marginBottom: 10, opacity: 0.3 }} />
+                <p style={{ fontSize: 13 }}>Keine Integrationen konfiguriert.</p>
+                <p style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>Konfigurieren Sie Integrationen unter Einstellungen → Integrationen.</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {syncIntegrations.map((integration) => {
+                  const sourceNames: Record<string, string> = { magicline: "Magicline", shopify: "Shopify", woocommerce: "WooCommerce", hubspot: "HubSpot" };
+                  const sourceIcons: Record<string, string> = { magicline: "🏋️", shopify: "🛒", woocommerce: "🛍️", hubspot: "🔶" };
+                  const isRunning = integration.status === "running";
+                  const isFailed = integration.status === "failed";
+                  const isCompleted = integration.status === "completed";
+                  return (
+                    <div key={integration.source} style={{ padding: "14px 16px", borderRadius: 12, border: `1px solid ${isFailed ? T.danger + "40" : isRunning ? T.accent + "40" : T.border}`, background: isFailed ? T.danger + "08" : isRunning ? T.accentDim : T.surface }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontSize: 20 }}>{sourceIcons[integration.source] || "🔗"}</span>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{sourceNames[integration.source] || integration.source}</div>
+                            <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
+                              {!integration.enabled ? "Nicht konfiguriert" : isRunning ? "Synchronisierung läuft..." : isFailed ? "Fehlgeschlagen" : isCompleted ? `Letzte Sync: ${integration.last_sync ? fmtDateTime(integration.last_sync) : "–"}` : "Bereit"}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          {isRunning && <Loader2 size={16} style={{ color: T.accent, animation: "spin 1s linear infinite" }} />}
+                          {isFailed && <AlertCircle size={16} style={{ color: T.danger }} />}
+                          {isCompleted && <CheckCircle2 size={16} style={{ color: T.success }} />}
+                          <button
+                            style={{ ...S.actionBtnSecondary, padding: "6px 12px", fontSize: 11, opacity: integration.enabled && !isRunning ? 1 : 0.4 }}
+                            disabled={!integration.enabled || isRunning}
+                            onClick={() => triggerSync(integration.source)}
+                          >
+                            <RefreshCw size={12} /> Sync starten
+                          </button>
+                        </div>
+                      </div>
+                      {isFailed && integration.last_error && (
+                        <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 8, background: T.danger + "15", fontSize: 11, color: T.danger }}>
+                          {integration.last_error}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
       {/* ── CSS Keyframes ───────────────────────────────────────────────── */}
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>

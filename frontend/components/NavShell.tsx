@@ -45,7 +45,7 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
         "/": { title: t("common.welcome"), subtitle: "" },
         "/dashboard": { title: t("common.dashboard"), subtitle: "" },
         "/live": { title: t("sidebar.monitor"), subtitle: "" },
-        "/members": { title: t("sidebar.members"), subtitle: "" },
+        "/contacts": { title: "Kontakte", subtitle: "" },
         "/tenants": { title: t("sidebar.tenants"), subtitle: "" },
         "/audit": { title: t("sidebar.audit"), subtitle: "" },
         "/settings": { title: t("common.settings"), subtitle: "" },

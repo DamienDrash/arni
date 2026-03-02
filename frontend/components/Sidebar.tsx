@@ -67,7 +67,6 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
       title: t("sidebar.sections.customers"),
       items: [
         { name: "Kontakte", href: "/contacts", icon: Contact2 },
-        { name: t("sidebar.members"), href: "/members", icon: Users, feature: "multi_source_members" },
         { name: t("sidebar.users"), href: "/users", icon: Users },
       ],
     },

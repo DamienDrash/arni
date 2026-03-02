@@ -1042,3 +1042,104 @@ def export_csv(user: AuthContext = Depends(get_current_user)):
         )
     finally:
         db.close()
+
+
+# ─── Integration Sync Endpoints ──────────────────────────────────────────────
+# These endpoints provide sync status and trigger sync operations
+# directly from the Contacts module.
+
+@router.get("/sync/status")
+def get_sync_status(
+    user: AuthContext = Depends(get_current_user),
+):
+    """Get sync status for all configured integrations."""
+    require_role(user, {"system_admin", "tenant_admin"})
+    from app.gateway.persistence import persistence
+
+    sources = ["magicline", "shopify", "woocommerce", "hubspot"]
+    integrations = []
+
+    for source in sources:
+        prefix = f"integration_{source}_{user.tenant_id}"
+        enabled = persistence.get_setting(f"{prefix}_enabled") == "true"
+        last_sync = persistence.get_setting(f"sync_{source}_{user.tenant_id}_last")
+        status = persistence.get_setting(f"sync_{source}_{user.tenant_id}_status") or "idle"
+        last_result = persistence.get_setting(f"sync_{source}_{user.tenant_id}_result")
+        last_error = persistence.get_setting(f"sync_{source}_{user.tenant_id}_error")
+
+        integrations.append({
+            "source": source,
+            "enabled": enabled,
+            "last_sync": last_sync,
+            "status": status,
+            "last_result": last_result,
+            "last_error": last_error if status == "failed" else None,
+        })
+
+    return {"integrations": integrations}
+
+
+@router.post("/sync/{source}")
+def trigger_sync(
+    source: str,
+    background_tasks: BackgroundTasks,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Trigger a sync operation for a specific integration source.
+
+    Supported sources: magicline, shopify, woocommerce, hubspot
+    """
+    require_role(user, {"system_admin", "tenant_admin"})
+    from app.gateway.persistence import persistence
+    import asyncio
+
+    valid_sources = {"magicline", "shopify", "woocommerce", "hubspot"}
+    if source not in valid_sources:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ungültige Quelle: {source}. Erlaubt: {', '.join(sorted(valid_sources))}",
+        )
+
+    # Check if integration is enabled
+    prefix = f"integration_{source}_{user.tenant_id}"
+    enabled = persistence.get_setting(f"{prefix}_enabled")
+    if enabled != "true":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Integration '{source}' ist nicht aktiviert. Bitte konfigurieren Sie sie zuerst.",
+        )
+
+    # Set status to running
+    persistence.set_setting(f"sync_{source}_{user.tenant_id}_status", "running")
+
+    def _run_sync(tenant_id: int, src: str):
+        try:
+            if src == "magicline":
+                from app.integrations.magicline.contact_sync import sync_contacts_from_magicline
+                result = sync_contacts_from_magicline(tenant_id)
+            elif src == "shopify":
+                from app.integrations.shopify.contact_sync import sync_contacts_from_shopify
+                result = asyncio.run(sync_contacts_from_shopify(tenant_id))
+            elif src == "woocommerce":
+                from app.integrations.woocommerce.contact_sync import sync_contacts_from_woocommerce
+                result = asyncio.run(sync_contacts_from_woocommerce(tenant_id))
+            elif src == "hubspot":
+                from app.integrations.hubspot.contact_sync import sync_contacts_from_hubspot
+                result = asyncio.run(sync_contacts_from_hubspot(tenant_id))
+            else:
+                raise ValueError(f"Unbekannte Quelle: {src}")
+
+            persistence.set_setting(f"sync_{src}_{tenant_id}_status", "completed")
+            persistence.set_setting(
+                f"sync_{src}_{tenant_id}_last",
+                datetime.now(timezone.utc).isoformat(),
+            )
+            persistence.set_setting(f"sync_{src}_{tenant_id}_result", str(result))
+            logger.info(f"{src}.sync.completed", tenant_id=tenant_id, result=result)
+        except Exception as e:
+            persistence.set_setting(f"sync_{src}_{tenant_id}_status", "failed")
+            persistence.set_setting(f"sync_{src}_{tenant_id}_error", str(e))
+            logger.error(f"{src}.sync.failed", tenant_id=tenant_id, error=str(e))
+
+    background_tasks.add_task(_run_sync, user.tenant_id, source)
+    return {"status": "sync_started", "source": source}
