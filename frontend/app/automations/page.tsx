@@ -3,30 +3,22 @@
 import React, { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import {
-  Zap,
-  Plus,
-  Play,
-  Pause,
-  Trash2,
-  Eye,
-  Pencil,
-  BarChart3,
-  RefreshCw,
-  Search,
-  ChevronLeft,
-  Save,
-  Users,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  XCircle,
+  Zap, Plus, Play, Pause, Trash2, Pencil, BarChart3, RefreshCw,
+  Search, ChevronLeft, Save, Users, AlertCircle, CheckCircle, Clock, XCircle,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { T } from "@/lib/tokens";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
-// Dynamically import WorkflowBuilder (no SSR)
 const WorkflowBuilder = dynamic(
   () => import("@/components/automations/WorkflowBuilder"),
-  { ssr: false, loading: () => <div className="flex items-center justify-center h-96"><RefreshCw className="animate-spin" size={24} /></div> }
+  { ssr: false, loading: () => (
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 400 }}>
+      <RefreshCw size={24} color={T.accent} style={{ animation: "spin 1s linear infinite" }} />
+    </div>
+  )}
 );
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -34,59 +26,70 @@ const WorkflowBuilder = dynamic(
    ═══════════════════════════════════════════════════════════════════════ */
 
 interface Workflow {
-  id: number;
-  name: string;
-  description: string | null;
-  is_active: boolean;
-  trigger_type: string;
-  trigger_config_json: string | null;
-  workflow_graph_json: string;
-  max_concurrent_runs: number;
-  re_entry_policy: string;
-  active_runs: number;
-  created_at: string | null;
-  updated_at: string | null;
+  id: number; name: string; description: string | null; is_active: boolean;
+  trigger_type: string; trigger_config_json: string | null; workflow_graph_json: string;
+  max_concurrent_runs: number; re_entry_policy: string; active_runs: number;
+  created_at: string | null; updated_at: string | null;
 }
 
 interface AutomationStats {
-  total_workflows: number;
-  active_workflows: number;
-  active_runs: number;
-  completed_runs: number;
-  error_runs: number;
+  total_workflows: number; active_workflows: number; active_runs: number;
+  completed_runs: number; error_runs: number;
 }
 
 interface Run {
-  id: number;
-  workflow_id: number;
-  contact_id: number;
-  status: string;
-  current_node_id: string | null;
-  started_at: string | null;
-  completed_at: string | null;
-  error_message: string | null;
+  id: number; workflow_id: number; contact_id: number; status: string;
+  current_node_id: string | null; started_at: string | null;
+  completed_at: string | null; error_message: string | null;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Trigger Type Labels
+   Constants & Styles
    ═══════════════════════════════════════════════════════════════════════ */
 
 const TRIGGER_LABELS: Record<string, string> = {
-  segment_entry: "Segment-Eintritt",
-  segment_exit: "Segment-Austritt",
-  contact_created: "Neuer Kontakt",
-  tag_added: "Tag hinzugefügt",
-  tag_removed: "Tag entfernt",
-  lifecycle_change: "Lifecycle-Änderung",
-  manual: "Manuell",
+  segment_entry: "Segment-Eintritt", segment_exit: "Segment-Austritt",
+  contact_created: "Neuer Kontakt", tag_added: "Tag hinzugefügt",
+  tag_removed: "Tag entfernt", lifecycle_change: "Lifecycle-Änderung", manual: "Manuell",
 };
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  active: { label: "Aktiv", color: "text-green-600 bg-green-50", icon: <Play size={12} /> },
-  waiting: { label: "Wartend", color: "text-amber-600 bg-amber-50", icon: <Clock size={12} /> },
-  completed: { label: "Abgeschlossen", color: "text-blue-600 bg-blue-50", icon: <CheckCircle size={12} /> },
-  cancelled: { label: "Abgebrochen", color: "text-gray-600 bg-gray-50", icon: <XCircle size={12} /> },
-  error: { label: "Fehler", color: "text-red-600 bg-red-50", icon: <AlertCircle size={12} /> },
+const STATUS_MAP: Record<string, { label: string; color: string; bg: string; icon: any }> = {
+  active:    { label: "Aktiv",         color: T.success,    bg: T.successDim,  icon: Play },
+  waiting:   { label: "Wartend",       color: T.warning,    bg: T.warningDim,  icon: Clock },
+  completed: { label: "Abgeschlossen", color: T.info,       bg: T.infoDim,     icon: CheckCircle },
+  cancelled: { label: "Abgebrochen",   color: T.textMuted,  bg: T.surfaceAlt,  icon: XCircle },
+  error:     { label: "Fehler",        color: T.danger,     bg: T.dangerDim,   icon: AlertCircle },
+};
+
+const S: Record<string, React.CSSProperties> = {
+  page: { padding: "32px 40px", maxWidth: 1400, margin: "0 auto" },
+  statsRow: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 24 },
+  statCard: { background: T.surface, borderRadius: 14, padding: "16px 18px", border: `1px solid ${T.border}`, transition: "border-color .2s", cursor: "default" },
+  statValue: { fontSize: 22, fontWeight: 800, color: T.text, lineHeight: 1.1 },
+  statLabel: { fontSize: 11, color: T.textMuted, fontWeight: 600, marginTop: 2 },
+  searchWrap: { position: "relative" as const, flex: 1, minWidth: 200 },
+  searchIcon: { position: "absolute" as const, left: 12, top: "50%", transform: "translateY(-50%)", color: T.textDim },
+  searchInput: { width: "100%", padding: "10px 12px 10px 36px", borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 13, outline: "none" },
+  actionBtn: { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10, border: "none", background: T.accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "opacity .15s", whiteSpace: "nowrap" as const },
+  actionBtnSecondary: { display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 10, border: `1px solid ${T.border}`, background: T.surface, color: T.text, fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" as const },
+  table: { width: "100%", borderCollapse: "collapse" as const, fontSize: 13 },
+  th: { padding: "12px 14px", textAlign: "left" as const, fontWeight: 700, fontSize: 11, color: T.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.04em", borderBottom: `2px solid ${T.border}` },
+  td: { padding: "12px 14px", borderBottom: `1px solid ${T.border}`, verticalAlign: "middle" as const },
+  formLabel: { display: "block", fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 5, textTransform: "uppercase" as const, letterSpacing: "0.04em" },
+  formInput: { width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const },
+  formSelect: { width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 13, outline: "none" },
+  iconBtn: { display: "flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", cursor: "pointer", transition: "background .15s" },
+  backBtn: { display: "flex", alignItems: "center", gap: 4, fontSize: 13, color: T.textMuted, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: 16 },
+  emptyState: { textAlign: "center" as const, padding: 60 },
+};
+
+const fmtDate = (d: string | null) => {
+  if (!d) return "–";
+  try { return new Date(d).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }); } catch { return "–"; }
+};
+const fmtDateTime = (d: string | null) => {
+  if (!d) return "–";
+  try { return new Date(d).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch { return "–"; }
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -104,7 +107,6 @@ export default function AutomationsPage() {
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
 
-  // Form state
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formTriggerType, setFormTriggerType] = useState("segment_entry");
@@ -123,13 +125,8 @@ export default function AutomationsPage() {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       const res = await apiFetch(`/v2/admin/automations?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setWorkflows(data.items || []);
-      }
-    } catch (e) {
-      console.error("Failed to load workflows", e);
-    }
+      if (res.ok) { const data = await res.json(); setWorkflows(data.items || []); }
+    } catch (e) { console.error("Failed to load workflows", e); }
     setLoading(false);
   }, [search]);
 
@@ -137,89 +134,44 @@ export default function AutomationsPage() {
     try {
       const res = await apiFetch("/v2/admin/automations/stats");
       if (res.ok) setStats(await res.json());
-    } catch (e) {
-      console.error("Failed to load stats", e);
-    }
+    } catch (e) { console.error("Failed to load stats", e); }
   }, []);
 
   const loadRuns = useCallback(async (workflowId: number) => {
     try {
       const res = await apiFetch(`/v2/admin/automations/${workflowId}/runs?limit=100`);
-      if (res.ok) {
-        const data = await res.json();
-        setRuns(data.items || []);
-      }
-    } catch (e) {
-      console.error("Failed to load runs", e);
-    }
+      if (res.ok) { const data = await res.json(); setRuns(data.items || []); }
+    } catch (e) { console.error("Failed to load runs", e); }
   }, []);
 
-  useEffect(() => {
-    loadWorkflows();
-    loadStats();
-  }, [loadWorkflows, loadStats]);
+  useEffect(() => { loadWorkflows(); loadStats(); }, [loadWorkflows, loadStats]);
 
   /* ─── Actions ───────────────────────────────────────────────────────── */
 
   const handleCreate = async () => {
-    setSaving(true);
-    setError(null);
+    setSaving(true); setError(null);
     try {
       const res = await apiFetch("/v2/admin/automations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formName,
-          description: formDescription || null,
-          trigger_type: formTriggerType,
-          trigger_config_json: formTriggerConfig || null,
-          workflow_graph_json: JSON.stringify(formGraph),
-          max_concurrent_runs: formMaxRuns,
-          re_entry_policy: formReEntryPolicy,
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: formName, description: formDescription || null, trigger_type: formTriggerType, trigger_config_json: formTriggerConfig || null, workflow_graph_json: JSON.stringify(formGraph), max_concurrent_runs: formMaxRuns, re_entry_policy: formReEntryPolicy }),
       });
-      if (res.ok) {
-        setViewMode("list");
-        loadWorkflows();
-        loadStats();
-      } else {
-        const data = await res.json();
-        setError(data.detail || "Fehler beim Erstellen");
-      }
-    } catch (e: any) {
-      setError(e.message);
-    }
+      if (res.ok) { setViewMode("list"); loadWorkflows(); loadStats(); }
+      else { const data = await res.json(); setError(data.detail || "Fehler beim Erstellen"); }
+    } catch (e: any) { setError(e.message); }
     setSaving(false);
   };
 
   const handleUpdate = async () => {
     if (!selectedWorkflow) return;
-    setSaving(true);
-    setError(null);
+    setSaving(true); setError(null);
     try {
       const res = await apiFetch(`/v2/admin/automations/${selectedWorkflow.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formName,
-          description: formDescription || null,
-          trigger_type: formTriggerType,
-          trigger_config_json: formTriggerConfig || null,
-          workflow_graph_json: JSON.stringify(formGraph),
-          max_concurrent_runs: formMaxRuns,
-          re_entry_policy: formReEntryPolicy,
-        }),
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: formName, description: formDescription || null, trigger_type: formTriggerType, trigger_config_json: formTriggerConfig || null, workflow_graph_json: JSON.stringify(formGraph), max_concurrent_runs: formMaxRuns, re_entry_policy: formReEntryPolicy }),
       });
-      if (res.ok) {
-        setViewMode("list");
-        loadWorkflows();
-      } else {
-        const data = await res.json();
-        setError(data.detail || "Fehler beim Speichern");
-      }
-    } catch (e: any) {
-      setError(e.message);
-    }
+      if (res.ok) { setViewMode("list"); loadWorkflows(); }
+      else { const data = await res.json(); setError(data.detail || "Fehler beim Speichern"); }
+    } catch (e: any) { setError(e.message); }
     setSaving(false);
   };
 
@@ -227,84 +179,57 @@ export default function AutomationsPage() {
     const action = wf.is_active ? "deactivate" : "activate";
     try {
       const res = await apiFetch(`/v2/admin/automations/${wf.id}/${action}`, { method: "POST" });
-      if (res.ok) {
-        loadWorkflows();
-        loadStats();
-      }
-    } catch (e) {
-      console.error("Toggle failed", e);
-    }
+      if (res.ok) { loadWorkflows(); loadStats(); }
+    } catch (e) { console.error("Toggle failed", e); }
   };
 
   const handleDelete = async (wf: Workflow) => {
     if (!confirm(`Workflow "${wf.name}" wirklich löschen?`)) return;
     try {
       const res = await apiFetch(`/v2/admin/automations/${wf.id}`, { method: "DELETE" });
-      if (res.ok) {
-        loadWorkflows();
-        loadStats();
-      }
-    } catch (e) {
-      console.error("Delete failed", e);
-    }
+      if (res.ok) { loadWorkflows(); loadStats(); }
+    } catch (e) { console.error("Delete failed", e); }
   };
 
   const openCreate = () => {
-    setFormName("");
-    setFormDescription("");
-    setFormTriggerType("segment_entry");
-    setFormTriggerConfig("{}");
-    setFormReEntryPolicy("skip");
-    setFormMaxRuns(1000);
-    setFormGraph({ nodes: [], edges: [] });
-    setSelectedWorkflow(null);
-    setError(null);
+    setFormName(""); setFormDescription(""); setFormTriggerType("segment_entry");
+    setFormTriggerConfig("{}"); setFormReEntryPolicy("skip"); setFormMaxRuns(1000);
+    setFormGraph({ nodes: [], edges: [] }); setSelectedWorkflow(null); setError(null);
     setViewMode("create");
   };
 
   const openEdit = (wf: Workflow) => {
-    setFormName(wf.name);
-    setFormDescription(wf.description || "");
-    setFormTriggerType(wf.trigger_type);
-    setFormTriggerConfig(wf.trigger_config_json || "{}");
-    setFormReEntryPolicy(wf.re_entry_policy);
-    setFormMaxRuns(wf.max_concurrent_runs);
-    try {
-      setFormGraph(JSON.parse(wf.workflow_graph_json));
-    } catch {
-      setFormGraph({ nodes: [], edges: [] });
-    }
-    setSelectedWorkflow(wf);
-    setError(null);
-    setViewMode("edit");
+    setFormName(wf.name); setFormDescription(wf.description || "");
+    setFormTriggerType(wf.trigger_type); setFormTriggerConfig(wf.trigger_config_json || "{}");
+    setFormReEntryPolicy(wf.re_entry_policy); setFormMaxRuns(wf.max_concurrent_runs);
+    try { setFormGraph(JSON.parse(wf.workflow_graph_json)); } catch { setFormGraph({ nodes: [], edges: [] }); }
+    setSelectedWorkflow(wf); setError(null); setViewMode("edit");
   };
 
-  const openRuns = (wf: Workflow) => {
-    setSelectedWorkflow(wf);
-    loadRuns(wf.id);
-    setViewMode("runs");
-  };
+  const openRuns = (wf: Workflow) => { setSelectedWorkflow(wf); loadRuns(wf.id); setViewMode("runs"); };
 
-  /* ─── Render: Stats Cards ───────────────────────────────────────────── */
+  /* ─── Render: Stats ────────────────────────────────────────────────── */
 
   const renderStats = () => {
     if (!stats) return null;
     const cards = [
-      { label: "Workflows gesamt", value: stats.total_workflows, icon: <Zap size={20} />, color: "text-blue-600 bg-blue-50" },
-      { label: "Aktive Workflows", value: stats.active_workflows, icon: <Play size={20} />, color: "text-green-600 bg-green-50" },
-      { label: "Laufende Runs", value: stats.active_runs, icon: <RefreshCw size={20} />, color: "text-amber-600 bg-amber-50" },
-      { label: "Abgeschlossen", value: stats.completed_runs, icon: <CheckCircle size={20} />, color: "text-indigo-600 bg-indigo-50" },
-      { label: "Fehler", value: stats.error_runs, icon: <AlertCircle size={20} />, color: "text-red-600 bg-red-50" },
+      { label: "Workflows", value: stats.total_workflows, icon: Zap, color: T.accent, bg: T.accentDim },
+      { label: "Aktiv", value: stats.active_workflows, icon: Play, color: T.success, bg: T.successDim },
+      { label: "Laufende Runs", value: stats.active_runs, icon: RefreshCw, color: T.warning, bg: T.warningDim },
+      { label: "Abgeschlossen", value: stats.completed_runs, icon: CheckCircle, color: T.info, bg: T.infoDim },
+      { label: "Fehler", value: stats.error_runs, icon: AlertCircle, color: T.danger, bg: T.dangerDim },
     ];
     return (
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div style={S.statsRow}>
         {cards.map((c) => (
-          <div key={c.label} className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${c.color}`}>{c.icon}</div>
+          <div key={c.label} style={S.statCard}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: c.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <c.icon size={18} style={{ color: c.color }} />
+              </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{c.value}</p>
-                <p className="text-xs text-gray-500">{c.label}</p>
+                <div style={S.statValue}>{c.value}</div>
+                <div style={S.statLabel}>{c.label}</div>
               </div>
             </div>
           </div>
@@ -313,107 +238,117 @@ export default function AutomationsPage() {
     );
   };
 
-  /* ─── Render: Workflow List ─────────────────────────────────────────── */
+  /* ─── Render: List ─────────────────────────────────────────────────── */
 
   const renderList = () => (
-    <div className="space-y-6">
-      {renderStats()}
-
+    <>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-amber-100 rounded-lg"><Zap size={24} className="text-amber-600" /></div>
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 12,
+            background: `linear-gradient(135deg, ${T.accent}, ${T.accentLight})`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Zap size={20} color="#fff" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Automations</h1>
-            <p className="text-sm text-gray-500">Automatisierte Workflows für Kontakt-Aktionen</p>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: T.text, margin: 0, letterSpacing: "-0.03em" }}>
+              Automations
+            </h1>
+            <p style={{ fontSize: 13, color: T.textMuted, margin: 0 }}>
+              Automatisierte Workflows für Kontakt-Aktionen
+            </p>
           </div>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-        >
-          <Plus size={16} />
-          Neuer Workflow
+      </div>
+
+      {renderStats()}
+
+      {/* Toolbar */}
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 20 }}>
+        <div style={S.searchWrap}>
+          <Search size={14} style={S.searchIcon} />
+          <input
+            type="text"
+            style={S.searchInput}
+            placeholder="Workflows durchsuchen..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <button style={S.actionBtn} onClick={openCreate}>
+          <Plus size={14} /> Neuer Workflow
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm"
-          placeholder="Workflows durchsuchen..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
-      {/* Table */}
+      {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <RefreshCw className="animate-spin text-gray-400" size={24} />
+        <div style={{ display: "flex", justifyContent: "center", padding: 60 }}>
+          <RefreshCw size={24} color={T.accent} style={{ animation: "spin 1s linear infinite" }} />
         </div>
       ) : workflows.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <Zap size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-700 mb-2">Keine Workflows vorhanden</h3>
-          <p className="text-sm text-gray-500 mb-4">Erstellen Sie Ihren ersten Automation-Workflow.</p>
-          <button onClick={openCreate} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-            <Plus size={14} className="inline mr-1" /> Workflow erstellen
-          </button>
-        </div>
+        <Card style={{ padding: 0 }}>
+          <div style={S.emptyState}>
+            <Zap size={48} color={T.textDim} style={{ marginBottom: 16 }} />
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 6 }}>Keine Workflows vorhanden</div>
+            <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 16 }}>Erstellen Sie Ihren ersten Automation-Workflow.</div>
+            <button style={S.actionBtn} onClick={openCreate}><Plus size={14} /> Workflow erstellen</button>
+          </div>
+        </Card>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
+        <Card style={{ padding: 0, overflow: "hidden" }}>
+          <table style={S.table}>
             <thead>
-              <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Trigger</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Aktive Runs</th>
-                <th className="px-4 py-3">Re-Entry</th>
-                <th className="px-4 py-3">Aktualisiert</th>
-                <th className="px-4 py-3 text-right">Aktionen</th>
+              <tr>
+                <th style={S.th}>Name</th>
+                <th style={S.th}>Trigger</th>
+                <th style={S.th}>Status</th>
+                <th style={S.th}>Aktive Runs</th>
+                <th style={S.th}>Re-Entry</th>
+                <th style={S.th}>Aktualisiert</th>
+                <th style={{ ...S.th, textAlign: "right" }}>Aktionen</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {workflows.map((wf) => (
-                <tr key={wf.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div>
-                      <p className="font-medium text-gray-900">{wf.name}</p>
-                      {wf.description && <p className="text-xs text-gray-500 mt-0.5">{wf.description}</p>}
-                    </div>
+                <tr key={wf.id} style={{ transition: "background .15s" }} onMouseEnter={(e) => (e.currentTarget.style.background = T.surfaceAlt)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                  <td style={S.td}>
+                    <div style={{ fontWeight: 600, color: T.text }}>{wf.name}</div>
+                    {wf.description && <div style={{ fontSize: 11, color: T.textDim, marginTop: 2 }}>{wf.description}</div>}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700">
-                      {TRIGGER_LABELS[wf.trigger_type] || wf.trigger_type}
-                    </span>
+                  <td style={S.td}>
+                    <Badge variant="default">{TRIGGER_LABELS[wf.trigger_type] || wf.trigger_type}</Badge>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${wf.is_active ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                  <td style={S.td}>
+                    <Badge variant={wf.is_active ? "success" : "default"}>
                       {wf.is_active ? <><Play size={10} /> Aktiv</> : <><Pause size={10} /> Inaktiv</>}
-                    </span>
+                    </Badge>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{wf.active_runs}</td>
-                  <td className="px-4 py-3 text-gray-600 capitalize">{wf.re_entry_policy}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">
-                    {wf.updated_at ? new Date(wf.updated_at).toLocaleDateString("de-DE") : "–"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => openRuns(wf)} className="p-1.5 hover:bg-gray-100 rounded" title="Runs anzeigen">
-                        <BarChart3 size={14} className="text-gray-500" />
+                  <td style={{ ...S.td, color: T.textMuted }}>{wf.active_runs}</td>
+                  <td style={{ ...S.td, color: T.textMuted, textTransform: "capitalize" }}>{wf.re_entry_policy}</td>
+                  <td style={{ ...S.td, color: T.textDim, fontSize: 12 }}>{fmtDate(wf.updated_at)}</td>
+                  <td style={{ ...S.td, textAlign: "right" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 2 }}>
+                      <button style={S.iconBtn} onClick={() => openRuns(wf)} title="Runs anzeigen"
+                        onMouseEnter={(e) => (e.currentTarget.style.background = T.surfaceAlt)}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                        <BarChart3 size={14} color={T.textMuted} />
                       </button>
-                      <button onClick={() => openEdit(wf)} className="p-1.5 hover:bg-gray-100 rounded" title="Bearbeiten">
-                        <Pencil size={14} className="text-gray-500" />
+                      <button style={S.iconBtn} onClick={() => openEdit(wf)} title="Bearbeiten"
+                        onMouseEnter={(e) => (e.currentTarget.style.background = T.surfaceAlt)}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                        <Pencil size={14} color={T.textMuted} />
                       </button>
-                      <button onClick={() => handleToggleActive(wf)} className="p-1.5 hover:bg-gray-100 rounded" title={wf.is_active ? "Deaktivieren" : "Aktivieren"}>
-                        {wf.is_active ? <Pause size={14} className="text-amber-500" /> : <Play size={14} className="text-green-500" />}
+                      <button style={S.iconBtn} onClick={() => handleToggleActive(wf)} title={wf.is_active ? "Deaktivieren" : "Aktivieren"}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = T.surfaceAlt)}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                        {wf.is_active ? <Pause size={14} color={T.warning} /> : <Play size={14} color={T.success} />}
                       </button>
-                      <button onClick={() => handleDelete(wf)} className="p-1.5 hover:bg-red-50 rounded" title="Löschen">
-                        <Trash2 size={14} className="text-red-400" />
+                      <button style={S.iconBtn} onClick={() => handleDelete(wf)} title="Löschen"
+                        onMouseEnter={(e) => (e.currentTarget.style.background = T.dangerDim)}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                        <Trash2 size={14} color={T.danger} />
                       </button>
                     </div>
                   </td>
@@ -421,9 +356,9 @@ export default function AutomationsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
-    </div>
+    </>
   );
 
   /* ─── Render: Create / Edit Form ────────────────────────────────────── */
@@ -431,185 +366,148 @@ export default function AutomationsPage() {
   const renderForm = () => {
     const isEdit = viewMode === "edit";
     return (
-      <div className="space-y-6">
-        {/* Back Button */}
-        <button onClick={() => setViewMode("list")} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+      <>
+        <button style={S.backBtn} onClick={() => setViewMode("list")}>
           <ChevronLeft size={16} /> Zurück zur Übersicht
         </button>
 
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: T.text, margin: 0 }}>
             {isEdit ? "Workflow bearbeiten" : "Neuer Workflow"}
           </h1>
           <button
+            style={{ ...S.actionBtn, opacity: saving || !formName ? 0.5 : 1 }}
             onClick={isEdit ? handleUpdate : handleCreate}
             disabled={saving || !formName}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
           >
-            <Save size={16} />
-            {saving ? "Speichern..." : "Speichern"}
+            <Save size={14} /> {saving ? "Speichern..." : "Speichern"}
           </button>
         </div>
 
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
+          <div style={{ padding: 12, background: T.dangerDim, border: `1px solid ${T.danger}30`, borderRadius: 10, fontSize: 13, color: T.danger, display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
             <AlertCircle size={16} /> {error}
           </div>
         )}
 
         {/* Settings */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-          <h2 className="font-semibold text-gray-900">Grundeinstellungen</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card style={{ padding: 20, marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 16 }}>Grundeinstellungen</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
-              <input
-                type="text"
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                placeholder="z.B. Churn-Prevention Workflow"
-              />
+              <label style={S.formLabel}>Name *</label>
+              <input style={S.formInput} type="text" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="z.B. Churn-Prevention Workflow" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Trigger-Typ</label>
-              <select
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-                value={formTriggerType}
-                onChange={(e) => setFormTriggerType(e.target.value)}
-              >
-                {Object.entries(TRIGGER_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
+              <label style={S.formLabel}>Trigger-Typ</label>
+              <select style={S.formSelect} value={formTriggerType} onChange={(e) => setFormTriggerType(e.target.value)}>
+                {Object.entries(TRIGGER_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-gray-600 mb-1">Beschreibung</label>
-              <textarea
-                className="w-full border rounded-lg px-3 py-2 text-sm h-20"
-                value={formDescription}
-                onChange={(e) => setFormDescription(e.target.value)}
-                placeholder="Optionale Beschreibung des Workflows..."
-              />
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={S.formLabel}>Beschreibung</label>
+              <textarea style={{ ...S.formInput, height: 70, resize: "vertical" }} value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Optionale Beschreibung des Workflows..." />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Re-Entry Policy</label>
-              <select
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-                value={formReEntryPolicy}
-                onChange={(e) => setFormReEntryPolicy(e.target.value)}
-              >
+              <label style={S.formLabel}>Re-Entry Policy</label>
+              <select style={S.formSelect} value={formReEntryPolicy} onChange={(e) => setFormReEntryPolicy(e.target.value)}>
                 <option value="skip">Überspringen (Kontakt bereits im Workflow)</option>
                 <option value="restart">Neustart (bestehender Run wird abgebrochen)</option>
                 <option value="parallel">Parallel (mehrere Runs erlaubt)</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Trigger-Konfiguration (JSON)</label>
-              <input
-                type="text"
-                className="w-full border rounded-lg px-3 py-2 text-sm font-mono"
-                value={formTriggerConfig}
-                onChange={(e) => setFormTriggerConfig(e.target.value)}
-                placeholder='{"segment_id": 123}'
-              />
+              <label style={S.formLabel}>Trigger-Konfiguration (JSON)</label>
+              <input style={{ ...S.formInput, fontFamily: "monospace" }} type="text" value={formTriggerConfig} onChange={(e) => setFormTriggerConfig(e.target.value)} placeholder='{"segment_id": 123}' />
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Workflow Builder */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b">
-            <h2 className="font-semibold text-gray-900">Workflow-Graph</h2>
-            <p className="text-xs text-gray-500 mt-1">Ziehen Sie Knoten aus der Palette und verbinden Sie diese per Drag & Drop.</p>
+        <Card style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ padding: "14px 20px", borderBottom: `1px solid ${T.border}` }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Workflow-Graph</div>
+            <div style={{ fontSize: 11, color: T.textDim, marginTop: 2 }}>Ziehen Sie Knoten aus der Palette und verbinden Sie diese per Drag & Drop.</div>
           </div>
-          <div style={{ height: 600 }}>
-            <WorkflowBuilder
-              initialGraph={formGraph}
-              onChange={setFormGraph}
-              readOnly={false}
-            />
+          <div style={{ height: 600, background: T.bg }}>
+            <WorkflowBuilder initialGraph={formGraph} onChange={setFormGraph} readOnly={false} />
           </div>
-        </div>
-      </div>
+        </Card>
+      </>
     );
   };
 
   /* ─── Render: Runs View ─────────────────────────────────────────────── */
 
   const renderRuns = () => (
-    <div className="space-y-6">
-      <button onClick={() => setViewMode("list")} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+    <>
+      <button style={S.backBtn} onClick={() => setViewMode("list")}>
         <ChevronLeft size={16} /> Zurück zur Übersicht
       </button>
 
-      <div className="flex items-center justify-between">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Runs: {selectedWorkflow?.name}</h1>
-          <p className="text-sm text-gray-500 mt-1">Alle Durchläufe dieses Workflows</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: T.text, margin: 0 }}>Runs: {selectedWorkflow?.name}</h1>
+          <p style={{ fontSize: 13, color: T.textMuted, margin: "4px 0 0" }}>Alle Durchläufe dieses Workflows</p>
         </div>
-        <button
-          onClick={() => selectedWorkflow && loadRuns(selectedWorkflow.id)}
-          className="flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm hover:bg-gray-50"
-        >
+        <button style={S.actionBtnSecondary} onClick={() => selectedWorkflow && loadRuns(selectedWorkflow.id)}>
           <RefreshCw size={14} /> Aktualisieren
         </button>
       </div>
 
       {runs.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <Users size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-700">Keine Runs vorhanden</h3>
-          <p className="text-sm text-gray-500">Dieser Workflow wurde noch nicht ausgelöst.</p>
-        </div>
+        <Card style={{ padding: 0 }}>
+          <div style={S.emptyState}>
+            <Users size={48} color={T.textDim} style={{ marginBottom: 16 }} />
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 6 }}>Keine Runs vorhanden</div>
+            <div style={{ fontSize: 13, color: T.textMuted }}>Dieser Workflow wurde noch nicht ausgelöst.</div>
+          </div>
+        </Card>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
+        <Card style={{ padding: 0, overflow: "hidden" }}>
+          <table style={S.table}>
             <thead>
-              <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
-                <th className="px-4 py-3">Run-ID</th>
-                <th className="px-4 py-3">Kontakt-ID</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Aktueller Knoten</th>
-                <th className="px-4 py-3">Gestartet</th>
-                <th className="px-4 py-3">Abgeschlossen</th>
-                <th className="px-4 py-3">Fehler</th>
+              <tr>
+                <th style={S.th}>Run-ID</th>
+                <th style={S.th}>Kontakt-ID</th>
+                <th style={S.th}>Status</th>
+                <th style={S.th}>Aktueller Knoten</th>
+                <th style={S.th}>Gestartet</th>
+                <th style={S.th}>Abgeschlossen</th>
+                <th style={S.th}>Fehler</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {runs.map((run) => {
-                const sc = STATUS_CONFIG[run.status] || STATUS_CONFIG.error;
+                const sc = STATUS_MAP[run.status] || STATUS_MAP.error;
+                const Icon = sc.icon;
                 return (
-                  <tr key={run.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono text-xs">#{run.id}</td>
-                    <td className="px-4 py-3">{run.contact_id}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${sc.color}`}>
-                        {sc.icon} {sc.label}
-                      </span>
+                  <tr key={run.id} style={{ transition: "background .15s" }} onMouseEnter={(e) => (e.currentTarget.style.background = T.surfaceAlt)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                    <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>#{run.id}</td>
+                    <td style={{ ...S.td, color: T.text }}>{run.contact_id}</td>
+                    <td style={S.td}>
+                      <Badge variant={run.status === "active" ? "success" : run.status === "error" ? "danger" : run.status === "waiting" ? "warning" : run.status === "completed" ? "info" : "default"}>
+                        <Icon size={10} /> {sc.label}
+                      </Badge>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{run.current_node_id || "–"}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">
-                      {run.started_at ? new Date(run.started_at).toLocaleString("de-DE") : "–"}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">
-                      {run.completed_at ? new Date(run.completed_at).toLocaleString("de-DE") : "–"}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-red-500 max-w-[200px] truncate">{run.error_message || "–"}</td>
+                    <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: T.textDim }}>{run.current_node_id || "–"}</td>
+                    <td style={{ ...S.td, fontSize: 12, color: T.textDim }}>{fmtDateTime(run.started_at)}</td>
+                    <td style={{ ...S.td, fontSize: 12, color: T.textDim }}>{fmtDateTime(run.completed_at)}</td>
+                    <td style={{ ...S.td, fontSize: 12, color: T.danger, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{run.error_message || "–"}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
-    </div>
+    </>
   );
 
   /* ─── Main Render ───────────────────────────────────────────────────── */
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto">
+    <div style={S.page}>
       {viewMode === "list" && renderList()}
       {(viewMode === "create" || viewMode === "edit") && renderForm()}
       {viewMode === "runs" && renderRuns()}
