@@ -334,7 +334,7 @@ export default function NotionIntegration({ isAdmin = false }: { isAdmin?: boole
     setConnecting(true);
     setError("");
     try {
-      const redirectUri = `${window.location.origin}/knowledge?notion_callback=true`;
+      const redirectUri = `${window.location.origin}/api/v1/notion/oauth/callback`;
       const res = await apiFetch("/memory-platform/notion/oauth-callback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -354,9 +354,23 @@ export default function NotionIntegration({ isAdmin = false }: { isAdmin?: boole
 
   // Listen for OAuth callback from popup or URL params
   useEffect(() => {
-    // Check URL params (if redirected back to this page)
+    // Check URL params (if redirected back from Notion OAuth callback)
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
+    const notionError = params.get("notion_error");
+
+    if (notionError) {
+      setError(notionError === "no_code"
+        ? "Notion hat keinen Autorisierungscode zurückgegeben."
+        : `Notion-Autorisierung fehlgeschlagen: ${notionError}`);
+      // Clean up URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("notion_error");
+      url.searchParams.delete("notion_callback");
+      window.history.replaceState({}, "", url.toString());
+      return;
+    }
+
     if (code) {
       handleOAuthCode(code);
       // Clean up URL
@@ -383,7 +397,7 @@ export default function NotionIntegration({ isAdmin = false }: { isAdmin?: boole
     setConnecting(true);
     setError("");
     try {
-      const redirectUri = `${window.location.origin}/knowledge?notion_callback=true`;
+      const redirectUri = `${window.location.origin}/api/v1/notion/oauth/callback`;
       const res = await apiFetch(`/memory-platform/notion/oauth-url?redirect_uri=${encodeURIComponent(redirectUri)}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -393,7 +407,9 @@ export default function NotionIntegration({ isAdmin = false }: { isAdmin?: boole
       }
       const data = await res.json();
       if (data.oauth_url) {
-        window.open(data.oauth_url, "_blank", "width=600,height=700");
+        // Redirect in same window – Notion callback will redirect back to /knowledge
+        window.location.href = data.oauth_url;
+        return; // Don't reset connecting state, page will navigate away
       }
     } catch (e) {
       setError("Verbindungsfehler");
