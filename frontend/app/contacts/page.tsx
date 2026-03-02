@@ -1,7 +1,6 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, Plus, Upload, Download, Trash2, Search, Filter, MoreHorizontal,
   UserCircle, Loader2, ChevronRight, ChevronLeft, X, Check, Mail, Phone,
@@ -938,9 +937,9 @@ export default function ContactsPage() {
       )}
 
       {/* ── Segments Panel ──────────────────────────────────────────────── */}
-      <AnimatePresence>
+      
         {showSegmentsPanel && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: "hidden", marginBottom: 16 }}>
+          <div>
             <Card style={{ padding: 0 }}>
               <div style={{ padding: "14px 18px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -991,14 +990,14 @@ export default function ContactsPage() {
                 </div>
               )}
             </Card>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      
 
       {/* ── Bulk Actions Bar ────────────────────────────────────────────── */}
-      <AnimatePresence>
+      
         {selectedIds.size > 0 && isAdmin && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
+          <div>
             <div style={S.bulkBar}>
               <CheckCircle2 size={16} style={{ color: T.accent }} />
               <span style={{ fontSize: 13, fontWeight: 600, color: T.accent }}>{selectedIds.size} ausgewählt</span>
@@ -1007,9 +1006,9 @@ export default function ContactsPage() {
               <button style={{ ...S.actionBtnDanger, padding: "6px 12px" }} onClick={() => handleDelete(Array.from(selectedIds))}><Trash2 size={13} /> Löschen</button>
               <button style={{ ...S.filterBtn, padding: "6px 10px" }} onClick={() => setSelectedIds(new Set())}><X size={13} /> Abbrechen</button>
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
       <Card style={{ padding: "16px 18px", marginBottom: 16 }}>
@@ -1041,9 +1040,9 @@ export default function ContactsPage() {
         </div>
 
         {/* ── Extended Filter Row ──────────────────────────────────────── */}
-        <AnimatePresence>
+        
           {showFilters && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: "hidden", paddingTop: 12 }}>
+            <div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
                 <div>
                   <label style={S.formLabel}>Lifecycle-Phase</label>
@@ -1105,9 +1104,9 @@ export default function ContactsPage() {
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12, gap: 8 }}>
                 <button style={S.filterBtn} onClick={resetFilters}><RotateCcw size={12} /> Filter zurücksetzen</button>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+        
       </Card>
 
       {/* ── Contact Table ───────────────────────────────────────────────── */}
@@ -1221,9 +1220,10 @@ export default function ContactsPage() {
 
 
       {/* ── Detail Side Panel ───────────────────────────────────────────── */}
-      <AnimatePresence>
         {selectedContact && (
-          <motion.div initial={{ x: 480 }} animate={{ x: 0 }} exit={{ x: 480 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} style={S.detailPanel}>
+          <>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.3)", zIndex: 999 }} onClick={() => setSelectedContact(null)} />
+          <div style={S.detailPanel}>
             {/* Header */}
             <div style={S.detailHeader}>
               <div style={{ ...S.avatar, width: 48, height: 48, fontSize: 16, background: `${getAvatarColor(selectedContact.full_name)}22`, color: getAvatarColor(selectedContact.full_name) }}>
@@ -1547,11 +1547,9 @@ export default function ContactsPage() {
                 </button>
               </div>
             )}
-          </motion.div>
+            </div>
+          </>
         )}
-      </AnimatePresence>
-
-
       {/* ── Create / Edit Modal ─────────────────────────────────────────── */}
       {(showCreateModal || showEditModal) && (
         <Modal open={true} title={showCreateModal ? "Neuer Kontakt" : "Kontakt bearbeiten"} onClose={() => { setShowCreateModal(false); setShowEditModal(false); resetForm(); }} width="min(720px, 100%)">
