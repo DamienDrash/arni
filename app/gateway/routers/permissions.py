@@ -213,6 +213,7 @@ async def get_permissions(
             "/revenue": True,
             "/settings/ai": True,
             "/campaigns": True,
+            "/templates": True,
         }
     else:
         # Standard SaaS logic for Tenants
@@ -271,6 +272,7 @@ async def get_permissions(
                 "/revenue": False,
                 "/settings/ai": False,
                 "/campaigns": False,
+                "/templates": False,
             }
         else:
             pages_data = {
@@ -297,6 +299,7 @@ async def get_permissions(
             "/revenue": False,
             "/settings/ai": True,
             "/campaigns": True,
+            "/templates": True,
         }
 
     # 4. Usage Data

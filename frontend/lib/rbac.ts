@@ -7,8 +7,8 @@ type RoleAccess = {
 
 const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
   system_admin: {
-    exact: ["/", "/dashboard", "/features", "/pricing", "/impressum", "/datenschutz", "/agb", "/users", "/tenants", "/system-prompt", "/plans", "/revenue", "/audit", "/campaigns", "/settings", "/settings/account", "/settings/integrations", "/settings/ai", "/settings/general", "/infrastructure", "/llm-costs"],
-    prefixes: ["/users/", "/tenants/", "/plans/", "/revenue/", "/audit/", "/campaigns/", "/settings/", "/settings/account/", "/settings/integrations/", "/settings/ai/", "/settings/general/", "/infrastructure", "/llm-costs/"],
+    exact: ["/", "/dashboard", "/features", "/pricing", "/impressum", "/datenschutz", "/agb", "/users", "/tenants", "/system-prompt", "/plans", "/revenue", "/audit", "/campaigns", "/templates", "/settings", "/settings/account", "/settings/integrations", "/settings/ai", "/settings/general", "/infrastructure", "/llm-costs"],
+    prefixes: ["/users/", "/tenants/", "/plans/", "/revenue/", "/audit/", "/campaigns/", "/templates/", "/settings/", "/settings/account/", "/settings/integrations/", "/settings/ai/", "/settings/general/", "/infrastructure", "/llm-costs/"],
   },
   tenant_admin: {
     exact: [
@@ -37,10 +37,12 @@ const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
       "/settings/account",
       "/settings/ai",
       "/campaigns",
+      "/templates",
     ],
     prefixes: [
       "/live/",
       "/campaigns/",
+      "/templates/",
       "/escalations/",
       "/analytics/",
       "/members/",

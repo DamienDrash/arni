@@ -28,6 +28,7 @@ from app.core.auth import AuthContext, get_current_user
 from app.core.models import (
     Campaign, CampaignTemplate, CampaignVariant, CampaignRecipient,
     MemberSegment, ScheduledFollowUp, StudioMember, ChatMessage, ChatSession,
+    Tenant,
 )
 
 logger = structlog.get_logger()
@@ -309,16 +310,25 @@ async def ai_generate_content(
         except (json.JSONDecodeError, TypeError):
             pass
 
-    # Get knowledge base context if requested
+    # Get knowledge base context via semantic search in ChromaDB
     knowledge_context = ""
     if body.use_knowledge:
         try:
-            from app.gateway.persistence import persistence
-            knowledge_context = persistence.get_setting("knowledge_base_summary", "", tenant_id=user.tenant_id)
-            if knowledge_context:
-                context_parts.append(f"Knowledge base context: {knowledge_context[:500]}")
-        except Exception:
-            pass
+            from app.knowledge.knowledge_manager import KnowledgeManager
+            km = KnowledgeManager()
+            tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+            tenant_slug = tenant.slug if tenant else "default"
+            search_results = await km.search(
+                query=body.prompt,
+                tenant_slug=tenant_slug,
+                n_results=5,
+                include_shared=True,
+            )
+            if search_results.has_results:
+                knowledge_context = search_results.to_context_string(max_results=5)
+                context_parts.append(f"Relevante Informationen aus der Wissensbasis:\n{knowledge_context}")
+        except Exception as e:
+            logger.warning("campaign.knowledge_search_failed", error=str(e))
 
     # Get chat history context if requested
     chat_context = ""
@@ -353,18 +363,21 @@ async def ai_generate_content(
     }
     format_instruction = channel_format.get(campaign.channel, channel_format["email"])
 
-    system_prompt = f"""Du bist ein Marketing-Experte und Content Creator für ein Fitness-Studio / Unternehmen.
+    system_prompt = f"""Du bist ein erfahrener Marketing-Experte und Content Creator.
 Dein Ton ist {tone_desc}.
 {format_instruction}
 
-Kontext:
+KONTEXT DES UNTERNEHMENS:
 {chr(10).join(context_parts)}
 
-WICHTIG:
-- Verwende Platzhalter wie {{{{first_name}}}}, {{{{studio_name}}}} für Personalisierung
-- Der Inhalt muss zum Kanal passen ({campaign.channel})
-- Antworte im JSON-Format: {{"subject": "...", "body": "...", "html": "..."}}
-- Für WhatsApp/SMS/Telegram: "html" kann leer sein
+WICHTIGE REGELN:
+1. Nutze die Informationen aus der Wissensbasis als primäre Quelle für Fakten, Preise, Angebote und Details.
+2. Erfinde KEINE Fakten, Preise oder Angebote, die nicht in der Wissensbasis stehen.
+3. Verwende Platzhalter wie {{{{contact.first_name}}}}, {{{{contact.company}}}} für Personalisierung.
+4. Der Inhalt muss zum Kanal passen ({campaign.channel}).
+5. Antworte im JSON-Format: {{"subject": "...", "body": "...", "html": "..."}}
+6. Für WhatsApp/SMS/Telegram: "html" kann leer sein.
+7. Schreibe den Inhalt auf Deutsch, es sei denn, der Prompt verlangt eine andere Sprache.
 """
 
     try:

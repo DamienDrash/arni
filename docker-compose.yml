@@ -146,6 +146,28 @@ services:
     networks:
       - ariia-network
 
+  ariia-campaign-scheduler:
+    build: .
+    container_name: ariia_campaign_scheduler
+    restart: always
+    command: python scripts/campaign_scheduler_worker.py
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://ariia-redis:6379/0
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia
+      - AUTH_SECRET=${AUTH_SECRET}
+      - CAMPAIGN_POLL_INTERVAL=30
+    depends_on:
+      - ariia-core
+      - ariia-redis
+      - ariia-postgres
+    healthcheck:
+      disable: true
+    volumes:
+      - ariia_data:/app/data
+    networks:
+      - ariia-network
+
   # --- Monitoring Stack ---
 
   prometheus:

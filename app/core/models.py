@@ -548,7 +548,10 @@ class CampaignRecipient(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
-    member_id = Column(Integer, ForeignKey("studio_members.id"), nullable=False, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True, index=True)
+    member_id = Column(Integer, ForeignKey("studio_members.id"), nullable=True, index=True)
+    contact_id = Column(Integer, nullable=True, index=True)  # v2 contacts reference
+    channel = Column(String, nullable=True)  # email | whatsapp | sms | telegram
     variant_name = Column(String, nullable=True)  # For A/B tests
 
     # Status: pending | sent | delivered | opened | clicked | failed | bounced | unsubscribed

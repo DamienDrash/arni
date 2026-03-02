@@ -9,6 +9,7 @@ import {
   Globe, Smartphone, Bell, TrendingUp, Layers,
 } from "lucide-react";
 import { T } from "@/lib/tokens";
+import CreateCampaignWizard from "@/components/campaigns/CreateCampaignWizard";
 import { Card } from "@/components/ui/Card";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Badge } from "@/components/ui/Badge";
@@ -451,7 +452,12 @@ export default function CampaignsPage() {
 
       {/* Tab Content */}
       {!loading && activeTab === "overview" && renderOverview()}
-      {!loading && activeTab === "create" && renderCreateWizard()}
+      {!loading && activeTab === "create" && (
+        <CreateCampaignWizard
+          onCreated={() => { setActiveTab("overview"); loadCampaigns(); loadAnalytics(); }}
+          onCancel={() => setActiveTab("overview")}
+        />
+      )}
       {!loading && activeTab === "templates" && renderTemplates()}
       {!loading && activeTab === "segments" && renderSegments()}
       {!loading && activeTab === "follow-ups" && renderFollowUps()}

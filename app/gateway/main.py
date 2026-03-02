@@ -174,6 +174,7 @@ from app.gateway.routers import members_crud, integrations_sync, connector_hub, 
 from app.gateway.routers import revenue_analytics, tenant_llm, campaigns
 from app.gateway.routers import docker_management
 from app.gateway.routers import smtp_config
+from app.gateway.routers import campaign_templates
 app.include_router(integrations_sync.router)
 app.include_router(connector_hub.router)
 app.include_router(permissions.router)
@@ -182,6 +183,7 @@ app.include_router(plans_admin.router)
 app.include_router(revenue_analytics.router)
 app.include_router(tenant_llm.router)
 app.include_router(campaigns.router)
+app.include_router(campaign_templates.router)
 app.include_router(docker_management.router)
 app.include_router(smtp_config.router)
 

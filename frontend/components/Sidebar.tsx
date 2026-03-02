@@ -27,6 +27,7 @@ import {
   AlertCircle,
   Cpu,
   Contact2,
+  Layers,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
@@ -82,6 +83,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
       title: "KAMPAGNEN",
       items: [
         { name: "Kampagnen", href: "/campaigns", icon: Megaphone },
+        { name: "Vorlagen", href: "/templates", icon: Layers },
       ],
     },
     {
