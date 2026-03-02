@@ -318,21 +318,25 @@ export default function CampaignAnalyticsPage() {
   const loadData = async (period?: number) => {
     const d = period || days;
     try {
-      const [overviewRes, campaignsRes, channelsRes] = await Promise.all([
+      const [overviewRaw, campaignsRaw, channelsRaw] = await Promise.all([
         apiFetch(`/v2/admin/analytics/overview?days=${d}`),
         apiFetch(`/v2/admin/analytics/campaigns?per_page=50`),
         apiFetch(`/v2/admin/analytics/by-channel?days=${d}`),
       ]);
-      setOverview(overviewRes);
-      setCampaigns(campaignsRes.campaigns || []);
-      setChannels(channelsRes.channels || []);
+      const overviewData = overviewRaw.ok ? await overviewRaw.json() : null;
+      const campaignsData = campaignsRaw.ok ? await campaignsRaw.json() : { campaigns: [] };
+      const channelsData = channelsRaw.ok ? await channelsRaw.json() : { channels: [] };
+      setOverview(overviewData);
+      setCampaigns(campaignsData.campaigns || []);
+      setChannels(channelsData.channels || []);
 
       // Load funnel for first campaign if available
-      const firstCampaign = campaignsRes.campaigns?.[0];
+      const firstCampaign = campaignsData.campaigns?.[0];
       if (firstCampaign && !selectedCampaignId) {
         setSelectedCampaignId(firstCampaign.id);
-        const funnelRes = await apiFetch(`/v2/admin/analytics/funnel?campaign_id=${firstCampaign.id}`);
-        setFunnel(funnelRes);
+        const funnelRaw = await apiFetch(`/v2/admin/analytics/funnel?campaign_id=${firstCampaign.id}`);
+        const funnelData = funnelRaw.ok ? await funnelRaw.json() : null;
+        setFunnel(funnelData);
       }
     } catch (err) {
       console.error("Analytics load error:", err);
@@ -346,7 +350,8 @@ export default function CampaignAnalyticsPage() {
     setSelectedCampaignId(campaignId);
     try {
       const res = await apiFetch(`/v2/admin/analytics/funnel?campaign_id=${campaignId}`);
-      setFunnel(res);
+      const funnelData = res.ok ? await res.json() : null;
+      setFunnel(funnelData);
     } catch (err) {
       console.error("Funnel load error:", err);
     }
