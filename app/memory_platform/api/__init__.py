@@ -304,6 +304,39 @@ async def get_member_context(
     }
 
 
+# ── Notion Admin Configuration (Platform-Level) ──────────────────────
+
+class NotionPlatformConfigRequest(BaseModel):
+    client_id: str
+    client_secret: str
+
+
+@router.get("/notion/admin/config")
+async def get_notion_platform_config(
+    user=Depends(_get_auth()),
+) -> dict[str, Any]:
+    """Get the platform-level Notion OAuth configuration (admin only)."""
+    if getattr(user, 'role', '') != 'system_admin':
+        raise HTTPException(status_code=403, detail="Nur System-Admins können die Notion-Konfiguration verwalten.")
+    from app.memory_platform.notion_service import get_notion_service
+    return get_notion_service().get_platform_config()
+
+
+@router.post("/notion/admin/config")
+async def save_notion_platform_config(
+    body: NotionPlatformConfigRequest,
+    user=Depends(_get_auth()),
+) -> dict[str, Any]:
+    """Save the platform-level Notion OAuth credentials (admin only)."""
+    if getattr(user, 'role', '') != 'system_admin':
+        raise HTTPException(status_code=403, detail="Nur System-Admins können die Notion-Konfiguration verwalten.")
+    from app.memory_platform.notion_service import get_notion_service
+    result = get_notion_service().save_platform_config(body.client_id, body.client_secret)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
 # ── Notion Connector Endpoints (Multi-Tenant, DB-backed) ────────────
 
 @router.get("/notion/status")

@@ -725,7 +725,7 @@ export default function KnowledgePage() {
          TAB: Notion Integration
          ════════════════════════════════════════════════════════════════ */}
       {activeTab === "notion" && (
-        <NotionIntegration />
+        <NotionIntegration isAdmin={isSystemAdmin} />
       )}
 
       {/* Info Card */}

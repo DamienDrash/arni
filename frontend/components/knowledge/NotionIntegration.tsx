@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BookOpen, CheckCircle2, Clock, Database, ExternalLink, FileText,
-  Info, Link2, RefreshCw, Search, Trash2, Unlink, Zap,
+  Info, Key, Link2, RefreshCw, Search, Settings, Shield, Trash2, Unlink, Zap,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/Card";
@@ -15,6 +15,7 @@ import { apiFetch } from "@/lib/api";
 /* ── Types ──────────────────────────────────────────────────────────── */
 type ConnectionStatus = {
   connected: boolean;
+  platform_configured: boolean;
   workspace_name: string | null;
   workspace_icon: string | null;
   connected_at: string | null;
@@ -47,6 +48,12 @@ type SyncLog = {
   started_at: string | null;
   completed_at: string | null;
   error: string | null;
+};
+
+type PlatformConfig = {
+  configured: boolean;
+  client_id: string;
+  has_secret: boolean;
 };
 
 /* ── Styles ─────────────────────────────────────────────────────────── */
@@ -96,8 +103,168 @@ function formatDate(dateStr: string | null): string {
   } catch { return dateStr; }
 }
 
-/* ── Component ──────────────────────────────────────────────────────── */
-export default function NotionIntegration() {
+/* ── Admin Config Panel ────────────────────────────────────────────── */
+function NotionAdminConfig({
+  onSaved,
+}: {
+  onSaved: () => void;
+}) {
+  const [config, setConfig] = useState<PlatformConfig | null>(null);
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiFetch("/memory-platform/notion/admin/config");
+        if (res.ok) {
+          const data = await res.json();
+          setConfig(data);
+          setClientId(data.client_id || "");
+        }
+      } catch { /* ignore */ }
+      setLoading(false);
+    })();
+  }, []);
+
+  const handleSave = async () => {
+    if (!clientId.trim()) {
+      setError("Client ID ist erforderlich");
+      return;
+    }
+    if (!clientSecret.trim() && !config?.has_secret) {
+      setError("Client Secret ist erforderlich");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await apiFetch("/memory-platform/notion/admin/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: clientId.trim(),
+          client_secret: clientSecret.trim() || "KEEP_EXISTING",
+        }),
+      });
+
+      if (res.ok) {
+        setSuccess("Notion-Konfiguration gespeichert!");
+        setClientSecret("");
+        setConfig({ configured: true, client_id: clientId.trim(), has_secret: true });
+        onSaved();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.detail || "Fehler beim Speichern");
+      }
+    } catch {
+      setError("Verbindungsfehler");
+    }
+    setSaving(false);
+  };
+
+  if (loading) {
+    return (
+      <Card style={{ padding: 32, textAlign: "center" }}>
+        <RefreshCw size={18} style={{ animation: "spin 1s linear infinite", color: T.textDim }} />
+      </Card>
+    );
+  }
+
+  return (
+    <Card style={{ padding: 0, overflow: "hidden" }}>
+      <div style={{
+        padding: "16px 20px",
+        borderBottom: `1px solid ${T.border}`,
+        display: "flex", alignItems: "center", gap: 10,
+        background: `${T.accent}08`,
+      }}>
+        <div style={statIcon(T.accent)}><Settings size={18} /></div>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Notion OAuth-Konfiguration</div>
+          <div style={{ fontSize: 11, color: T.textMuted }}>
+            Platform-Level Einstellungen für die Notion-Integration aller Mandanten
+          </div>
+        </div>
+        {config?.configured && (
+          <Badge variant="success" size="xs" style={{ marginLeft: "auto" }}>Konfiguriert</Badge>
+        )}
+      </div>
+
+      <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+        {error && (
+          <div style={{ padding: "10px 16px", borderRadius: 8, background: T.dangerDim, border: `1px solid ${T.danger}40`, fontSize: 12, color: T.danger, fontWeight: 600 }}>
+            {error}
+          </div>
+        )}
+        {success && (
+          <div style={{ padding: "10px 16px", borderRadius: 8, background: T.successDim, border: `1px solid ${T.success}40`, fontSize: 12, color: T.success, fontWeight: 600 }}>
+            {success}
+          </div>
+        )}
+
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 16px", borderRadius: 10, background: `${T.info}10`, border: `1px solid ${T.info}20` }}>
+          <Info size={16} style={{ color: T.info, flexShrink: 0, marginTop: 2 }} />
+          <div style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.6 }}>
+            Erstellen Sie eine Notion-Integration unter{" "}
+            <a href="https://www.notion.so/my-integrations" target="_blank" rel="noopener noreferrer" style={{ color: T.accent, textDecoration: "underline" }}>
+              notion.so/my-integrations
+            </a>
+            {" "}und tragen Sie die OAuth-Credentials hier ein. Alle Mandanten nutzen diese gemeinsame Integration, erhalten aber jeweils einen eigenen Zugangstoken.
+          </div>
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+            OAuth Client ID
+          </label>
+          <div style={{ position: "relative" }}>
+            <Key size={14} style={{ position: "absolute", left: 12, top: 12, color: T.textDim }} />
+            <input
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              placeholder="z.B. abc123-def456-..."
+              style={{ ...inputBase, paddingLeft: 34 }}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+            OAuth Client Secret {config?.has_secret && <span style={{ color: T.success, fontWeight: 400 }}>(gespeichert – leer lassen um beizubehalten)</span>}
+          </label>
+          <div style={{ position: "relative" }}>
+            <Shield size={14} style={{ position: "absolute", left: 12, top: 12, color: T.textDim }} />
+            <input
+              type="password"
+              value={clientSecret}
+              onChange={(e) => setClientSecret(e.target.value)}
+              placeholder={config?.has_secret ? "••••••••••••••••" : "secret_..."}
+              style={{ ...inputBase, paddingLeft: 34 }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={handleSave} disabled={saving} style={btnPrimary}>
+            {saving ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} /> : <CheckCircle2 size={14} />}
+            {saving ? "Speichere…" : "Konfiguration speichern"}
+          </button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+/* ── Main Component ───────────────────────────────────────────────── */
+export default function NotionIntegration({ isAdmin = false }: { isAdmin?: boolean }) {
   const [connection, setConnection] = useState<ConnectionStatus | null>(null);
   const [pages, setPages] = useState<NotionPage[]>([]);
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
@@ -128,7 +295,6 @@ export default function NotionIntegration() {
       const res = await apiFetch("/memory-platform/notion/synced-pages");
       if (res.ok) {
         const synced = await res.json();
-        // Merge synced pages into the pages list
         setPages(prev => {
           const map = new Map(prev.map(p => [p.page_id, p]));
           for (const sp of synced) {
@@ -154,9 +320,7 @@ export default function NotionIntegration() {
 
   useEffect(() => {
     setLoading(true);
-    loadStatus().then(async () => {
-      setLoading(false);
-    });
+    loadStatus().then(() => setLoading(false));
   }, [loadStatus]);
 
   useEffect(() => {
@@ -170,7 +334,7 @@ export default function NotionIntegration() {
     setConnecting(true);
     setError("");
     try {
-      const redirectUri = `${window.location.origin}/settings/notion/callback`;
+      const redirectUri = `${window.location.origin}/knowledge?notion_callback=true`;
       const res = await apiFetch(`/memory-platform/notion/oauth-url?redirect_uri=${encodeURIComponent(redirectUri)}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -191,7 +355,13 @@ export default function NotionIntegration() {
   const disconnectNotion = async () => {
     try {
       await apiFetch("/memory-platform/notion/disconnect", { method: "POST" });
-      setConnection({ connected: false, workspace_name: null, workspace_icon: null, connected_at: null, last_sync_at: null, last_sync_status: null, webhook_active: false, pages_synced: 0, databases_synced: 0 });
+      setConnection({
+        connected: false,
+        platform_configured: connection?.platform_configured ?? false,
+        workspace_name: null, workspace_icon: null,
+        connected_at: null, last_sync_at: null, last_sync_status: null,
+        webhook_active: false, pages_synced: 0, databases_synced: 0,
+      });
       setPages([]);
       setSyncLogs([]);
       setShowDisconnect(false);
@@ -252,8 +422,27 @@ export default function NotionIntegration() {
         </div>
       )}
 
-      {/* ── Not Connected ───────────────────────────────────────────── */}
-      {!connection?.connected && (
+      {/* ── Admin Config Panel (only for system admins) ─────────────── */}
+      {isAdmin && (
+        <NotionAdminConfig onSaved={loadStatus} />
+      )}
+
+      {/* ── Platform Not Configured ────────────────────────────────── */}
+      {!connection?.platform_configured && !isAdmin && (
+        <Card style={{ padding: "48px 32px", textAlign: "center" }}>
+          <div style={{ width: 72, height: 72, borderRadius: 20, background: `${T.warning}15`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+            <Settings size={32} style={{ color: T.warning }} />
+          </div>
+          <h3 style={{ fontSize: 20, fontWeight: 800, color: T.text, marginBottom: 8 }}>Notion nicht konfiguriert</h3>
+          <p style={{ fontSize: 13, color: T.textMuted, maxWidth: 480, margin: "0 auto 24px", lineHeight: 1.6 }}>
+            Die Notion-Integration wurde noch nicht vom Platform-Administrator eingerichtet.
+            Bitte kontaktieren Sie Ihren Administrator, um die Notion OAuth-Credentials zu konfigurieren.
+          </p>
+        </Card>
+      )}
+
+      {/* ── Not Connected (but platform is configured) ─────────────── */}
+      {connection?.platform_configured && !connection?.connected && (
         <Card style={{ padding: "48px 32px", textAlign: "center" }}>
           <div style={{ width: 72, height: 72, borderRadius: 20, background: `${T.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
             <BookOpen size={32} style={{ color: T.accent }} />
@@ -273,7 +462,7 @@ export default function NotionIntegration() {
               { icon: <Database size={14} />, text: "Seiten & Datenbanken" },
               { icon: <BookOpen size={14} />, text: "Echtzeit-Updates via Webhooks" },
             ].map((item, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: T.textDim }}>
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: T.textDim, padding: "6px 12px", borderRadius: 8, background: T.surfaceAlt }}>
                 {item.icon} {item.text}
               </div>
             ))}

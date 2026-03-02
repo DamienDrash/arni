@@ -2,6 +2,10 @@
 
 Replaces the in-memory singleton NotionConnector with a service that
 persists credentials, sync state, and history in PostgreSQL.
+
+OAuth Client ID / Secret are stored as **platform-level settings** in the
+``settings`` table (tenant = system tenant), NOT as environment variables.
+Each tenant gets their own access_token via the shared OAuth client.
 """
 from __future__ import annotations
 
@@ -30,8 +34,75 @@ from app.memory_platform.connectors.notion import (
 logger = structlog.get_logger()
 
 
+# ── Platform-level credential helpers ─────────────────────────────────
+
+def _get_platform_notion_credentials() -> tuple[str, str]:
+    """Read Notion OAuth Client-ID and Client-Secret from the platform
+    settings table (system tenant).  Falls back to env-vars for backwards
+    compatibility during migration.
+
+    Returns (client_id, client_secret).
+    """
+    client_id = ""
+    client_secret = ""
+
+    try:
+        from app.gateway.persistence import get_store
+        store = get_store()
+        sys_tid = store.get_system_tenant_id()
+        client_id = store.get_setting("platform_notion_client_id", tenant_id=sys_tid) or ""
+        # persistence.get_setting already decrypts sensitive keys automatically
+        client_secret = store.get_setting("platform_notion_client_secret", tenant_id=sys_tid) or ""
+    except Exception as exc:
+        logger.warning("notion.platform_creds_from_db_failed", error=str(exc))
+
+    # Fallback to ENV vars (backwards compat)
+    if not client_id:
+        client_id = os.getenv("NOTION_CLIENT_ID", "")
+    if not client_secret:
+        client_secret = os.getenv("NOTION_CLIENT_SECRET", "")
+
+    return client_id, client_secret
+
+
+
+
 class NotionService:
     """Stateless, DB-backed Notion service for multi-tenant environments."""
+
+    # ── Platform Config (Admin) ────────────────────────────────────────
+
+    def get_platform_config(self) -> dict[str, Any]:
+        """Return the current platform-level Notion configuration (for admin UI)."""
+        client_id, client_secret = _get_platform_notion_credentials()
+        return {
+            "configured": bool(client_id and client_secret),
+            "client_id": client_id,
+            "has_secret": bool(client_secret),
+        }
+
+    def save_platform_config(self, client_id: str, client_secret: str) -> dict[str, Any]:
+        """Save platform-level Notion OAuth credentials (admin only)."""
+        if not client_id:
+            return {"error": "Client ID ist erforderlich"}
+        
+        from app.gateway.persistence import get_store
+        store = get_store()
+        sys_tid = store.get_system_tenant_id()
+        
+        # Always save client_id
+        store.upsert_setting("platform_notion_client_id", client_id,
+                            description="Notion OAuth Client ID", tenant_id=sys_tid)
+        
+        # Only update secret if a new one is provided (not KEEP_EXISTING)
+        if client_secret and client_secret != "KEEP_EXISTING":
+            # Note: persistence._is_sensitive_setting handles encryption automatically
+            # for keys in SENSITIVE_SETTING_KEYS, so we do NOT encrypt manually here
+            store.upsert_setting("platform_notion_client_secret", client_secret,
+                                description="Notion OAuth Client Secret (encrypted)", tenant_id=sys_tid)
+        
+        logger.info("notion.platform_credentials_saved")
+        return {"status": "saved", "client_id": client_id}
 
     # ── Connection Management ───────────────────────────────────────
 
@@ -51,10 +122,15 @@ class NotionService:
 
     def get_status(self, tenant_id: int) -> dict[str, Any]:
         """Get the Notion connection status for a tenant."""
+        # First check if platform credentials are configured
+        client_id, client_secret = _get_platform_notion_credentials()
+        platform_configured = bool(client_id and client_secret)
+
         conn = self.get_connection(tenant_id)
         if not conn:
             return {
                 "connected": False,
+                "platform_configured": platform_configured,
                 "workspace_name": None,
                 "workspace_icon": None,
                 "connected_at": None,
@@ -66,6 +142,7 @@ class NotionService:
             }
         return {
             "connected": True,
+            "platform_configured": platform_configured,
             "workspace_name": conn.workspace_name,
             "workspace_icon": conn.workspace_icon,
             "connected_at": conn.connected_at.isoformat() if conn.connected_at else None,
@@ -80,12 +157,12 @@ class NotionService:
         """Generate the Notion OAuth authorization URL.
 
         The Notion OAuth Client ID/Secret are platform-level settings,
-        stored as environment variables (shared across all tenants).
-        The resulting access_token is tenant-specific and stored in the DB.
+        stored in the DB settings table (system tenant).
+        The resulting access_token is tenant-specific and stored per-tenant.
         """
-        client_id = os.getenv("NOTION_CLIENT_ID", "")
+        client_id, _ = _get_platform_notion_credentials()
         if not client_id:
-            return {"error": "Notion-Integration ist nicht konfiguriert. Bitte NOTION_CLIENT_ID setzen."}
+            return {"error": "Notion-Integration ist nicht konfiguriert. Bitte den Platform-Admin bitten, die Notion OAuth-Credentials in den Einstellungen zu hinterlegen."}
 
         from urllib.parse import urlencode
         params = {
@@ -106,11 +183,10 @@ class NotionService:
         """Exchange OAuth code for access token and store in DB."""
         import httpx
 
-        client_id = os.getenv("NOTION_CLIENT_ID", "")
-        client_secret = os.getenv("NOTION_CLIENT_SECRET", "")
+        client_id, client_secret = _get_platform_notion_credentials()
 
         if not client_id or not client_secret:
-            return {"error": "Notion OAuth-Credentials nicht konfiguriert"}
+            return {"error": "Notion OAuth-Credentials nicht konfiguriert. Bitte den Platform-Admin kontaktieren."}
 
         async with httpx.AsyncClient() as client:
             response = await client.post(

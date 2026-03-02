@@ -53,6 +53,10 @@ GLOBAL_SYSTEM_SETTING_KEYS = {
     # Gateway / Public URL
     "gateway_public_url",
     
+    # Notion Integration
+    "platform_notion_client_id",
+    "platform_notion_client_secret",
+    
     # Billing Governance
     "billing_plans_json",
     "billing_stripe_enabled",
@@ -77,6 +81,7 @@ SENSITIVE_SETTING_KEYS = {
     "platform_llm_key_openai",
     "platform_llm_key_groq",
     "platform_llm_key_anthropic",
+    "platform_notion_client_secret",
 }
 
 # Ensure tables exist
