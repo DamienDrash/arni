@@ -194,7 +194,7 @@ function NotionAdminConfig({
           </div>
         </div>
         {config?.configured && (
-          <Badge variant="success" size="xs" style={{ marginLeft: "auto" }}>Konfiguriert</Badge>
+          <span style={{ marginLeft: "auto" }}><Badge variant="success" size="xs">Konfiguriert</Badge></span>
         )}
       </div>
 
