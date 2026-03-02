@@ -1,7 +1,8 @@
-"""ARIIA v1.4 – Base Agent Interface.
+"""ARIIA v2.0 – Base Agent Interface (Refactored for AI Config Management).
 
-@ARCH: Abstract base class for all Swarm Agents (Sprint 2, Task 2.1).
-Sprint 14: Added dynamic provider/key lookup (Tenant -> Platform).
+@ARCH: Abstract base class for all Swarm Agents.
+Refactored: Uses AIConfigService for hierarchical config resolution instead of
+scattered Settings-table lookups. Backward compatible with existing agents.
 """
 
 from __future__ import annotations
@@ -9,7 +10,7 @@ import json
 import structlog
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from app.gateway.schemas import InboundMessage, OutboundMessage, Platform
 
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger()
 
+
 @dataclass
 class AgentResponse:
     content: str
@@ -25,11 +27,13 @@ class AgentResponse:
     requires_confirmation: bool = False
     metadata: dict | None = None
 
+
 class AgentHandoff(Exception):
     """Signal to router to transfer control to another agent."""
     def __init__(self, target_agent: str, reason: str):
         self.target_agent = target_agent
         self.reason = reason
+
 
 class BaseAgent(ABC):
     _llm: LLMClient | None = None
@@ -67,56 +71,58 @@ class BaseAgent(ABC):
         tenant_id: int | None = None,
         history_limit: int = 10,
     ) -> str | None:
-        """Call LLM with hierarchical key lookup and dynamic provider config."""
+        """Call LLM with hierarchical config resolution via AI Config Service.
+
+        Resolution hierarchy:
+        1. Agent Definition defaults (from ai_agent_definitions)
+        2. Tenant Agent Override (from ai_tenant_agent_configs)
+        3. Plan Budget Constraints (from ai_plan_budgets)
+        4. Tenant/Platform Provider (BYOK or platform key)
+
+        Falls back to legacy Settings-based resolution if new system unavailable.
+        """
         if not self._llm:
             return None
-        
-        from app.gateway.persistence import persistence
-        
-        # 1. Resolve Provider & Model
-        # Lookup in Tenant settings, fallback to Platform defaults
-        provider_id = persistence.get_setting("llm_provider_id", "openai", tenant_id=tenant_id)
-        model = persistence.get_setting("llm_model", "gpt-4o-mini", tenant_id=tenant_id)
-        
-        # Get Provider Base URL from Platform Inventory
-        providers_json = persistence.get_setting("platform_llm_providers_json") or "[]"
-        providers = json.loads(providers_json)
-        provider_config = next((p for p in providers if p["id"] == provider_id), {"base_url": "https://api.openai.com/v1"})
-        
-        # 2. Hierarchical API Key Lookup
-        # A. Check for Tenant-specific Key (BYOK)
-        # We look for a key named '{provider_id}_api_key' in tenant settings
-        api_key = persistence.get_setting(f"{provider_id}_api_key", tenant_id=tenant_id)
-        
-        # B. Fallback to Platform-wide Key
-        if not api_key:
-            api_key = persistence.get_setting(f"platform_llm_key_{provider_id}")
-            
-        if not api_key:
-            logger.error("agent.chat.no_key_found", provider=provider_id, tenant_id=tenant_id)
-            return "Error: No LLM API key configured for this provider."
 
-        # 3. Message Preparation
+        # Resolve config via the new AI Config system
+        config = self._resolve_agent_config(tenant_id)
+
+        # Message Preparation
         messages = [{"role": "system", "content": system_prompt}]
         if user_id:
             try:
+                from app.gateway.persistence import persistence
                 history = persistence.get_chat_history(str(user_id), limit=history_limit, tenant_id=tenant_id)
                 for item in history:
                     if item.role in {"user", "assistant"}:
                         messages.append({"role": item.role, "content": item.content})
-            except Exception: pass
+            except Exception:
+                pass
         messages.append({"role": "user", "content": user_message})
 
-        # 4. LLM Call
+        # LLM Call via refactored LLMClient (which uses AIGateway)
         try:
-            return await self._llm.chat(
-                messages=messages,
-                provider_url=provider_config["base_url"],
-                model=model,
-                api_key=api_key,
-                temperature=0.7,
-                max_tokens=500
-            )
+            if config:
+                return await self._llm.chat(
+                    messages=messages,
+                    tenant_id=tenant_id or 1,
+                    user_id=user_id,
+                    agent_name=self.name,
+                    provider_id=config.provider_slug,
+                    provider_url=config.api_base_url,
+                    model=config.model,
+                    api_key=config.api_key,
+                    temperature=config.temperature,
+                    max_tokens=config.max_tokens,
+                )
+            else:
+                # Fallback: let LLMClient handle resolution
+                return await self._llm.chat(
+                    messages=messages,
+                    tenant_id=tenant_id or 1,
+                    user_id=user_id,
+                    agent_name=self.name,
+                )
         except Exception as e:
             logger.warning("agent.llm_failed", agent=self.name, error=str(e))
             return None
@@ -129,32 +135,55 @@ class BaseAgent(ABC):
         """Low-level LLM call with a raw message list."""
         if not self._llm:
             return None
-        
-        from app.gateway.persistence import persistence
-        provider_id = persistence.get_setting("llm_provider_id", "openai", tenant_id=tenant_id)
-        model = persistence.get_setting("llm_model", "gpt-4o-mini", tenant_id=tenant_id)
-        providers_json = persistence.get_setting("platform_llm_providers_json") or "[]"
-        providers = json.loads(providers_json)
-        provider_config = next((p for p in providers if p["id"] == provider_id), {"base_url": "https://api.openai.com/v1"})
-        
-        api_key = persistence.get_setting(f"{provider_id}_api_key", tenant_id=tenant_id)
-        if not api_key:
-            api_key = persistence.get_setting(f"platform_llm_key_{provider_id}")
-            
-        if not api_key:
-            return "Error: No API key."
+
+        config = self._resolve_agent_config(tenant_id)
 
         try:
-            return await self._llm.chat(
-                messages=messages,
-                provider_url=provider_config["base_url"],
-                model=model,
-                api_key=api_key,
-                temperature=0.1, # Lower temp for tool loops
-                max_tokens=500
-            )
+            if config:
+                return await self._llm.chat(
+                    messages=messages,
+                    tenant_id=tenant_id or 1,
+                    agent_name=self.name,
+                    provider_id=config.provider_slug,
+                    provider_url=config.api_base_url,
+                    model=config.model,
+                    api_key=config.api_key,
+                    temperature=0.1,
+                    max_tokens=500,
+                )
+            else:
+                return await self._llm.chat(
+                    messages=messages,
+                    tenant_id=tenant_id or 1,
+                    agent_name=self.name,
+                )
         except Exception:
             return None
+
+    def _resolve_agent_config(self, tenant_id: Optional[int] = None):
+        """Resolve LLM config for this agent via AIConfigService.
+
+        Returns a ResolvedLLMConfig or None (fallback to legacy).
+        """
+        try:
+            from app.core.db import SessionLocal
+            from app.ai_config.service import AIConfigService
+
+            db = SessionLocal()
+            try:
+                svc = AIConfigService(db)
+                config = svc.resolve_llm_config(
+                    tenant_id=tenant_id or 1,
+                    agent_slug=self.name,
+                )
+                if config and config.api_key:
+                    return config
+            finally:
+                db.close()
+        except Exception as e:
+            logger.debug("agent.config_resolve_fallback", agent=self.name, error=str(e))
+
+        return None
 
     def _build_outbound(self, message: InboundMessage, response: AgentResponse) -> OutboundMessage:
         return OutboundMessage(

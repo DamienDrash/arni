@@ -55,6 +55,18 @@ async def lifespan(app: FastAPI):
         seed_plans()
     except Exception as _e:
         logger.warning("ariia.gateway.billing_seed_skipped", error=str(_e))
+
+    # Seed AI Config (providers, agents, prompts)
+    try:
+        from app.ai_config.seed import seed_ai_config
+        from app.core.db import SessionLocal as _AISeedDB
+        _ai_db = _AISeedDB()
+        try:
+            seed_ai_config(_ai_db)
+        finally:
+            _ai_db.close()
+    except Exception as _ai_err:
+        logger.warning("ariia.gateway.ai_config_seed_skipped", error=str(_ai_err))
         
     logger.info("ariia.gateway.startup", version="2.0.0", env=settings.environment)
     
@@ -253,6 +265,17 @@ try:
     app.include_router(contacts_v2_router)
 except Exception as _contacts_err:
     logger.warning("ariia.gateway.contacts_v2_skipped", error=str(_contacts_err))
+
+# --- AI Config Management Router (Refactored) ---
+try:
+    from app.ai_config.router import admin_router as ai_config_admin_router, tenant_router as ai_config_tenant_router
+    from app.ai_config.observability import admin_obs_router as ai_obs_admin_router, tenant_obs_router as ai_obs_tenant_router
+    app.include_router(ai_config_admin_router)
+    app.include_router(ai_config_tenant_router)
+    app.include_router(ai_obs_admin_router)
+    app.include_router(ai_obs_tenant_router)
+except Exception as _ai_cfg_err:
+    logger.warning("ariia.gateway.ai_config_router_skipped", error=str(_ai_cfg_err))
 
 # --- ACP Router ---
 from app.acp.server import router as acp_router

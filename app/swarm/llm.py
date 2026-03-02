@@ -1,22 +1,16 @@
-"""app/swarm/llm.py — Gold-Standard LLM Client with Cost Tracking.
+"""app/swarm/llm.py — Refactored LLM Client with AI Gateway Integration.
 
-@ARCH: Phase 1, Meilenstein 1.4 – Modernes Tool-Calling
-Resolves configuration (Provider, URL, Key) from the database settings.
-Supports OpenAI, Gemini, Mistral, Groq, Anthropic, xAI and more.
-Tracks token usage and costs per request in llm_usage_log.
+@ARCH: Phase 1 Refactoring – AI Config Management
+Now delegates all LLM calls to the centralized AIGateway.
+Config resolution uses the hierarchical AIConfigService.
+Backward-compatible: existing callers (BaseAgent._chat, etc.) work unchanged.
 
-Refactored: Added native tool calling support via `chat_with_tools()`.
-The old `chat()` method is preserved for backward compatibility.
+The LLMResponse dataclass is preserved for backward compatibility.
 """
-import time
-import structlog
-import httpx
 import json
+import structlog
 from typing import Any, Optional
 from dataclasses import dataclass
-
-from app.gateway.persistence import persistence
-from config.settings import get_settings
 
 logger = structlog.get_logger()
 
@@ -36,9 +30,9 @@ class LLMResponse:
     latency_ms: int = 0
     success: bool = True
     error: str = ""
-    tool_calls: list = None  # Native tool calls from the LLM
-    raw_response: dict = None  # Full API response for tool-calling loop
-    finish_reason: str = ""  # 'stop', 'tool_calls', etc.
+    tool_calls: list = None
+    raw_response: dict = None
+    finish_reason: str = ""
 
     def __post_init__(self):
         if self.tool_calls is None:
@@ -59,126 +53,15 @@ class LLMResponse:
         return msg
 
 
-# ── Cost Cache ─────────────────────────────────────────────────────────────────
-_cost_cache: dict[str, tuple[int, int]] = {}
-_cost_cache_ts: float = 0.0
-COST_CACHE_TTL = 300  # 5 minutes
-
-
-def _get_model_costs(model_id: str) -> tuple[int, int]:
-    """Return (input_cost_per_million, output_cost_per_million) for a model.
-    Uses an in-memory cache refreshed every 5 minutes."""
-    global _cost_cache, _cost_cache_ts
-    now = time.time()
-    if now - _cost_cache_ts > COST_CACHE_TTL or not _cost_cache:
-        try:
-            from app.core.db import SessionLocal
-            from app.core.models import LLMModelCost
-            db = SessionLocal()
-            try:
-                costs = db.query(LLMModelCost).filter(LLMModelCost.is_active.is_(True)).all()
-                _cost_cache = {c.model_id: (c.input_cost_per_million, c.output_cost_per_million) for c in costs}
-                _cost_cache_ts = now
-            finally:
-                db.close()
-        except Exception as e:
-            logger.warning("llm.cost_cache_refresh_failed", error=str(e))
-    return _cost_cache.get(model_id, (0, 0))
-
-
-def _calculate_cost(model_id: str, prompt_tokens: int, completion_tokens: int) -> tuple[float, float, float]:
-    """Calculate cost in USD-cents for a given token usage."""
-    input_cpm, output_cpm = _get_model_costs(model_id)
-    input_cost = (prompt_tokens / 1_000_000) * input_cpm
-    output_cost = (completion_tokens / 1_000_000) * output_cpm
-    return round(input_cost, 6), round(output_cost, 6), round(input_cost + output_cost, 6)
-
-
-def _log_usage(
-    tenant_id: int,
-    user_id: Optional[str],
-    agent_name: Optional[str],
-    provider_id: str,
-    model_id: str,
-    prompt_tokens: int,
-    completion_tokens: int,
-    total_tokens: int,
-    input_cost_cents: float,
-    output_cost_cents: float,
-    total_cost_cents: float,
-    latency_ms: int,
-    success: bool = True,
-    error_message: Optional[str] = None,
-) -> None:
-    """Persist a usage log entry and update the monthly usage counter. Non-blocking."""
-    try:
-        from app.core.db import SessionLocal, engine
-        from app.core.models import LLMUsageLog
-        from sqlalchemy import text as sa_text
-        from datetime import datetime, timezone
-
-        db = SessionLocal()
-        try:
-            # 1. Insert detailed log entry
-            log = LLMUsageLog(
-                tenant_id=tenant_id,
-                user_id=user_id,
-                agent_name=agent_name,
-                provider_id=provider_id,
-                model_id=model_id,
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                total_tokens=total_tokens,
-                input_cost_cents=input_cost_cents,
-                output_cost_cents=output_cost_cents,
-                total_cost_cents=total_cost_cents,
-                latency_ms=latency_ms,
-                success=success,
-                error_message=error_message,
-            )
-            db.add(log)
-
-            # 2. Atomically increment monthly token counter
-            now = datetime.now(timezone.utc)
-            dialect = engine.dialect.name
-            if dialect == "postgresql":
-                db.execute(sa_text(
-                    "INSERT INTO usage_records (tenant_id, period_year, period_month, llm_tokens_used, messages_inbound, messages_outbound, active_members, llm_tokens_purchased) "
-                    "VALUES (:tid, :yr, :mo, :amt, 0, 0, 0, 0) "
-                    "ON CONFLICT (tenant_id, period_year, period_month) "
-                    "DO UPDATE SET llm_tokens_used = usage_records.llm_tokens_used + :amt"
-                ), {"tid": tenant_id, "yr": now.year, "mo": now.month, "amt": total_tokens})
-            db.commit()
-        finally:
-            db.close()
-    except Exception as e:
-        logger.warning("llm.usage_log_failed", error=str(e), tenant_id=tenant_id)
-
-
-def _extract_usage_openai(data: dict) -> tuple[int, int, int]:
-    """Extract token usage from OpenAI-compatible response."""
-    usage = data.get("usage", {})
-    pt = usage.get("prompt_tokens", 0)
-    ct = usage.get("completion_tokens", 0)
-    tt = usage.get("total_tokens", pt + ct)
-    return pt, ct, tt
-
-
-def _extract_usage_gemini(data: dict) -> tuple[int, int, int]:
-    """Extract token usage from Gemini response."""
-    meta = data.get("usageMetadata", {})
-    pt = meta.get("promptTokenCount", 0)
-    ct = meta.get("candidatesTokenCount", 0)
-    tt = meta.get("totalTokenCount", pt + ct)
-    return pt, ct, tt
-
-
 class LLMClient:
-    """
-    Gold Standard LLM Client with Cost Tracking.
-    Resolves configuration (Provider, URL, Key) from the database settings.
-    Supports OpenAI, Gemini, Mistral, Groq, Anthropic, xAI and more.
-    Logs every request with token counts and calculated costs.
+    """Refactored LLM Client – delegates to AIGateway.
+
+    Maintains backward compatibility with existing callers while using
+    the new centralized AI configuration system under the hood.
+
+    Two calling patterns are supported:
+    1. Explicit: provider_url + model + api_key (legacy, from BaseAgent._chat)
+    2. Resolved: Uses AIConfigService for hierarchical config resolution (new)
     """
 
     def __init__(self, openai_api_key: str = ""):
@@ -202,165 +85,45 @@ class LLMClient:
 
         Supports two calling patterns:
         1. Explicit: provider_url + model + api_key (from BaseAgent._chat)
-        2. Resolved: provider_id or auto-detect from DB settings
+        2. Resolved: auto-detect from new AI Config system
         """
+        from app.ai_config.gateway import get_ai_gateway
+        gateway = get_ai_gateway()
 
-        # ── 1. Resolve Provider Configuration ──────────────────────────────
-        effective_provider_id = provider_id or "unknown"
-        effective_model = model
-        effective_url = provider_url
-        effective_key = api_key
-        is_gemini = False
-
-        if effective_url and effective_key and effective_model:
-            # Pattern 1: All params provided by caller (BaseAgent._chat)
-            if "gemini" in (effective_url or "").lower() or "generativelanguage" in (effective_url or "").lower():
-                is_gemini = True
-                effective_provider_id = "gemini"
-            elif "groq" in (effective_url or "").lower():
-                effective_provider_id = "groq"
-            elif "mistral" in (effective_url or "").lower():
-                effective_provider_id = "mistral"
-            elif "anthropic" in (effective_url or "").lower():
-                effective_provider_id = "anthropic"
-            elif "x.ai" in (effective_url or "").lower():
-                effective_provider_id = "xai"
-            elif "openai" in (effective_url or "").lower():
-                effective_provider_id = "openai"
+        if provider_url and api_key and model:
+            # Pattern 1: Legacy explicit params – build a ResolvedLLMConfig directly
+            from app.ai_config.schemas import ResolvedLLMConfig
+            provider_type = self._detect_provider_type(provider_url)
+            config = ResolvedLLMConfig(
+                provider_slug=provider_id or self._detect_provider_slug(provider_url),
+                provider_type=provider_type,
+                api_base_url=provider_url,
+                api_key=api_key,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
         else:
-            # Pattern 2: Resolve from DB
-            providers_json = persistence.get_setting("platform_llm_providers_json", "[]", tenant_id=1)
-            configured_providers = json.loads(providers_json)
+            # Pattern 2: Resolve from new AI Config system
+            config = self._resolve_config(tenant_id, agent_name, temperature, max_tokens)
 
-            if not configured_providers and not self._env_key:
-                return "Error: No LLM providers configured in AI Engine."
+        if not config.api_key:
+            return f"Error: API Key for provider {config.provider_slug} missing."
 
-            provider = None
-            if provider_id:
-                provider = next((p for p in configured_providers if p["id"] == provider_id), None)
-            elif configured_providers:
-                provider = configured_providers[0]
+        response = await gateway.chat(
+            config,
+            messages,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            agent_name=agent_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
 
-            if provider:
-                effective_key = effective_key or persistence.get_setting(f"platform_llm_key_{provider['id']}", "", tenant_id=1)
-                effective_url = provider.get("base_url", "")
-                effective_model = effective_model or provider["models"][0]
-                effective_provider_id = provider["id"]
-                is_gemini = "gemini" in provider.get("type", "").lower()
-            else:
-                effective_key = effective_key or self._env_key
-                effective_url = "https://api.openai.com/v1"
-                effective_model = effective_model or "gpt-4o-mini"
-                effective_provider_id = "openai"
+        if not response.success:
+            return response.content  # Error message
 
-        if not effective_key:
-            return f"Error: API Key for provider {effective_provider_id} missing."
-
-        # ── 2. API Request ─────────────────────────────────────────────────
-        start_time = time.time()
-        prompt_tokens = completion_tokens = total_tokens = 0
-
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                if is_gemini:
-                    # Google Gemini Protocol
-                    gemini_messages = []
-                    system_text = ""
-                    for m in messages:
-                        if m["role"] == "system":
-                            system_text = m["content"]
-                        else:
-                            role = "user" if m["role"] == "user" else "model"
-                            gemini_messages.append({"role": role, "parts": [{"text": m["content"]}]})
-
-                    payload: dict[str, Any] = {"contents": gemini_messages}
-                    if system_text:
-                        payload["systemInstruction"] = {"parts": [{"text": system_text}]}
-                    payload["generationConfig"] = {
-                        "temperature": temperature,
-                        "maxOutputTokens": max_tokens,
-                    }
-
-                    url = f"{effective_url.rstrip('/')}/models/{effective_model}:generateContent?key={effective_key}"
-                    resp = await client.post(url, json=payload)
-                    data = resp.json()
-
-                    if resp.status_code != 200:
-                        error_msg = data.get("error", {}).get("message", resp.text[:200])
-                        latency = round((time.time() - start_time) * 1000)
-                        _log_usage(tenant_id, user_id, agent_name, effective_provider_id, effective_model,
-                                   0, 0, 0, 0, 0, 0, latency, False, error_msg)
-                        logger.error("llm.provider_error", status=resp.status_code, detail=error_msg[:200])
-                        return f"LLM Error ({resp.status_code})"
-
-                    content = data["candidates"][0]["content"]["parts"][0]["text"]
-                    prompt_tokens, completion_tokens, total_tokens = _extract_usage_gemini(data)
-
-                else:
-                    # OpenAI / Mistral / Groq / xAI / Anthropic-Shim Protocol
-                    resp = await client.post(
-                        f"{effective_url.rstrip('/')}/chat/completions",
-                        headers={"Authorization": f"Bearer {effective_key}", "Content-Type": "application/json"},
-                        json={
-                            "model": effective_model,
-                            "messages": messages,
-                            "temperature": temperature,
-                            "max_tokens": max_tokens,
-                        },
-                    )
-                    data = resp.json()
-
-                    if resp.status_code != 200:
-                        error_msg = data.get("error", {}).get("message", resp.text[:200])
-                        latency = round((time.time() - start_time) * 1000)
-                        _log_usage(tenant_id, user_id, agent_name, effective_provider_id, effective_model or "unknown",
-                                   0, 0, 0, 0, 0, 0, latency, False, error_msg)
-                        logger.error("llm.provider_error", status=resp.status_code, detail=error_msg[:200])
-                        return f"LLM Error ({resp.status_code})"
-
-                    content = data["choices"][0]["message"]["content"]
-                    prompt_tokens, completion_tokens, total_tokens = _extract_usage_openai(data)
-
-                # ── 3. Cost Calculation & Logging ──────────────────────────
-                latency = round((time.time() - start_time) * 1000)
-                input_cost, output_cost, total_cost = _calculate_cost(
-                    effective_model or "unknown", prompt_tokens, completion_tokens
-                )
-
-                _log_usage(
-                    tenant_id=tenant_id,
-                    user_id=user_id,
-                    agent_name=agent_name,
-                    provider_id=effective_provider_id,
-                    model_id=effective_model or "unknown",
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    total_tokens=total_tokens,
-                    input_cost_cents=input_cost,
-                    output_cost_cents=output_cost,
-                    total_cost_cents=total_cost,
-                    latency_ms=latency,
-                    success=True,
-                )
-
-                logger.info(
-                    "llm.success",
-                    model=effective_model,
-                    latency_ms=latency,
-                    provider=effective_provider_id,
-                    tokens=total_tokens,
-                    cost_cents=round(total_cost, 4),
-                    tenant_id=tenant_id,
-                )
-
-                return content
-
-        except Exception as e:
-            latency = round((time.time() - start_time) * 1000)
-            _log_usage(tenant_id, user_id, agent_name, effective_provider_id, effective_model or "unknown",
-                       0, 0, 0, 0, 0, 0, latency, False, str(e))
-            logger.error("llm.request_failed", error=str(e))
-            return f"LLM Connection Failed: {str(e)}"
+        return response.content
 
     async def chat_with_tools(
         self,
@@ -380,150 +143,62 @@ class LLMClient:
     ) -> LLMResponse:
         """Execute a chat completion with native tool calling support.
 
-        This is the new preferred method for agent interactions.
         Returns a full LLMResponse with tool_calls if the LLM wants to use tools.
-
-        Args:
-            messages: Conversation history.
-            tools: List of tool definitions in OpenAI format.
-            tool_choice: 'auto', 'none', or 'required'.
-
-        Returns:
-            LLMResponse with content and/or tool_calls.
         """
-        # Resolve provider config (same logic as chat())
-        effective_provider_id = provider_id or "unknown"
-        effective_model = model
-        effective_url = provider_url
-        effective_key = api_key
+        from app.ai_config.gateway import get_ai_gateway
+        gateway = get_ai_gateway()
 
-        if not (effective_url and effective_key and effective_model):
-            # Resolve from DB
-            providers_json = persistence.get_setting("platform_llm_providers_json", "[]", tenant_id=1)
-            configured_providers = json.loads(providers_json)
+        if provider_url and api_key and model:
+            from app.ai_config.schemas import ResolvedLLMConfig
+            config = ResolvedLLMConfig(
+                provider_slug=provider_id or self._detect_provider_slug(provider_url),
+                provider_type=self._detect_provider_type(provider_url),
+                api_base_url=provider_url,
+                api_key=api_key,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        else:
+            config = self._resolve_config(tenant_id, agent_name, temperature, max_tokens)
 
-            provider = None
-            if provider_id:
-                provider = next((p for p in configured_providers if p["id"] == provider_id), None)
-            elif configured_providers:
-                provider = configured_providers[0]
-
-            if provider:
-                effective_key = effective_key or persistence.get_setting(f"platform_llm_key_{provider['id']}", "", tenant_id=1)
-                effective_url = provider.get("base_url", "")
-                effective_model = effective_model or provider["models"][0]
-                effective_provider_id = provider["id"]
-            else:
-                effective_key = effective_key or self._env_key
-                effective_url = "https://api.openai.com/v1"
-                effective_model = effective_model or "gpt-4o-mini"
-                effective_provider_id = "openai"
-
-        if not effective_key:
+        if not config.api_key:
             return LLMResponse(
-                content=f"Error: API Key for provider {effective_provider_id} missing.",
+                content=f"Error: API Key for provider {config.provider_slug} missing.",
                 success=False,
                 error="missing_api_key",
             )
 
-        start_time = time.time()
+        gw_response = await gateway.chat_with_tools(
+            config,
+            messages,
+            tools,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            agent_name=agent_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            tool_choice=tool_choice,
+        )
 
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                payload = {
-                    "model": effective_model,
-                    "messages": messages,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                }
-
-                # Add tools if provided (not supported for Gemini native API)
-                if tools:
-                    payload["tools"] = tools
-                    payload["tool_choice"] = tool_choice
-
-                resp = await client.post(
-                    f"{effective_url.rstrip('/')}/chat/completions",
-                    headers={"Authorization": f"Bearer {effective_key}", "Content-Type": "application/json"},
-                    json=payload,
-                )
-                data = resp.json()
-
-                if resp.status_code != 200:
-                    error_msg = data.get("error", {}).get("message", resp.text[:200])
-                    latency = round((time.time() - start_time) * 1000)
-                    _log_usage(tenant_id, user_id, agent_name, effective_provider_id,
-                               effective_model or "unknown", 0, 0, 0, 0, 0, 0, latency, False, error_msg)
-                    return LLMResponse(
-                        content=f"LLM Error ({resp.status_code})",
-                        model=effective_model or "unknown",
-                        provider_id=effective_provider_id,
-                        latency_ms=latency,
-                        success=False,
-                        error=error_msg,
-                    )
-
-                choice = data.get("choices", [{}])[0]
-                message = choice.get("message", {})
-                content = message.get("content", "") or ""
-                tool_calls_raw = message.get("tool_calls", [])
-                finish_reason = choice.get("finish_reason", "stop")
-
-                prompt_tokens, completion_tokens, total_tokens = _extract_usage_openai(data)
-                latency = round((time.time() - start_time) * 1000)
-                input_cost, output_cost, total_cost = _calculate_cost(
-                    effective_model or "unknown", prompt_tokens, completion_tokens
-                )
-
-                _log_usage(
-                    tenant_id=tenant_id, user_id=user_id, agent_name=agent_name,
-                    provider_id=effective_provider_id, model_id=effective_model or "unknown",
-                    prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
-                    total_tokens=total_tokens, input_cost_cents=input_cost,
-                    output_cost_cents=output_cost, total_cost_cents=total_cost,
-                    latency_ms=latency, success=True,
-                )
-
-                logger.info(
-                    "llm.tool_calling.success",
-                    model=effective_model,
-                    latency_ms=latency,
-                    provider=effective_provider_id,
-                    tokens=total_tokens,
-                    tool_calls=len(tool_calls_raw),
-                    finish_reason=finish_reason,
-                )
-
-                return LLMResponse(
-                    content=content,
-                    model=effective_model or "unknown",
-                    provider_id=effective_provider_id,
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    total_tokens=total_tokens,
-                    input_cost_cents=input_cost,
-                    output_cost_cents=output_cost,
-                    total_cost_cents=total_cost,
-                    latency_ms=latency,
-                    success=True,
-                    tool_calls=tool_calls_raw,
-                    raw_response=data,
-                    finish_reason=finish_reason,
-                )
-
-        except Exception as e:
-            latency = round((time.time() - start_time) * 1000)
-            _log_usage(tenant_id, user_id, agent_name, effective_provider_id,
-                       effective_model or "unknown", 0, 0, 0, 0, 0, 0, latency, False, str(e))
-            logger.error("llm.tool_calling.failed", error=str(e))
-            return LLMResponse(
-                content=f"LLM Connection Failed: {str(e)}",
-                model=effective_model or "unknown",
-                provider_id=effective_provider_id,
-                latency_ms=latency,
-                success=False,
-                error=str(e),
-            )
+        # Convert GatewayResponse → LLMResponse for backward compatibility
+        return LLMResponse(
+            content=gw_response.content,
+            model=gw_response.model,
+            provider_id=gw_response.provider_slug,
+            prompt_tokens=gw_response.prompt_tokens,
+            completion_tokens=gw_response.completion_tokens,
+            total_tokens=gw_response.total_tokens,
+            input_cost_cents=gw_response.input_cost_cents,
+            output_cost_cents=gw_response.output_cost_cents,
+            total_cost_cents=gw_response.total_cost_cents,
+            latency_ms=gw_response.latency_ms,
+            success=gw_response.success,
+            error=gw_response.error,
+            tool_calls=gw_response.tool_calls,
+            raw_response=gw_response.raw_response,
+            finish_reason=gw_response.finish_reason,
+        )
 
     async def ask(self, prompt: str, system_prompt: str = "You are a helpful assistant.",
                   tenant_id: int = 1) -> str:
@@ -532,3 +207,97 @@ class LLMClient:
             [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
             tenant_id=tenant_id,
         )
+
+    # ── Config Resolution ─────────────────────────────────────────────────
+
+    def _resolve_config(
+        self,
+        tenant_id: int,
+        agent_name: Optional[str],
+        temperature: float,
+        max_tokens: int,
+    ):
+        """Resolve LLM config using the new AIConfigService.
+
+        Falls back to legacy Settings-based resolution if the new system
+        is not yet seeded.
+        """
+        from app.ai_config.schemas import ResolvedLLMConfig
+
+        try:
+            from app.core.db import SessionLocal
+            from app.ai_config.service import AIConfigService
+
+            db = SessionLocal()
+            try:
+                svc = AIConfigService(db)
+                config = svc.resolve_llm_config(tenant_id, agent_slug=agent_name)
+                return config
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning("llm.config_resolve_fallback", error=str(e))
+            # Fallback to legacy resolution
+            return self._legacy_resolve(tenant_id, temperature, max_tokens)
+
+    def _legacy_resolve(self, tenant_id: int, temperature: float, max_tokens: int):
+        """Legacy config resolution from Settings table (backward compatibility)."""
+        from app.gateway.persistence import persistence
+        from app.ai_config.schemas import ResolvedLLMConfig
+        from config.settings import get_settings
+
+        providers_json = persistence.get_setting("platform_llm_providers_json", "[]", tenant_id=1)
+        configured_providers = json.loads(providers_json)
+
+        if configured_providers:
+            provider = configured_providers[0]
+            api_key = persistence.get_setting(f"platform_llm_key_{provider['id']}", "", tenant_id=1)
+            is_gemini = "gemini" in provider.get("type", "").lower()
+            return ResolvedLLMConfig(
+                provider_slug=provider["id"],
+                provider_type="gemini" if is_gemini else "openai_compatible",
+                api_base_url=provider.get("base_url", "https://api.openai.com/v1"),
+                api_key=api_key,
+                model=provider["models"][0] if provider.get("models") else "gpt-4o-mini",
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+
+        settings = get_settings()
+        return ResolvedLLMConfig(
+            provider_slug="openai",
+            provider_type="openai_compatible",
+            api_base_url="https://api.openai.com/v1",
+            api_key=self._env_key or settings.openai_api_key,
+            model="gpt-4o-mini",
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+    # ── Provider Detection Helpers ────────────────────────────────────────
+
+    @staticmethod
+    def _detect_provider_slug(url: str) -> str:
+        """Detect provider slug from API URL."""
+        url_lower = url.lower()
+        if "gemini" in url_lower or "generativelanguage" in url_lower:
+            return "gemini"
+        elif "groq" in url_lower:
+            return "groq"
+        elif "mistral" in url_lower:
+            return "mistral"
+        elif "anthropic" in url_lower:
+            return "anthropic"
+        elif "x.ai" in url_lower:
+            return "xai"
+        elif "openai" in url_lower:
+            return "openai"
+        return "unknown"
+
+    @staticmethod
+    def _detect_provider_type(url: str) -> str:
+        """Detect provider protocol type from API URL."""
+        url_lower = url.lower()
+        if "gemini" in url_lower or "generativelanguage" in url_lower:
+            return "gemini"
+        return "openai_compatible"
