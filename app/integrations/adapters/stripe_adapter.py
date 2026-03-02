@@ -418,7 +418,7 @@ class StripeAdapter(BaseAdapter):
 
                 tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
                 email = kwargs.get("email") or (tenant.admin_email if tenant else None)
-                name = kwargs.get("name") or (tenant.company_name if tenant else f"Tenant {tenant_id}")
+                name = kwargs.get("name") or (tenant.name if tenant else f"Tenant {tenant_id}")
 
                 customer = stripe.Customer.create(
                     email=email,

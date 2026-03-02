@@ -31,6 +31,20 @@ router = APIRouter(
 )
 logger = structlog.get_logger()
 settings = get_settings()
+
+def _safe_parse_details(raw: str | None) -> dict:
+    """Safely parse details_json, handling malformed JSON (e.g. Python repr)."""
+    if not raw:
+        return {}
+    try:
+        return _json.loads(raw)
+    except (_json.JSONDecodeError, TypeError):
+        try:
+            import ast
+            return ast.literal_eval(raw)
+        except Exception:
+            return {"_raw": raw}
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 KNOWLEDGE_ROOT_DIR = os.path.join(BASE_DIR, "data", "knowledge")
 TENANT_KNOWLEDGE_ROOT_DIR = os.path.join(KNOWLEDGE_ROOT_DIR, "tenants")
@@ -2950,7 +2964,7 @@ async def get_audit_logs(
                     "category": r.category,
                     "target_type": r.target_type,
                     "target_id": r.target_id,
-                    "details": _json.loads(r.details_json) if r.details_json else {},
+                    "details": _safe_parse_details(r.details_json),
                     "created_at": r.created_at.isoformat(),
                 }
                 for r in rows

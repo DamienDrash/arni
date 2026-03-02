@@ -216,7 +216,7 @@ async def get_usage_by_tenant(
         rows = db.execute(text("""
             SELECT 
                 l.tenant_id,
-                t.company_name,
+                t.name as company_name,
                 p.name as plan_name,
                 COUNT(l.id) as requests,
                 COALESCE(SUM(l.total_tokens), 0) as tokens,
@@ -227,7 +227,7 @@ async def get_usage_by_tenant(
             LEFT JOIN subscriptions s ON s.tenant_id = t.id AND s.status = 'active'
             LEFT JOIN plans p ON p.id = s.plan_id
             WHERE l.created_at >= :since
-            GROUP BY l.tenant_id, t.company_name, p.name
+            GROUP BY l.tenant_id, t.name, p.name
             ORDER BY cost_cents DESC
         """), {"since": since}).fetchall()
         
