@@ -168,6 +168,52 @@ services:
     networks:
       - ariia-network
 
+  # 7b. Automation Engine Worker
+  ariia-automation-engine:
+    build: .
+    container_name: ariia_automation_engine
+    restart: always
+    command: python scripts/automation_engine_worker.py
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://ariia-redis:6379/0
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia
+      - AUTH_SECRET=${AUTH_SECRET}
+      - ENGINE_POLL_INTERVAL=10
+    depends_on:
+      - ariia-core
+      - ariia-redis
+      - ariia-postgres
+    healthcheck:
+      disable: true
+    volumes:
+      - ariia_data:/app/data
+    networks:
+      - ariia-network
+
+  # 7c. Contact Change Listener
+  ariia-contact-listener:
+    build: .
+    container_name: ariia_contact_listener
+    restart: always
+    command: python scripts/contact_change_listener_worker.py
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://ariia-redis:6379/0
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/ariia
+      - AUTH_SECRET=${AUTH_SECRET}
+      - LISTENER_POLL_INTERVAL=60
+    depends_on:
+      - ariia-core
+      - ariia-redis
+      - ariia-postgres
+    healthcheck:
+      disable: true
+    volumes:
+      - ariia_data:/app/data
+    networks:
+      - ariia-network
+
   # --- Monitoring Stack ---
 
   prometheus:
