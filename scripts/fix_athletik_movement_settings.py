@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fix Athletik Movement tenant settings and register Calendly integration.
+"""Fix Athletik Movement tenant settings.
 
 Run inside the ariia-core container:
     docker exec -it staging-ariia-core-1 python3 scripts/fix_athletik_movement_settings.py
@@ -20,8 +20,8 @@ TENANT_ID = 2
 # ── Settings to UPDATE ──────────────────────────────────────────────────────
 
 SETTINGS_UPDATES = {
-    # Fix: Adresse laut Website (Liesenstraße 3, nicht Heidestraße 11)
-    "studio_address": "Liesenstraße 3, 10115 Berlin",
+    # Restore: Heidestraße bleibt bestehen (war fälschlicherweise geändert)
+    "studio_address": "Heidestraße 11, 10557 Berlin",
 
     # Fix: Persona-Bio passend zum tatsächlichen Geschäftsmodell
     "persona_bio_text": (
@@ -53,7 +53,7 @@ SETTINGS_INSERTS = {
     "studio_email": "info@athletik-movement.de",
     "studio_website": "https://athletik-movement.de",
     "studio_owner_name": "Niklas Jauch",
-    "studio_business_type": "personal_training",  # Not a gym/studio
+    "studio_business_type": "personal_training",
     "studio_description": (
         "Athletik Movement – Einzelpraxis für Bewegungstherapie und Personal Training. "
         "Inhaber Niklas Jauch arbeitet 1:1 mit Klienten nach dem SmartMotionApproach, "
@@ -66,29 +66,29 @@ SETTINGS_INSERTS = {
 async def main():
     engine = create_async_engine(DATABASE_URL, echo=False)
 
-    async with engine.begin() as conn:
-        print("=" * 60)
-        print("Athletik Movement – Settings Fix")
-        print("=" * 60)
+    print("=" * 60)
+    print("Athletik Movement – Settings Fix v2")
+    print("=" * 60)
 
-        # 1. Update existing settings
+    # 1. Update existing settings (own transaction)
+    async with engine.begin() as conn:
         print("\n── Updating existing settings ──")
         for key, value in SETTINGS_UPDATES.items():
             result = await conn.execute(
                 text("UPDATE settings SET value = :val WHERE tenant_id = :tid AND key = :key"),
                 {"val": value, "tid": TENANT_ID, "key": key}
             )
-            status = "UPDATED" if result.rowcount > 0 else "NOT FOUND (will insert)"
-            print(f"  {key}: {status}")
-
-            if result.rowcount == 0:
+            if result.rowcount > 0:
+                print(f"  {key}: UPDATED")
+            else:
                 await conn.execute(
                     text("INSERT INTO settings (tenant_id, key, value) VALUES (:tid, :key, :val)"),
                     {"tid": TENANT_ID, "key": key, "val": value}
                 )
-                print(f"  {key}: INSERTED")
+                print(f"  {key}: INSERTED (was missing)")
 
-        # 2. Insert new settings (if not exist)
+    # 2. Insert new settings (own transaction)
+    async with engine.begin() as conn:
         print("\n── Inserting new settings ──")
         for key, value in SETTINGS_INSERTS.items():
             existing = await conn.execute(
@@ -104,17 +104,23 @@ async def main():
                 )
                 print(f"  {key}: INSERTED")
 
-        # 3. Register Calendly in tenant_integrations (if table exists)
-        print("\n── Registering Calendly integration ──")
-        try:
-            # Check if table exists
+    # 3. Try to register Calendly in tenant_integrations (own transaction, optional)
+    try:
+        async with engine.begin() as conn:
+            print("\n── Registering Calendly integration ──")
             table_check = await conn.execute(
-                text("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'tenant_integrations')")
+                text("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'tenant_integrations'
+                    )
+                """)
             )
-            table_exists = table_check.scalar()
-
-            if table_exists:
-                # Check if already registered
+            if not table_check.scalar():
+                print("  tenant_integrations table does not exist yet")
+                print("  (Alembic migration not yet run – Calendly works via settings fallback)")
+            else:
                 existing = await conn.execute(
                     text("SELECT id FROM tenant_integrations WHERE tenant_id = :tid AND integration_id = 'calendly'"),
                     {"tid": TENANT_ID}
@@ -122,44 +128,24 @@ async def main():
                 if existing.fetchone():
                     print("  Calendly: ALREADY REGISTERED")
                 else:
-                    # Get the integration_definition id for calendly
-                    def_check = await conn.execute(
-                        text("SELECT id FROM integration_definitions WHERE integration_id = 'calendly'")
+                    await conn.execute(
+                        text("""
+                            INSERT INTO tenant_integrations 
+                            (tenant_id, integration_id, is_active, config)
+                            VALUES (:tid, 'calendly', true, '{}')
+                        """),
+                        {"tid": TENANT_ID}
                     )
-                    def_row = def_check.fetchone()
+                    print("  Calendly: REGISTERED")
+    except Exception as e:
+        print(f"  Calendly registration skipped: {e}")
+        print("  (Calendly still works via settings-based detection)")
 
-                    if def_row:
-                        await conn.execute(
-                            text("""
-                                INSERT INTO tenant_integrations 
-                                (tenant_id, integration_id, definition_id, is_active, config)
-                                VALUES (:tid, 'calendly', :def_id, true, '{}')
-                            """),
-                            {"tid": TENANT_ID, "def_id": def_row[0]}
-                        )
-                        print("  Calendly: REGISTERED ✓")
-                    else:
-                        # Fallback: insert without definition_id reference
-                        await conn.execute(
-                            text("""
-                                INSERT INTO tenant_integrations 
-                                (tenant_id, integration_id, is_active, config)
-                                VALUES (:tid, 'calendly', true, '{}')
-                            """),
-                            {"tid": TENANT_ID}
-                        )
-                        print("  Calendly: REGISTERED (without definition_id)")
-            else:
-                print("  tenant_integrations table does not exist yet (migration not run)")
-                print("  Calendly integration will be detected via settings fallback")
-        except Exception as e:
-            print(f"  Error registering Calendly: {e}")
-            print("  Calendly will still work via settings-based detection")
-
-        # 4. Verify
+    # 4. Verify (own transaction)
+    async with engine.begin() as conn:
         print("\n── Verification ──")
         result = await conn.execute(
-            text("SELECT key, LEFT(value::text, 80) FROM settings WHERE tenant_id = :tid ORDER BY key"),
+            text("SELECT key, LEFT(value::text, 100) FROM settings WHERE tenant_id = :tid ORDER BY key"),
             {"tid": TENANT_ID}
         )
         for row in result.fetchall():

@@ -3,7 +3,7 @@
 > **Name:** ARIIA
 > **Rolle:** Digitaler Assistent von Athletik Movement
 > **Inhaber:** Niklas Jauch – Personal Trainer & Sporttherapeut
-> **Standort:** Liesenstraße 3, 10115 Berlin-Mitte
+> **Standort:** Heidestraße 11, 10557 Berlin
 
 ---
 
