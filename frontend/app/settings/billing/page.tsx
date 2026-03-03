@@ -15,6 +15,8 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Badge } from "@/components/ui/Badge";
 import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/tokens";
+import { UsageMetricsPanel } from "@/components/billing/UsageMetricsPanel";
+import { BillingEventLog } from "@/components/billing/BillingEventLog";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
@@ -452,7 +454,10 @@ export default function BillingPage() {
             </div>
           </Card>
 
-          {/* Usage Cards */}
+          {/* V2 Usage Metrics Panel */}
+          <UsageMetricsPanel />
+
+          {/* Legacy Usage Cards (Fallback) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <UsageCard
               label="Konversationen"
@@ -467,6 +472,9 @@ export default function BillingPage() {
               unit="Mitgl."
             />
           </div>
+
+          {/* V2 Billing Event Log */}
+          <BillingEventLog limit={10} />
 
           {/* Dynamic Add-ons */}
           {addons.length > 0 && (

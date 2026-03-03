@@ -18,6 +18,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.gateway.dependencies import redis_bus
 from app.gateway.routers import webhooks, voice, websocket
 from app.gateway.routers.billing import router as billing_router
+
+# V2 Billing Router (Refactored)
+try:
+    from app.billing.router import router as billing_v2_router
+    from app.billing.admin_router import router as billing_v2_admin_router
+    _billing_v2_available = True
+except Exception as _bv2_err:
+    _billing_v2_available = False
+    logger.warning("ariia.gateway.billing_v2_import_skipped", error=str(_bv2_err))
 from app.gateway.routers.llm_costs import router as llm_costs_router
 from app.gateway.admin import router as admin_router
 from app.core.instrumentation import setup_instrumentation
@@ -55,6 +64,18 @@ async def lifespan(app: FastAPI):
         seed_plans()
     except Exception as _e:
         logger.warning("ariia.gateway.billing_seed_skipped", error=str(_e))
+
+    # Seed V2 billing features
+    try:
+        from app.billing.seed import seed_v2_features
+        from app.core.db import SessionLocal as _BillingSeedDB
+        _billing_db = _BillingSeedDB()
+        try:
+            seed_v2_features(_billing_db)
+        finally:
+            _billing_db.close()
+    except Exception as _bv2_seed_err:
+        logger.warning("ariia.gateway.billing_v2_seed_skipped", error=str(_bv2_seed_err))
 
     # Seed AI Config (providers, agents, prompts)
     try:
@@ -184,6 +205,15 @@ from app.gateway.routers import members_crud as _mc
 app.include_router(_mc.router)
 app.include_router(admin_router)
 app.include_router(billing_router, prefix="/admin")
+
+# V2 Billing Routers
+if _billing_v2_available:
+    try:
+        app.include_router(billing_v2_router, prefix="/admin")
+        app.include_router(billing_v2_admin_router)
+        logger.info("ariia.gateway.billing_v2_routers_registered")
+    except Exception as _bv2_reg_err:
+        logger.warning("ariia.gateway.billing_v2_registration_failed", error=str(_bv2_reg_err))
 
 # Monitoring Router
 from app.core.instrumentation import router as metrics_router
