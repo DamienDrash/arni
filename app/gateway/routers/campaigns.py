@@ -47,6 +47,7 @@ class CampaignCreate(BaseModel):
     channel: str = "email"
     target_type: str = "all_members"
     target_filter_json: Optional[str] = None
+    target_value: Optional[str] = None  # Convenience: auto-converts to target_filter_json
     template_id: Optional[int] = None
     content_subject: Optional[str] = None
     content_body: Optional[str] = None
@@ -145,6 +146,19 @@ async def create_campaign(
     db: Session = Depends(get_db),
 ):
     """Create a new campaign."""
+    # Auto-convert target_value convenience field to target_filter_json
+    filter_json = body.target_filter_json
+    if not filter_json and body.target_value:
+        if body.target_type in ("tag", "tags"):
+            filter_json = json.dumps({"tags": [body.target_value]})
+        elif body.target_type == "lifecycle":
+            filter_json = json.dumps({"lifecycle_stage": body.target_value})
+        elif body.target_type == "segment":
+            filter_json = json.dumps({"segment_id": body.target_value})
+        elif body.target_type == "selected":
+            # Comma-separated IDs
+            filter_json = json.dumps({"contact_ids": [int(x.strip()) for x in body.target_value.split(",") if x.strip()]})
+
     campaign = Campaign(
         tenant_id=user.tenant_id,
         name=body.name,
@@ -152,7 +166,7 @@ async def create_campaign(
         type=body.type,
         channel=body.channel,
         target_type=body.target_type,
-        target_filter_json=body.target_filter_json,
+        target_filter_json=filter_json,
         template_id=body.template_id,
         content_subject=body.content_subject,
         content_body=body.content_body,
