@@ -474,6 +474,20 @@ class MasterAgentV2(BaseAgent):
                     context_block += f"\n- Adresse: {studio_address}"
                 base_prompt += context_block
 
+            # P1-FIX: Single Source of Truth for pricing
+            # Always inject sales_prices_text from DB settings into the
+            # system prompt so the LLM uses authoritative pricing data
+            # instead of potentially outdated Knowledge Base content.
+            sales_prices = persistence.get_setting(
+                "sales_prices_text", "", tenant_id=message.tenant_id
+            )
+            if sales_prices:
+                base_prompt += (
+                    "\n\nOFFIZIELLE PREISLISTE (verbindlich – diese Preise haben "
+                    "IMMER Vorrang vor allen anderen Quellen, auch vor der "
+                    "Knowledge Base):\n" + sales_prices
+                )
+
             # DYN-3: Integration awareness in master prompt
             if self._tenant_id is not None:
                 enabled = persistence.get_enabled_integrations(self._tenant_id)

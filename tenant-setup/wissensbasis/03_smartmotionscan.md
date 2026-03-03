@@ -22,7 +22,7 @@ Der SmartMotionScan nutzt modernste 3D-Kameratechnologie in Kombination mit Kün
 
 ## Preise
 
-Der SmartMotionScan inklusive Auswertung und Lösungsvideos für die identifizierten Haltungsprobleme kostet 499 Euro. Der tägliche Zeitaufwand für das resultierende Trainingsprogramm beträgt nur 10 bis 15 Minuten und lässt sich ideal in den Alltag integrieren.
+Der SmartMotionScan inklusive Auswertung und Lösungsvideos für die identifizierten Haltungsprobleme kostet 149 Euro. Der tägliche Zeitaufwand für das resultierende Trainingsprogramm beträgt nur 10 bis 15 Minuten und lässt sich ideal in den Alltag integrieren.
 
 ## Häufige Ursachen für Beschwerden
 

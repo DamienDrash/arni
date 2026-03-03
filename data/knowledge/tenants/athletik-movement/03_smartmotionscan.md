@@ -27,7 +27,7 @@ Basierend auf den Scanergebnissen erhält jeder Kunde einen individuellen Therap
 
 ## Preis
 
-Der SmartMotionScan inklusive Auswertung und Lösungsvideos für Haltungsprobleme kostet 499 Euro.
+Der SmartMotionScan inklusive Auswertung und Lösungsvideos für Haltungsprobleme kostet 149 Euro.
 
 ## Sicherheit
 
