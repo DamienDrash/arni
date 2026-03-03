@@ -63,5 +63,6 @@ export function clearSession(): void {
   for (const key of USER_KEYS) window.sessionStorage.removeItem(key);
   for (const key of USER_KEYS) window.localStorage.removeItem(key);
   window.dispatchEvent(new Event("ariia:session-updated"));
-  void fetch("/proxy/auth/logout", { method: "POST" }).catch(() => {});
+  // Clear both access and refresh token cookies via logout endpoint
+  void fetch("/proxy/auth/logout", { method: "POST", credentials: "same-origin" }).catch(() => {});
 }

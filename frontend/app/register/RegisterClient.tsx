@@ -1,14 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { UserPlus, Mail, Lock, Building2, User, Globe, Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { UserPlus, Mail, Lock, Building2, User, Globe, Loader2, ArrowRight, Eye, EyeOff, Shield, Check, X } from "lucide-react";
 import { storeSession } from "@/lib/auth";
 import { withBasePath } from "@/lib/base-path";
 import { useI18n } from "@/lib/i18n/LanguageContext";
 import AuthLayout from "@/components/landing/AuthLayout";
 import AriiaLogo from "@/components/landing/AriiaLogo";
+
+function PasswordStrength({ password }: { password: string }) {
+  const checks = useMemo(() => [
+    { label: "At least 8 characters", met: password.length >= 8 },
+    { label: "One uppercase letter", met: /[A-Z]/.test(password) },
+    { label: "One lowercase letter", met: /[a-z]/.test(password) },
+    { label: "One digit", met: /\d/.test(password) },
+  ], [password]);
+
+  const score = checks.filter(c => c.met).length;
+  const barColor = score <= 1 ? "oklch(0.60 0.2 25)" : score <= 2 ? "oklch(0.70 0.18 60)" : score <= 3 ? "oklch(0.70 0.15 90)" : "oklch(0.65 0.2 145)";
+
+  if (!password) return null;
+
+  return (
+    <div className="mt-2 space-y-2">
+      {/* Strength bar */}
+      <div className="flex gap-1">
+        {[0,1,2,3].map(i => (
+          <div
+            key={i}
+            className="h-1 flex-1 rounded-full transition-all duration-300"
+            style={{ background: i < score ? barColor : "oklch(0.20 0.04 270)" }}
+          />
+        ))}
+      </div>
+      {/* Requirements */}
+      <div className="grid grid-cols-2 gap-1">
+        {checks.map((c, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            {c.met ? (
+              <Check size={10} style={{ color: "oklch(0.65 0.2 145)" }} />
+            ) : (
+              <X size={10} style={{ color: "oklch(0.45 0.02 270)" }} />
+            )}
+            <span className="text-[10px]" style={{ color: c.met ? "oklch(0.65 0.2 145)" : "oklch(0.45 0.02 270)" }}>
+              {c.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function RegisterClient() {
   const { t } = useI18n();
@@ -18,6 +62,8 @@ export default function RegisterClient() {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
+  const [acceptTos, setAcceptTos] = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
@@ -26,6 +72,13 @@ export default function RegisterClient() {
     e.preventDefault();
     setLoading(true);
     setError("");
+
+    if (!acceptTos || !acceptPrivacy) {
+      setError("Please accept the Terms of Service and Privacy Policy.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(withBasePath("/proxy/auth/register"), {
         method: "POST",
@@ -36,18 +89,26 @@ export default function RegisterClient() {
           email,
           full_name: fullName || undefined,
           password,
+          accept_tos: acceptTos,
+          accept_privacy: acceptPrivacy,
         }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data?.detail || `Registrierung fehlgeschlagen (${res.status})`);
+        setError(data?.detail || `Registration failed (${res.status})`);
         return;
       }
       const data = await res.json();
       storeSession(data.access_token, data.user);
-      router.replace("/dashboard");
+
+      // Redirect to email verification if required
+      if (data.email_verification_required) {
+        router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
+      } else {
+        router.replace("/dashboard");
+      }
     } catch {
-      setError("Verbindungsfehler. Bitte versuchen Sie es erneut.");
+      setError("Connection error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -106,7 +167,7 @@ export default function RegisterClient() {
                   className="text-[10px] font-bold uppercase tracking-widest ml-1 mb-3 flex items-center gap-2"
                   style={{ color: "oklch(0.62 0.22 292)" }}
                 >
-                  <Building2 size={12} /> Ihr Studio
+                  <Building2 size={12} /> Your Organization
                 </p>
               </div>
 
@@ -121,7 +182,7 @@ export default function RegisterClient() {
                       required
                       className={inputClass}
                       style={inputStyle}
-                      placeholder="Mein Studio"
+                      placeholder="My Company"
                       value={tenantName}
                       onChange={(e) => setTenantName(e.target.value)}
                       onFocus={handleFocus}
@@ -138,7 +199,7 @@ export default function RegisterClient() {
                     <input
                       className={inputClass}
                       style={inputStyle}
-                      placeholder="mein-studio"
+                      placeholder="my-company"
                       value={tenantSlug}
                       onChange={(e) => setTenantSlug(e.target.value)}
                       onFocus={handleFocus}
@@ -152,21 +213,21 @@ export default function RegisterClient() {
               <div className="flex items-center gap-4 py-1">
                 <div className="flex-1 h-px" style={{ background: "oklch(0.18 0.03 270)" }} />
                 <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: "oklch(0.62 0.22 292)" }}>
-                  <User size={12} /> Ihr Konto
+                  <User size={12} /> Your Account
                 </span>
                 <div className="flex-1 h-px" style={{ background: "oklch(0.18 0.03 270)" }} />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-widest ml-1" style={{ color: "oklch(0.50 0.02 270)" }}>
-                  Vollständiger Name
+                  Full Name
                 </label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2" size={18} style={{ color: "oklch(0.45 0.02 270)" }} />
                   <input
                     className={inputClass}
                     style={inputStyle}
-                    placeholder="Max Mustermann"
+                    placeholder="John Doe"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     onFocus={handleFocus}
@@ -186,7 +247,7 @@ export default function RegisterClient() {
                     required
                     className={inputClass}
                     style={inputStyle}
-                    placeholder="admin@studio.de"
+                    placeholder="admin@company.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     onFocus={handleFocus}
@@ -206,7 +267,7 @@ export default function RegisterClient() {
                     required
                     className="w-full rounded-xl pl-11 pr-12 py-3.5 text-white outline-none transition-all text-sm"
                     style={inputStyle}
-                    placeholder="Sicheres Passwort"
+                    placeholder="Secure password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onFocus={handleFocus}
@@ -222,6 +283,54 @@ export default function RegisterClient() {
                     {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+                <PasswordStrength password={password} />
+              </div>
+
+              {/* DSGVO Consent */}
+              <div
+                className="rounded-xl p-4 space-y-3"
+                style={{
+                  background: "oklch(0.09 0.03 270)",
+                  border: "1px solid oklch(0.20 0.04 270)",
+                }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield size={14} style={{ color: "oklch(0.62 0.22 292)" }} />
+                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "oklch(0.62 0.22 292)" }}>
+                    Legal Agreements
+                  </span>
+                </div>
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={acceptTos}
+                    onChange={(e) => setAcceptTos(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded accent-purple-500"
+                    style={{ accentColor: "oklch(0.55 0.25 292)" }}
+                  />
+                  <span className="text-xs leading-relaxed" style={{ color: "oklch(0.65 0.02 270)" }}>
+                    I agree to the{" "}
+                    <a href="/terms" target="_blank" className="underline" style={{ color: "oklch(0.62 0.22 292)" }}>
+                      Terms of Service
+                    </a>
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={acceptPrivacy}
+                    onChange={(e) => setAcceptPrivacy(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded"
+                    style={{ accentColor: "oklch(0.55 0.25 292)" }}
+                  />
+                  <span className="text-xs leading-relaxed" style={{ color: "oklch(0.65 0.02 270)" }}>
+                    I agree to the{" "}
+                    <a href="/privacy" target="_blank" className="underline" style={{ color: "oklch(0.62 0.22 292)" }}>
+                      Privacy Policy
+                    </a>{" "}
+                    and consent to data processing as described therein.
+                  </span>
+                </label>
               </div>
 
               {error && (
@@ -240,7 +349,7 @@ export default function RegisterClient() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !acceptTos || !acceptPrivacy}
                 className="w-full rounded-xl py-4 font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50 mt-2"
                 style={{
                   background: "linear-gradient(135deg, oklch(0.55 0.25 292), oklch(0.50 0.22 280))",
@@ -264,7 +373,7 @@ export default function RegisterClient() {
             <div className="flex items-center gap-4 my-6">
               <div className="flex-1 h-px" style={{ background: "oklch(0.20 0.04 270)" }} />
               <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "oklch(0.40 0.02 270)" }}>
-                oder
+                or
               </span>
               <div className="flex-1 h-px" style={{ background: "oklch(0.20 0.04 270)" }} />
             </div>

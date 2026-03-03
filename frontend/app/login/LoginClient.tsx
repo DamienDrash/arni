@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LogIn, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { LogIn, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { storeSession } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n/LanguageContext";
@@ -19,11 +19,13 @@ export default function LoginClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPwd, setShowPwd] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setIsLocked(false);
 
     try {
       const res = await apiFetch("/auth/login", {
@@ -34,11 +36,31 @@ export default function LoginClient() {
 
       if (res.ok) {
         const data = await res.json();
+
+        // Check if MFA is required
+        if (data.mfa_required) {
+          router.replace(`/mfa-verify?token=${encodeURIComponent(data.mfa_challenge_token)}&user_id=${data.user_id}`);
+          return;
+        }
+
         storeSession(data.access_token, data.user);
-        router.replace("/dashboard");
+
+        // Check if email verification is needed
+        if (data.user && !data.user.email_verified) {
+          router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
+        } else {
+          router.replace("/dashboard");
+        }
       } else {
-        const data = await res.json();
-        setError(data.detail || t("ai.errors.connectionError"));
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 423) {
+          setIsLocked(true);
+          setError(data.detail || "Account temporarily locked. Please try again later.");
+        } else if (res.status === 429) {
+          setError("Too many login attempts. Please wait a few minutes.");
+        } else {
+          setError(data.detail || t("ai.errors.connectionError"));
+        }
       }
     } catch {
       setError(t("ai.errors.connectionError"));
@@ -72,7 +94,7 @@ export default function LoginClient() {
               {t("common.login")}
             </h1>
             <p className="text-sm mt-2" style={{ color: "oklch(0.55 0.02 270)" }}>
-              Melden Sie sich bei Ihrem ARIIA-Konto an
+              Sign in to your ARIIA account
             </p>
           </div>
 
@@ -116,12 +138,21 @@ export default function LoginClient() {
               </div>
 
               <div className="space-y-1.5">
-                <label
-                  className="text-[10px] font-bold uppercase tracking-widest ml-1"
-                  style={{ color: "oklch(0.50 0.02 270)" }}
-                >
-                  {t("settings.general.smtp.pass")}
-                </label>
+                <div className="flex items-center justify-between">
+                  <label
+                    className="text-[10px] font-bold uppercase tracking-widest ml-1"
+                    style={{ color: "oklch(0.50 0.02 270)" }}
+                  >
+                    {t("settings.general.smtp.pass")}
+                  </label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-[10px] font-semibold no-underline transition-all hover:opacity-80"
+                    style={{ color: "oklch(0.62 0.22 292)" }}
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 <div className="relative group">
                   <Lock
                     className="absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors"
@@ -164,15 +195,19 @@ export default function LoginClient() {
                 <div
                   className="p-3.5 rounded-xl text-xs font-semibold flex items-center gap-3"
                   style={{
-                    background: "oklch(0.25 0.12 25 / 0.15)",
-                    border: "1px solid oklch(0.55 0.2 25 / 0.3)",
-                    color: "oklch(0.70 0.15 25)",
+                    background: isLocked ? "oklch(0.25 0.12 60 / 0.15)" : "oklch(0.25 0.12 25 / 0.15)",
+                    border: isLocked ? "1px solid oklch(0.55 0.2 60 / 0.3)" : "1px solid oklch(0.55 0.2 25 / 0.3)",
+                    color: isLocked ? "oklch(0.70 0.15 60)" : "oklch(0.70 0.15 25)",
                   }}
                 >
-                  <div
-                    className="w-2 h-2 rounded-full animate-pulse flex-shrink-0"
-                    style={{ background: "oklch(0.60 0.2 25)" }}
-                  />
+                  {isLocked ? (
+                    <AlertTriangle size={14} className="flex-shrink-0" />
+                  ) : (
+                    <div
+                      className="w-2 h-2 rounded-full animate-pulse flex-shrink-0"
+                      style={{ background: "oklch(0.60 0.2 25)" }}
+                    />
+                  )}
                   {error}
                 </div>
               )}
@@ -203,7 +238,7 @@ export default function LoginClient() {
             <div className="flex items-center gap-4 my-6">
               <div className="flex-1 h-px" style={{ background: "oklch(0.20 0.04 270)" }} />
               <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "oklch(0.40 0.02 270)" }}>
-                oder
+                or
               </span>
               <div className="flex-1 h-px" style={{ background: "oklch(0.20 0.04 270)" }} />
             </div>
@@ -218,7 +253,7 @@ export default function LoginClient() {
                 color: "oklch(0.70 0.02 270)",
               }}
             >
-              Noch kein Konto? Jetzt registrieren
+              No account yet? Register now
             </Link>
           </div>
         </div>

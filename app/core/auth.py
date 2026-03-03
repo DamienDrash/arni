@@ -65,6 +65,59 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
+def create_refresh_token(
+    *,
+    user_id: int,
+    tenant_id: int,
+    ttl_days: int = 30,
+) -> tuple[str, str]:
+    """Create a refresh token. Returns (token_string, token_family_id).
+    
+    Refresh tokens use a family ID for rotation detection.
+    If a previously-rotated token is reused, the entire family is invalidated.
+    """
+    settings = get_settings()
+    family_id = str(uuid4())
+    exp_at = datetime.now(timezone.utc) + timedelta(days=max(1, ttl_days))
+    payload = {
+        "sub": str(user_id),
+        "tenant_id": tenant_id,
+        "type": "refresh",
+        "family": family_id,
+        "exp": int(exp_at.timestamp()),
+        "jti": str(uuid4()),
+    }
+    payload_raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    payload_part = _b64url_encode(payload_raw)
+    sig = hmac.new(settings.auth_secret.encode("utf-8"), payload_part.encode("utf-8"), hashlib.sha256).digest()
+    return f"{payload_part}.{_b64url_encode(sig)}", family_id
+
+
+def decode_refresh_token(token: str) -> dict:
+    """Decode and verify a refresh token."""
+    settings = get_settings()
+    try:
+        payload_part, sig_part = token.split(".", 1)
+        expected_sig = hmac.new(
+            settings.auth_secret.encode("utf-8"),
+            payload_part.encode("utf-8"),
+            hashlib.sha256,
+        ).digest()
+        if not hmac.compare_digest(_b64url_encode(expected_sig), sig_part):
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+        payload = json.loads(_b64url_decode(payload_part))
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Not a refresh token")
+        exp = int(payload.get("exp", 0))
+        if exp < int(datetime.now(timezone.utc).timestamp()):
+            raise HTTPException(status_code=401, detail="Refresh token expired")
+        return payload
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+
 def create_access_token(
     *,
     user_id: int,

@@ -84,6 +84,20 @@ class Tenant(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
+    # DSGVO consent
+    tos_accepted_at = Column(DateTime, nullable=True)
+    privacy_accepted_at = Column(DateTime, nullable=True)
+
+    # Session configuration (per-tenant)
+    session_idle_timeout_minutes = Column(Integer, default=30, nullable=False)
+    session_absolute_timeout_hours = Column(Integer, default=720, nullable=False)
+
+    # MFA enforcement
+    mfa_required = Column(Boolean, default=False, nullable=False)
+
+    # Onboarding
+    onboarding_completed_at = Column(DateTime, nullable=True)
+
 
 class UserAccount(Base):
     __tablename__ = "users"
@@ -93,7 +107,7 @@ class UserAccount(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String, nullable=True)
     role = Column(String, default="tenant_user", nullable=False)  # system_admin|tenant_admin|tenant_user
-    password_hash = Column(String, nullable=False)
+    password_hash = Column(String, nullable=True)  # nullable for SSO/passwordless users
     language = Column(String, default="en", nullable=False)  # de|en|bg
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -102,6 +116,31 @@ class UserAccount(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+
+    # Email verification
+    email_verified = Column(Boolean, default=False, nullable=False)
+    email_verified_at = Column(DateTime, nullable=True)
+    email_verification_token = Column(String, nullable=True)
+    email_verification_sent_at = Column(DateTime, nullable=True)
+
+    # Password reset
+    password_reset_token = Column(String, nullable=True)
+    password_reset_sent_at = Column(DateTime, nullable=True)
+    password_changed_at = Column(DateTime, nullable=True)
+
+    # Account lockout
+    failed_login_attempts = Column(Integer, default=0, nullable=False)
+    locked_until = Column(DateTime, nullable=True)
+    last_failed_login_at = Column(DateTime, nullable=True)
+
+    # MFA
+    mfa_enabled = Column(Boolean, default=False, nullable=False)
+    mfa_secret_encrypted = Column(String, nullable=True)
+    mfa_backup_codes_hash = Column(Text, nullable=True)
+    mfa_enabled_at = Column(DateTime, nullable=True)
+
+    # Tracking
+    last_login_at = Column(DateTime, nullable=True)
 
 
 class AuditLog(Base):
@@ -640,3 +679,47 @@ class ScheduledFollowUp(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+
+
+# ─── Auth Refactoring: New Tables ───────────────────────────────────────────
+
+class PendingInvitation(Base):
+    __tablename__ = "pending_invitations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    email = Column(String, nullable=False)
+    role = Column(String, default="tenant_user", nullable=False)
+    token = Column(String, unique=True, nullable=False, index=True)
+    invited_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    expires_at = Column(DateTime, nullable=False)
+    accepted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = Column(String, unique=True, nullable=False, index=True)
+    family_id = Column(String, nullable=False, index=True)
+    device_info = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    is_revoked = Column(Boolean, default=False, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    jti = Column(String, unique=True, nullable=False, index=True)
+    refresh_token_id = Column(Integer, ForeignKey("refresh_tokens.id", ondelete="SET NULL"), nullable=True)
+    device_name = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+    last_active_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
