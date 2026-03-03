@@ -5,6 +5,9 @@ Seeds the billing_features, billing_feature_sets, and billing_feature_entitlemen
 tables with the canonical ARIIA feature catalog. This maps all existing V1 plan
 columns (channel toggles, feature toggles, limits) into the normalized V2 model.
 
+Plans match the V1 configuration exactly:
+  Trial → Starter → Professional → Business → Enterprise
+
 Usage:
     python -m app.billing.seed          # Run standalone
     await seed_billing_v2(db)           # Call from code
@@ -80,12 +83,14 @@ FEATURES: list[dict[str, Any]] = [
 
 # ══════════════════════════════════════════════════════════════════════════════
 # FEATURE SET DEFINITIONS (one per plan tier)
+# Matches V1 feature_gates.py exactly
 # ══════════════════════════════════════════════════════════════════════════════
 
 FEATURE_SETS: dict[str, dict[str, Any]] = {
-    "free": {
-        "name": "Free Tier",
-        "description": "Grundlegende Funktionen für den Einstieg",
+    # ── Trial: 14-Tage kostenloser Test mit eingeschränkten Features ────
+    "trial": {
+        "name": "Trial Tier",
+        "description": "14-Tage kostenloser Test mit eingeschränkten Professional-Features",
         "entitlements": {
             "channel_whatsapp": {"bool": True},
             "channel_telegram": {"bool": False},
@@ -95,11 +100,46 @@ FEATURE_SETS: dict[str, dict[str, Any]] = {
             "channel_instagram": {"bool": False},
             "channel_facebook": {"bool": False},
             "channel_google_business": {"bool": False},
-            "max_members": {"limit": 100},
-            "max_monthly_messages": {"limit": 500},
+            "max_members": {"limit": 50},
+            "max_monthly_messages": {"limit": 100},
             "max_channels": {"limit": 1},
             "max_connectors": {"limit": 0},
             "monthly_tokens": {"limit": 50000},
+            "ai_tier": {"tier": "basic"},
+            "memory_analyzer": {"bool": True},
+            "custom_prompts": {"bool": True},
+            "vision_ai": {"bool": False},
+            "advanced_analytics": {"bool": False},
+            "churn_prediction": {"bool": False},
+            "automation": {"bool": False},
+            "branding": {"bool": False},
+            "audit_log": {"bool": False},
+            "api_access": {"bool": False},
+            "multi_source_members": {"bool": True},
+            "white_label": {"bool": False},
+            "sla_guarantee": {"bool": False},
+            "on_premise": {"bool": False},
+        },
+    },
+
+    # ── Starter: 79 €/Monat ─────────────────────────────────────────────
+    "starter": {
+        "name": "Starter Tier",
+        "description": "Perfekt für den Einstieg – ein WhatsApp-Kanal mit KI-gestütztem Kundenservice",
+        "entitlements": {
+            "channel_whatsapp": {"bool": True},
+            "channel_telegram": {"bool": False},
+            "channel_sms": {"bool": False},
+            "channel_email": {"bool": False},
+            "channel_voice": {"bool": False},
+            "channel_instagram": {"bool": False},
+            "channel_facebook": {"bool": False},
+            "channel_google_business": {"bool": False},
+            "max_members": {"limit": 500},
+            "max_monthly_messages": {"limit": 500},
+            "max_channels": {"limit": 1},
+            "max_connectors": {"limit": 0},
+            "monthly_tokens": {"limit": 100000},
             "ai_tier": {"tier": "basic"},
             "memory_analyzer": {"bool": False},
             "custom_prompts": {"bool": False},
@@ -110,48 +150,52 @@ FEATURE_SETS: dict[str, dict[str, Any]] = {
             "branding": {"bool": False},
             "audit_log": {"bool": False},
             "api_access": {"bool": False},
-            "multi_source_members": {"bool": False},
+            "multi_source_members": {"bool": True},
             "white_label": {"bool": False},
             "sla_guarantee": {"bool": False},
             "on_premise": {"bool": False},
         },
     },
-    "starter": {
-        "name": "Starter Tier",
-        "description": "Für kleine Teams und Einzelunternehmer",
+
+    # ── Professional: 199 €/Monat ───────────────────────────────────────
+    "professional": {
+        "name": "Professional Tier",
+        "description": "Für wachsende Teams – Multi-Channel, erweiterte Analytics und Automatisierung",
         "entitlements": {
             "channel_whatsapp": {"bool": True},
             "channel_telegram": {"bool": True},
-            "channel_sms": {"bool": False},
+            "channel_sms": {"bool": True},
             "channel_email": {"bool": True},
             "channel_voice": {"bool": False},
             "channel_instagram": {"bool": True},
             "channel_facebook": {"bool": True},
             "channel_google_business": {"bool": False},
-            "max_members": {"limit": 500},
+            "max_members": {"limit": None},  # Unbegrenzt
             "max_monthly_messages": {"limit": 2000},
             "max_channels": {"limit": 3},
-            "max_connectors": {"limit": 2},
-            "monthly_tokens": {"limit": 200000},
+            "max_connectors": {"limit": 1},
+            "monthly_tokens": {"limit": 500000},
             "ai_tier": {"tier": "standard"},
             "memory_analyzer": {"bool": True},
             "custom_prompts": {"bool": True},
             "vision_ai": {"bool": False},
-            "advanced_analytics": {"bool": False},
+            "advanced_analytics": {"bool": True},
             "churn_prediction": {"bool": False},
-            "automation": {"bool": True},
-            "branding": {"bool": False},
-            "audit_log": {"bool": False},
-            "api_access": {"bool": False},
-            "multi_source_members": {"bool": False},
+            "automation": {"bool": False},
+            "branding": {"bool": True},
+            "audit_log": {"bool": True},
+            "api_access": {"bool": True},
+            "multi_source_members": {"bool": True},
             "white_label": {"bool": False},
             "sla_guarantee": {"bool": False},
             "on_premise": {"bool": False},
         },
     },
-    "professional": {
-        "name": "Professional Tier",
-        "description": "Für wachsende Unternehmen mit erweiterten Anforderungen",
+
+    # ── Business: 399 €/Monat ───────────────────────────────────────────
+    "business": {
+        "name": "Business Tier",
+        "description": "Für Unternehmen – alle Kanäle, Premium AI, Automation und Churn Prediction",
         "entitlements": {
             "channel_whatsapp": {"bool": True},
             "channel_telegram": {"bool": True},
@@ -161,11 +205,11 @@ FEATURE_SETS: dict[str, dict[str, Any]] = {
             "channel_instagram": {"bool": True},
             "channel_facebook": {"bool": True},
             "channel_google_business": {"bool": True},
-            "max_members": {"limit": 5000},
+            "max_members": {"limit": None},  # Unbegrenzt
             "max_monthly_messages": {"limit": 10000},
-            "max_channels": {"limit": 8},
-            "max_connectors": {"limit": 10},
-            "monthly_tokens": {"limit": 1000000},
+            "max_channels": {"limit": 99},
+            "max_connectors": {"limit": 99},
+            "monthly_tokens": {"limit": 2000000},
             "ai_tier": {"tier": "premium"},
             "memory_analyzer": {"bool": True},
             "custom_prompts": {"bool": True},
@@ -182,9 +226,11 @@ FEATURE_SETS: dict[str, dict[str, Any]] = {
             "on_premise": {"bool": False},
         },
     },
+
+    # ── Enterprise: Individuell ─────────────────────────────────────────
     "enterprise": {
         "name": "Enterprise Tier",
-        "description": "Für Großunternehmen mit individuellen Anforderungen",
+        "description": "Maßgeschneiderte Lösung mit White Label, SLA-Garantie und On-Premise Option",
         "entitlements": {
             "channel_whatsapp": {"bool": True},
             "channel_telegram": {"bool": True},
@@ -194,11 +240,11 @@ FEATURE_SETS: dict[str, dict[str, Any]] = {
             "channel_instagram": {"bool": True},
             "channel_facebook": {"bool": True},
             "channel_google_business": {"bool": True},
-            "max_members": {"limit": None},  # Unlimited
-            "max_monthly_messages": {"limit": None},  # Unlimited
-            "max_channels": {"limit": None},  # Unlimited
-            "max_connectors": {"limit": None},  # Unlimited
-            "monthly_tokens": {"limit": None},  # Unlimited
+            "max_members": {"limit": None},  # Unbegrenzt
+            "max_monthly_messages": {"limit": None},  # Unbegrenzt
+            "max_channels": {"limit": 999},
+            "max_connectors": {"limit": 999},
+            "monthly_tokens": {"limit": None},  # Unbegrenzt
             "ai_tier": {"tier": "unlimited"},
             "memory_analyzer": {"bool": True},
             "custom_prompts": {"bool": True},
@@ -220,99 +266,213 @@ FEATURE_SETS: dict[str, dict[str, Any]] = {
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PLAN DEFINITIONS
+# Matches V1 feature_gates.py + Live Frontend (www.ariia.ai/pricing) exactly
+# Yearly prices = monthly * 12 * 0.80 (20% discount)
 # ══════════════════════════════════════════════════════════════════════════════
 
 PLANS: list[dict[str, Any]] = [
     {
-        "slug": "free",
-        "name": "Free",
-        "description": "Perfekt zum Ausprobieren",
-        "tagline": "Kostenlos starten",
+        "slug": "trial",
+        "name": "Trial",
+        "description": "14-Tage kostenloser Test mit eingeschränkten Professional-Features.",
+        "tagline": "Kostenlos testen",
         "price_monthly_cents": 0,
         "price_yearly_cents": None,
-        "trial_days": 0,
+        "trial_days": 14,
         "display_order": 0,
         "is_highlighted": False,
-        "cta_text": "Kostenlos starten",
-        "feature_set_slug": "free",
+        "is_public": False,
+        "cta_text": "Kostenlos testen",
+        "feature_set_slug": "trial",
+        "allowed_llm_providers": ["groq"],
+        "token_price_per_1k_cents": 0,
         "features_json": [
             "1 WhatsApp-Kanal",
-            "100 Kontakte",
-            "500 Nachrichten/Monat",
-            "50.000 KI-Tokens",
-            "Basis-KI",
+            "50 Mitglieder",
+            "100 Nachrichten/Monat",
+            "Basic AI (Groq)",
+            "50K Tokens/Monat",
+            "Member Memory",
+            "Wissensbasis",
+            "Live Chat",
         ],
     },
     {
         "slug": "starter",
         "name": "Starter",
-        "description": "Für kleine Teams und Einzelunternehmer",
+        "description": "Perfekt für den Einstieg – ein WhatsApp-Kanal mit KI-gestütztem Kundenservice.",
         "tagline": "Ideal für den Einstieg",
-        "price_monthly_cents": 4900,
-        "price_yearly_cents": 47000,
-        "trial_days": 14,
+        "price_monthly_cents": 7900,
+        "price_yearly_cents": 75840,  # 79 * 12 * 0.80 = 758,40 €
+        "trial_days": 0,
         "display_order": 1,
         "is_highlighted": False,
-        "cta_text": "14 Tage kostenlos testen",
+        "is_public": True,
+        "cta_text": "Jetzt starten",
         "feature_set_slug": "starter",
+        "allowed_llm_providers": ["groq"],
+        "token_price_per_1k_cents": 15,
         "features_json": [
-            "3 Kanäle (WhatsApp, Telegram, E-Mail, Instagram, Facebook)",
+            "1 WhatsApp-Kanal",
+            "500 Mitglieder",
+            "500 Nachrichten/Monat",
+            "Basic AI",
+            "100K Tokens/Monat",
             "500 Kontakte",
-            "2.000 Nachrichten/Monat",
-            "200.000 KI-Tokens",
-            "Standard-KI mit Memory Analyzer",
-            "Eigene Prompts",
-            "Automatisierung",
-            "2 Integrationen",
+            "1 Kanal · 0 Connectors",
         ],
     },
     {
-        "slug": "professional",
+        "slug": "pro",
         "name": "Professional",
-        "description": "Für wachsende Unternehmen",
+        "description": "Für wachsende Teams – Multi-Channel, erweiterte Analytics und Automatisierung.",
         "tagline": "Unser beliebtester Plan",
-        "price_monthly_cents": 14900,
-        "price_yearly_cents": 143000,
-        "trial_days": 14,
+        "price_monthly_cents": 19900,
+        "price_yearly_cents": 191040,  # 199 * 12 * 0.80 = 1.910,40 €
+        "trial_days": 0,
         "display_order": 2,
         "is_highlighted": True,
-        "highlight_label": "Beliebteste Wahl",
-        "cta_text": "14 Tage kostenlos testen",
+        "highlight_label": "Am beliebtesten",
+        "is_public": True,
+        "cta_text": "Jetzt starten",
         "feature_set_slug": "professional",
+        "allowed_llm_providers": ["groq", "mistral", "openai"],
+        "token_price_per_1k_cents": 10,
         "features_json": [
-            "Alle 8 Kanäle",
-            "5.000 Kontakte",
+            "3 Kanäle (WhatsApp, Telegram, SMS, E-Mail)",
+            "Unbegrenzte Mitglieder",
+            "2.000 Nachrichten/Monat",
+            "Standard AI",
+            "500K Tokens/Monat",
+            "Memory Analyzer",
+            "Custom Prompts",
+            "Advanced Analytics",
+            "Branding",
+            "Audit Log",
+            "API Access",
+            "Unbegrenzte Kontakte",
+            "3 Kanäle · 1 Connectors",
+        ],
+    },
+    {
+        "slug": "business",
+        "name": "Business",
+        "description": "Für Unternehmen – alle Kanäle, Premium AI, Automation und Churn Prediction.",
+        "tagline": "Maximale Leistung",
+        "price_monthly_cents": 39900,
+        "price_yearly_cents": 383040,  # 399 * 12 * 0.80 = 3.830,40 €
+        "trial_days": 0,
+        "display_order": 3,
+        "is_highlighted": False,
+        "is_public": True,
+        "cta_text": "Jetzt starten",
+        "feature_set_slug": "business",
+        "allowed_llm_providers": ["groq", "mistral", "openai", "anthropic", "gemini"],
+        "token_price_per_1k_cents": 7,
+        "features_json": [
+            "Alle Kanäle inkl. Voice",
+            "Unbegrenzte Mitglieder",
             "10.000 Nachrichten/Monat",
-            "1.000.000 KI-Tokens",
-            "Premium-KI mit Vision AI",
-            "Erweiterte Analysen & Churn-Vorhersage",
-            "Eigenes Branding & Audit-Log",
-            "API-Zugang",
-            "10 Integrationen",
+            "Premium AI",
+            "2M Tokens/Monat",
+            "Alle Pro-Features",
+            "Automation",
+            "Churn Prediction",
+            "Vision AI",
+            "Google Business",
+            "Unbegrenzte Kontakte",
+            "99 Kanäle · 99 Connectors",
         ],
     },
     {
         "slug": "enterprise",
         "name": "Enterprise",
-        "description": "Für Großunternehmen mit individuellen Anforderungen",
+        "description": "Maßgeschneiderte Lösung mit White Label, SLA-Garantie und On-Premise Option.",
         "tagline": "Maßgeschneidert für Sie",
-        "price_monthly_cents": 0,  # Custom pricing
+        "price_monthly_cents": 0,  # Individuell / Contact Sales
         "price_yearly_cents": None,
         "trial_days": 30,
-        "display_order": 3,
+        "display_order": 4,
         "is_highlighted": False,
+        "is_public": True,
         "cta_text": "Kontakt aufnehmen",
         "feature_set_slug": "enterprise",
+        "allowed_llm_providers": ["groq", "mistral", "openai", "anthropic", "gemini"],
+        "token_price_per_1k_cents": 5,
         "features_json": [
-            "Alle Kanäle – unbegrenzt",
-            "Unbegrenzte Kontakte",
+            "Alles aus Business",
             "Unbegrenzte Nachrichten",
-            "Unbegrenzte KI-Tokens",
-            "White-Label & On-Premise",
+            "Unlimited AI",
+            "White Label",
             "SLA-Garantie",
-            "Dedizierter Account Manager",
-            "Individuelle Integrationen",
+            "On-Premise Option",
+            "Dedizierter Support",
+            "Unbegrenzte Kontakte",
+            "999 Kanäle · 999 Connectors",
         ],
+    },
+]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ADD-ON DEFINITIONS
+# Matches V1 feature_gates.py exactly
+# ══════════════════════════════════════════════════════════════════════════════
+
+ADDONS: list[dict[str, Any]] = [
+    {
+        "slug": "voice_pipeline",
+        "name": "Voice Pipeline",
+        "description": "Sprach-KI für eingehende und ausgehende Anrufe mit natürlicher Sprachverarbeitung.",
+        "category": "channel",
+        "price_monthly_cents": 4900,
+        "features_json": ["voice_enabled"],
+        "display_order": 1,
+    },
+    {
+        "slug": "vision_ai",
+        "name": "Vision AI",
+        "description": "Bild- und Dokumentenanalyse mit KI – automatische Erkennung und Klassifizierung.",
+        "category": "ai",
+        "price_monthly_cents": 2900,
+        "features_json": ["vision_ai_enabled"],
+        "display_order": 2,
+    },
+    {
+        "slug": "white_label",
+        "name": "White Label",
+        "description": "Eigenes Branding – Logo, Farben und Domain für deine Kunden.",
+        "category": "integration",
+        "price_monthly_cents": 9900,
+        "features_json": ["white_label_enabled"],
+        "display_order": 3,
+    },
+    {
+        "slug": "churn_prediction",
+        "name": "Churn Prediction",
+        "description": "KI-basierte Abwanderungsvorhersage mit automatischen Warnungen.",
+        "category": "analytics",
+        "price_monthly_cents": 3900,
+        "features_json": ["churn_prediction_enabled"],
+        "display_order": 4,
+    },
+    {
+        "slug": "extra_channel",
+        "name": "Extra Channel",
+        "description": "Zusätzlicher Messaging-Kanal über das Plan-Limit hinaus.",
+        "category": "channel",
+        "price_monthly_cents": 2900,
+        "features_json": ["extra_channel"],
+        "display_order": 5,
+    },
+    {
+        "slug": "automation_pack",
+        "name": "Automation Pack",
+        "description": "Erweiterte Workflow-Automatisierung mit Trigger-Regeln und Aktionen.",
+        "category": "integration",
+        "price_monthly_cents": 4900,
+        "features_json": ["automation_enabled"],
+        "display_order": 6,
     },
 ]
 
@@ -396,6 +556,21 @@ async def seed_billing_v2(db: Session) -> dict[str, int]:
     for pdef in PLANS:
         existing = db.query(PlanV2).filter(PlanV2.slug == pdef["slug"]).first()
         if existing:
+            # Update existing plan to match seed data
+            existing.name = pdef["name"]
+            existing.description = pdef.get("description")
+            existing.tagline = pdef.get("tagline")
+            existing.price_monthly_cents = pdef["price_monthly_cents"]
+            existing.price_yearly_cents = pdef.get("price_yearly_cents")
+            existing.trial_days = pdef.get("trial_days", 0)
+            existing.display_order = pdef.get("display_order", 0)
+            existing.is_highlighted = pdef.get("is_highlighted", False)
+            existing.highlight_label = pdef.get("highlight_label")
+            existing.cta_text = pdef.get("cta_text")
+            existing.features_json = json.dumps(pdef.get("features_json", []), ensure_ascii=False)
+            fs = feature_set_map.get(pdef["feature_set_slug"])
+            if fs:
+                existing.feature_set_id = fs.id
             continue
 
         fs = feature_set_map.get(pdef["feature_set_slug"])
