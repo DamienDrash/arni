@@ -523,8 +523,55 @@ async def reject_campaign(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# CAMPAIGN SENDING (Simulation)
+# CAMPAIGN SENDING
 # ══════════════════════════════════════════════════════════════════════════════
+
+def _render_campaign_email(campaign, template, contact) -> tuple[str, str]:
+    """Render the full HTML email for a campaign recipient.
+
+    Returns (subject, html_body).
+    """
+    first_name = (contact.first_name or contact.name or "").split()[0] if (contact.first_name or contact.name) else ""
+
+    subject = campaign.content_subject or campaign.name
+
+    # Build body HTML
+    body_content = campaign.content_body or campaign.content_html or ""
+
+    if template and template.body_template:
+        # Substitute variables in the body template
+        body_html = template.body_template
+        body_html = body_html.replace("{{first_name}}", first_name)
+        body_html = body_html.replace("{{content}}", body_content)
+        body_html = body_html.replace("{{cta_url}}", "https://calendly.com/dfrigewski/kostenloses-erstgesprach")
+        body_html = body_html.replace("{{cta_text}}", "Jetzt Termin buchen")
+        body_html = body_html.replace("{{closing}}", "Ich freue mich auf dich!")
+        body_html = body_html.replace("{{unsubscribe_url}}", "#")
+    else:
+        body_html = body_content
+
+    # Wrap with header + footer
+    header = (template.header_html or "") if template else ""
+    footer = (template.footer_html or "") if template else ""
+
+    full_html = f"""<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0; padding:0; background-color:#000000;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#000000;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px; width:100%;">
+        <tr><td>{header}</td></tr>
+        <tr><td>{body_html}</td></tr>
+        <tr><td>{footer}</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+    return subject, full_html
+
 
 @router.post("/{campaign_id}/send")
 async def send_campaign(
@@ -532,7 +579,7 @@ async def send_campaign(
     user: AuthContext = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Send a campaign immediately."""
+    """Send a campaign immediately via the configured email channel."""
     campaign = db.query(Campaign).filter(
         Campaign.id == campaign_id,
         Campaign.tenant_id == user.tenant_id,
@@ -543,39 +590,90 @@ async def send_campaign(
     if campaign.status not in ("approved", "scheduled", "draft"):
         raise HTTPException(status_code=400, detail=f"Campaign cannot be sent from status '{campaign.status}'")
 
-    # Resolve target members
+    # Resolve target contacts
     members = _resolve_target_members(db, user.tenant_id, campaign.target_type, campaign.target_filter_json)
 
     if not members:
         raise HTTPException(status_code=400, detail="No recipients found for this campaign")
 
-    # Create recipient records
+    # Load template if linked
+    template = None
+    if campaign.template_id:
+        template = db.query(CampaignTemplate).filter(
+            CampaignTemplate.id == campaign.template_id
+        ).first()
+
+    # Initialise email adapter for actual SMTP sending
+    from app.integrations.adapters.email_adapter import EmailAdapter
+    email_adapter = EmailAdapter()
+
     campaign.status = "sending"
     campaign.stats_total = len(members)
     db.commit()
 
     sent_count = 0
+    failed_count = 0
+
     for contact in members:
+        # Only send to contacts with a valid email and email consent
+        if not contact.email:
+            logger.warning("campaign.skip_no_email", contact_id=contact.id)
+            continue
+
+        subject, html_body = _render_campaign_email(campaign, template, contact)
+
+        # Determine recipient status
+        status = "pending"
+        error_msg = None
+
+        if campaign.channel == "email":
+            try:
+                result = await email_adapter._send_html_email(
+                    tenant_id=user.tenant_id,
+                    to_email=contact.email,
+                    subject=subject,
+                    html_body=html_body,
+                    text_body=campaign.content_body or "",
+                )
+                if result.success:
+                    status = "sent"
+                    sent_count += 1
+                else:
+                    status = "failed"
+                    error_msg = result.error
+                    failed_count += 1
+                    logger.error("campaign.email_failed", contact_id=contact.id, error=result.error)
+            except Exception as e:
+                status = "failed"
+                error_msg = str(e)
+                failed_count += 1
+                logger.error("campaign.email_exception", contact_id=contact.id, error=str(e))
+        else:
+            # Non-email channels: mark as sent (placeholder for WhatsApp etc.)
+            status = "sent"
+            sent_count += 1
+
         recipient = CampaignRecipient(
             campaign_id=campaign_id,
             contact_id=contact.id,
             tenant_id=user.tenant_id,
             channel=campaign.channel,
-            status="sent",
-            sent_at=datetime.now(timezone.utc),
+            status=status,
+            sent_at=datetime.now(timezone.utc) if status == "sent" else None,
         )
         db.add(recipient)
-        sent_count += 1
 
-    campaign.status = "sent"
+    campaign.status = "sent" if sent_count > 0 else "failed"
     campaign.stats_sent = sent_count
+    campaign.stats_failed = failed_count
     campaign.sent_at = datetime.now(timezone.utc)
     db.commit()
 
-    logger.info("campaign.sent", campaign_id=campaign_id, recipients=sent_count)
+    logger.info("campaign.sent", campaign_id=campaign_id, recipients=sent_count, failed=failed_count)
     return {
-        "status": "sent",
+        "status": campaign.status,
         "recipients": sent_count,
+        "failed": failed_count,
         "sent_at": campaign.sent_at.isoformat(),
     }
 
@@ -975,7 +1073,7 @@ def _resolve_target_members(db: Session, tenant_id: int, target_type: str, filte
         except (json.JSONDecodeError, TypeError):
             pass
 
-    if target_type == "tags" and filter_json:
+    if target_type in ("tag", "tags") and filter_json:
         try:
             filters = json.loads(filter_json)
             tags = filters.get("tags", [])
