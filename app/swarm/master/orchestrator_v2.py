@@ -284,18 +284,43 @@ class MasterAgentV2(BaseAgent):
     async def _handle_knowledge_base(
         self, tc: ToolCallRequest, message: InboundMessage
     ) -> ToolCallResult:
-        """Search the tenant's knowledge base."""
+        """Search the tenant's knowledge base.
+
+        Uses ChromaDB-backed KnowledgeStore (app.knowledge.store) for
+        semantic vector search, with a fallback to per-member markdown
+        knowledge files (app.memory.knowledge).
+        """
         query = tc.arguments.get("query", "")
         top_k = tc.arguments.get("top_k", 3)
 
         try:
             from app.knowledge.store import KnowledgeStore
 
-            store = KnowledgeStore(tenant_id=message.tenant_id)
-            results = store.search(query, top_k=top_k)
-            content = "\n\n".join(
-                [f"[{i+1}] {r.get('content', r.get('text', ''))}" for i, r in enumerate(results)]
-            )
+            # KnowledgeStore uses collection_name, not tenant_id
+            collection = f"tenant_{message.tenant_id or 1}"
+            store = KnowledgeStore(collection_name=collection)
+            raw = store.query(query_text=query, n_results=top_k)
+
+            # ChromaDB returns {"documents": [[...]], "metadatas": [[...]], ...}
+            docs = raw.get("documents", [[]])[0] if raw else []
+            if docs:
+                content = "\n\n".join(
+                    [f"[{i+1}] {doc}" for i, doc in enumerate(docs) if doc]
+                )
+            else:
+                content = ""
+
+            # Fallback: check per-member knowledge files
+            if not content:
+                try:
+                    from app.memory.knowledge import KnowledgeStore as MemberKnowledge
+                    mk = MemberKnowledge()
+                    member_facts = mk.get_facts(message.user_id)
+                    if member_facts:
+                        content = f"Bekannte Fakten über dieses Mitglied:\n{member_facts}"
+                except Exception:
+                    pass
+
             if not content:
                 content = "Keine relevanten Informationen in der Wissensdatenbank gefunden."
 
@@ -318,17 +343,21 @@ class MasterAgentV2(BaseAgent):
     async def _handle_member_memory(
         self, tc: ToolCallRequest, message: InboundMessage
     ) -> ToolCallResult:
-        """Retrieve or store member memory."""
+        """Retrieve or store member memory.
+
+        Uses the per-member markdown knowledge files and the
+        conversation context / librarian for recall.
+        """
         query = tc.arguments.get("query", "")
         action = tc.arguments.get("action", "retrieve")
 
         try:
-            from app.memory.vector_store import MemoryStore
+            from app.memory.knowledge import KnowledgeStore as MemberKnowledge
 
-            store = MemoryStore(tenant_id=message.tenant_id)
+            store = MemberKnowledge()
 
             if action == "store":
-                store.store(user_id=message.user_id, content=query)
+                store.append_facts(user_id=message.user_id, facts=[query])
                 return ToolCallResult(
                     tool_call_id=tc.id,
                     name="member_memory",
@@ -336,11 +365,10 @@ class MasterAgentV2(BaseAgent):
                     success=True,
                 )
             else:
-                results = store.recall(user_id=message.user_id, query=query, top_k=3)
-                content = "\n".join(
-                    [f"- {r.get('content', r.get('text', ''))}" for r in results]
-                )
-                if not content:
+                facts = store.get_facts(message.user_id)
+                if facts:
+                    content = facts
+                else:
                     content = "Keine gespeicherten Informationen über diesen Nutzer gefunden."
 
                 return ToolCallResult(
