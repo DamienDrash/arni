@@ -14,6 +14,7 @@ Key differences from v1:
 - Knowledge base and memory as first-class tools
 """
 
+import asyncio
 import json
 import structlog
 from typing import List, Optional
@@ -295,9 +296,25 @@ class MasterAgentV2(BaseAgent):
 
         try:
             from app.knowledge.store import KnowledgeStore
+            from app.knowledge.ingest import collection_name_for_slug
 
-            # KnowledgeStore uses collection_name, not tenant_id
-            collection = f"tenant_{message.tenant_id or 1}"
+            # Use the same collection naming as the ingest pipeline
+            # so that ingested documents are actually found.
+            tenant_slug = (message.metadata or {}).get('tenant_slug')
+            if not tenant_slug and message.tenant_id:
+                # Fallback: resolve slug from DB
+                try:
+                    slug = await asyncio.to_thread(
+                        persistence.get_setting, 'tenant_slug', None,
+                        tenant_id=message.tenant_id
+                    )
+                    tenant_slug = slug
+                except Exception:
+                    pass
+            if tenant_slug:
+                collection = collection_name_for_slug(tenant_slug)
+            else:
+                collection = f"tenant_{message.tenant_id or 1}"
             store = KnowledgeStore(collection_name=collection)
             raw = store.query(query_text=query, n_results=top_k)
 

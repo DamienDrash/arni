@@ -600,7 +600,7 @@ async def webhook_waha_tenant(
         user_id=user_id,
         content=sanitized_body,
         content_type="text",
-        metadata={"waha_session": payload.get("session", "default"), "full_sender": sender_jid, "original_from": sender_jid, "input_violations": input_violations},
+        metadata={"waha_session": payload.get("session", "default"), "full_sender": sender_jid, "original_from": sender_jid, "input_violations": input_violations, "tenant_slug": effective_slug},
         tenant_id=tenant_id,
     )
     
