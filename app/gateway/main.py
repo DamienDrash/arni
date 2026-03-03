@@ -26,7 +26,7 @@ try:
     _billing_v2_available = True
 except Exception as _bv2_err:
     _billing_v2_available = False
-    logger.warning("ariia.gateway.billing_v2_import_skipped", error=str(_bv2_err))
+    import sys; print(f"[WARN] billing_v2 import skipped: {_bv2_err}", file=sys.stderr)
 from app.gateway.routers.llm_costs import router as llm_costs_router
 from app.gateway.admin import router as admin_router
 from app.core.instrumentation import setup_instrumentation
