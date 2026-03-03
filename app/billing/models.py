@@ -269,7 +269,7 @@ class PlanV2(Base):
 
     # Relationships
     feature_set = relationship("FeatureSet", back_populates="plans", foreign_keys=[feature_set_id])
-    subscriptions = relationship("SubscriptionV2", back_populates="plan")
+    subscriptions = relationship("SubscriptionV2", back_populates="plan", foreign_keys="[SubscriptionV2.plan_id]")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -381,6 +381,7 @@ class SubscriptionV2(Base):
 
     # Relationships
     plan = relationship("PlanV2", back_populates="subscriptions", foreign_keys=[plan_id])
+    pending_plan = relationship("PlanV2", foreign_keys=[pending_plan_id])
     addons = relationship("TenantAddonV2", back_populates="subscription", cascade="all, delete-orphan")
 
 
