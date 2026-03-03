@@ -560,7 +560,15 @@ async def cleanup_orphaned_plans(user: AuthContext = Depends(get_current_user)):
 
 @router.get("/public")
 async def list_public_plans():
-    """Public plan catalog for landing page and pricing page. No auth required."""
+    """Public plan catalog for landing page and pricing page. No auth required.
+
+    Only returns actual subscription plans (starter, pro, business, enterprise).
+    Excludes overage items and add-on products that may have been synced into
+    the plans table from Stripe.
+    """
+    # Canonical plan slugs — only these are real subscription tiers
+    CANONICAL_PLAN_SLUGS = {"trial", "starter", "pro", "business", "enterprise"}
+
     db = SessionLocal()
     try:
         plans = db.query(Plan).filter(
@@ -569,10 +577,21 @@ async def list_public_plans():
         ).order_by(Plan.display_order.asc(), Plan.price_monthly_cents.asc()).all()
 
         # Deduplicate by slug — keep first occurrence (by display_order)
+        # Also filter out non-plan entries (overage, add-ons) that may have
+        # been synced into the plans table from Stripe.
         seen_slugs = set()
         unique_plans = []
         for p in plans:
             if p.slug in seen_slugs:
+                continue
+            # Skip entries that are clearly not subscription plans
+            slug_lower = p.slug.lower()
+            if slug_lower.startswith("overage"):
+                continue
+            # If canonical slugs are defined, only include those;
+            # otherwise also allow plans with display_order > 0
+            # (real plans always have display_order >= 1)
+            if slug_lower not in CANONICAL_PLAN_SLUGS and p.display_order == 0:
                 continue
             seen_slugs.add(p.slug)
             unique_plans.append(p)

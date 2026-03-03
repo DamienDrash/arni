@@ -277,9 +277,14 @@ async def sync_plans_from_stripe(db: Session) -> dict:
             ariia_slug = meta.get("ariia_slug", "")
 
             # Legacy detection: products named "ARIIA <name>" without metadata
+            # Exclude Add-ons, Overages, and other non-plan products
             if not ariia_type and prod.name.startswith("ARIIA ") and "Add-on" not in prod.name:
+                derived_slug = prod.name.replace("ARIIA Plan: ", "").replace("ARIIA ", "").lower().strip().replace(" ", "-")
+                # Only treat as plan if it doesn't look like an overage or addon
+                if derived_slug.startswith("overage") or "add-on" in derived_slug or "addon" in derived_slug:
+                    continue
                 ariia_type = "plan"
-                ariia_slug = prod.name.replace("ARIIA Plan: ", "").replace("ARIIA ", "").lower().strip().replace(" ", "-")
+                ariia_slug = derived_slug
 
             if ariia_type != "plan" or not ariia_slug:
                 continue
