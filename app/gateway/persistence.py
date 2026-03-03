@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.core.models import ChatSession, ChatMessage, Setting, Tenant
+from app.core.integration_models import TenantIntegration
 from app.core.db import SessionLocal, engine, Base
 from app.gateway.schemas import Platform
 from app.core.crypto import encrypt_value, decrypt_value
@@ -314,6 +315,46 @@ class PersistenceService:
             except Exception:
                 self.db.rollback()
                 raise
+
+    # ─── Integration Management ────────────────────────────────────────────
+
+    def get_enabled_integrations(self, tenant_id: int) -> list[str]:
+        """Return a list of integration IDs that are enabled for a tenant.
+
+        Reads the ``tenant_integrations`` table and returns the ``integration_id``
+        for every row where ``enabled = True`` and ``status`` is ``enabled``.
+
+        Args:
+            tenant_id: The tenant whose active integrations should be returned.
+
+        Returns:
+            A sorted list of integration ID strings, e.g. ``['calendly', 'magicline']``.
+        """
+        with self._lock:
+            try:
+                resolved_tid = self._resolve_tenant_id(tenant_id)
+                rows = (
+                    self.db.query(TenantIntegration.integration_id)
+                    .filter(
+                        TenantIntegration.tenant_id == resolved_tid,
+                        TenantIntegration.enabled.is_(True),
+                        TenantIntegration.status == "enabled",
+                    )
+                    .all()
+                )
+                return sorted([row[0] for row in rows])
+            except Exception as exc:
+                logger.error(
+                    "persistence.get_enabled_integrations_failed",
+                    tenant_id=tenant_id,
+                    error=str(exc),
+                )
+                return []
+
+    def is_integration_enabled(self, tenant_id: int, integration_id: str) -> bool:
+        """Check whether a specific integration is enabled for a tenant."""
+        return integration_id in self.get_enabled_integrations(tenant_id)
+
 
 # Singleton Instance
 persistence = PersistenceService()
