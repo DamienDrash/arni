@@ -3,13 +3,13 @@ account lockout, DSGVO consent, MFA, refresh tokens, session management,
 team invitations, and onboarding.
 
 Revision ID: auth_refactoring_001
-Revises: (auto)
+Revises: merge_all_heads_001
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = "auth_refactoring_001"
-down_revision = None
+down_revision = "merge_all_heads_001"
 branch_labels = None
 depends_on = None
 
