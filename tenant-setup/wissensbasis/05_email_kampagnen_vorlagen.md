@@ -42,7 +42,7 @@ kennst du schon unseren SmartMotionScan? Mit modernster 3D-Kameratechnologie und
 
 Du erhältst eine detaillierte 3D-Visualisierung deiner Haltung, einen individuellen 12-Wochen-Therapieplan und Zugang zu deinem persönlichen Trainingsprogramm in der App.
 
-Der SmartMotionScan kostet 499 € und ist der perfekte Start in ein schmerzfreies Leben.
+Der SmartMotionScan kostet 149 € und ist der perfekte Start in ein schmerzfreies Leben.
 
 ---
 

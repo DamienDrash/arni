@@ -52,7 +52,7 @@
 - **Email-Kampagnen:** Geplant (basierend auf Wissensbasis)
 
 ## SmartMotionScan (Detailseite)
-- **Preis:** 499 € (inkl. Auswertung + Lösungsvideos)
+- **Preis:** 149 € (inkl. Auswertung + Lösungsvideos)
 - **Dauer:** ca. 30 Minuten (Scan + Auswertung)
 - **Technologie:** 3D-Kameratechnologie + KI, 450 Mio. Analyseparameter
 - **Eigenschaften:** Strahlungsfrei, berührungslos, wissenschaftlich validiert

@@ -69,4 +69,4 @@ Um flexibel auf spezielle Kundenwünsche einzugehen, können Nutzer der kleinere
 2. **Fair Use Policy bei Metriken:**
    Die Tabelle `UsageRecord` zählt brav die `llm_tokens_used` und `messages_inbound/outbound`. Berechne ggf. Overage-Fees (z.B. 0,02 € pro zusätzlicher Nachricht) automatisch über Stripe Usage-Based Billing "Metered Billing", statt den Service direkt hart abzuschalten. Das liefert unaufdringlich mehr Umsatz (Expansion Revenue).
 3. **Onboarding-Fee (Einmalig):**
-   Für den Start mit der Magicline-Verknüpfung und WhatsApp-Nummer-Registrierung kann man eine Setup-Gebühr von **199 € - 499 €** erheben, um die anfänglichen Support-Kosten zu decken. (Beim Jahresabo oft als "inklusive" verkauft).
+   Für den Start mit der Magicline-Verknüpfung und WhatsApp-Nummer-Registrierung kann man eine Setup-Gebühr von **199 € - 149 €** erheben, um die anfänglichen Support-Kosten zu decken. (Beim Jahresabo oft als "inklusive" verkauft).

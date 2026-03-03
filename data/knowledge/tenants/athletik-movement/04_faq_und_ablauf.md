@@ -22,7 +22,7 @@ Nein, Kunden können direkt mit den Sessions starten – ganz ohne ärztliche Ü
 
 Es gibt verschiedene Optionen – von Einzelsessions bis hin zu attraktiven Paketen für nachhaltige Ergebnisse. Für genaue Preise und Paketoptionen kann ein kostenloses Beratungsgespräch vereinbart werden.
 
-Der SmartMotionScan inklusive Auswertung und Lösungsvideos kostet 499 Euro.
+Der SmartMotionScan inklusive Auswertung und Lösungsvideos kostet 149 Euro.
 
 ## Wie kann ich einen Termin buchen?
 

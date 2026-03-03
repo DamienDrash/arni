@@ -34,7 +34,7 @@ Der gesamte Ablauf dauert circa 30 Minuten, inklusive Scan und detaillierter Aus
 
 **Was kostet der SmartMotionScan?**
 
-Der SmartMotionScan inklusive Auswertung und Lösungsvideos kostet 499 Euro.
+Der SmartMotionScan inklusive Auswertung und Lösungsvideos kostet 149 Euro.
 
 **Wie wird das Trainingsprogramm erstellt?**
 
