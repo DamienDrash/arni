@@ -604,7 +604,7 @@ async def send_campaign(
         ).first()
 
     # Resolve SMTP config for this tenant via connector_hub persistence keys
-    from app.core import persistence
+    from app.gateway.persistence import persistence
     from app.integrations.email import SMTPMailer
     import smtplib as _smtplib
     from email.message import EmailMessage as _EmailMessage
