@@ -26,11 +26,17 @@ Sync:
 Public:
     GET    /admin/plans/public          → Public plan catalog (no auth)
     GET    /admin/plans/public/addons   → Public addon catalog (no auth)
+
+Revenue & Metrics:
+    GET    /admin/plans/revenue         → Revenue metrics from Stripe
+    GET    /admin/plans/subscribers     → Active subscriber list
+    GET    /admin/plans/features        → List all V2 feature definitions
 """
 
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import Any, Optional, List
 
 import structlog
@@ -645,5 +651,133 @@ async def list_public_addons():
             }
             for a in addons
         ]
+    finally:
+        db.close()
+
+
+# ── Revenue & Metrics (mirrors V2 billing admin_router) ─────────────────────────
+
+@router.get("/revenue")
+async def get_revenue_metrics_v1(user: AuthContext = Depends(get_current_user)):
+    """Revenue metrics from Stripe (V1 compatibility)."""
+    require_role(user, {"system_admin"})
+
+    try:
+        from app.billing.stripe_service import _get_stripe
+        stripe = _get_stripe()
+
+        # Get balance
+        balance = stripe.Balance.retrieve()
+        available = sum(b.get("amount", 0) for b in balance.get("available", []))
+        pending = sum(b.get("amount", 0) for b in balance.get("pending", []))
+
+        # Get recent charges for MRR calculation
+        now = datetime.now(timezone.utc)
+        thirty_days_ago = int((now.timestamp()) - (30 * 86400))
+
+        charges = stripe.Charge.list(
+            created={"gte": thirty_days_ago},
+            limit=100,
+        )
+        total_revenue_30d = sum(
+            c.get("amount", 0) for c in charges.get("data", []) if c.get("paid")
+        )
+
+        # Active subscriptions count
+        subs = stripe.Subscription.list(status="active", limit=1)
+        active_count = subs.get("total_count", 0) if subs else 0
+
+        return {
+            "balance_available_cents": available,
+            "balance_pending_cents": pending,
+            "revenue_30d_cents": total_revenue_30d,
+            "mrr_estimate_cents": total_revenue_30d,
+            "active_subscriptions": active_count,
+            "currency": "eur",
+        }
+    except Exception as exc:
+        logger.error("billing.revenue_metrics_failed", error=str(exc))
+        return {"error": str(exc)}
+
+
+@router.get("/subscribers")
+async def get_subscribers_v1(user: AuthContext = Depends(get_current_user)):
+    """Active subscriber list with plan details (V1 compatibility)."""
+    require_role(user, {"system_admin"})
+    db = SessionLocal()
+    try:
+        subs = db.query(Subscription).filter(
+            Subscription.status.in_(["active", "trialing", "past_due"])
+        ).all()
+
+        result = []
+        for sub in subs:
+            plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
+            from app.core.models import Tenant
+            tenant = (
+                db.query(Tenant).filter(Tenant.id == sub.tenant_id).first()
+                if sub.tenant_id
+                else None
+            )
+
+            result.append({
+                "tenant_id": sub.tenant_id,
+                "tenant_name": tenant.name if tenant else f"Tenant {sub.tenant_id}",
+                "plan_name": plan.name if plan else "Unbekannt",
+                "plan_slug": plan.slug if plan else None,
+                "status": sub.status,
+                "billing_interval": getattr(sub, "billing_interval", "month"),
+                "current_period_end": (
+                    sub.current_period_end.isoformat()
+                    if sub.current_period_end
+                    else None
+                ),
+                "cancel_at_period_end": bool(
+                    getattr(sub, "cancel_at_period_end", False)
+                ),
+                "stripe_subscription_id": sub.stripe_subscription_id,
+            })
+
+        return result
+    finally:
+        db.close()
+
+
+@router.get("/features")
+async def list_features_v1(user: AuthContext = Depends(get_current_user)):
+    """List all V2 feature definitions (V1 compatibility)."""
+    require_role(user, {"system_admin"})
+    db = SessionLocal()
+    try:
+        from app.billing.models import Feature, FeatureType
+
+        features = (
+            db.query(Feature)
+            .order_by(Feature.category.asc(), Feature.key.asc())
+            .all()
+        )
+        return [
+            {
+                "id": f.id,
+                "key": f.key,
+                "name": f.name,
+                "description": f.description,
+                "feature_type": (
+                    f.feature_type.value
+                    if isinstance(f.feature_type, FeatureType)
+                    else str(f.feature_type)
+                ),
+                "unit": f.unit,
+                "category": f.category,
+                "is_active": f.is_active,
+                "display_order": f.display_order,
+                "created_at": (
+                    f.created_at.isoformat() if f.created_at else None
+                ),
+            }
+            for f in features
+        ]
+    except Exception:
+        return []
     finally:
         db.close()
