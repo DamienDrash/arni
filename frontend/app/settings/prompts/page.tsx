@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import {
+  Building2, Bot, MapPin, TrendingUp, HeartPulse, Calendar,
+  AlertTriangle, ChevronDown, ChevronRight, Save, RotateCcw,
+} from "lucide-react";
 
 import SettingsSubnav from "@/components/settings/SettingsSubnav";
 import { apiFetch } from "@/lib/api";
@@ -8,18 +12,20 @@ import { useConfirm } from "@/components/ui/ConfirmModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
-interface PromptConfig {
-  studio_name: string;
-  studio_short_name: string;
-  agent_display_name: string;
-  studio_locale: string;
-  studio_timezone: string;
-  studio_emergency_number: string;
-  studio_address: string;
-  sales_prices_text: string;
-  sales_retention_rules: string;
-  medic_disclaimer_text: string;
-  persona_bio_text: string;
+interface VariableSchema {
+  key: string;
+  label: string;
+  help: string;
+  category: string;
+  multiline: boolean;
+  default: string;
+}
+
+interface CategorySchema {
+  id: string;
+  label: string;
+  description: string;
+  icon: string;
 }
 
 interface AgentTemplate {
@@ -29,64 +35,55 @@ interface AgentTemplate {
   mtime: number;
 }
 
-// ── Field metadata ─────────────────────────────────────────────────────────
+// ── Icon mapping ──────────────────────────────────────────────────────────
 
-const FIELD_META: Record<keyof PromptConfig, { label: string; help: string; multiline?: boolean }> = {
-  studio_name: { label: "Studio-Name (vollständig)", help: 'z.B. "GetImpulse Berlin"' },
-  studio_short_name: { label: "Studio-Kurzname", help: 'z.B. "GetImpulse"' },
-  agent_display_name: { label: "Agent-Name", help: 'Name des Assistenten, z.B. "ARIIA"' },
-  studio_locale: { label: "Sprache / Locale", help: 'z.B. "de-DE", "en-US"' },
-  studio_timezone: { label: "Zeitzone", help: 'IANA-Zeitzone, z.B. "Europe/Berlin"' },
-  studio_emergency_number: { label: "Notrufnummer", help: 'z.B. "112" (DE) oder "911" (US)' },
-  studio_address: { label: "Studio-Adresse", help: "Adresse für Agent-Antworten (optional)" },
-  sales_prices_text: {
-    label: "Tarifstruktur (Markdown)",
-    help: "Preisliste die der Sales-Agent nutzt",
-    multiline: true,
-  },
-  sales_retention_rules: {
-    label: "Retention-Regeln",
-    help: "Regeln für den Sales-Agent zur Kundenbindung",
-    multiline: true,
-  },
-  medic_disclaimer_text: {
-    label: "Medizinischer Disclaimer",
-    help: "Pflicht-Disclaimer der dem Medic-Agent angehängt wird",
-    multiline: true,
-  },
-  persona_bio_text: {
-    label: "Agent-Persönlichkeit",
-    help: "Charakterbeschreibung / Persona des Assistenten",
-    multiline: true,
-  },
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  Building2, Bot, MapPin, TrendingUp, HeartPulse, Calendar, AlertTriangle,
 };
 
+// ── Agent definitions ─────────────────────────────────────────────────────
+
 const AGENTS = [
-  { id: "persona", label: "Persona (Smalltalk)" },
-  { id: "sales", label: "Sales (Retention)" },
-  { id: "medic", label: "Medic (Coach)" },
-  { id: "router", label: "Router (Intent-Classifier)" },
-  { id: "ops", label: "Ops (Buchungen)" },
+  { id: "persona", label: "Persona", desc: "Smalltalk & Persönlichkeit", color: "blue" },
+  { id: "concierge", label: "Concierge", desc: "FAQ & Allgemeine Infos", color: "emerald" },
+  { id: "sales", label: "Sales", desc: "Preise & Retention", color: "amber" },
+  { id: "medic", label: "Health", desc: "Gesundheitsberatung", color: "red" },
+  { id: "booking", label: "Booking", desc: "Termine & Buchungen", color: "violet" },
+  { id: "ops", label: "Operations", desc: "Systemoperationen", color: "cyan" },
+  { id: "escalation", label: "Eskalation", desc: "Weiterleitung an Menschen", color: "orange" },
+  { id: "router", label: "Router", desc: "Intent-Klassifizierung", color: "gray" },
 ];
 
-// ── Variables tab ──────────────────────────────────────────────────────────
+// ── Variables tab (schema-driven) ─────────────────────────────────────────
 
 function VariablesTab() {
-  const [config, setConfig] = useState<Partial<PromptConfig>>({});
+  const [config, setConfig] = useState<Record<string, string>>({});
+  const [schema, setSchema] = useState<{ categories: CategorySchema[]; variables: VariableSchema[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(["business", "agent"]));
 
   useEffect(() => {
-    apiFetch("/admin/prompt-config")
-      .then((r) => r.json())
-      .then((data) => setConfig(data as Partial<PromptConfig>))
+    Promise.all([
+      apiFetch("/admin/prompt-config").then((r) => r.json()),
+      apiFetch("/admin/prompt-config/schema").then((r) => r.json()).catch(() => null),
+    ])
+      .then(([configData, schemaData]) => {
+        setConfig(configData as Record<string, string>);
+        if (schemaData) {
+          setSchema(schemaData);
+        } else {
+          // Fallback: generate schema from config keys
+          setSchema(null);
+        }
+      })
       .catch(() => setError("Fehler beim Laden der Konfiguration."))
       .finally(() => setLoading(false));
   }, []);
 
-  const handleChange = (key: keyof PromptConfig, value: string) => {
+  const handleChange = (key: string, value: string) => {
     setConfig((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
   };
@@ -110,40 +107,112 @@ function VariablesTab() {
     }
   };
 
+  const toggleCategory = (catId: string) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(catId)) next.delete(catId);
+      else next.add(catId);
+      return next;
+    });
+  };
+
   if (loading) return <div className="p-8 text-gray-400">Konfiguration wird geladen...</div>;
 
+  // Group variables by category
+  const categories = schema?.categories ?? [
+    { id: "business", label: "Unternehmen", description: "Grundlegende Informationen", icon: "Building2" },
+    { id: "agent", label: "Agent-Identität", description: "Name und Persönlichkeit", icon: "Bot" },
+    { id: "contact", label: "Kontakt & Standort", description: "Kontaktdaten und Adresse", icon: "MapPin" },
+    { id: "sales", label: "Sales & Retention", description: "Preise und Kundenbindung", icon: "TrendingUp" },
+    { id: "health", label: "Gesundheit & Sicherheit", description: "Disclaimer und Beratungsregeln", icon: "HeartPulse" },
+    { id: "booking", label: "Buchung & Termine", description: "Buchungsanweisungen", icon: "Calendar" },
+    { id: "escalation", label: "Eskalation", description: "Weiterleitung an Menschen", icon: "AlertTriangle" },
+  ];
+
+  const variables = schema?.variables ?? Object.keys(config).map((key) => ({
+    key,
+    label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    help: "",
+    category: "business",
+    multiline: (config[key] ?? "").length > 100,
+    default: "",
+  }));
+
+  const variablesByCategory = categories.map((cat) => ({
+    ...cat,
+    vars: variables.filter((v) => v.category === cat.id),
+  })).filter((cat) => cat.vars.length > 0);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <p className="text-gray-400 text-sm">
-        Diese Platzhalter werden in alle Agent-Templates als{" "}
-        <code className="text-blue-400">{"{{ variable }}"}</code> eingesetzt. Änderungen sind sofort aktiv.
+        Diese Variablen werden in alle Agent-Templates als{" "}
+        <code className="text-blue-400 bg-gray-800 px-1 rounded">{"{{ variable }}"}</code>{" "}
+        eingesetzt. Änderungen sind sofort aktiv.
       </p>
 
       {error && (
         <div className="bg-red-900/40 border border-red-700 text-red-300 rounded-lg px-4 py-3 text-sm">{error}</div>
       )}
 
-      <div className="space-y-5">
-        {(Object.keys(FIELD_META) as (keyof PromptConfig)[]).map((key) => {
-          const meta = FIELD_META[key];
+      <div className="space-y-3">
+        {variablesByCategory.map((cat) => {
+          const IconComp = ICON_MAP[cat.icon] ?? Building2;
+          const isExpanded = expandedCategories.has(cat.id);
+          const filledCount = cat.vars.filter((v) => (config[v.key] ?? "").trim().length > 0).length;
+
           return (
-            <div key={key} className="space-y-1">
-              <label className="block text-sm font-medium text-gray-200">{meta.label}</label>
-              <p className="text-xs text-gray-500">{meta.help}</p>
-              {meta.multiline ? (
-                <textarea
-                  rows={5}
-                  value={config[key] ?? ""}
-                  onChange={(e) => handleChange(key, e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                />
-              ) : (
-                <input
-                  type="text"
-                  value={config[key] ?? ""}
-                  onChange={(e) => handleChange(key, e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+            <div key={cat.id} className="border border-gray-800 rounded-lg overflow-hidden">
+              {/* Category header */}
+              <button
+                onClick={() => toggleCategory(cat.id)}
+                className="w-full flex items-center gap-3 px-4 py-3 bg-gray-900/50 hover:bg-gray-900 transition-colors text-left"
+              >
+                <IconComp className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium text-gray-200">{cat.label}</span>
+                  <span className="text-xs text-gray-500 ml-2">{cat.description}</span>
+                </div>
+                <span className="text-xs text-gray-500 tabular-nums">
+                  {filledCount}/{cat.vars.length}
+                </span>
+                {isExpanded ? (
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-gray-500" />
+                )}
+              </button>
+
+              {/* Category fields */}
+              {isExpanded && (
+                <div className="px-4 py-4 space-y-4 border-t border-gray-800">
+                  {cat.vars.map((v) => (
+                    <div key={v.key} className="space-y-1">
+                      <label className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-200">{v.label}</span>
+                        <code className="text-[10px] text-gray-600 bg-gray-800 px-1 rounded">{v.key}</code>
+                      </label>
+                      {v.help && <p className="text-xs text-gray-500">{v.help}</p>}
+                      {v.multiline ? (
+                        <textarea
+                          rows={5}
+                          value={config[v.key] ?? ""}
+                          onChange={(e) => handleChange(v.key, e.target.value)}
+                          placeholder={v.default || undefined}
+                          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono placeholder:text-gray-600"
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={config[v.key] ?? ""}
+                          onChange={(e) => handleChange(v.key, e.target.value)}
+                          placeholder={v.default || undefined}
+                          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-600"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           );
@@ -154,9 +223,10 @@ function VariablesTab() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
         >
-          {saving ? "Speichern..." : "Speichern"}
+          <Save className="w-4 h-4" />
+          {saving ? "Speichern..." : "Alle Variablen speichern"}
         </button>
         {saved && <span className="text-green-400 text-sm">Gespeichert. Agents nutzen die neuen Werte sofort.</span>}
       </div>
@@ -178,13 +248,21 @@ function TemplatesTab() {
   const [reason, setReason] = useState("");
   const { confirm, ConfirmComponent } = useConfirm();
 
-  const loadTemplate = async (agent: string) => {
+  const loadTemplate = useCallback(async (agent: string) => {
     setLoading(true);
     setError(null);
     setSaved(false);
     try {
       const res = await apiFetch(`/admin/prompts/agent/${agent}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          // New agent without template yet
+          setTemplate({ agent, is_custom: false, content: `# ${agent}/system.j2\n\n# Dieses Template wurde noch nicht erstellt.\n# Erstelle es hier oder nutze das System-Default.`, mtime: 0 });
+          setEditContent("");
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data: AgentTemplate = await res.json();
       setTemplate(data);
       setEditContent(data.content);
@@ -193,11 +271,11 @@ function TemplatesTab() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadTemplate(selectedAgent);
-  }, [selectedAgent]);
+  }, [selectedAgent, loadTemplate]);
 
   const handleSave = async () => {
     if (!reason.trim() || reason.trim().length < 8) {
@@ -229,7 +307,9 @@ function TemplatesTab() {
   };
 
   const handleReset = async () => {
-    const isConfirmed = await confirm(`Möchtest du das Custom-Template für '${selectedAgent}' wirklich löschen und zum Standard zurückkehren?`);
+    const isConfirmed = await confirm(
+      `Möchtest du das Custom-Template für '${selectedAgent}' wirklich löschen und zum Standard zurückkehren?`
+    );
     if (!isConfirmed) return;
     setResetting(true);
     try {
@@ -242,26 +322,32 @@ function TemplatesTab() {
     }
   };
 
+  const agentMeta = AGENTS.find((a) => a.id === selectedAgent);
+
   return (
     <div className="space-y-4">
       <p className="text-gray-400 text-sm">
         Jinja2-System-Prompts pro Agent anpassen. Verwende{" "}
-        <code className="text-blue-400">{"{{ variable }}"}</code> für Platzhalter aus dem Variables-Tab.
-        Ohne Custom-Template wird das System-Default verwendet.
+        <code className="text-blue-400 bg-gray-800 px-1 rounded">{"{{ variable }}"}</code>{" "}
+        für Platzhalter aus dem Variablen-Tab.
       </p>
 
-      {/* Agent selector */}
-      <div className="flex flex-wrap gap-2">
+      {/* Agent selector - grid layout */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {AGENTS.map((a) => (
           <button
             key={a.id}
             onClick={() => setSelectedAgent(a.id)}
-            className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${selectedAgent === a.id
-                ? "bg-blue-600 border-blue-500 text-white"
-                : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600"
-              }`}
+            className={`flex flex-col items-start px-3 py-2 text-left rounded-lg border transition-all ${
+              selectedAgent === a.id
+                ? "bg-blue-600/20 border-blue-500 ring-1 ring-blue-500/50"
+                : "bg-gray-900 border-gray-800 hover:border-gray-700"
+            }`}
           >
-            {a.label}
+            <span className={`text-sm font-medium ${selectedAgent === a.id ? "text-blue-300" : "text-gray-200"}`}>
+              {a.label}
+            </span>
+            <span className="text-[10px] text-gray-500 mt-0.5">{a.desc}</span>
           </button>
         ))}
       </div>
@@ -269,18 +355,24 @@ function TemplatesTab() {
       {/* Status badge */}
       {template && (
         <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 font-mono">{agentMeta?.id}/system.j2</span>
+          <span className="text-gray-700">|</span>
           <span
-            className={`text-xs px-2 py-0.5 rounded-full font-medium ${template.is_custom ? "bg-yellow-900/50 text-yellow-300 border border-yellow-700" : "bg-gray-800 text-gray-400 border border-gray-700"
-              }`}
+            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              template.is_custom
+                ? "bg-yellow-900/50 text-yellow-300 border border-yellow-700"
+                : "bg-gray-800 text-gray-400 border border-gray-700"
+            }`}
           >
-            {template.is_custom ? "Custom Override aktiv" : "System-Default"}
+            {template.is_custom ? "Custom Override" : "System-Default"}
           </span>
           {template.is_custom && (
             <button
               onClick={handleReset}
               disabled={resetting}
-              className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+              className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
             >
+              <RotateCcw className="w-3 h-3" />
               {resetting ? "Resetting..." : "Zurücksetzen"}
             </button>
           )}
@@ -296,17 +388,20 @@ function TemplatesTab() {
       ) : (
         <>
           <textarea
-            rows={24}
+            rows={28}
             value={editContent}
-            onChange={(e) => { setEditContent(e.target.value); setSaved(false); }}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => {
+              setEditContent(e.target.value);
+              setSaved(false);
+            }}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-100 font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500"
             spellCheck={false}
           />
 
           <div className="space-y-2">
             <input
               type="text"
-              placeholder="Änderungsgrund (min. 8 Zeichen, wird in Audit-Log gespeichert)"
+              placeholder="Änderungsgrund (min. 8 Zeichen) — z.B. 'Tonalität angepasst'"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -317,11 +412,16 @@ function TemplatesTab() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+              className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
             >
+              <Save className="w-4 h-4" />
               {saving ? "Speichern..." : "Template speichern"}
             </button>
-            {saved && <span className="text-green-400 text-sm">Gespeichert. Agent nutzt das Custom-Template ab sofort.</span>}
+            {saved && (
+              <span className="text-green-400 text-sm">
+                Gespeichert. Agent nutzt das Custom-Template ab sofort.
+              </span>
+            )}
           </div>
         </>
       )}
@@ -344,7 +444,7 @@ export default function PromptsPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">Agent-Konfiguration</h1>
           <p className="text-gray-400 mt-1 text-sm">
-            Personalisiere das Verhalten deines Assistenten — von einfachen Variablen bis hin zu vollständigen Jinja2-Prompt-Templates.
+            Personalisiere das Verhalten deines KI-Assistenten — von Variablen bis hin zu vollständigen Jinja2-Prompt-Templates.
           </p>
         </div>
 
@@ -354,10 +454,11 @@ export default function PromptsPage() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === tab
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab
                   ? "border-blue-500 text-blue-400"
                   : "border-transparent text-gray-400 hover:text-gray-300"
-                }`}
+              }`}
             >
               {tab === "variables" ? "Variablen" : "Jinja2 Templates"}
             </button>

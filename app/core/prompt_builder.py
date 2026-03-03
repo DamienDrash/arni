@@ -1,8 +1,14 @@
-"""ARIIA – Tenant-aware Prompt Builder (S2.2).
+"""ARIIA – Tenant-aware Prompt Builder (S2.2 → v2).
 
-Every agent system-prompt is a template with {placeholders}. This module
-fills those placeholders from the tenant's Settings table at call time,
-so each tenant gets its own branded, configured agent personality.
+Every agent system-prompt is a Jinja2 template with {{ placeholders }}.
+This module fills those placeholders from the tenant's Settings table at
+call time, so each tenant gets its own branded, configured agent personality.
+
+v2 Changes (Q2 2026):
+- Business-type-agnostic variables (no more "studio_*" hardcoding)
+- Extended variable set: owner, contact, booking, escalation
+- Grouped variable categories for the Admin UI
+- Backward compatibility: old "studio_*" keys still work
 
 Usage:
     from app.core.prompt_builder import PromptBuilder
@@ -18,54 +24,294 @@ import structlog
 
 logger = structlog.get_logger()
 
-# All setting keys that feed into prompt templates.
-# Seeded at tenant creation with sensible defaults.
-PROMPT_SETTINGS_KEYS: list[str] = [
-    "studio_name",             # Full organization name, e.g. "My Company GmbH"
-    "studio_short_name",       # Short name, e.g. "MyCompany"
-    "agent_display_name",      # Agent name shown to customers: "ARIIA"
-    "studio_locale",           # BCP-47 locale: "de-DE" | "en-US"
-    "studio_timezone",         # IANA tz: "Europe/Berlin"
-    "studio_emergency_number", # Emergency services: "112" | "911"
-    "studio_address",          # Physical address shown in replies
-    "sales_prices_text",       # Markdown tariff/price list
-    "sales_retention_rules",   # Markdown retention strategy rules
-    "medic_disclaimer_text",   # Legal health disclaimer appended to medic replies
-    "persona_bio_text",        # Agent persona/character description
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# VARIABLE CATEGORIES – Used by the Admin UI to group settings
+# ═══════════════════════════════════════════════════════════════════════════════
+
+VARIABLE_CATEGORIES: list[dict] = [
+    {
+        "id": "business",
+        "label": "Unternehmen",
+        "description": "Grundlegende Informationen über dein Unternehmen",
+        "icon": "Building2",
+    },
+    {
+        "id": "agent",
+        "label": "Agent-Identität",
+        "description": "Name und Persönlichkeit deines KI-Assistenten",
+        "icon": "Bot",
+    },
+    {
+        "id": "contact",
+        "label": "Kontakt & Standort",
+        "description": "Kontaktdaten und Adresse für den Agenten",
+        "icon": "MapPin",
+    },
+    {
+        "id": "sales",
+        "label": "Sales & Retention",
+        "description": "Preise, Pakete und Kundenbindungs-Regeln",
+        "icon": "TrendingUp",
+    },
+    {
+        "id": "health",
+        "label": "Gesundheit & Sicherheit",
+        "description": "Disclaimer und Gesundheitsberatungs-Regeln",
+        "icon": "HeartPulse",
+    },
+    {
+        "id": "booking",
+        "label": "Buchung & Termine",
+        "description": "Buchungsanweisungen und Stornierungsregeln",
+        "icon": "Calendar",
+    },
+    {
+        "id": "escalation",
+        "label": "Eskalation",
+        "description": "Regeln für die Weiterleitung an menschliche Mitarbeiter",
+        "icon": "AlertTriangle",
+    },
 ]
 
-# Default values — new tenants start here and configure via Admin UI.
-# New tenants start with empty strings and configure via the Admin UI.
-PROMPT_SETTINGS_DEFAULTS: dict[str, str] = {
-    "studio_name": "Mein Studio",
-    "studio_short_name": "Studio",
-    "agent_display_name": "ARIIA",
-    "studio_locale": "de-DE",
-    "studio_timezone": "Europe/Berlin",
-    "studio_emergency_number": "112",
-    "studio_address": "",
-    "sales_prices_text": (
-        "Tarife:\n"
-        "- Flex: 29,90\u20ac/Monat (monatlich k\u00fcndbar)\n"
-        "- Standard: 24,90\u20ac/Monat (12 Monate)\n"
-        "- Premium: 39,90\u20ac/Monat (Kurse + Sauna + Personal Training)"
-    ),
-    "sales_retention_rules": (
-        "RETENTION-REGELN:\n"
-        "1. Inaktiv (>30 Tage): Biete kostenlosen Trainer-Check-Up an.\n"
-        "2. Sehr aktiv (>2x/Woche): Biete Premium-Upgrade an.\n"
-        "3. K\u00fcndigungswunsch: Pr\u00fcfe Status und frage nach dem Grund."
-    ),
-    "medic_disclaimer_text": (
-        "\u26a95\ufe0f _Ich bin kein Arzt und kein Ersatz f\u00fcr medizinische Beratung. "
-        "Bei echten Beschwerden bitte immer einen Arzt aufsuchen!_"
-    ),
-    "persona_bio_text": (
-        "Pers\u00f6nlichkeit: Cool, motivierend, direkt, 'No Excuses', leicht humorvoll. "
-        "Sprache: Deutsch (prim\u00e4r), kurze S\u00e4tze. "
-        "Du bist wie ein cooler Kumpel im Gym, nicht wie ein Kundenservice-Bot."
-    ),
-}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROMPT SETTINGS – All keys that feed into prompt templates
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Each entry: (key, label, help_text, category, multiline, default_value)
+PROMPT_SETTINGS_SCHEMA: list[dict] = [
+    # ── Business ──────────────────────────────────────────────────────────
+    {
+        "key": "studio_name",
+        "label": "Unternehmensname (vollständig)",
+        "help": 'z.B. "Athletik Movement", "GetImpulse Berlin GmbH"',
+        "category": "business",
+        "multiline": False,
+        "default": "Mein Unternehmen",
+    },
+    {
+        "key": "studio_short_name",
+        "label": "Kurzname",
+        "help": 'z.B. "Athletik Movement", "GetImpulse"',
+        "category": "business",
+        "multiline": False,
+        "default": "Unternehmen",
+    },
+    {
+        "key": "studio_business_type",
+        "label": "Geschäftstyp",
+        "help": 'z.B. "personal_training", "gym", "physiotherapy", "wellness", "clinic"',
+        "category": "business",
+        "multiline": False,
+        "default": "business",
+    },
+    {
+        "key": "studio_owner_name",
+        "label": "Inhaber / Ansprechpartner",
+        "help": 'z.B. "Niklas Jauch", "Max Mustermann"',
+        "category": "business",
+        "multiline": False,
+        "default": "",
+    },
+    {
+        "key": "studio_description",
+        "label": "Unternehmensbeschreibung",
+        "help": "Kurze Beschreibung deines Unternehmens (2-3 Sätze). Wird dem Agenten als Kontext gegeben.",
+        "category": "business",
+        "multiline": True,
+        "default": "",
+    },
+    # ── Agent Identity ────────────────────────────────────────────────────
+    {
+        "key": "agent_display_name",
+        "label": "Agent-Name",
+        "help": 'Name des Assistenten, z.B. "ARIIA", "Mia", "Coach Alex"',
+        "category": "agent",
+        "multiline": False,
+        "default": "ARIIA",
+    },
+    {
+        "key": "persona_bio_text",
+        "label": "Agent-Persönlichkeit",
+        "help": "Charakterbeschreibung / Persona des Assistenten. Definiert Tonalität, Stil und Verhalten.",
+        "category": "agent",
+        "multiline": True,
+        "default": (
+            "Persönlichkeit: Professionell, freundlich, hilfsbereit, kompetent. "
+            "Sprache: Deutsch (primär), klare und verständliche Sätze. "
+            "Du bist ein kompetenter Assistent, kein generischer Chatbot."
+        ),
+    },
+    {
+        "key": "studio_locale",
+        "label": "Sprache / Locale",
+        "help": 'BCP-47 Locale, z.B. "de-DE", "en-US"',
+        "category": "agent",
+        "multiline": False,
+        "default": "de-DE",
+    },
+    {
+        "key": "studio_timezone",
+        "label": "Zeitzone",
+        "help": 'IANA-Zeitzone, z.B. "Europe/Berlin"',
+        "category": "agent",
+        "multiline": False,
+        "default": "Europe/Berlin",
+    },
+    # ── Contact & Location ────────────────────────────────────────────────
+    {
+        "key": "studio_address",
+        "label": "Adresse",
+        "help": "Physische Adresse für Agent-Antworten",
+        "category": "contact",
+        "multiline": False,
+        "default": "",
+    },
+    {
+        "key": "studio_phone",
+        "label": "Telefonnummer",
+        "help": 'z.B. "+49 30 12345678"',
+        "category": "contact",
+        "multiline": False,
+        "default": "",
+    },
+    {
+        "key": "studio_email",
+        "label": "E-Mail-Adresse",
+        "help": 'z.B. "info@example.com"',
+        "category": "contact",
+        "multiline": False,
+        "default": "",
+    },
+    {
+        "key": "studio_website",
+        "label": "Website",
+        "help": 'z.B. "https://example.com"',
+        "category": "contact",
+        "multiline": False,
+        "default": "",
+    },
+    {
+        "key": "studio_emergency_number",
+        "label": "Notrufnummer",
+        "help": 'z.B. "112" (DE) oder "911" (US)',
+        "category": "contact",
+        "multiline": False,
+        "default": "112",
+    },
+    # ── Sales & Retention ─────────────────────────────────────────────────
+    {
+        "key": "sales_prices_text",
+        "label": "Preise & Pakete (Markdown)",
+        "help": "Preisliste die der Sales-Agent nutzt. Markdown-Format.",
+        "category": "sales",
+        "multiline": True,
+        "default": (
+            "Bitte konfiguriere hier deine Preise und Pakete.\n"
+            "Beispiel:\n"
+            "- Einzelsitzung: 89€\n"
+            "- 10er-Karte: 790€\n"
+            "- Monatspaket: 299€/Monat"
+        ),
+    },
+    {
+        "key": "sales_retention_rules",
+        "label": "Retention-Regeln",
+        "help": "Regeln für den Sales-Agent zur Kundenbindung und Beschwerdemanagement.",
+        "category": "sales",
+        "multiline": True,
+        "default": (
+            "RETENTION-REGELN:\n"
+            "1. Inaktiv (>30 Tage): Frage nach dem Befinden und biete Unterstützung an.\n"
+            "2. Sehr aktiv: Bedanke dich und frage nach Feedback.\n"
+            "3. Kündigungswunsch: Frage nach dem Grund und biete Alternativen an."
+        ),
+    },
+    {
+        "key": "sales_complaint_protocol",
+        "label": "Beschwerde-Protokoll",
+        "help": "Anweisungen für den Umgang mit Beschwerden und negativem Feedback.",
+        "category": "sales",
+        "multiline": True,
+        "default": (
+            "BESCHWERDE-PROTOKOLL:\n"
+            "1. VALIDIEREN: Zeige Verständnis für das Anliegen.\n"
+            "2. ENTSCHULDIGEN: Aufrichtig entschuldigen.\n"
+            "3. LÖSUNG: Konkrete Lösung oder Weiterleitung anbieten.\n"
+            "4. NACHFASSEN: Anbieten, dass sich jemand persönlich meldet."
+        ),
+    },
+    # ── Health & Safety ───────────────────────────────────────────────────
+    {
+        "key": "medic_disclaimer_text",
+        "label": "Gesundheits-Disclaimer",
+        "help": "Pflicht-Disclaimer der Gesundheitsantworten angehängt wird.",
+        "category": "health",
+        "multiline": True,
+        "default": (
+            "⚠️ _Ich bin kein Arzt und kein Ersatz für medizinische Beratung. "
+            "Bei echten Beschwerden bitte immer einen Arzt aufsuchen!_"
+        ),
+    },
+    {
+        "key": "health_advice_scope",
+        "label": "Beratungsumfang Gesundheit",
+        "help": "Definiert, wozu der Health-Agent beraten darf (z.B. Bewegung, Ernährung, Prävention).",
+        "category": "health",
+        "multiline": True,
+        "default": (
+            "Du darfst beraten zu: Bewegung, Dehnung, Mobilität, allgemeine Fitness-Tipps, Prävention.\n"
+            "Du darfst NICHT beraten zu: Diagnosen, Medikamente, Therapien, psychische Erkrankungen."
+        ),
+    },
+    # ── Booking ───────────────────────────────────────────────────────────
+    {
+        "key": "booking_instructions",
+        "label": "Buchungsanweisungen",
+        "help": "Spezielle Anweisungen für den Buchungsprozess (z.B. Vorlaufzeit, Bestätigung).",
+        "category": "booking",
+        "multiline": True,
+        "default": "",
+    },
+    {
+        "key": "booking_cancellation_policy",
+        "label": "Stornierungsregeln",
+        "help": "Regeln für Stornierungen und Umbuchungen.",
+        "category": "booking",
+        "multiline": True,
+        "default": "",
+    },
+    # ── Escalation ────────────────────────────────────────────────────────
+    {
+        "key": "escalation_triggers",
+        "label": "Eskalations-Auslöser",
+        "help": "Situationen, in denen der Agent an einen Menschen weiterleiten soll.",
+        "category": "escalation",
+        "multiline": True,
+        "default": (
+            "Eskaliere an einen menschlichen Mitarbeiter wenn:\n"
+            "- Der Kunde explizit nach einem Menschen fragt\n"
+            "- Du die Frage nach 2 Versuchen nicht beantworten kannst\n"
+            "- Es um rechtliche, vertragliche oder finanzielle Streitigkeiten geht\n"
+            "- Der Kunde emotional aufgebracht oder verärgert ist"
+        ),
+    },
+    {
+        "key": "escalation_contact",
+        "label": "Eskalations-Kontakt",
+        "help": "Kontaktdaten für die Weiterleitung (Name, Telefon, E-Mail).",
+        "category": "escalation",
+        "multiline": True,
+        "default": "",
+    },
+]
+
+# Flat list of all setting keys (for backward compatibility)
+PROMPT_SETTINGS_KEYS: list[str] = [s["key"] for s in PROMPT_SETTINGS_SCHEMA]
+
+# Default values dict (for backward compatibility)
+PROMPT_SETTINGS_DEFAULTS: dict[str, str] = {s["key"]: s["default"] for s in PROMPT_SETTINGS_SCHEMA}
 
 
 class PromptBuilder:
@@ -101,10 +347,22 @@ class PromptBuilder:
             logger.warning("prompt_builder.format_failed", error=str(exc))
             return template
 
+    def get_all(self) -> dict[str, str]:
+        """Return all prompt settings as a flat dict (for Jinja2 context)."""
+        return {key: self._get(key) for key in PROMPT_SETTINGS_KEYS}
+
     # Convenience accessors
     @property
     def studio_name(self) -> str:
         return self._get("studio_name")
+
+    @property
+    def business_type(self) -> str:
+        return self._get("studio_business_type")
+
+    @property
+    def owner_name(self) -> str:
+        return self._get("studio_owner_name")
 
     @property
     def agent_name(self) -> str:

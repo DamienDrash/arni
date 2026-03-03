@@ -2190,17 +2190,36 @@ async def integrations_health(user: AuthContext = Depends(get_current_user)) -> 
 # ─────────────────────────────────────────────────────────
 
 class PromptConfigUpdate(BaseModel):
+    # Business
     studio_name: str | None = None
     studio_short_name: str | None = None
+    studio_business_type: str | None = None
+    studio_owner_name: str | None = None
+    studio_description: str | None = None
+    # Agent Identity
     agent_display_name: str | None = None
+    persona_bio_text: str | None = None
     studio_locale: str | None = None
     studio_timezone: str | None = None
-    studio_emergency_number: str | None = None
+    # Contact & Location
     studio_address: str | None = None
+    studio_phone: str | None = None
+    studio_email: str | None = None
+    studio_website: str | None = None
+    studio_emergency_number: str | None = None
+    # Sales & Retention
     sales_prices_text: str | None = None
     sales_retention_rules: str | None = None
+    sales_complaint_protocol: str | None = None
+    # Health & Safety
     medic_disclaimer_text: str | None = None
-    persona_bio_text: str | None = None
+    health_advice_scope: str | None = None
+    # Booking
+    booking_instructions: str | None = None
+    booking_cancellation_policy: str | None = None
+    # Escalation
+    escalation_triggers: str | None = None
+    escalation_contact: str | None = None
 
 
 @router.get("/prompt-config")
@@ -2238,12 +2257,24 @@ async def update_prompt_config(
     return {"status": "ok", "updated": str(len(payload))}
 
 
+@router.get("/prompt-config/schema")
+async def get_prompt_config_schema(user: AuthContext = Depends(get_current_user)) -> dict[str, Any]:
+    """Return the prompt configuration schema with categories, labels, and help texts.
+    Used by the frontend to dynamically render the settings form."""
+    _require_tenant_admin_or_system(user)
+    from app.core.prompt_builder import PROMPT_SETTINGS_SCHEMA, VARIABLE_CATEGORIES
+    return {
+        "categories": VARIABLE_CATEGORIES,
+        "variables": PROMPT_SETTINGS_SCHEMA,
+    }
+
+
 # ─────────────────────────────────────────────────────────
 # Agent Jinja2 Template API (S2.5)
 # Tenant admins can customise per-agent system prompts as Jinja2 files.
 # ─────────────────────────────────────────────────────────
 
-_ALLOWED_AGENT_TEMPLATES = {"sales", "medic", "persona", "router", "ops"}
+_ALLOWED_AGENT_TEMPLATES = {"sales", "medic", "persona", "router", "ops", "concierge", "booking", "escalation"}
 
 
 def _agent_template_path(user: AuthContext, agent: str) -> str:
