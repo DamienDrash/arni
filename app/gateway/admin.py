@@ -634,8 +634,7 @@ async def save_knowledge_file(
 
     try:
         result = ingest_tenant_knowledge(
-            knowledge_dir=_knowledge_dir_for_slug(slug),
-            collection_name=collection_name_for_slug(slug),
+            tenant_slug=slug,
         )
         persistence.upsert_setting("knowledge_last_ingest_at", datetime.now(timezone.utc).isoformat(), tenant_id=user.tenant_id)
         persistence.upsert_setting("knowledge_last_ingest_status", str(result.get("status", "ok")), tenant_id=user.tenant_id)
@@ -692,8 +691,7 @@ async def reindex_knowledge(
     started = datetime.now(timezone.utc)
     try:
         result = ingest_tenant_knowledge(
-            knowledge_dir=_knowledge_dir_for_slug(slug),
-            collection_name=collection_name_for_slug(slug),
+            tenant_slug=slug,
         )
         status = str(result.get("status", "ok"))
         persistence.upsert_setting("knowledge_last_ingest_at", started.isoformat(), tenant_id=user.tenant_id)
