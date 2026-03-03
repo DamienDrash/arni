@@ -75,11 +75,31 @@ def ingest_tenant_knowledge(tenant_id: int | None = None, tenant_slug: str | Non
         # We look for #, ##, ### at the start of a line
         raw_chunks = re.split(r"(?=\n#{1,3} )", "\n" + content)
 
-        for i, chunk in enumerate(raw_chunks):
+        # KB-1 FIX: Merge short header-only chunks with the next chunk
+        # to improve embedding quality. Short chunks (< 100 chars) like
+        # bare headings produce poor embeddings and pollute search results.
+        MIN_CHUNK_LENGTH = 100
+        merged_chunks: list[str] = []
+        carry = ""
+        for chunk in raw_chunks:
             chunk = chunk.strip()
             if not chunk:
                 continue
-            
+            if carry:
+                chunk = carry + "\n\n" + chunk
+                carry = ""
+            if len(chunk) < MIN_CHUNK_LENGTH:
+                carry = chunk
+            else:
+                merged_chunks.append(chunk)
+        if carry:
+            # Append remaining carry to last chunk or add as standalone
+            if merged_chunks:
+                merged_chunks[-1] = merged_chunks[-1] + "\n\n" + carry
+            else:
+                merged_chunks.append(carry)
+
+        for i, chunk in enumerate(merged_chunks):
             # Deterministic ID includes filename + chunk content hash for stable upserts
             content_hash = hashlib.md5(chunk.encode()).hexdigest()[:12]
             chunk_id = hashlib.md5(f"{collection_name}:{filename}:{i}:{content_hash}".encode()).hexdigest()

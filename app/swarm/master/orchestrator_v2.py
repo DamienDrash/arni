@@ -302,21 +302,25 @@ class MasterAgentV2(BaseAgent):
             # so that ingested documents are actually found.
             tenant_slug = (message.metadata or {}).get('tenant_slug')
             if not tenant_slug and message.tenant_id:
-                # Fallback: resolve slug from DB
+                # KB-1 FIX: Use get_tenant_slug() instead of get_setting()
+                # tenant_slug is a field on the Tenant model, not a setting.
                 try:
-                    slug = await asyncio.to_thread(
-                        persistence.get_setting, 'tenant_slug', None,
-                        tenant_id=message.tenant_id
+                    tenant_slug = await asyncio.to_thread(
+                        persistence.get_tenant_slug,
+                        message.tenant_id,
                     )
-                    tenant_slug = slug
                 except Exception:
                     pass
             if tenant_slug:
                 collection = collection_name_for_slug(tenant_slug)
             else:
                 collection = f"tenant_{message.tenant_id or 1}"
+
+            # KB-1 FIX: Fetch more results (top_k=5 min) to improve
+            # recall with the default ChromaDB embedding model.
+            effective_top_k = max(top_k, 5)
             store = KnowledgeStore(collection_name=collection)
-            raw = store.query(query_text=query, n_results=top_k)
+            raw = store.query(query_text=query, n_results=effective_top_k)
 
             # ChromaDB returns {"documents": [[...]], "metadatas": [[...]], ...}
             docs = raw.get("documents", [[]])[0] if raw else []
