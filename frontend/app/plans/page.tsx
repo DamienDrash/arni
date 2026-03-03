@@ -11,7 +11,7 @@ import {
   Eye, EyeOff, Star, Zap, Shield, Check, X as XIcon, Save,
   Download, Upload, AlertTriangle, Settings2, Hash, MessageSquare,
   Users, Link2, Brain, Bot, BarChart3, Palette, ScrollText, Cpu,
-  Phone, Mail, Instagram, Facebook, Radio, MapPin,
+  Phone, Mail, Instagram, Facebook, Radio, MapPin, Copy, ExternalLink,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Modal } from "@/components/ui/Modal";
@@ -314,6 +314,8 @@ export default function PlansPage() {
   const [stripeSaving, setStripeSaving] = useState(false);
   const [stripeTestResult, setStripeTestResult] = useState<string | null>(null);
   const [stripeTestOk, setStripeTestOk] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState<string>("");
+  const [webhookUrlCopied, setWebhookUrlCopied] = useState(false);
 
   // Plan Editor
   const [editPlan, setEditPlan] = useState<Partial<PlanFull> | null>(null);
@@ -343,6 +345,7 @@ export default function PlansPage() {
       if (sRes.ok) {
         const data = await sRes.json();
         setStripeConfig(data.stripe);
+        if (data.webhook_url) setWebhookUrl(data.webhook_url);
       }
     } finally {
       setLoading(false);
@@ -814,9 +817,56 @@ export default function PlansPage() {
                 placeholder="whsec_..."
               />
               <div style={{ fontSize: 10, color: T.textDim, marginTop: 4 }}>
-                Webhook-Endpoint: <code style={{ color: T.accent }}>/billing/webhook</code> — Events: checkout.session.completed, customer.subscription.*, invoice.*, product.*, price.*
+                Das Signing Secret findest du im Stripe Dashboard unter Developers → Webhooks → Endpoint → Signing Secret.
               </div>
             </div>
+
+            {/* Webhook URL Info Box */}
+            {webhookUrl && (
+              <div style={{
+                padding: "14px 16px", borderRadius: 10,
+                background: `linear-gradient(135deg, ${T.surfaceAlt}, ${T.surface})`,
+                border: `1px solid ${T.border}`,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <ExternalLink size={14} style={{ color: T.accent }} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>Webhook URL für Stripe</span>
+                </div>
+                <div style={{ fontSize: 11, color: T.textDim, marginBottom: 8 }}>
+                  Diese URL muss im Stripe Dashboard unter <strong style={{ color: T.text }}>Developers → Webhooks → Add endpoint</strong> hinterlegt werden:
+                </div>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "10px 12px", borderRadius: 8,
+                  background: T.bg, border: `1px solid ${T.border}`,
+                  fontFamily: "monospace", fontSize: 12, color: T.accent,
+                  wordBreak: "break-all",
+                }}>
+                  <code style={{ flex: 1 }}>{webhookUrl}</code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(webhookUrl);
+                      setWebhookUrlCopied(true);
+                      setTimeout(() => setWebhookUrlCopied(false), 2000);
+                    }}
+                    style={{
+                      background: webhookUrlCopied ? "rgba(16,185,129,0.1)" : T.surfaceAlt,
+                      border: `1px solid ${webhookUrlCopied ? "#10b981" : T.border}`,
+                      borderRadius: 6, padding: "4px 8px", cursor: "pointer",
+                      display: "flex", alignItems: "center", gap: 4,
+                      fontSize: 10, fontWeight: 600, fontFamily: "inherit",
+                      color: webhookUrlCopied ? "#10b981" : T.textDim,
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    {webhookUrlCopied ? <><Check size={10} /> Kopiert</> : <><Copy size={10} /> Kopieren</>}
+                  </button>
+                </div>
+                <div style={{ fontSize: 10, color: T.textDim, marginTop: 8 }}>
+                  <strong>Events:</strong> checkout.session.completed, customer.subscription.updated, customer.subscription.deleted, invoice.payment_succeeded, invoice.paid, invoice.payment_failed, product.updated, product.deleted, price.updated, price.created
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Test Result */}

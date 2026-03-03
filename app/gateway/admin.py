@@ -1450,8 +1450,13 @@ class BillingConnectorsUpdate(BaseModel):
 async def get_billing_connectors(user: AuthContext = Depends(get_current_user)) -> dict[str, Any]:
     """Global billing connector config (system-wide)."""
     _require_system_admin(user)
+    # Build the public webhook URL from GATEWAY_PUBLIC_URL
+    public_url = (settings.gateway_public_url or "").rstrip("/")
+    webhook_url = f"{public_url}/admin/billing/webhook" if public_url else "/admin/billing/webhook"
+
     return {
         "scope": "global_system",
+        "webhook_url": webhook_url,
         "stripe": {
             "enabled": (persistence.get_setting("billing_stripe_enabled", "false", tenant_id=user.tenant_id) == "true"),
             "mode": persistence.get_setting("billing_stripe_mode", "test", tenant_id=user.tenant_id) or "test",
