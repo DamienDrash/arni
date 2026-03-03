@@ -321,8 +321,8 @@ class PersistenceService:
     def get_enabled_integrations(self, tenant_id: int) -> list[str]:
         """Return a list of integration IDs that are enabled for a tenant.
 
-        Reads the ``tenant_integrations`` table and returns the ``integration_id``
-        for every row where ``enabled = True`` and ``status`` is ``enabled``.
+        Primary: Reads the ``tenant_integrations`` table.
+        Fallback: Scans settings keys matching ``integration_{name}_{tid}_enabled``.
 
         Args:
             tenant_id: The tenant whose active integrations should be returned.
@@ -330,6 +330,7 @@ class PersistenceService:
         Returns:
             A sorted list of integration ID strings, e.g. ``['calendly', 'magicline']``.
         """
+        # ── Primary: tenant_integrations table ──
         with self._lock:
             try:
                 resolved_tid = self._resolve_tenant_id(tenant_id)
@@ -342,14 +343,41 @@ class PersistenceService:
                     )
                     .all()
                 )
-                return sorted([row[0] for row in rows])
+                result = sorted([row[0] for row in rows])
+                if result:
+                    return result
             except Exception as exc:
-                logger.error(
-                    "persistence.get_enabled_integrations_failed",
+                logger.debug(
+                    "persistence.get_enabled_integrations_table_fallback",
                     tenant_id=tenant_id,
                     error=str(exc),
                 )
-                return []
+
+        # ── Fallback: settings-based detection ──
+        # Scans for keys like integration_calendly_2_enabled = true
+        try:
+            import re
+            settings = self.get_settings(tenant_id)
+            enabled = set()
+            pattern = re.compile(r"^integration_([a-z_]+?)_\d+_enabled$")
+            for s in settings:
+                m = pattern.match(s.key)
+                if m and str(s.value).strip().lower() == "true":
+                    enabled.add(m.group(1))
+            if enabled:
+                logger.debug(
+                    "persistence.get_enabled_integrations_from_settings",
+                    tenant_id=tenant_id,
+                    integrations=sorted(enabled),
+                )
+            return sorted(enabled)
+        except Exception as exc:
+            logger.error(
+                "persistence.get_enabled_integrations_failed",
+                tenant_id=tenant_id,
+                error=str(exc),
+            )
+            return []
 
     def is_integration_enabled(self, tenant_id: int, integration_id: str) -> bool:
         """Check whether a specific integration is enabled for a tenant."""

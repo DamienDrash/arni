@@ -29,7 +29,7 @@ class AgentPersona(BaseAgent):
 
     def __init__(self) -> None:
         super().__init__()
-        self._soul_content = self._load_soul()
+        self._soul_content = ""  # Loaded per-request in handle() with tenant_slug
 
     def _load_soul(self, tenant_slug: str | None = None) -> str:
         """Load persona from tenant-specific SOUL or fallback to default."""
