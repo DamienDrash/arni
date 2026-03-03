@@ -526,33 +526,49 @@ async def reject_campaign(
 # CAMPAIGN SENDING
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _render_campaign_email(campaign, template, contact) -> tuple[str, str]:
+def _render_campaign_email(campaign, template, contact, recipient_id: int = 0, base_url: str = "") -> tuple[str, str]:
     """Render the full HTML email for a campaign recipient.
 
     Returns (subject, html_body).
+    Resolves all template variables including {{first_name}}, {{content}},
+    {{unsubscribe_url}} etc. in both the template AND the campaign body.
     """
     first_name = (contact.first_name or contact.name or "").split()[0] if (contact.first_name or contact.name) else ""
+    last_name = (contact.last_name or "") if hasattr(contact, "last_name") else ""
+    full_name = f"{first_name} {last_name}".strip() or contact.name or ""
 
     subject = campaign.content_subject or campaign.name
+    # Also resolve variables in the subject line
+    subject = subject.replace("{{first_name}}", first_name)
+    subject = subject.replace("{{name}}", full_name)
 
-    # Build body HTML
+    # Build unsubscribe URL
+    unsubscribe_url = f"{base_url}/unsubscribe/{recipient_id}" if recipient_id and base_url else "#"
+
+    # Build body HTML – resolve variables in content_body first
     body_content = campaign.content_body or campaign.content_html or ""
+    body_content = body_content.replace("{{first_name}}", first_name)
+    body_content = body_content.replace("{{name}}", full_name)
+    body_content = body_content.replace("{{unsubscribe_url}}", unsubscribe_url)
 
     if template and template.body_template:
         # Substitute variables in the body template
         body_html = template.body_template
         body_html = body_html.replace("{{first_name}}", first_name)
+        body_html = body_html.replace("{{name}}", full_name)
         body_html = body_html.replace("{{content}}", body_content)
         body_html = body_html.replace("{{cta_url}}", "https://calendly.com/dfrigewski/kostenloses-erstgesprach")
         body_html = body_html.replace("{{cta_text}}", "Jetzt Termin buchen")
         body_html = body_html.replace("{{closing}}", "Ich freue mich auf dich!")
-        body_html = body_html.replace("{{unsubscribe_url}}", "#")
+        body_html = body_html.replace("{{unsubscribe_url}}", unsubscribe_url)
     else:
         body_html = body_content
 
-    # Wrap with header + footer
+    # Wrap with header + footer (also resolve unsubscribe in footer)
     header = (template.header_html or "") if template else ""
     footer = (template.footer_html or "") if template else ""
+    footer = footer.replace("{{unsubscribe_url}}", unsubscribe_url)
+    footer = footer.replace("{{first_name}}", first_name)
 
     full_html = f"""<!DOCTYPE html>
 <html lang="de">
@@ -635,18 +651,39 @@ async def send_campaign(
     campaign.stats_total = len(members)
     db.commit()
 
+    # Determine base URL for unsubscribe links
+    import os
+    base_url = os.environ.get("PUBLIC_BASE_URL", "https://dev.ariia.ai/proxy")
+
     sent_count = 0
     failed_count = 0
 
     for contact in members:
-        # Only send to contacts with a valid email
+        # Only send to contacts with a valid email and consent
         if not contact.email:
             logger.warning("campaign.skip_no_email", contact_id=contact.id)
             continue
 
-        subject, html_body = _render_campaign_email(campaign, template, contact)
+        if hasattr(contact, 'consent_email') and contact.consent_email is False:
+            logger.info("campaign.skip_no_consent", contact_id=contact.id)
+            continue
 
-        status = "pending"
+        # Create recipient record FIRST so we have an ID for the unsubscribe URL
+        recipient = CampaignRecipient(
+            campaign_id=campaign_id,
+            contact_id=contact.id,
+            tenant_id=user.tenant_id,
+            channel=campaign.channel,
+            status="pending",
+        )
+        db.add(recipient)
+        db.flush()  # Get the recipient.id without committing
+
+        subject, html_body = _render_campaign_email(
+            campaign, template, contact,
+            recipient_id=recipient.id,
+            base_url=base_url,
+        )
 
         if campaign.channel == "email" and mailer:
             try:
@@ -655,6 +692,9 @@ async def send_campaign(
                 msg["Subject"] = " ".join(subject.splitlines()).strip()
                 msg["From"] = f"{mailer.from_name} <{mailer.from_email}>"
                 msg["To"] = contact.email
+                # Add List-Unsubscribe header for email clients
+                msg["List-Unsubscribe"] = f"<{base_url}/unsubscribe/{recipient.id}>"
+                msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
                 msg.set_content(html_body, subtype="html")
 
                 # Send synchronously (in async context via run_in_executor)
@@ -684,27 +724,19 @@ async def send_campaign(
                                 pass
 
                 await loop.run_in_executor(None, _do_send)
-                status = "sent"
+                recipient.status = "sent"
+                recipient.sent_at = datetime.now(timezone.utc)
                 sent_count += 1
                 logger.info("campaign.email_sent", contact_id=contact.id, to=contact.email)
             except Exception as e:
-                status = "failed"
+                recipient.status = "failed"
                 failed_count += 1
                 logger.error("campaign.email_failed", contact_id=contact.id, error=str(e))
         else:
             # Non-email channels: mark as sent (placeholder for WhatsApp etc.)
-            status = "sent"
+            recipient.status = "sent"
+            recipient.sent_at = datetime.now(timezone.utc)
             sent_count += 1
-
-        recipient = CampaignRecipient(
-            campaign_id=campaign_id,
-            contact_id=contact.id,
-            tenant_id=user.tenant_id,
-            channel=campaign.channel,
-            status=status,
-            sent_at=datetime.now(timezone.utc) if status == "sent" else None,
-        )
-        db.add(recipient)
 
     campaign.status = "sent" if sent_count > 0 else "failed"
     campaign.stats_sent = sent_count

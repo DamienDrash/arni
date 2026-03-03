@@ -231,3 +231,110 @@ def _map_sms_status(raw: str) -> str | None:
         "undelivered": "bounced", "failed": "bounced",
     }
     return mapping.get(raw.lower())
+
+
+# ── Public Unsubscribe Page ──────────────────────────────────────────
+
+@router.get("/unsubscribe/{recipient_id}")
+async def unsubscribe_page(recipient_id: int, request: Request):
+    """Public unsubscribe page. Shows a confirmation and processes the opt-out.
+
+    Sets consent_email=False on the contact and marks the recipient as
+    unsubscribed. No authentication required – token-based via recipient_id.
+    """
+    from sqlalchemy.orm import Session
+    from app.core.db import SessionLocal
+    from app.core.models import CampaignRecipient, Campaign
+    from app.core.contact_models import Contact
+    from fastapi.responses import HTMLResponse
+
+    db: Session = SessionLocal()
+    try:
+        recipient = db.query(CampaignRecipient).filter(
+            CampaignRecipient.id == recipient_id
+        ).first()
+
+        if not recipient:
+            return HTMLResponse(_unsubscribe_html(
+                title="Link ungültig",
+                message="Dieser Abmeldelink ist nicht mehr gültig.",
+                success=False,
+            ), status_code=404)
+
+        # Get contact and campaign info
+        contact = db.query(Contact).filter(Contact.id == recipient.contact_id).first()
+        campaign = db.query(Campaign).filter(Campaign.id == recipient.campaign_id).first()
+
+        contact_name = ""
+        tenant_name = ""
+        if contact:
+            contact_name = contact.first_name or (contact.name or "").split()[0] if contact.name else ""
+            contact.consent_email = False
+            logger.info("unsubscribe.contact_opted_out", contact_id=contact.id)
+
+        if campaign:
+            from app.core.models import Tenant
+            tenant = db.query(Tenant).filter(Tenant.id == campaign.tenant_id).first()
+            tenant_name = tenant.name if tenant else ""
+
+        # Mark recipient as unsubscribed
+        recipient.status = "unsubscribed"
+        db.commit()
+
+        # Push event to analytics queue
+        _push_event({
+            "event_type": "unsubscribed",
+            "recipient_id": recipient_id,
+            "contact_id": recipient.contact_id,
+            "user_agent": request.headers.get("user-agent", ""),
+            "ip_address": (request.headers.get("x-forwarded-for", "") or "").split(",")[0].strip(),
+            "timestamp": time.time(),
+        })
+
+        return HTMLResponse(_unsubscribe_html(
+            title="Erfolgreich abgemeldet",
+            message=f"{contact_name}, du wurdest erfolgreich von E-Mail-Kampagnen von <strong>{tenant_name}</strong> abgemeldet. "
+                    f"Du erhältst ab sofort keine weiteren Marketing-E-Mails mehr.",
+            success=True,
+        ))
+
+    except Exception as e:
+        logger.error("unsubscribe.error", error=str(e))
+        return HTMLResponse(_unsubscribe_html(
+            title="Fehler",
+            message="Ein Fehler ist aufgetreten. Bitte versuche es später erneut.",
+            success=False,
+        ), status_code=500)
+    finally:
+        db.close()
+
+
+def _unsubscribe_html(title: str, message: str, success: bool) -> str:
+    """Render a styled unsubscribe confirmation page."""
+    icon = "✓" if success else "✗"
+    color = "#6ABF40" if success else "#E74C3C"
+    return f"""<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title}</title>
+  <style>
+    body {{ margin:0; padding:0; background:#000; font-family:'Helvetica Neue',Arial,sans-serif; color:#fff; display:flex; align-items:center; justify-content:center; min-height:100vh; }}
+    .card {{ background:#111; border-radius:12px; padding:48px 40px; max-width:480px; width:90%; text-align:center; border:1px solid #222; }}
+    .icon {{ font-size:48px; color:{color}; margin-bottom:20px; }}
+    h1 {{ font-size:24px; margin:0 0 16px; color:#fff; }}
+    p {{ font-size:15px; line-height:1.7; color:#ccc; margin:0; }}
+    p strong {{ color:#6ABF40; }}
+    .footer {{ margin-top:32px; padding-top:20px; border-top:1px solid #333; font-size:12px; color:#666; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">{icon}</div>
+    <h1>{title}</h1>
+    <p>{message}</p>
+    <div class="footer">Powered by ARIIA</div>
+  </div>
+</body>
+</html>"""
