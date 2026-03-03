@@ -603,26 +603,32 @@ async def send_campaign(
             CampaignTemplate.id == campaign.template_id
         ).first()
 
-    # Resolve SMTP config for this tenant
-    from app.core.integration_models import get_integration_config
+    # Resolve SMTP config for this tenant via connector_hub persistence keys
+    from app.core import persistence
     from app.integrations.email import SMTPMailer
     import smtplib as _smtplib
     from email.message import EmailMessage as _EmailMessage
 
-    smtp_config = get_integration_config(user.tenant_id, "smtp_email")
-    if not smtp_config and campaign.channel == "email":
+    def _cfg(field: str, default: str = "") -> str:
+        key = f"integration_smtp_email_{user.tenant_id}_{field}"
+        return persistence.get_setting(key, default, tenant_id=user.tenant_id) or default
+
+    smtp_host = _cfg("host")
+    smtp_user = _cfg("username")
+
+    if not smtp_host and campaign.channel == "email":
         raise HTTPException(status_code=400, detail="SMTP-E-Mail ist für diesen Tenant nicht konfiguriert.")
 
     mailer = None
-    if smtp_config:
+    if smtp_host:
         mailer = SMTPMailer(
-            host=smtp_config.get("host", ""),
-            port=int(smtp_config.get("port", 587)),
-            username=smtp_config.get("username", ""),
-            password=smtp_config.get("password", ""),
-            from_email=smtp_config.get("from_email", smtp_config.get("username", "")),
-            from_name=smtp_config.get("from_name", "ARIIA"),
-            use_starttls=smtp_config.get("use_starttls", True),
+            host=smtp_host,
+            port=int(_cfg("port", "587")),
+            username=smtp_user,
+            password=_cfg("password"),
+            from_email=_cfg("from_email") or smtp_user,
+            from_name=_cfg("from_name", "ARIIA"),
+            use_starttls=True,
         )
 
     campaign.status = "sending"
