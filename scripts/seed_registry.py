@@ -82,7 +82,7 @@ INTEGRATION_DEFINITIONS = [
         "adapter_class": None,
         "skill_file": None,
         "is_public": True,
-        "min_plan": "starter",
+        "min_plan": "trial",
         "version": "1.0.0",
     },
     {

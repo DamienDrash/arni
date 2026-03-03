@@ -29,7 +29,7 @@ import { getStoredUser } from "@/lib/auth";
 // ══════════════════════════════════════════════════════════════════════════════
 
 type CategoryId = "messaging" | "payments" | "scheduling" | "ai_voice" | "analytics" | "members" | "crm";
-type PlanTier = "starter" | "professional" | "pro" | "business" | "enterprise";
+type PlanTier = "trial" | "starter" | "professional" | "pro" | "business" | "enterprise";
 type IntegrationStatus = "connected" | "disconnected" | "error" | "pending";
 type ViewState = "hub" | "onboarding" | "manage" | "docs" | "system_admin";
 
@@ -281,7 +281,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     category: "messaging",
     icon: <MessageSquare size={20} />,
     color: "#25D366",
-    minPlan: "starter",
+    minPlan: "trial",
     featureKey: "whatsapp",
     tags: ["messaging", "chat", "qr"],
     popular: true,
@@ -374,7 +374,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     category: "messaging",
     icon: <Mail size={20} />,
     color: "#4FC3F7",
-    minPlan: "starter",
+    minPlan: "trial",
     featureKey: "email_channel",
     tags: ["email", "smtp", "imap", "custom"],
     connectorId: "smtp_email",
@@ -653,7 +653,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     category: "scheduling",
     icon: <Calendar size={20} />,
     color: "#0069FF",
-    minPlan: "professional",
+    minPlan: "trial",
     featureKey: "platform_integrations",
     tags: ["scheduling", "appointments", "booking"],
     popular: true,
@@ -903,16 +903,16 @@ const INTEGRATIONS: IntegrationDef[] = [
 // ══════════════════════════════════════════════════════════════════════════════
 
 const PLAN_ORDER: Record<string, number> = {
-  trial: -1,
-  starter: 0,
-  pro: 1,
-  professional: 1,
-  business: 2,
-  enterprise: 3,
+  trial: 0,
+  starter: 1,
+  pro: 2,
+  professional: 2,
+  business: 3,
+  enterprise: 4,
 };
 
 const PLAN_LABELS: Record<string, string> = {
-  trial: "Trial",
+  trial: "Free",
   starter: "Starter",
   pro: "Professional",
   professional: "Professional",
@@ -1247,6 +1247,8 @@ export default function SettingsIntegrationsPage() {
 
   function isIntegrationAccessible(integration: IntegrationDef): boolean {
     const planOk = isPlanSufficient(plan?.slug, integration.minPlan);
+    // For trial-tier integrations, plan check alone is sufficient (no feature flag needed)
+    if (integration.minPlan === "trial" && planOk) return true;
     // Feature keys that are actually plan-gated (not separate feature flags)
     const planGatedFeatures = ["platform_integrations"];
     const featureOk = integration.featureKey

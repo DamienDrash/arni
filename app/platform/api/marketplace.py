@@ -54,7 +54,7 @@ def _get_tenant_plan(db, tenant_id: int) -> Optional[str]:
 def _plan_tier_value(slug: Optional[str]) -> int:
     """Convert plan slug to numeric tier for comparison."""
     tiers = {
-        "free": 0, "starter": 1, "professional": 2,
+        "free": 0, "trial": 0, "starter": 1, "professional": 2,
         "pro": 2, "business": 3, "enterprise": 4,
     }
     return tiers.get(slug or "free", 0)

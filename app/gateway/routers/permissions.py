@@ -293,7 +293,7 @@ async def get_permissions(
             "/settings": True,
             "/settings/billing": True,
             "/settings/account": True,
-            "/settings/integrations": features_data.get("api_access", False) or (plan and plan.slug not in ("starter", "trial")),
+            "/settings/integrations": True,  # All plans (incl. trial) can access integrations hub
             "/settings/prompts": features_data.get("custom_prompts", False),
             "/settings/branding": features_data.get("branding", False),
             "/settings/automation": features_data.get("automation", False),
