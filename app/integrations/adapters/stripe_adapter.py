@@ -55,6 +55,58 @@ class StripeAdapter(BaseAdapter):
             "billing.plan.compare",
         ]
 
+    # ── Abstract Method Stubs (BaseAdapter compliance) ───────────────────
+
+    @property
+    def display_name(self) -> str:
+        return "Stripe"
+
+    @property
+    def category(self) -> str:
+        return "payment"
+
+    def get_config_schema(self) -> dict:
+        return {
+            "fields": [
+                {
+                    "key": "secret_key",
+                    "label": "Secret Key",
+                    "type": "password",
+                    "required": True,
+                    "help_text": "Stripe Secret Key (sk_live_... oder sk_test_...).",
+                },
+                {
+                    "key": "webhook_secret",
+                    "label": "Webhook Secret",
+                    "type": "password",
+                    "required": False,
+                    "help_text": "Stripe Webhook Signing Secret (whsec_...).",
+                },
+            ],
+        }
+
+    async def get_contacts(
+        self,
+        tenant_id: int,
+        config: dict,
+        last_sync_at=None,
+        sync_mode=None,
+    ) -> "SyncResult":
+        from app.integrations.adapters.base import SyncResult
+        return SyncResult(
+            success=True,
+            records_fetched=0,
+            contacts=[],
+            metadata={"note": "Stripe does not support contact sync."},
+        )
+
+    async def test_connection(self, config: dict) -> "ConnectionTestResult":
+        from app.integrations.adapters.base import ConnectionTestResult
+        return ConnectionTestResult(
+            success=True,
+            message="Stripe-Adapter geladen (Verbindungstest nicht implementiert).",
+        )
+
     async def _execute(
         self,
         capability_id: str,

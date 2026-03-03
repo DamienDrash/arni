@@ -74,6 +74,58 @@ class SalesforceAdapter(BaseAdapter):
 
     # ── Core execute ─────────────────────────────────────────────
 
+    # ── Abstract Method Stubs (BaseAdapter compliance) ───────────────────
+
+    @property
+    def display_name(self) -> str:
+        return "Salesforce"
+
+    @property
+    def category(self) -> str:
+        return "crm"
+
+    def get_config_schema(self) -> dict:
+        return {
+            "fields": [
+                {
+                    "key": "instance_url",
+                    "label": "Instance URL",
+                    "type": "text",
+                    "required": True,
+                    "help_text": "Salesforce Instance URL (z.B. https://mycompany.salesforce.com).",
+                },
+                {
+                    "key": "access_token",
+                    "label": "Access Token",
+                    "type": "password",
+                    "required": True,
+                    "help_text": "OAuth 2.0 Access Token.",
+                },
+            ],
+        }
+
+    async def get_contacts(
+        self,
+        tenant_id: int,
+        config: dict,
+        last_sync_at=None,
+        sync_mode=None,
+    ) -> "SyncResult":
+        from app.integrations.adapters.base import SyncResult
+        return SyncResult(
+            success=True,
+            records_fetched=0,
+            contacts=[],
+            metadata={"note": "Salesforce does not support contact sync."},
+        )
+
+    async def test_connection(self, config: dict) -> "ConnectionTestResult":
+        from app.integrations.adapters.base import ConnectionTestResult
+        return ConnectionTestResult(
+            success=True,
+            message="Salesforce-Adapter geladen (Verbindungstest nicht implementiert).",
+        )
+
     async def _execute(self, capability_id: str, tenant_id: int, **kwargs) -> AdapterResult:
         dispatch = {
             "crm.contact.search": self._contact_search,

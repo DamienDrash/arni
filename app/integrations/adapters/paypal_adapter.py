@@ -51,6 +51,65 @@ class PayPalAdapter(BaseAdapter):
             "payment.payout.create",
         ]
 
+    # ── Abstract Method Stubs (BaseAdapter compliance) ───────────────────
+
+    @property
+    def display_name(self) -> str:
+        return "PayPal"
+
+    @property
+    def category(self) -> str:
+        return "payment"
+
+    def get_config_schema(self) -> dict:
+        return {
+            "fields": [
+                {
+                    "key": "client_id",
+                    "label": "Client ID",
+                    "type": "text",
+                    "required": True,
+                    "help_text": "PayPal REST API Client ID.",
+                },
+                {
+                    "key": "client_secret",
+                    "label": "Client Secret",
+                    "type": "password",
+                    "required": True,
+                    "help_text": "PayPal REST API Client Secret.",
+                },
+                {
+                    "key": "sandbox",
+                    "label": "Sandbox-Modus",
+                    "type": "checkbox",
+                    "required": False,
+                    "help_text": "Aktivieren für PayPal Sandbox-Umgebung.",
+                },
+            ],
+        }
+
+    async def get_contacts(
+        self,
+        tenant_id: int,
+        config: dict,
+        last_sync_at=None,
+        sync_mode=None,
+    ) -> "SyncResult":
+        from app.integrations.adapters.base import SyncResult
+        return SyncResult(
+            success=True,
+            records_fetched=0,
+            contacts=[],
+            metadata={"note": "PayPal does not support contact sync."},
+        )
+
+    async def test_connection(self, config: dict) -> "ConnectionTestResult":
+        from app.integrations.adapters.base import ConnectionTestResult
+        return ConnectionTestResult(
+            success=True,
+            message="PayPal-Adapter geladen (Verbindungstest nicht implementiert).",
+        )
+
     async def _execute(
         self,
         capability_id: str,

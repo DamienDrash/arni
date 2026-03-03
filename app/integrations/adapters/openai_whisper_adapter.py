@@ -30,7 +30,6 @@ class OpenAIWhisperAdapter(BaseAdapter):
     def __init__(self) -> None:
         self._clients: dict[int, dict[str, Any]] = {}
         self.version = "1.0.0"
-        self.display_name = "OpenAI Whisper"
 
     @property
     def integration_id(self) -> str:
@@ -47,6 +46,51 @@ class OpenAIWhisperAdapter(BaseAdapter):
             "default_language": kwargs.get("language", "de"),
         }
         logger.info("openai_whisper.tenant_configured", tenant_id=tenant_id)
+
+    # ── Abstract Method Stubs (BaseAdapter compliance) ───────────────────
+
+    @property
+    def display_name(self) -> str:
+        return "OpenAI Whisper"
+
+    @property
+    def category(self) -> str:
+        return "voice"
+
+    def get_config_schema(self) -> dict:
+        return {
+            "fields": [
+                {
+                    "key": "api_key",
+                    "label": "API Key",
+                    "type": "password",
+                    "required": True,
+                    "help_text": "OpenAI API Key.",
+                },
+            ],
+        }
+
+    async def get_contacts(
+        self,
+        tenant_id: int,
+        config: dict,
+        last_sync_at=None,
+        sync_mode=None,
+    ) -> "SyncResult":
+        from app.integrations.adapters.base import SyncResult
+        return SyncResult(
+            success=True,
+            records_fetched=0,
+            contacts=[],
+            metadata={"note": "OpenAI Whisper does not support contact sync."},
+        )
+
+    async def test_connection(self, config: dict) -> "ConnectionTestResult":
+        from app.integrations.adapters.base import ConnectionTestResult
+        return ConnectionTestResult(
+            success=True,
+            message="OpenAI Whisper-Adapter geladen (Verbindungstest nicht implementiert).",
+        )
 
     async def _execute(self, capability_id: str, tenant_id: int, **kwargs: Any) -> AdapterResult:
         config = self._clients.get(tenant_id)

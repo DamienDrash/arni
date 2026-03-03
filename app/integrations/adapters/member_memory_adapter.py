@@ -50,6 +50,43 @@ class MemberMemoryAdapter(BaseAdapter):
             "memory.member.list",
         ]
 
+    # ── Abstract Method Stubs (BaseAdapter compliance) ───────────────────
+
+    @property
+    def display_name(self) -> str:
+        return "Member Memory"
+
+    @property
+    def category(self) -> str:
+        return "knowledge"
+
+    def get_config_schema(self) -> dict:
+        return {
+            "fields": [],
+        }
+
+    async def get_contacts(
+        self,
+        tenant_id: int,
+        config: dict,
+        last_sync_at=None,
+        sync_mode=None,
+    ) -> "SyncResult":
+        from app.integrations.adapters.base import SyncResult
+        return SyncResult(
+            success=True,
+            records_fetched=0,
+            contacts=[],
+            metadata={"note": "Member Memory does not support contact sync."},
+        )
+
+    async def test_connection(self, config: dict) -> "ConnectionTestResult":
+        from app.integrations.adapters.base import ConnectionTestResult
+        return ConnectionTestResult(
+            success=True,
+            message="Member Memory-Adapter geladen (Verbindungstest nicht implementiert).",
+        )
+
     async def _execute(
         self,
         capability_id: str,

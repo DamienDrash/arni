@@ -50,6 +50,58 @@ class CalComAdapter(BaseAdapter):
             "scheduling.slots.list",
         ]
 
+    # ── Abstract Method Stubs (BaseAdapter compliance) ───────────────────
+
+    @property
+    def display_name(self) -> str:
+        return "Cal.com"
+
+    @property
+    def category(self) -> str:
+        return "scheduling"
+
+    def get_config_schema(self) -> dict:
+        return {
+            "fields": [
+                {
+                    "key": "api_key",
+                    "label": "API Key",
+                    "type": "password",
+                    "required": True,
+                    "help_text": "Cal.com API Key aus den Einstellungen.",
+                },
+                {
+                    "key": "base_url",
+                    "label": "Base URL",
+                    "type": "text",
+                    "required": False,
+                    "help_text": "Cal.com Instance URL (Standard: https://api.cal.com).",
+                },
+            ],
+        }
+
+    async def get_contacts(
+        self,
+        tenant_id: int,
+        config: dict,
+        last_sync_at=None,
+        sync_mode=None,
+    ) -> "SyncResult":
+        from app.integrations.adapters.base import SyncResult
+        return SyncResult(
+            success=True,
+            records_fetched=0,
+            contacts=[],
+            metadata={"note": "Cal.com does not support contact sync."},
+        )
+
+    async def test_connection(self, config: dict) -> "ConnectionTestResult":
+        from app.integrations.adapters.base import ConnectionTestResult
+        return ConnectionTestResult(
+            success=True,
+            message="Cal.com-Adapter geladen (Verbindungstest nicht implementiert).",
+        )
+
     async def _execute(
         self,
         capability_id: str,

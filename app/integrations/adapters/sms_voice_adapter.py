@@ -48,6 +48,65 @@ class SmsVoiceAdapter(BaseAdapter):
             "voice.call.status",
         ]
 
+    # ── Abstract Method Stubs (BaseAdapter compliance) ───────────────────
+
+    @property
+    def display_name(self) -> str:
+        return "SMS & Voice"
+
+    @property
+    def category(self) -> str:
+        return "messaging"
+
+    def get_config_schema(self) -> dict:
+        return {
+            "fields": [
+                {
+                    "key": "provider",
+                    "label": "Provider",
+                    "type": "select",
+                    "required": True,
+                    "help_text": "SMS/Voice Provider (z.B. Twilio, Vonage).",
+                },
+                {
+                    "key": "api_key",
+                    "label": "API Key",
+                    "type": "password",
+                    "required": True,
+                    "help_text": "Provider API Key.",
+                },
+                {
+                    "key": "api_secret",
+                    "label": "API Secret",
+                    "type": "password",
+                    "required": True,
+                    "help_text": "Provider API Secret.",
+                },
+            ],
+        }
+
+    async def get_contacts(
+        self,
+        tenant_id: int,
+        config: dict,
+        last_sync_at=None,
+        sync_mode=None,
+    ) -> "SyncResult":
+        from app.integrations.adapters.base import SyncResult
+        return SyncResult(
+            success=True,
+            records_fetched=0,
+            contacts=[],
+            metadata={"note": "SMS & Voice does not support contact sync."},
+        )
+
+    async def test_connection(self, config: dict) -> "ConnectionTestResult":
+        from app.integrations.adapters.base import ConnectionTestResult
+        return ConnectionTestResult(
+            success=True,
+            message="SMS & Voice-Adapter geladen (Verbindungstest nicht implementiert).",
+        )
+
     async def _execute(
         self,
         capability_id: str,

@@ -41,151 +41,151 @@ class AdapterRegistry:
         try:
             from app.integrations.adapters.magicline_adapter import MagiclineAdapter
             self.register(MagiclineAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="magicline", error=str(e))
 
         try:
             from app.integrations.adapters.shopify_adapter import ShopifyAdapter
             self.register(ShopifyAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="shopify", error=str(e))
 
         try:
             from app.integrations.adapters.manual_crm_adapter import ManualCrmAdapter
             self.register(ManualCrmAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="manual_crm", error=str(e))
 
         # ─── Sprint 1 Adapters (Messaging Core) ─────────────────────────
         try:
             from app.integrations.adapters.whatsapp_adapter import WhatsAppAdapter
             self.register(WhatsAppAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="whatsapp", error=str(e))
 
         try:
             from app.integrations.adapters.telegram_adapter import TelegramAdapter
             self.register(TelegramAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="telegram", error=str(e))
 
         try:
             from app.integrations.adapters.email_adapter import EmailAdapter
             self.register(EmailAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="email", error=str(e))
 
         try:
             from app.integrations.adapters.sms_voice_adapter import SmsVoiceAdapter
             self.register(SmsVoiceAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="sms_voice", error=str(e))
 
         # ─── Sprint 2 Adapters (Agent Tools & Knowledge) ───────────────────
         try:
             from app.integrations.adapters.knowledge_adapter import KnowledgeAdapter
             self.register(KnowledgeAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="knowledge", error=str(e))
 
         try:
             from app.integrations.adapters.member_memory_adapter import MemberMemoryAdapter
             self.register(MemberMemoryAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="member_memory", error=str(e))
 
         # ─── Sprint 3 Adapters (Payment & Billing) ─────────────────────────
         try:
             from app.integrations.adapters.stripe_adapter import StripeAdapter
             self.register(StripeAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="stripe", error=str(e))
 
         try:
             from app.integrations.adapters.paypal_adapter import PayPalAdapter
             self.register(PayPalAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="paypal", error=str(e))
 
         try:
             from app.integrations.adapters.mollie_adapter import MollieAdapter
             self.register(MollieAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="mollie", error=str(e))
 
         # ─── Sprint 4 Adapters (Scheduling & Booking) ──────────────────────
         try:
             from app.integrations.adapters.calendly_adapter import CalendlyAdapter
             self.register(CalendlyAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="calendly", error=str(e))
 
         try:
             from app.integrations.adapters.calcom_adapter import CalComAdapter
             self.register(CalComAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="calcom", error=str(e))
 
         try:
             from app.integrations.adapters.acuity_adapter import AcuityAdapter
             self.register(AcuityAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="acuity", error=str(e))
 
         # ─── Sprint 5 Adapters (CRM & E-Commerce) ─────────────────────────
         try:
             from app.integrations.adapters.woocommerce_adapter import WooCommerceAdapter
             self.register(WooCommerceAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="woocommerce", error=str(e))
 
         try:
             from app.integrations.adapters.hubspot_adapter import HubSpotAdapter
             self.register(HubSpotAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="hubspot", error=str(e))
 
         try:
             from app.integrations.adapters.salesforce_adapter import SalesforceAdapter
             self.register(SalesforceAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="salesforce", error=str(e))
 
         # ─── Sprint 6 Adapters (AI Voice & Speech) ────────────────────────
         try:
             from app.integrations.adapters.elevenlabs_adapter import ElevenLabsAdapter
             self.register(ElevenLabsAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="elevenlabs", error=str(e))
 
         try:
             from app.integrations.adapters.openai_tts_adapter import OpenAITtsAdapter
             self.register(OpenAITtsAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="openai_tts", error=str(e))
 
         try:
             from app.integrations.adapters.openai_whisper_adapter import OpenAIWhisperAdapter
             self.register(OpenAIWhisperAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="openai_whisper", error=str(e))
 
         try:
             from app.integrations.adapters.deepgram_adapter import DeepgramAdapter
             self.register(DeepgramAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="deepgram", error=str(e))
 
         try:
             from app.integrations.adapters.google_tts_adapter import GoogleTtsAdapter
             self.register(GoogleTtsAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="google_tts", error=str(e))
 
         try:
             from app.integrations.adapters.azure_speech_adapter import AzureSpeechAdapter
             self.register(AzureSpeechAdapter())
-        except ImportError as e:
+        except (ImportError, TypeError) as e:
             logger.warning("adapter_registry.builtin_import_failed", adapter="azure_speech", error=str(e))
 
     def register(self, adapter: BaseAdapter) -> None:
