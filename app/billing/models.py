@@ -170,7 +170,7 @@ class FeatureSet(Base):
 
     # Relationships
     entitlements = relationship("FeatureEntitlement", back_populates="feature_set", cascade="all, delete-orphan")
-    plans = relationship("PlanV2", back_populates="feature_set")
+    plans = relationship("PlanV2", back_populates="feature_set", foreign_keys="[PlanV2.feature_set_id]")
 
 
 class FeatureEntitlement(Base):
