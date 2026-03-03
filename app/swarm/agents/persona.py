@@ -31,8 +31,18 @@ class AgentPersona(BaseAgent):
         super().__init__()
         self._soul_content = self._load_soul()
 
-    def _load_soul(self) -> str:
-        """Load persona from SOUL.md."""
+    def _load_soul(self, tenant_slug: str | None = None) -> str:
+        """Load persona from tenant-specific SOUL or fallback to default."""
+        from pathlib import Path
+        # 1. Try tenant-specific SOUL
+        if tenant_slug:
+            tenant_soul = Path(f"docs/personas/SOUL_{tenant_slug.replace('-', '_')}.md")
+            if tenant_soul.exists():
+                try:
+                    return tenant_soul.read_text(encoding="utf-8")
+                except Exception:
+                    logger.warning("agent.persona.tenant_soul_read_failed", tenant=tenant_slug)
+        # 2. Fallback to default SOUL.md
         try:
             with open("docs/personas/SOUL.md", "r", encoding="utf-8") as f:
                 return f.read()
@@ -79,11 +89,11 @@ class AgentPersona(BaseAgent):
         logger.info("agent.persona.handle", message_id=message.message_id)
 
         # 1. Prepare Tenant Prompt (Gold Standard)
-        self._soul_content = self._load_soul()
         from app.prompts.engine import get_engine
         from app.prompts.context import build_tenant_context
         from app.gateway.persistence import persistence as _ps
         _tenant_slug = _ps.get_tenant_slug(message.tenant_id)
+        self._soul_content = self._load_soul(tenant_slug=_tenant_slug)
         _ctx = build_tenant_context(_ps, message.tenant_id or 0)
         system_prompt = get_engine().render_for_tenant(
             "persona/system.j2", _tenant_slug, soul_content=self._soul_content, **_ctx
