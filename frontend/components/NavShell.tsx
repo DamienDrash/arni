@@ -64,7 +64,7 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null);
 
     useEffect(() => {
-        const publicPaths = ["/", "/features", "/pricing", "/login", "/register", "/legal"];
+        const publicPaths = ["/", "/features", "/pricing", "/login", "/register", "/legal", "/forgot-password", "/reset-password", "/verify-email", "/accept-invitation", "/mfa-verify"];
         const isPublic = publicPaths.some(p => (pathname || "/").startsWith(p) && (p !== "/" || (pathname || "/") === "/"));
         
         const cached = getStoredUser();
@@ -80,7 +80,7 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
 
     if (!authReady) return null;
 
-    const publicPaths = ["/", "/features", "/pricing", "/login", "/register", "/legal"];
+    const publicPaths = ["/", "/features", "/pricing", "/login", "/register", "/legal", "/forgot-password", "/reset-password", "/verify-email", "/accept-invitation", "/mfa-verify"];
     const isPublic = publicPaths.some(p => (pathname || "/").startsWith(p) && (p !== "/" || (pathname || "/") === "/"));
 
     if (isPublic) {

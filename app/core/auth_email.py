@@ -17,16 +17,18 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional
 
+import os
+
 import structlog
 
 logger = structlog.get_logger()
 
-# ─── SMTP Configuration (Strato) ───────────────────────────────────────────
-SMTP_HOST = "smtp.strato.de"
-SMTP_PORT = 465  # SSL
-SMTP_USER = "info@ariia.ai"
-SMTP_PASS = "DDrash2305"
-FROM_EMAIL = "info@ariia.ai"
+# ─── SMTP Configuration (loaded from environment variables) ──────────────────
+SMTP_HOST = os.getenv("AUTH_SMTP_HOST", "smtp.strato.de")
+SMTP_PORT = int(os.getenv("AUTH_SMTP_PORT", "465"))  # SSL
+SMTP_USER = os.getenv("AUTH_SMTP_USER", "")
+SMTP_PASS = os.getenv("AUTH_SMTP_PASS", "")
+FROM_EMAIL = os.getenv("AUTH_SMTP_FROM", "info@ariia.ai")
 FROM_NAME = "ARIIA"
 
 

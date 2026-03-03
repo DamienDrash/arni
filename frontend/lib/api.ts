@@ -138,6 +138,8 @@ export async function apiFetch(path: string, init?: RequestInit) {
             !window.location.pathname.includes("/forgot-password") &&
             !window.location.pathname.includes("/reset-password") &&
             !window.location.pathname.includes("/verify-email") &&
+            !window.location.pathname.includes("/accept-invitation") &&
+            !window.location.pathname.includes("/mfa-verify") &&
             !window.location.pathname.includes("/pricing")
           ) {
             window.location.href = loginPath;

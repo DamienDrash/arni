@@ -38,6 +38,11 @@ services:
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       - GATEWAY_PUBLIC_URL=${GATEWAY_PUBLIC_URL:-http://localhost:3000}
       - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
+      - AUTH_SMTP_HOST=${AUTH_SMTP_HOST:-smtp.strato.de}
+      - AUTH_SMTP_PORT=${AUTH_SMTP_PORT:-465}
+      - AUTH_SMTP_USER=${AUTH_SMTP_USER}
+      - AUTH_SMTP_PASS=${AUTH_SMTP_PASS}
+      - AUTH_SMTP_FROM=${AUTH_SMTP_FROM:-info@ariia.ai}
     depends_on:
       ariia-redis:
         condition: service_started
