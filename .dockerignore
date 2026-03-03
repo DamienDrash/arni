@@ -26,6 +26,7 @@ scripts/dev/
 # Tests & Docs (not needed in production image)
 tests/
 docs/
+!docs/personas/
 memory/
 output/
 .playwright-cli/
