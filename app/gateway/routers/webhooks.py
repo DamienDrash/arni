@@ -24,7 +24,7 @@ from app.gateway.dependencies import (
     redis_bus,
     get_telegram_bot,
     get_whatsapp_client,
-    swarm_router,
+    get_llm_client,
     get_settings,
 )
 from app.gateway.utils import send_to_user, broadcast_to_admins, _send_email_via_postmark
@@ -334,8 +334,41 @@ async def process_and_reply(message: InboundMessage) -> None:
                 return
             await bus.disconnect()
 
-        # 6. Swarm Routing
-        result = await swarm_router.route(message)
+        # 6. Swarm Routing (DYN-6: Per-request agent instantiation)
+        from app.swarm.master.orchestrator_v2 import MasterAgentV2
+        from app.swarm.router.router import SwarmRouter
+        from app.core.feature_gates import FeatureGate
+        from fastapi import HTTPException as _HTTPException
+
+        # Feature gate check (channel availability)
+        gate = FeatureGate(message.tenant_id)
+        try:
+            gate.require_channel(message.platform)
+        except _HTTPException:
+            await send_to_user(
+                message.user_id,
+                message.platform,
+                "Dieser Kommunikationskanal ist in deinem aktuellen ARIIA-Plan "
+                "nicht freigeschaltet. Bitte kontaktiere die Administration f\u00fcr ein Upgrade.",
+                tenant_id=message.tenant_id,
+            )
+            return
+
+        # Emergency hard-route (bypass orchestrator)
+        content_lower = message.content.lower()
+        emergency_keywords = [
+            "herzinfarkt", "bewusstlos", "notarzt", "unfall",
+            "heart attack", "unconscious", "emergency", "ohnmacht",
+            "112", "notfall",
+        ]
+        if any(kw in content_lower for kw in emergency_keywords):
+            from app.swarm.agents.medic import AgentMedic
+            result = await AgentMedic().handle(message)
+        else:
+            # DYN-6: Create a tenant-specific MasterAgentV2 per request
+            llm = get_llm_client()
+            master = MasterAgentV2(llm, tenant_id=message.tenant_id)
+            result = await master.handle(message)
         
         # 7. Reply
         if result.content:

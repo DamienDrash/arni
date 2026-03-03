@@ -29,6 +29,7 @@ from app.swarm.tool_calling import (
     ToolExecutor,
     ToolRegistry,
     create_worker_tools,
+    create_tool_registry_for_tenant,
 )
 
 # Specialized sub-agents (workers)
@@ -69,10 +70,15 @@ class MasterAgentV2(BaseAgent):
     Uses the LLM's native function calling API instead of regex parsing.
     This is more reliable, supports parallel calls, and enables
     structured parameter passing.
+
+    DYN-5/DYN-6: Now accepts an optional ``tenant_id`` to build a
+    tenant-specific tool registry at instantiation time.  When no
+    ``tenant_id`` is supplied the legacy behaviour (all tools) is used.
     """
 
-    def __init__(self, llm: LLMClient):
+    def __init__(self, llm: LLMClient, *, tenant_id: int | None = None):
         self._llm = llm
+        self._tenant_id = tenant_id
         self._workers = {
             "ops_agent": AgentOps(),
             "sales_agent": AgentSales(),
@@ -80,7 +86,13 @@ class MasterAgentV2(BaseAgent):
             "vision_agent": AgentVision(),
             "persona_agent": AgentPersona(),
         }
-        self._tool_registry = create_worker_tools()
+
+        # DYN-5: Dynamic tool registry per tenant
+        if tenant_id is not None:
+            self._tool_registry = create_tool_registry_for_tenant(tenant_id)
+        else:
+            self._tool_registry = create_worker_tools()
+
         self._tool_executor = ToolExecutor(self._tool_registry)
 
         # Register handlers for worker tools
@@ -223,6 +235,8 @@ class MasterAgentV2(BaseAgent):
             return await self._handle_knowledge_base(tc, original_message)
         elif tool_name == "member_memory":
             return await self._handle_member_memory(tc, original_message)
+        elif tool_name == "calendly_booking":
+            return await self._handle_calendly_booking(tc, original_message)
 
         # Route to worker agent
         worker = self._workers.get(tool_name)
@@ -345,8 +359,40 @@ class MasterAgentV2(BaseAgent):
                 error=str(e),
             )
 
+    async def _handle_calendly_booking(
+        self, tc: ToolCallRequest, message: InboundMessage
+    ) -> ToolCallResult:
+        """Get a Calendly booking link for the given event type."""
+        event_type_name = tc.arguments.get("event_type_name", "")
+        try:
+            from app.swarm.tools.calendly_tools import get_booking_link
+
+            result = await get_booking_link(
+                event_type_name=event_type_name,
+                tenant_id=message.tenant_id or 1,
+            )
+            return ToolCallResult(
+                tool_call_id=tc.id,
+                name="calendly_booking",
+                content=result,
+                success=True,
+            )
+        except Exception as e:
+            logger.error("master_v2.calendly_error", error=str(e))
+            return ToolCallResult(
+                tool_call_id=tc.id,
+                name="calendly_booking",
+                content=f"Calendly-Fehler: {str(e)}",
+                success=False,
+                error=str(e),
+            )
+
     async def _build_system_prompt(self, message: InboundMessage) -> str:
-        """Build the system prompt with tenant-specific customization."""
+        """Build the system prompt with tenant-specific customization.
+
+        UX-3: Now also loads studio_name and studio_address from tenant settings
+        to give the agent permanent business context.
+        """
         base_prompt = MASTER_SYSTEM_PROMPT_V2
 
         # Load tenant-specific prompt customization
@@ -363,6 +409,31 @@ class MasterAgentV2(BaseAgent):
             )
             if persona_name:
                 base_prompt += f"\n\nDein Name ist: {persona_name}"
+
+            # UX-3: Studio context (always available)
+            studio_name = persistence.get_setting(
+                "studio_name", "", tenant_id=message.tenant_id
+            )
+            studio_address = persistence.get_setting(
+                "studio_address", "", tenant_id=message.tenant_id
+            )
+            if studio_name or studio_address:
+                context_block = "\n\nUNTERNEHMENS-KONTEXT:"
+                if studio_name:
+                    context_block += f"\n- Unternehmensname: {studio_name}"
+                if studio_address:
+                    context_block += f"\n- Adresse: {studio_address}"
+                base_prompt += context_block
+
+            # DYN-3: Integration awareness in master prompt
+            if self._tenant_id is not None:
+                enabled = persistence.get_enabled_integrations(self._tenant_id)
+                if enabled:
+                    base_prompt += f"\n\nAKTIVE INTEGRATIONEN: {', '.join(enabled)}"
+                    base_prompt += (
+                        "\nNutze nur Tools, die zu den aktiven Integrationen passen. "
+                        "Wenn eine Funktion nicht verf\u00fcgbar ist, erkl\u00e4re das freundlich."
+                    )
 
         except Exception as e:
             logger.warning("master_v2.prompt_customization_failed", error=str(e))

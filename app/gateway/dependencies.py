@@ -9,7 +9,8 @@ import structlog
 from app.gateway.redis_bus import RedisBus
 from app.gateway.persistence import persistence
 from app.swarm.llm import LLMClient
-from app.swarm.router.router import SwarmRouter
+# DYN-5: SwarmRouter is no longer a singleton – instantiated per request
+# from app.swarm.router.router import SwarmRouter
 from app.integrations.telegram import TelegramBot
 from app.integrations.whatsapp import WhatsAppClient
 from config.settings import get_settings
@@ -21,9 +22,12 @@ settings = get_settings()
 redis_bus = RedisBus(redis_url=settings.redis_url)
 
 # Swarm Components
-# LLMClient can still be a global fallback if configured, but agents should use tenant keys.
+# LLMClient remains a shared singleton (stateless, thread-safe).
 llm_client = LLMClient(openai_api_key=settings.openai_api_key)
-swarm_router = SwarmRouter(llm=llm_client)
+
+# DYN-5: SwarmRouter is no longer a global singleton.
+# It is now created per-request in process_and_reply with tenant-specific config.
+# swarm_router = SwarmRouter(llm=llm_client)  # REMOVED
 
 # Active WebSockets (Ghost Mode)
 # Dict of tenant_id -> list of WebSocket objects
@@ -32,8 +36,9 @@ active_websockets: dict[int, list] = {}
 def get_redis_bus() -> RedisBus:
     return redis_bus
 
-def get_swarm_router() -> SwarmRouter:
-    return swarm_router
+def get_llm_client() -> "LLMClient":
+    """Return the shared LLMClient singleton."""
+    return llm_client
 
 def get_telegram_bot(tenant_id: int | None = None) -> TelegramBot:
     """Returns a tenant-aware TelegramBot instance.
