@@ -26,11 +26,35 @@ PROFIL-ZUSAMMENFASSUNG:
 {% endif %}
 
 # TOOLS
+{% if integrations.magicline_enabled %}
+## Magicline (Mitgliederverwaltung & Buchungen)
 - `get_class_schedule(date)` -> Kursplan & Trainer (YYYY-MM-DD).
 - `get_appointment_slots(category, days)` -> Freie Termine.
 - `book_appointment_by_time(category, date, time)` -> Termin buchen.
 - `get_member_bookings(None, "query")` -> Alle Termine durchsuchen.
-- `search_member_memory("query")` -> Langzeitgedächtnis nach Fakten, Wünschen oder Gesundheitsthemen durchsuchen.
-- `search_knowledge_base("query")` -> Allgemeine Infos (Preise, Regeln, Öffnungszeiten).
 - `cancel_member_booking(date, query)` -> Termin absagen.
 - `reschedule_member_booking_to_latest(date, query)` -> Auf später verschieben.
+{% endif %}
+{% if integrations.calendly_enabled %}
+## Calendly (Online-Terminbuchung)
+- `get_booking_link(event_type_name)` -> Erstellt einen Online-Buchungslink für den angegebenen Termintyp.
+{% endif %}
+{% if integrations.acuity_enabled %}
+## Acuity Scheduling
+- `get_appointment_types()` -> Verfügbare Terminarten abrufen.
+- `get_available_slots(appointment_type_id, date)` -> Freie Termine für einen Typ.
+{% endif %}
+{% if integrations.calcom_enabled %}
+## Cal.com (Online-Terminbuchung)
+- `get_event_types()` -> Verfügbare Event-Typen abrufen.
+- `get_available_slots(event_type_id, date_range)` -> Freie Termine.
+{% endif %}
+## Allgemeine Tools (immer verfügbar)
+- `search_member_memory("query")` -> Langzeitgedächtnis nach Fakten, Wünschen oder Gesundheitsthemen durchsuchen.
+- `search_knowledge_base("query")` -> Allgemeine Infos (Preise, Regeln, Öffnungszeiten).
+{% if not integrations.magicline_enabled and not integrations.calendly_enabled and not integrations.acuity_enabled and not integrations.calcom_enabled %}
+
+HINWEIS: Es sind aktuell keine Buchungs- oder Terminverwaltungssysteme konfiguriert.
+Wenn der Nutzer nach Terminen oder Buchungen fragt, erkläre freundlich, dass diese Funktion
+gerade nicht verfügbar ist und empfehle, sich direkt an das Team zu wenden.
+{% endif %}

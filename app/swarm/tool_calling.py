@@ -269,158 +269,255 @@ class ToolExecutor:
         return results
 
 
-# ─── Default Worker Tools ────────────────────────────────────────────────────
+# ─── Tool → Integration Mapping ─────────────────────────────────────────────────
+
+# Maps tool names to the integration IDs they require.
+# Tools not listed here are always available (core tools).
+TOOL_INTEGRATION_REQUIREMENTS: dict[str, list[str]] = {
+    "ops_agent": ["magicline", "calendly", "acuity", "calcom"],  # Needs at least one scheduling/member integration
+    "sales_agent": ["magicline", "salesforce", "hubspot", "shopify", "woocommerce"],
+    "vision_agent": [],  # Vision is a core capability, always available
+}
+
+# Core tools that are ALWAYS registered regardless of integrations
+CORE_TOOLS = {"knowledge_base", "member_memory", "persona_agent", "medic_agent"}
+
+
+# ─── Tool Definitions Catalog ────────────────────────────────────────────
+
+
+def _all_tool_definitions() -> dict[str, ToolDefinition]:
+    """Return the complete catalog of all possible tool definitions.
+
+    This is the single source of truth for tool metadata.
+    """
+    return {
+        "ops_agent": ToolDefinition(
+            name="ops_agent",
+            description=(
+                "Specialist for bookings, courses, trainers, check-ins, and schedules. "
+                "Call this tool when the user asks about appointments, class bookings, "
+                "cancellations, trainer availability, or check-in history."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="query",
+                    type="string",
+                    description="The user's request related to operations/bookings",
+                    required=True,
+                ),
+                ToolParameter(
+                    name="action_type",
+                    type="string",
+                    description="Type of operation requested",
+                    required=False,
+                    enum=["query", "book", "cancel", "reschedule", "check_availability"],
+                ),
+            ],
+        ),
+        "sales_agent": ToolDefinition(
+            name="sales_agent",
+            description=(
+                "Specialist for contracts, pricing, cancellations, upgrades, and membership plans. "
+                "Call this tool when the user asks about their contract, pricing, "
+                "membership options, or wants to upgrade/downgrade."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="query",
+                    type="string",
+                    description="The user's request related to sales/contracts",
+                    required=True,
+                ),
+            ],
+        ),
+        "medic_agent": ToolDefinition(
+            name="medic_agent",
+            description=(
+                "Specialist for health, pain, injuries, and medical advice (with disclaimer). "
+                "Call this tool when the user mentions health issues, pain, injuries, "
+                "or asks for exercise modifications due to physical conditions."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="query",
+                    type="string",
+                    description="The user's health-related question or concern",
+                    required=True,
+                ),
+            ],
+        ),
+        "vision_agent": ToolDefinition(
+            name="vision_agent",
+            description=(
+                "Specialist for gym occupancy, camera analysis, and capacity information. "
+                "Call this tool when the user asks about current gym occupancy, "
+                "how busy it is, or wants capacity information."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="query",
+                    type="string",
+                    description="The user's question about occupancy or capacity",
+                    required=True,
+                ),
+            ],
+        ),
+        "persona_agent": ToolDefinition(
+            name="persona_agent",
+            description=(
+                "The inner personality for smalltalk, general life advice, and motivation. "
+                "Call this tool for casual conversation, motivational messages, "
+                "or general questions not related to specific gym operations."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="query",
+                    type="string",
+                    description="The casual/general topic to respond to",
+                    required=True,
+                ),
+            ],
+        ),
+        "knowledge_base": ToolDefinition(
+            name="knowledge_base",
+            description=(
+                "Search the tenant's knowledge base for specific information about "
+                "the business, its services, opening hours, rules, and policies. "
+                "Call this tool when you need factual information about the business."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="query",
+                    type="string",
+                    description="The search query for the knowledge base",
+                    required=True,
+                ),
+                ToolParameter(
+                    name="top_k",
+                    type="integer",
+                    description="Number of results to return (default: 3)",
+                    required=False,
+                    default=3,
+                ),
+            ],
+        ),
+        "member_memory": ToolDefinition(
+            name="member_memory",
+            description=(
+                "Retrieve or store information about the current member from long-term memory. "
+                "Call this tool to recall past interactions, preferences, or personal details "
+                "about the member you're talking to."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="query",
+                    type="string",
+                    description="What to look up or store about the member",
+                    required=True,
+                ),
+                ToolParameter(
+                    name="action",
+                    type="string",
+                    description="Whether to retrieve or store information",
+                    required=False,
+                    enum=["retrieve", "store"],
+                    default="retrieve",
+                ),
+            ],
+        ),
+        "calendly_booking": ToolDefinition(
+            name="calendly_booking",
+            description=(
+                "Get a Calendly booking link for online appointment scheduling. "
+                "Call this tool when the user wants to book an appointment, consultation, "
+                "or meeting via Calendly."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="event_type_name",
+                    type="string",
+                    description="The type of appointment to book (e.g. 'Erstgespräch', 'Beratung', 'Personal Training')",
+                    required=True,
+                ),
+            ],
+        ),
+    }
+
+
+# ─── Dynamic Tool Registry Builder ───────────────────────────────────────
+
+
+def create_tool_registry_for_tenant(tenant_id: int) -> ToolRegistry:
+    """Create a tenant-specific tool registry based on enabled integrations.
+
+    Only registers tools whose required integrations are active for the tenant.
+    Core tools (knowledge_base, member_memory, persona_agent, medic_agent) are
+    always registered.
+
+    Args:
+        tenant_id: The tenant for whom to build the tool registry.
+
+    Returns:
+        A ToolRegistry containing only the tools available to this tenant.
+    """
+    from app.gateway.persistence import persistence
+
+    enabled = set(persistence.get_enabled_integrations(tenant_id))
+    all_tools = _all_tool_definitions()
+    registry = ToolRegistry()
+
+    for tool_name, tool_def in all_tools.items():
+        # Core tools are always registered
+        if tool_name in CORE_TOOLS:
+            registry.register(tool_def)
+            continue
+
+        # Check integration requirements
+        required_integrations = TOOL_INTEGRATION_REQUIREMENTS.get(tool_name)
+
+        if required_integrations is None:
+            # No explicit requirements → always register
+            registry.register(tool_def)
+        elif len(required_integrations) == 0:
+            # Empty list → always register (core capability)
+            registry.register(tool_def)
+        elif enabled.intersection(required_integrations):
+            # At least one required integration is active
+            registry.register(tool_def)
+        else:
+            logger.debug(
+                "tool_registry.skipped",
+                tool=tool_name,
+                reason="no_matching_integration",
+                tenant_id=tenant_id,
+                required=required_integrations,
+            )
+
+    # Special: Register calendly_booking only if calendly is enabled
+    if "calendly" in enabled and "calendly_booking" in all_tools:
+        if not registry.get("calendly_booking"):
+            registry.register(all_tools["calendly_booking"])
+
+    logger.info(
+        "tool_registry.created",
+        tenant_id=tenant_id,
+        tools=[t.name for t in registry.get_all()],
+        enabled_integrations=sorted(enabled),
+    )
+    return registry
 
 
 def create_worker_tools() -> ToolRegistry:
-    """Create the default tool registry with worker agent tools.
+    """Create the default tool registry with ALL worker agent tools.
 
-    These replace the old TOOL: worker_name("query") pattern.
-    Each worker agent is now a proper tool with typed parameters.
+    DEPRECATED: Use create_tool_registry_for_tenant(tenant_id) for dynamic registration.
+    Kept for backward compatibility during migration.
     """
+    all_tools = _all_tool_definitions()
     registry = ToolRegistry()
-
-    registry.register(ToolDefinition(
-        name="ops_agent",
-        description=(
-            "Specialist for bookings, courses, trainers, check-ins, and schedules. "
-            "Call this tool when the user asks about appointments, class bookings, "
-            "cancellations, trainer availability, or check-in history."
-        ),
-        parameters=[
-            ToolParameter(
-                name="query",
-                type="string",
-                description="The user's request related to operations/bookings",
-                required=True,
-            ),
-            ToolParameter(
-                name="action_type",
-                type="string",
-                description="Type of operation requested",
-                required=False,
-                enum=["query", "book", "cancel", "reschedule", "check_availability"],
-            ),
-        ],
-    ))
-
-    registry.register(ToolDefinition(
-        name="sales_agent",
-        description=(
-            "Specialist for contracts, pricing, cancellations, upgrades, and membership plans. "
-            "Call this tool when the user asks about their contract, pricing, "
-            "membership options, or wants to upgrade/downgrade."
-        ),
-        parameters=[
-            ToolParameter(
-                name="query",
-                type="string",
-                description="The user's request related to sales/contracts",
-                required=True,
-            ),
-        ],
-    ))
-
-    registry.register(ToolDefinition(
-        name="medic_agent",
-        description=(
-            "Specialist for health, pain, injuries, and medical advice (with disclaimer). "
-            "Call this tool when the user mentions health issues, pain, injuries, "
-            "or asks for exercise modifications due to physical conditions."
-        ),
-        parameters=[
-            ToolParameter(
-                name="query",
-                type="string",
-                description="The user's health-related question or concern",
-                required=True,
-            ),
-        ],
-    ))
-
-    registry.register(ToolDefinition(
-        name="vision_agent",
-        description=(
-            "Specialist for gym occupancy, camera analysis, and capacity information. "
-            "Call this tool when the user asks about current gym occupancy, "
-            "how busy it is, or wants capacity information."
-        ),
-        parameters=[
-            ToolParameter(
-                name="query",
-                type="string",
-                description="The user's question about occupancy or capacity",
-                required=True,
-            ),
-        ],
-    ))
-
-    registry.register(ToolDefinition(
-        name="persona_agent",
-        description=(
-            "The inner personality for smalltalk, general life advice, and motivation. "
-            "Call this tool for casual conversation, motivational messages, "
-            "or general questions not related to specific gym operations."
-        ),
-        parameters=[
-            ToolParameter(
-                name="query",
-                type="string",
-                description="The casual/general topic to respond to",
-                required=True,
-            ),
-        ],
-    ))
-
-    registry.register(ToolDefinition(
-        name="knowledge_base",
-        description=(
-            "Search the tenant's knowledge base for specific information about "
-            "the gym, its services, opening hours, rules, and policies. "
-            "Call this tool when you need factual information about the business."
-        ),
-        parameters=[
-            ToolParameter(
-                name="query",
-                type="string",
-                description="The search query for the knowledge base",
-                required=True,
-            ),
-            ToolParameter(
-                name="top_k",
-                type="integer",
-                description="Number of results to return (default: 3)",
-                required=False,
-                default=3,
-            ),
-        ],
-    ))
-
-    registry.register(ToolDefinition(
-        name="member_memory",
-        description=(
-            "Retrieve or store information about the current member from long-term memory. "
-            "Call this tool to recall past interactions, preferences, or personal details "
-            "about the member you're talking to."
-        ),
-        parameters=[
-            ToolParameter(
-                name="query",
-                type="string",
-                description="What to look up or store about the member",
-                required=True,
-            ),
-            ToolParameter(
-                name="action",
-                type="string",
-                description="Whether to retrieve or store information",
-                required=False,
-                enum=["retrieve", "store"],
-                default="retrieve",
-            ),
-        ],
-    ))
-
+    for tool_def in all_tools.values():
+        registry.register(tool_def)
     return registry
 
 
