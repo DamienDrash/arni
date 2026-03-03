@@ -603,9 +603,27 @@ async def send_campaign(
             CampaignTemplate.id == campaign.template_id
         ).first()
 
-    # Initialise email adapter for actual SMTP sending
-    from app.integrations.adapters.email_adapter import EmailAdapter
-    email_adapter = EmailAdapter()
+    # Resolve SMTP config for this tenant
+    from app.core.integration_models import get_integration_config
+    from app.integrations.email import SMTPMailer
+    import smtplib as _smtplib
+    from email.message import EmailMessage as _EmailMessage
+
+    smtp_config = get_integration_config(user.tenant_id, "smtp_email")
+    if not smtp_config and campaign.channel == "email":
+        raise HTTPException(status_code=400, detail="SMTP-E-Mail ist für diesen Tenant nicht konfiguriert.")
+
+    mailer = None
+    if smtp_config:
+        mailer = SMTPMailer(
+            host=smtp_config.get("host", ""),
+            port=int(smtp_config.get("port", 587)),
+            username=smtp_config.get("username", ""),
+            password=smtp_config.get("password", ""),
+            from_email=smtp_config.get("from_email", smtp_config.get("username", "")),
+            from_name=smtp_config.get("from_name", "ARIIA"),
+            use_starttls=smtp_config.get("use_starttls", True),
+        )
 
     campaign.status = "sending"
     campaign.stats_total = len(members)
@@ -615,39 +633,58 @@ async def send_campaign(
     failed_count = 0
 
     for contact in members:
-        # Only send to contacts with a valid email and email consent
+        # Only send to contacts with a valid email
         if not contact.email:
             logger.warning("campaign.skip_no_email", contact_id=contact.id)
             continue
 
         subject, html_body = _render_campaign_email(campaign, template, contact)
 
-        # Determine recipient status
         status = "pending"
-        error_msg = None
 
-        if campaign.channel == "email":
+        if campaign.channel == "email" and mailer:
             try:
-                result = await email_adapter._send_html_email(
-                    tenant_id=user.tenant_id,
-                    to_email=contact.email,
-                    subject=subject,
-                    html_body=html_body,
-                    text_body=campaign.content_body or "",
-                )
-                if result.success:
-                    status = "sent"
-                    sent_count += 1
-                else:
-                    status = "failed"
-                    error_msg = result.error
-                    failed_count += 1
-                    logger.error("campaign.email_failed", contact_id=contact.id, error=result.error)
+                # Build email message
+                msg = _EmailMessage()
+                msg["Subject"] = " ".join(subject.splitlines()).strip()
+                msg["From"] = f"{mailer.from_name} <{mailer.from_email}>"
+                msg["To"] = contact.email
+                msg.set_content(html_body, subtype="html")
+
+                # Send synchronously (in async context via run_in_executor)
+                import asyncio
+                loop = asyncio.get_event_loop()
+
+                def _do_send():
+                    conn = None
+                    try:
+                        if mailer.port == 465:
+                            conn = _smtplib.SMTP_SSL(mailer.host, mailer.port, timeout=30)
+                            conn.login(mailer.username, mailer.password)
+                            conn.send_message(msg)
+                        else:
+                            conn = _smtplib.SMTP(mailer.host, mailer.port, timeout=30)
+                            conn.ehlo()
+                            if mailer.use_starttls:
+                                conn.starttls()
+                                conn.ehlo()
+                            conn.login(mailer.username, mailer.password)
+                            conn.send_message(msg)
+                    finally:
+                        if conn:
+                            try:
+                                conn.quit()
+                            except Exception:
+                                pass
+
+                await loop.run_in_executor(None, _do_send)
+                status = "sent"
+                sent_count += 1
+                logger.info("campaign.email_sent", contact_id=contact.id, to=contact.email)
             except Exception as e:
                 status = "failed"
-                error_msg = str(e)
                 failed_count += 1
-                logger.error("campaign.email_exception", contact_id=contact.id, error=str(e))
+                logger.error("campaign.email_failed", contact_id=contact.id, error=str(e))
         else:
             # Non-email channels: mark as sent (placeholder for WhatsApp etc.)
             status = "sent"
