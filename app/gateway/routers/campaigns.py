@@ -27,9 +27,10 @@ from app.core.db import get_db
 from app.core.auth import AuthContext, get_current_user
 from app.core.models import (
     Campaign, CampaignTemplate, CampaignVariant, CampaignRecipient,
-    MemberSegment, ScheduledFollowUp, StudioMember, ChatMessage, ChatSession,
+    MemberSegment, ScheduledFollowUp, ChatMessage, ChatSession,
     Tenant,
 )
+from app.core.contact_models import Contact, ContactTagAssociation, ContactTag
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/admin/campaigns", tags=["campaigns"])
@@ -303,8 +304,9 @@ async def ai_generate_content(
     if campaign.target_type != "all_members" and campaign.target_filter_json:
         try:
             filters = json.loads(campaign.target_filter_json)
-            member_count = db.query(StudioMember).filter(
-                StudioMember.tenant_id == user.tenant_id
+            member_count = db.query(Contact).filter(
+                Contact.tenant_id == user.tenant_id,
+                Contact.deleted_at.is_(None),
             ).count()
             context_parts.append(f"Target audience: {member_count} members")
         except (json.JSONDecodeError, TypeError):
@@ -553,10 +555,12 @@ async def send_campaign(
     db.commit()
 
     sent_count = 0
-    for member in members:
+    for contact in members:
         recipient = CampaignRecipient(
             campaign_id=campaign_id,
-            member_id=member.id,
+            contact_id=contact.id,
+            tenant_id=user.tenant_id,
+            channel=campaign.channel,
             status="sent",
             sent_at=datetime.now(timezone.utc),
         )
@@ -773,11 +777,11 @@ async def list_follow_ups(
 
     result = []
     for fu in follow_ups:
-        member = db.query(StudioMember).filter(StudioMember.id == fu.member_id).first() if fu.member_id else None
+        contact = db.query(Contact).filter(Contact.id == fu.member_id).first() if fu.member_id else None
         result.append({
             "id": fu.id,
             "member_id": fu.member_id,
-            "member_name": f"{member.first_name} {member.last_name}" if member else "Unknown",
+            "member_name": contact.full_name if contact else "Unknown",
             "conversation_id": fu.conversation_id,
             "reason": fu.reason,
             "follow_up_at": fu.follow_up_at.isoformat() if fu.follow_up_at else None,
@@ -945,18 +949,29 @@ def _campaign_to_dict(c: Campaign) -> dict:
 
 
 def _resolve_target_members(db: Session, tenant_id: int, target_type: str, filter_json: str | None) -> list:
-    """Resolve target members based on campaign targeting."""
-    q = db.query(StudioMember).filter(StudioMember.tenant_id == tenant_id)
+    """Resolve target contacts based on campaign targeting.
+
+    Migrated from legacy StudioMember to Contact v2 model.
+    Returns a list of Contact objects.
+    """
+    q = db.query(Contact).filter(
+        Contact.tenant_id == tenant_id,
+        Contact.deleted_at.is_(None),
+    )
 
     if target_type == "all_members":
+        return q.all()
+
+    if target_type == "all_contacts":
         return q.all()
 
     if target_type == "selected" and filter_json:
         try:
             filters = json.loads(filter_json)
-            member_ids = filters.get("member_ids", [])
-            if member_ids:
-                return q.filter(StudioMember.id.in_(member_ids)).all()
+            # Support both legacy member_ids and new contact_ids keys
+            contact_ids = filters.get("contact_ids", filters.get("member_ids", []))
+            if contact_ids:
+                return q.filter(Contact.id.in_(contact_ids)).all()
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -965,9 +980,23 @@ def _resolve_target_members(db: Session, tenant_id: int, target_type: str, filte
             filters = json.loads(filter_json)
             tags = filters.get("tags", [])
             if tags:
-                # Filter by tags in the tags column
-                members = q.all()
-                return [m for m in members if any(t in (m.tags or "") for t in tags)]
+                # Filter contacts by tags via the ContactTagAssociation join
+                return (
+                    q.join(ContactTagAssociation, ContactTagAssociation.contact_id == Contact.id)
+                    .join(ContactTag, ContactTag.id == ContactTagAssociation.tag_id)
+                    .filter(ContactTag.name.in_(tags))
+                    .distinct()
+                    .all()
+                )
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    if target_type == "lifecycle" and filter_json:
+        try:
+            filters = json.loads(filter_json)
+            stage = filters.get("lifecycle_stage")
+            if stage:
+                return q.filter(Contact.lifecycle_stage == stage).all()
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -986,23 +1015,32 @@ def _resolve_target_members(db: Session, tenant_id: int, target_type: str, filte
 
 
 def _apply_segment_filter(db: Session, tenant_id: int, filter_json: str) -> list:
-    """Apply segment filter to get matching members."""
-    q = db.query(StudioMember).filter(StudioMember.tenant_id == tenant_id)
+    """Apply segment filter to get matching contacts."""
+    q = db.query(Contact).filter(
+        Contact.tenant_id == tenant_id,
+        Contact.deleted_at.is_(None),
+    )
     try:
         filters = json.loads(filter_json)
+        if "lifecycle_stage" in filters:
+            q = q.filter(Contact.lifecycle_stage == filters["lifecycle_stage"])
+        # Legacy support
         if "status" in filters:
-            q = q.filter(StudioMember.status == filters["status"])
+            q = q.filter(Contact.lifecycle_stage == filters["status"])
         if "source" in filters:
-            q = q.filter(StudioMember.source == filters["source"])
+            q = q.filter(Contact.source == filters["source"])
     except (json.JSONDecodeError, TypeError):
         pass
     return q.all()
 
 
 def _count_segment_members(db: Session, tenant_id: int, filter_json: str | None) -> int:
-    """Count members matching a segment filter."""
+    """Count contacts matching a segment filter."""
     if not filter_json:
-        return db.query(StudioMember).filter(StudioMember.tenant_id == tenant_id).count()
+        return db.query(Contact).filter(
+            Contact.tenant_id == tenant_id,
+            Contact.deleted_at.is_(None),
+        ).count()
     return len(_apply_segment_filter(db, tenant_id, filter_json))
 
 
