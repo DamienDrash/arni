@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 from app.gateway.schemas import Platform
 from app.gateway.persistence import persistence
+from app.gateway.formatting import format_for_platform
 from app.gateway.dependencies import (
     active_websockets,
     get_telegram_bot,
@@ -140,6 +141,10 @@ async def send_to_user(
 
     metadata = metadata or {}
     resolved_tid = tenant_id or metadata.get("tenant_id")
+
+    # UX-2: Convert Markdown to platform-appropriate formatting
+    platform_str = platform.value if hasattr(platform, 'value') else str(platform)
+    content = format_for_platform(content, platform_str)
     
     # Gold Standard Fix: If tid is still missing, recover it from the active session
     if resolved_tid is None:
