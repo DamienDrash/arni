@@ -61,10 +61,12 @@ from app.core.billing_sync import (
     is_stripe_configured,
 )
 from app.billing.models import (
-    FeatureV2,
+    Feature,
     FeatureType,
-    PlanFeatureEntitlementV2,
+    FeatureSet,
+    FeatureEntitlement,
     PlanV2,
+    AddonDefinitionV2,
     SubscriptionV2,
     SubscriptionStatus,
 )
@@ -188,7 +190,7 @@ class FeatureCreate(BaseModel):
     name: str
     description: Optional[str] = None
     feature_type: str = "boolean"
-    unit_label: Optional[str] = None
+    unit: Optional[str] = None
     category: Optional[str] = None
 
 
@@ -196,17 +198,18 @@ class FeatureUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     feature_type: Optional[str] = None
-    unit_label: Optional[str] = None
+    unit: Optional[str] = None
     category: Optional[str] = None
 
 
-class PlanFeatureEntitlementSet(BaseModel):
-    """Set entitlements for a plan-feature combination."""
+class FeatureEntitlementSet(BaseModel):
+    """Set entitlements for a feature within a feature set."""
     feature_id: int
-    enabled: bool = True
-    soft_limit: Optional[int] = None
+    value_bool: Optional[bool] = None
+    value_limit: Optional[int] = None
+    value_tier: Optional[str] = None
     hard_limit: Optional[int] = None
-    config_json: Optional[str] = None
+    overage_price_cents: Optional[int] = None
 
 
 class AddonCreate(BaseModel):
@@ -237,7 +240,7 @@ class AddonUpdate(BaseModel):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _plan_to_dict(plan: Plan) -> dict[str, Any]:
-    """Serialize a Plan ORM object to a dict for API response."""
+    """Serialize a V1 Plan ORM object to a dict for API response."""
     features_list = []
     if plan.features_json:
         try:
@@ -286,8 +289,7 @@ def _plan_to_dict(plan: Plan) -> dict[str, Any]:
         "audit_log_enabled": plan.audit_log_enabled,
         "automation_enabled": plan.automation_enabled,
         "api_access_enabled": plan.api_access_enabled,
-        "multi_source_members_enabled": plan.multi_source_members_enabled,
-        "churn_prediction_enabled": plan.churn_prediction_enabled,
+        "multi_source_members_enabled": getattr(plan, "multi_source_members_enabled", False),
         "vision_ai_enabled": plan.vision_ai_enabled,
         "white_label_enabled": plan.white_label_enabled,
         "sla_guarantee_enabled": plan.sla_guarantee_enabled,
@@ -304,7 +306,7 @@ def _plan_to_dict(plan: Plan) -> dict[str, Any]:
 
 
 def _addon_to_dict(addon: AddonDefinition) -> dict[str, Any]:
-    """Serialize an AddonDefinition ORM object to a dict."""
+    """Serialize a V1 AddonDefinition ORM object to a dict."""
     features_list = []
     if addon.features_json:
         try:
@@ -331,22 +333,94 @@ def _addon_to_dict(addon: AddonDefinition) -> dict[str, Any]:
     }
 
 
-def _feature_to_dict(feature: FeatureV2) -> dict[str, Any]:
-    """Serialize a FeatureV2 ORM object to a dict."""
+def _feature_to_dict(feature: Feature) -> dict[str, Any]:
+    """Serialize a Feature ORM object to a dict."""
     return {
         "id": feature.id,
         "key": feature.key,
         "name": feature.name,
         "description": feature.description,
         "feature_type": feature.feature_type.value if isinstance(feature.feature_type, FeatureType) else str(feature.feature_type),
-        "unit_label": feature.unit_label,
+        "unit": feature.unit,
         "category": feature.category,
+        "is_active": feature.is_active,
+        "display_order": feature.display_order,
         "created_at": feature.created_at.isoformat() if feature.created_at else None,
     }
 
 
+def _v2_plan_to_dict(plan: PlanV2) -> dict[str, Any]:
+    """Serialize a PlanV2 ORM object to a dict."""
+    features_list = []
+    if plan.features_json:
+        try:
+            features_list = json.loads(plan.features_json)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return {
+        "id": plan.id,
+        "name": plan.name,
+        "slug": plan.slug,
+        "description": plan.description,
+        "tagline": plan.tagline,
+        "price_monthly_cents": plan.price_monthly_cents,
+        "price_yearly_cents": plan.price_yearly_cents,
+        "currency": plan.currency,
+        "stripe_product_id": plan.stripe_product_id,
+        "stripe_price_monthly_id": plan.stripe_price_monthly_id,
+        "stripe_price_yearly_id": plan.stripe_price_yearly_id,
+        "feature_set_id": plan.feature_set_id,
+        "trial_days": plan.trial_days,
+        "display_order": plan.display_order,
+        "is_highlighted": plan.is_highlighted,
+        "highlight_label": plan.highlight_label,
+        "icon": plan.icon,
+        "features_json": plan.features_json,
+        "features_display": features_list,
+        "cta_text": plan.cta_text,
+        "is_active": plan.is_active,
+        "is_public": plan.is_public,
+        "version": plan.version,
+        "created_at": plan.created_at.isoformat() if plan.created_at else None,
+        "updated_at": plan.updated_at.isoformat() if plan.updated_at else None,
+    }
+
+
+def _v2_addon_to_dict(addon: AddonDefinitionV2) -> dict[str, Any]:
+    """Serialize an AddonDefinitionV2 ORM object to a dict."""
+    features_list = []
+    if addon.features_json:
+        try:
+            features_list = json.loads(addon.features_json)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return {
+        "id": addon.id,
+        "slug": addon.slug,
+        "name": addon.name,
+        "description": addon.description,
+        "category": addon.category,
+        "icon": addon.icon,
+        "price_monthly_cents": addon.price_monthly_cents,
+        "price_yearly_cents": addon.price_yearly_cents,
+        "currency": addon.currency,
+        "stripe_product_id": addon.stripe_product_id,
+        "stripe_price_id": addon.stripe_price_id,
+        "features_json": addon.features_json,
+        "features_display": features_list,
+        "is_active": addon.is_active,
+        "is_stackable": addon.is_stackable,
+        "max_quantity": addon.max_quantity,
+        "display_order": addon.display_order,
+        "created_at": addon.created_at.isoformat() if addon.created_at else None,
+        "updated_at": addon.updated_at.isoformat() if addon.updated_at else None,
+    }
+
+
 # ══════════════════════════════════════════════════════════════════════════════
-# PLAN CRUD
+# PLAN CRUD (operates on V1 Plan model for backward compat, syncs to V2)
 # ══════════════════════════════════════════════════════════════════════════════
 
 @router.get("")
@@ -383,14 +457,12 @@ async def create_plan(data: PlanCreate, user: AuthContext = Depends(get_current_
                 slug=data.slug,
                 name=data.name,
                 description=data.description,
-                tier=_infer_tier(data.price_monthly_cents),
                 price_monthly_cents=data.price_monthly_cents,
                 price_yearly_cents=data.price_yearly_cents or 0,
                 trial_days=data.trial_days,
                 display_order=data.display_order,
                 is_active=data.is_active,
                 is_public=data.is_public,
-                legacy_plan_id=plan.id,
             )
             db.add(v2_plan)
             db.commit()
@@ -433,9 +505,9 @@ async def update_plan(plan_id: int, data: PlanUpdate, user: AuthContext = Depend
         db.commit()
         db.refresh(plan)
 
-        # Sync V2 plan if exists
+        # Sync V2 plan if exists (match by slug)
         try:
-            v2_plan = db.query(PlanV2).filter(PlanV2.legacy_plan_id == plan_id).first()
+            v2_plan = db.query(PlanV2).filter(PlanV2.slug == plan.slug).first()
             if v2_plan:
                 if "name" in update_data:
                     v2_plan.name = update_data["name"]
@@ -463,7 +535,7 @@ async def update_plan(plan_id: int, data: PlanUpdate, user: AuthContext = Depend
         billing_events.log(
             db=db,
             tenant_id=None,
-            event_type=BillingEventType.PLAN_CHANGED,
+            event_type=BillingEventType.PLAN_UPDATED,
             payload={"plan_id": plan_id, "changes": update_data},
             actor_type="system_admin",
             actor_id=str(user.user_id),
@@ -503,9 +575,9 @@ async def delete_plan(plan_id: int, user: AuthContext = Depends(get_current_user
             except Exception as e:
                 logger.warning("billing.stripe_archive_failed", error=str(e))
 
-        # Archive V2 plan
+        # Archive V2 plan (match by slug)
         try:
-            v2_plan = db.query(PlanV2).filter(PlanV2.legacy_plan_id == plan_id).first()
+            v2_plan = db.query(PlanV2).filter(PlanV2.slug == plan.slug).first()
             if v2_plan:
                 v2_plan.is_active = False
                 db.commit()
@@ -518,7 +590,7 @@ async def delete_plan(plan_id: int, user: AuthContext = Depends(get_current_user
         billing_events.log(
             db=db,
             tenant_id=None,
-            event_type=BillingEventType.PLAN_CHANGED,
+            event_type=BillingEventType.PLAN_ARCHIVED,
             payload={"plan_id": plan_id, "action": "deleted"},
             actor_type="system_admin",
             actor_id=str(user.user_id),
@@ -539,7 +611,7 @@ async def list_features(user: AuthContext = Depends(get_current_user)):
     require_role(user, {"system_admin"})
     db = SessionLocal()
     try:
-        features = db.query(FeatureV2).order_by(FeatureV2.category.asc(), FeatureV2.key.asc()).all()
+        features = db.query(Feature).order_by(Feature.category.asc(), Feature.key.asc()).all()
         return [_feature_to_dict(f) for f in features]
     except Exception:
         return []
@@ -553,18 +625,18 @@ async def create_feature(data: FeatureCreate, user: AuthContext = Depends(get_cu
     require_role(user, {"system_admin"})
     db = SessionLocal()
     try:
-        existing = db.query(FeatureV2).filter(FeatureV2.key == data.key).first()
+        existing = db.query(Feature).filter(Feature.key == data.key).first()
         if existing:
             raise HTTPException(status_code=400, detail=f"Feature '{data.key}' existiert bereits")
 
         feature_type = FeatureType(data.feature_type) if data.feature_type in [e.value for e in FeatureType] else FeatureType.BOOLEAN
 
-        feature = FeatureV2(
+        feature = Feature(
             key=data.key,
             name=data.name,
             description=data.description,
             feature_type=feature_type,
-            unit_label=data.unit_label,
+            unit=data.unit,
             category=data.category,
         )
         db.add(feature)
@@ -586,7 +658,7 @@ async def update_feature(feature_id: int, data: FeatureUpdate, user: AuthContext
     require_role(user, {"system_admin"})
     db = SessionLocal()
     try:
-        feature = db.query(FeatureV2).filter(FeatureV2.id == feature_id).first()
+        feature = db.query(Feature).filter(Feature.id == feature_id).first()
         if not feature:
             raise HTTPException(status_code=404, detail="Feature nicht gefunden")
 
@@ -605,33 +677,39 @@ async def update_feature(feature_id: int, data: FeatureUpdate, user: AuthContext
 
 @router.get("/{plan_id}/features")
 async def get_plan_features(plan_id: int, user: AuthContext = Depends(get_current_user)):
-    """Get all feature entitlements for a specific plan."""
+    """Get all feature entitlements for a specific plan via its FeatureSet."""
     require_role(user, {"system_admin"})
     db = SessionLocal()
     try:
-        # Get V2 plan
-        v2_plan = db.query(PlanV2).filter(
-            (PlanV2.legacy_plan_id == plan_id) | (PlanV2.id == plan_id)
-        ).first()
+        # Try to find V2 plan by ID or by matching V1 plan slug
+        v2_plan = db.query(PlanV2).filter(PlanV2.id == plan_id).first()
         if not v2_plan:
+            # Try matching by V1 plan slug
+            v1_plan = db.query(Plan).filter(Plan.id == plan_id).first()
+            if v1_plan:
+                v2_plan = db.query(PlanV2).filter(PlanV2.slug == v1_plan.slug).first()
+
+        if not v2_plan or not v2_plan.feature_set_id:
             return []
 
-        entitlements = db.query(PlanFeatureEntitlementV2).filter(
-            PlanFeatureEntitlementV2.plan_id == v2_plan.id
+        entitlements = db.query(FeatureEntitlement).filter(
+            FeatureEntitlement.feature_set_id == v2_plan.feature_set_id
         ).all()
 
         result = []
         for e in entitlements:
-            feature = db.query(FeatureV2).filter(FeatureV2.id == e.feature_id).first()
+            feature = db.query(Feature).filter(Feature.id == e.feature_id).first()
             result.append({
                 "entitlement_id": e.id,
                 "feature_id": e.feature_id,
                 "feature_key": feature.key if feature else None,
                 "feature_name": feature.name if feature else None,
-                "enabled": e.enabled,
-                "soft_limit": e.soft_limit,
+                "feature_type": feature.feature_type.value if feature and isinstance(feature.feature_type, FeatureType) else None,
+                "value_bool": e.value_bool,
+                "value_limit": e.value_limit,
+                "value_tier": e.value_tier,
                 "hard_limit": e.hard_limit,
-                "config_json": e.config_json,
+                "overage_price_cents": e.overage_price_cents,
             })
 
         return result
@@ -642,33 +720,49 @@ async def get_plan_features(plan_id: int, user: AuthContext = Depends(get_curren
 @router.put("/{plan_id}/features")
 async def set_plan_features(
     plan_id: int,
-    entitlements: List[PlanFeatureEntitlementSet],
+    entitlements: List[FeatureEntitlementSet],
     user: AuthContext = Depends(get_current_user),
 ):
-    """Set feature entitlements for a plan (replaces all existing)."""
+    """Set feature entitlements for a plan's feature set (replaces all existing)."""
     require_role(user, {"system_admin"})
     db = SessionLocal()
     try:
-        v2_plan = db.query(PlanV2).filter(
-            (PlanV2.legacy_plan_id == plan_id) | (PlanV2.id == plan_id)
-        ).first()
+        v2_plan = db.query(PlanV2).filter(PlanV2.id == plan_id).first()
+        if not v2_plan:
+            v1_plan = db.query(Plan).filter(Plan.id == plan_id).first()
+            if v1_plan:
+                v2_plan = db.query(PlanV2).filter(PlanV2.slug == v1_plan.slug).first()
+
         if not v2_plan:
             raise HTTPException(status_code=404, detail="V2-Plan nicht gefunden")
 
+        # Ensure plan has a feature set
+        if not v2_plan.feature_set_id:
+            fs = FeatureSet(
+                name=f"{v2_plan.name} Features",
+                slug=f"{v2_plan.slug}-features",
+                description=f"Feature set for {v2_plan.name}",
+            )
+            db.add(fs)
+            db.flush()
+            v2_plan.feature_set_id = fs.id
+            db.commit()
+
         # Delete existing entitlements
-        db.query(PlanFeatureEntitlementV2).filter(
-            PlanFeatureEntitlementV2.plan_id == v2_plan.id
+        db.query(FeatureEntitlement).filter(
+            FeatureEntitlement.feature_set_id == v2_plan.feature_set_id
         ).delete()
 
         # Create new entitlements
         for e in entitlements:
-            db.add(PlanFeatureEntitlementV2(
-                plan_id=v2_plan.id,
+            db.add(FeatureEntitlement(
+                feature_set_id=v2_plan.feature_set_id,
                 feature_id=e.feature_id,
-                enabled=e.enabled,
-                soft_limit=e.soft_limit,
+                value_bool=e.value_bool,
+                value_limit=e.value_limit,
+                value_tier=e.value_tier,
                 hard_limit=e.hard_limit,
-                config_json=e.config_json,
+                overage_price_cents=e.overage_price_cents,
             ))
 
         db.commit()
@@ -714,6 +808,24 @@ async def create_addon(data: AddonCreate, user: AuthContext = Depends(get_curren
         db.add(addon)
         db.commit()
         db.refresh(addon)
+
+        # Also create V2 addon record
+        try:
+            v2_addon = AddonDefinitionV2(
+                slug=data.slug,
+                name=data.name,
+                description=data.description,
+                category=data.category,
+                icon=data.icon,
+                price_monthly_cents=data.price_monthly_cents,
+                features_json=data.features_json,
+                is_active=data.is_active,
+                display_order=data.display_order,
+            )
+            db.add(v2_addon)
+            db.commit()
+        except Exception as exc:
+            logger.warning("billing.v2_addon_create_failed", error=str(exc))
 
         if is_stripe_configured():
             await push_addon_to_stripe(db, addon)
@@ -914,11 +1026,8 @@ async def get_subscribers(user: AuthContext = Depends(get_current_user)):
         result = []
         for sub in subs:
             plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
-            tenant = db.query(
-                __import__("app.core.models", fromlist=["Tenant"]).Tenant
-            ).filter(
-                __import__("app.core.models", fromlist=["Tenant"]).Tenant.id == sub.tenant_id
-            ).first() if sub.tenant_id else None
+            from app.core.models import Tenant
+            tenant = db.query(Tenant).filter(Tenant.id == sub.tenant_id).first() if sub.tenant_id else None
 
             result.append({
                 "tenant_id": sub.tenant_id,
@@ -1037,18 +1146,33 @@ async def list_public_addons():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# INTERNAL HELPERS
+# V2 PLAN ENDPOINTS (for future full migration)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _infer_tier(price_monthly_cents: int) -> str:
-    """Infer plan tier from monthly price."""
-    if price_monthly_cents == 0:
-        return "free"
-    elif price_monthly_cents <= 2900:
-        return "starter"
-    elif price_monthly_cents <= 7900:
-        return "professional"
-    elif price_monthly_cents <= 19900:
-        return "business"
-    else:
-        return "enterprise"
+@router.get("/v2/plans")
+async def list_v2_plans(user: AuthContext = Depends(get_current_user)):
+    """List all V2 plans with full details."""
+    require_role(user, {"system_admin"})
+    db = SessionLocal()
+    try:
+        plans = db.query(PlanV2).order_by(
+            PlanV2.display_order.asc(), PlanV2.price_monthly_cents.asc()
+        ).all()
+        return [_v2_plan_to_dict(p) for p in plans]
+    finally:
+        db.close()
+
+
+@router.get("/v2/addons")
+async def list_v2_addons(user: AuthContext = Depends(get_current_user)):
+    """List all V2 addon definitions."""
+    require_role(user, {"system_admin"})
+    db = SessionLocal()
+    try:
+        addons = db.query(AddonDefinitionV2).order_by(
+            AddonDefinitionV2.display_order.asc(),
+            AddonDefinitionV2.name.asc(),
+        ).all()
+        return [_v2_addon_to_dict(a) for a in addons]
+    finally:
+        db.close()

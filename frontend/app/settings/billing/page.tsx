@@ -476,44 +476,63 @@ export default function BillingPage() {
           {/* V2 Billing Event Log */}
           <BillingEventLog limit={10} />
 
-          {/* Dynamic Add-ons */}
-          {addons.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <LayoutGrid size={20} className="text-indigo-600" /> Verfügbare Add-ons
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {addons.map(a => (
-                  <div
-                    key={a.slug}
-                    className="p-4 rounded-xl border border-slate-200 bg-white hover:border-indigo-200 transition-colors flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="font-bold text-slate-900">{a.name}</span>
-                        <span className="text-xs font-bold text-indigo-600">
-                          +{(a.price_monthly_cents / 100).toFixed(0)}€/mtl.
-                        </span>
-                      </div>
-                      {a.description && (
-                        <p className="text-xs text-slate-500 leading-relaxed">{a.description}</p>
-                      )}
-                      {a.category && (
-                        <Badge variant="default" size="xs" className="mt-2">{a.category}</Badge>
-                      )}
+          {/* Dynamic Add-ons - grouped by category */}
+          {addons.length > 0 && (() => {
+            const grouped = addons.reduce((acc, a) => {
+              const cat = a.category || "other";
+              if (!acc[cat]) acc[cat] = [];
+              acc[cat].push(a);
+              return acc;
+            }, {} as Record<string, AddonPublic[]>);
+            const catLabels: Record<string, string> = {
+              ai: "KI & Automatisierung", channel: "Kanäle", analytics: "Analytics",
+              integration: "Integrationen", branding: "Branding", automation: "Automatisierung",
+              developer: "Entwickler", support: "Support", other: "Weitere",
+            };
+            return (
+              <div className="flex flex-col gap-4">
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <LayoutGrid size={20} className="text-indigo-600" /> Verfügbare Add-ons
+                </h3>
+                {Object.entries(grouped).map(([cat, items]) => (
+                  <div key={cat}>
+                    {Object.keys(grouped).length > 1 && (
+                      <h4 className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2">
+                        {catLabels[cat] || cat}
+                      </h4>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {items.map(a => (
+                        <div
+                          key={a.slug}
+                          className="p-4 rounded-xl border border-slate-200 bg-white hover:border-indigo-200 transition-colors flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="font-bold text-slate-900">{a.name}</span>
+                              <span className="text-xs font-bold text-indigo-600">
+                                +{(a.price_monthly_cents / 100).toFixed(0)}€/mtl.
+                              </span>
+                            </div>
+                            {a.description && (
+                              <p className="text-xs text-slate-500 leading-relaxed">{a.description}</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleAddonCheckout(a)}
+                            disabled={!a.stripe_price_id || checkoutLoading === a.slug}
+                            className="mt-4 text-xs font-bold text-slate-400 hover:text-indigo-600 flex items-center gap-1 transition-colors disabled:opacity-50"
+                          >
+                            {checkoutLoading === a.slug ? "Wird geladen..." : "Hinzufügen"} <Plus size={12} />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <button
-                      onClick={() => handleAddonCheckout(a)}
-                      disabled={!a.stripe_price_id || checkoutLoading === a.slug}
-                      className="mt-4 text-xs font-bold text-slate-400 hover:text-indigo-600 flex items-center gap-1 transition-colors disabled:opacity-50"
-                    >
-                      {checkoutLoading === a.slug ? "Wird geladen..." : "Hinzufügen"} <Plus size={12} />
-                    </button>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* ── Right Column: Plan Comparison ── */}
@@ -853,6 +872,13 @@ function UsageCard({ label, used, limit, unit }: {
         {isWarning && limit && (
           <div className="flex items-center gap-1 text-[10px] text-amber-600 font-bold">
             <AlertTriangle size={10} /> Limit fast erreicht
+          </div>
+        )}
+        {isDanger && limit && (
+          <div className="mt-2 p-2 bg-amber-50 border border-amber-100 rounded-lg">
+            <p className="text-[10px] text-amber-700">
+              Bei Überschreitung wird nutzungsbasiert abgerechnet.
+            </p>
           </div>
         )}
       </div>

@@ -13,6 +13,7 @@ import {
   Headphones, Eye, Plug, Users, BarChart3, Palette, HelpCircle,
   ChevronRight, Loader2, Star, Shield, Brain, Phone, Mail,
   Instagram, Facebook, MapPin, Bot, ScrollText, Cpu, Link2,
+  TrendingUp, Activity, Code2, Globe, Award,
 } from "lucide-react";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
@@ -64,6 +65,7 @@ function Section({ children, className = "" }: { children: React.ReactNode; clas
 const ADDON_ICONS: Record<string, any> = {
   BarChart3, Headphones, Eye, MessageSquare, Brain, Sparkles,
   Zap, Shield, Bot, Phone, Cpu, Users, Palette, ScrollText,
+  TrendingUp, Activity, Code2, Globe, Award, Link2,
 };
 
 const ADDON_COLORS: Record<string, string> = {
@@ -72,7 +74,29 @@ const ADDON_COLORS: Record<string, string> = {
   analytics: "oklch(0.8 0.16 85)",
   integration: "oklch(0.62 0.18 160)",
   security: "oklch(0.7 0.14 40)",
+  branding: "oklch(0.75 0.15 50)",
+  automation: "oklch(0.65 0.20 180)",
+  developer: "oklch(0.70 0.16 220)",
+  support: "oklch(0.72 0.12 60)",
 };
+
+const CATEGORY_LABELS: Record<string, string> = {
+  ai: "KI & Automatisierung",
+  channel: "Kanäle",
+  analytics: "Analytics & Insights",
+  integration: "Integrationen",
+  branding: "Branding",
+  automation: "Automatisierung",
+  developer: "Entwickler",
+  support: "Support",
+};
+
+const OVERAGE_METRICS = [
+  { label: "Zusätzliche Kontakte", price: "10 €", unit: "pro 1.000", icon: Users },
+  { label: "Zusätzliche AI-Nachrichten", price: "5 €", unit: "pro 1.000", icon: MessageSquare },
+  { label: "Zusätzliche AI-Tokens", price: "2 €", unit: "pro 100.000", icon: Cpu },
+  { label: "Zusätzliche Kampagnen", price: "5 €", unit: "pro 10", icon: TrendingUp },
+];
 
 function getAddonIcon(iconName: string | null) {
   if (!iconName) return Sparkles;
@@ -302,54 +326,110 @@ export default function PricingClient() {
         </div>
       </Section>
 
-      {/* Add-ons - Dynamic from DB */}
-      {addons.length > 0 && (
-        <Section className="py-20 lg:py-28">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-14">
-              <span className="inline-block text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "oklch(0.62 0.22 292)" }}>{t("pricing.addonsTitle")}</span>
-              <h2 className="text-2xl lg:text-4xl font-bold tracking-tight mb-4" style={{ color: "oklch(0.97 0.005 270)" }}>
-                {t("pricing.addonsSubtitle")} <span style={{ color: "oklch(0.62 0.22 292)" }}>{t("pricing.addonsSubtitleAccent")}</span>
-              </h2>
-              <p className="text-base max-w-xl mx-auto" style={{ color: "oklch(0.65 0.015 270)" }}>{t("pricing.addonsDesc")}</p>
-            </div>
-            <div className={`grid gap-4 max-w-5xl mx-auto ${
-              addons.length <= 2 ? "sm:grid-cols-2 max-w-2xl" :
-              addons.length === 3 ? "sm:grid-cols-3 max-w-4xl" :
-              "sm:grid-cols-2 lg:grid-cols-4"
-            }`}>
-              {addons.map((addon, i) => {
-                const IconComp = getAddonIcon(addon.icon);
-                const color = getAddonColor(addon.category);
+      {/* Add-ons - Dynamic from DB, grouped by category */}
+      {addons.length > 0 && (() => {
+        const grouped = addons.reduce((acc, addon) => {
+          const cat = addon.category || "other";
+          if (!acc[cat]) acc[cat] = [];
+          acc[cat].push(addon);
+          return acc;
+        }, {} as Record<string, AddonPublic[]>);
+        const categories = Object.keys(grouped);
 
-                return (
-                  <motion.div
-                    key={addon.slug}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: i * 0.06 }}
-                    className="p-5 rounded-xl group hover:scale-[1.03] transition-all duration-300"
-                    style={{ background: "oklch(0.12 0.04 270)", border: "1px solid oklch(0.22 0.04 270)" }}
-                  >
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: `${color}12` }}>
-                      <IconComp size={18} style={{ color }} />
-                    </div>
-                    <div className="text-xl font-bold mb-1" style={{ color }}>
-                      +{(addon.price_monthly_cents / 100).toFixed(0)}€
-                      <span className="text-xs font-normal" style={{ color: "oklch(0.6 0.015 270)" }}>/{t("pricing.monthly").toLowerCase()}</span>
-                    </div>
-                    <h3 className="text-sm font-semibold mb-2" style={{ color: "oklch(0.92 0.005 270)" }}>{addon.name}</h3>
-                    {addon.description && (
-                      <p className="text-xs leading-relaxed" style={{ color: "oklch(0.6 0.015 270)" }}>{addon.description}</p>
-                    )}
-                  </motion.div>
-                );
-              })}
+        return (
+          <Section className="py-20 lg:py-28">
+            <div className="container mx-auto px-4">
+              <div className="text-center mb-14">
+                <span className="inline-block text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "oklch(0.62 0.22 292)" }}>{t("pricing.addonsTitle")}</span>
+                <h2 className="text-2xl lg:text-4xl font-bold tracking-tight mb-4" style={{ color: "oklch(0.97 0.005 270)" }}>
+                  {t("pricing.addonsSubtitle")} <span style={{ color: "oklch(0.62 0.22 292)" }}>{t("pricing.addonsSubtitleAccent")}</span>
+                </h2>
+                <p className="text-base max-w-xl mx-auto" style={{ color: "oklch(0.65 0.015 270)" }}>{t("pricing.addonsDesc")}</p>
+              </div>
+
+              {categories.map((cat) => (
+                <div key={cat} className="max-w-5xl mx-auto mb-10">
+                  {categories.length > 1 && (
+                    <h3 className="text-sm font-semibold uppercase tracking-wider mb-4 ml-1" style={{ color: getAddonColor(cat) }}>
+                      {CATEGORY_LABELS[cat] || cat}
+                    </h3>
+                  )}
+                  <div className={`grid gap-4 ${
+                    grouped[cat].length <= 2 ? "sm:grid-cols-2 max-w-2xl" :
+                    grouped[cat].length === 3 ? "sm:grid-cols-3" :
+                    "sm:grid-cols-2 lg:grid-cols-4"
+                  }`}>
+                    {grouped[cat].map((addon, i) => {
+                      const IconComp = getAddonIcon(addon.icon);
+                      const color = getAddonColor(addon.category);
+                      return (
+                        <motion.div
+                          key={addon.slug}
+                          initial={{ opacity: 0, y: 20 }}
+                          whileInView={{ opacity: 1, y: 0 }}
+                          viewport={{ once: true }}
+                          transition={{ duration: 0.4, delay: i * 0.06 }}
+                          className="p-5 rounded-xl group hover:scale-[1.03] transition-all duration-300"
+                          style={{ background: "oklch(0.12 0.04 270)", border: "1px solid oklch(0.22 0.04 270)" }}
+                        >
+                          <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: `${color}12` }}>
+                            <IconComp size={18} style={{ color }} />
+                          </div>
+                          <div className="text-xl font-bold mb-1" style={{ color }}>
+                            +{(addon.price_monthly_cents / 100).toFixed(0)}€
+                            <span className="text-xs font-normal" style={{ color: "oklch(0.6 0.015 270)" }}>/{t("pricing.monthly").toLowerCase()}</span>
+                          </div>
+                          <h3 className="text-sm font-semibold mb-2" style={{ color: "oklch(0.92 0.005 270)" }}>{addon.name}</h3>
+                          {addon.description && (
+                            <p className="text-xs leading-relaxed" style={{ color: "oklch(0.6 0.015 270)" }}>{addon.description}</p>
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+        );
+      })()}
+
+      {/* Overage / Usage-Based Pricing */}
+      <Section className="py-16 lg:py-20">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-10">
+              <span className="inline-block text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "oklch(0.62 0.22 292)" }}>Nutzungsbasiert</span>
+              <h2 className="text-2xl lg:text-3xl font-bold tracking-tight mb-4" style={{ color: "oklch(0.97 0.005 270)" }}>
+                Flexibel <span style={{ color: "oklch(0.62 0.22 292)" }}>skalieren</span>
+              </h2>
+              <p className="text-base max-w-xl mx-auto" style={{ color: "oklch(0.65 0.015 270)" }}>
+                Ihr Kontingent ist aufgebraucht? Kein Problem – zahlen Sie nur, was Sie zusätzlich verbrauchen.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {OVERAGE_METRICS.map((metric, i) => (
+                <motion.div
+                  key={metric.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.08 }}
+                  className="p-5 rounded-xl text-center"
+                  style={{ background: "oklch(0.12 0.04 270)", border: "1px solid oklch(0.22 0.04 270)" }}
+                >
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-3" style={{ background: "oklch(0.62 0.22 292 / 0.1)" }}>
+                    <metric.icon size={20} style={{ color: "oklch(0.62 0.22 292)" }} />
+                  </div>
+                  <div className="text-2xl font-bold mb-1" style={{ color: "oklch(0.97 0.005 270)" }}>{metric.price}</div>
+                  <div className="text-xs mb-2" style={{ color: "oklch(0.62 0.22 292)" }}>{metric.unit}</div>
+                  <div className="text-xs" style={{ color: "oklch(0.6 0.015 270)" }}>{metric.label}</div>
+                </motion.div>
+              ))}
             </div>
           </div>
-        </Section>
-      )}
+        </div>
+      </Section>
 
       {/* FAQ */}
       <Section className="py-20 lg:py-28">

@@ -206,11 +206,11 @@ app.include_router(_mc.router)
 app.include_router(admin_router)
 app.include_router(billing_router, prefix="/admin")
 
-# V2 Billing Routers
+# V2 Billing Routers (under /v2 prefix to coexist with V1 during migration)
 if _billing_v2_available:
     try:
-        app.include_router(billing_v2_router, prefix="/admin")
-        app.include_router(billing_v2_admin_router)
+        app.include_router(billing_v2_router, prefix="/v2")
+        app.include_router(billing_v2_admin_router, prefix="/v2")
         logger.info("ariia.gateway.billing_v2_routers_registered")
     except Exception as _bv2_reg_err:
         logger.warning("ariia.gateway.billing_v2_registration_failed", error=str(_bv2_reg_err))

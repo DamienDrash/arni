@@ -181,7 +181,7 @@ async def get_subscription_status(
             "billing_interval": sub.billing_interval.value if isinstance(sub.billing_interval, BillingInterval) else str(sub.billing_interval) if sub.billing_interval else "month",
             "stripe_subscription_id": sub.stripe_subscription_id,
             "trial_end": sub.trial_end.isoformat() if sub.trial_end else None,
-            "extra_tokens_balance": sub.extra_tokens_balance or 0,
+            "extra_tokens_balance": getattr(sub, 'extra_tokens_balance', 0) or 0,
         }
 
         if sub.cancel_at_period_end:
@@ -824,7 +824,8 @@ async def verify_checkout_session(
             if tokens_amount > 0:
                 sub = subscription_service.get_subscription(db, user.tenant_id)
                 if sub:
-                    sub.extra_tokens_balance = (sub.extra_tokens_balance or 0) + tokens_amount
+                    current_balance = getattr(sub, 'extra_tokens_balance', 0) or 0
+                    sub.extra_tokens_balance = current_balance + tokens_amount
                     db.commit()
                 result["plan_activated"] = True
                 result["message"] = f"{tokens_amount:,} Tokens erfolgreich hinzugefügt"
