@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Modal } from "@/components/ui/Modal";
+import { AdminBillingDashboard } from "@/components/billing/AdminBillingDashboard";
+import { FeatureDefinitionsTable } from "@/components/billing/AdminBillingDashboard";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
@@ -305,7 +307,7 @@ export default function PlansPage() {
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
-  const [activeTab, setActiveTab] = useState<"plans" | "addons" | "stripe">("plans");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "plans" | "addons" | "stripe">("dashboard");
 
   // Stripe Credentials
   const [stripeConfig, setStripeConfig] = useState<StripeConnectors["stripe"] | null>(null);
@@ -535,11 +537,17 @@ export default function PlansPage() {
         active={activeTab}
         onChange={(id) => setActiveTab(id as any)}
         tabs={[
+          { id: "dashboard", label: "Dashboard", icon: <BarChart3 size={14} /> },
           { id: "plans", label: "Pläne", icon: <Layers3 size={14} /> },
           { id: "addons", label: "Add-ons", icon: <Puzzle size={14} /> },
           { id: "stripe", label: "Stripe Credentials", icon: <CreditCard size={14} /> },
         ]}
       />
+
+      {/* ═══ DASHBOARD TAB ═══ */}
+      {activeTab === "dashboard" && (
+        <AdminBillingDashboard />
+      )}
 
       {/* ═══ PLANS TAB ═══ */}
       {activeTab === "plans" && (
