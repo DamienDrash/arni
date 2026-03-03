@@ -268,7 +268,7 @@ async def unsubscribe_page(recipient_id: int, request: Request):
         contact_name = ""
         tenant_name = ""
         if contact:
-            contact_name = contact.first_name or (contact.name or "").split()[0] if contact.name else ""
+            contact_name = contact.first_name or ""
             contact.consent_email = False
             logger.info("unsubscribe.contact_opted_out", contact_id=contact.id)
 
