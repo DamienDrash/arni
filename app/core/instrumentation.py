@@ -47,25 +47,127 @@ AUTH_SYSTEM_STATUS = Gauge(
     "Status of system admin account (1=OK, 0=Failure)",
 )
 
+# --- Campaign Engine Metrics ---
+
+CAMPAIGN_SEND_TOTAL = Counter(
+    "ariia_campaign_emails_sent_total",
+    "Total campaign emails sent by status and tenant",
+    ["status", "channel", "tenant_id"],
+)
+
+CAMPAIGN_SEND_DURATION = Histogram(
+    "ariia_campaign_send_duration_seconds",
+    "Time to send a single campaign email",
+    ["channel"],
+    buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
+)
+
+CAMPAIGN_QUEUE_SIZE = Gauge(
+    "ariia_campaign_send_queue_size",
+    "Current number of messages in the send queue",
+)
+
+CAMPAIGN_DLQ_SIZE = Gauge(
+    "ariia_campaign_dlq_size",
+    "Current number of messages in the dead letter queue",
+)
+
+CAMPAIGN_SCHEDULER_RUNS = Counter(
+    "ariia_campaign_scheduler_runs_total",
+    "Total campaign scheduler job runs by type",
+    ["job_type", "result"],
+)
+
+CAMPAIGN_ACTIVE_COUNT = Gauge(
+    "ariia_campaigns_active",
+    "Number of campaigns currently in sending/queued state",
+    ["status"],
+)
+
+
 @router.get("/metrics")
 def metrics():
     """Expose Prometheus metrics with synthetic checks."""
-    # 1. Run synthetic auth check
     from app.core.db import SessionLocal
-    from app.core.models import UserAccount
+    from app.core.models import UserAccount, Campaign
     db = SessionLocal()
     try:
+        # 1. Run synthetic auth check
         admin = db.query(UserAccount).filter(
-            UserAccount.role == "system_admin", 
+            UserAccount.role == "system_admin",
             UserAccount.is_active == True
         ).first()
         AUTH_SYSTEM_STATUS.set(1 if admin else 0)
+
+        # 2. Campaign queue metrics
+        try:
+            from app.campaign_engine.send_queue import get_queue_length, get_dlq_length
+            CAMPAIGN_QUEUE_SIZE.set(max(get_queue_length(), 0))
+            CAMPAIGN_DLQ_SIZE.set(max(get_dlq_length(), 0))
+        except Exception:
+            pass
+
+        # 3. Active campaign counts
+        try:
+            for status in ["queued", "sending", "ab_testing", "scheduled"]:
+                count = db.query(Campaign).filter(Campaign.status == status).count()
+                CAMPAIGN_ACTIVE_COUNT.labels(status=status).set(count)
+        except Exception:
+            pass
+
     except Exception:
         AUTH_SYSTEM_STATUS.set(0)
     finally:
         db.close()
-        
+
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+@router.get("/health/campaigns")
+def campaign_health():
+    """Dedicated health endpoint for the campaign subsystem."""
+    health = {
+        "status": "healthy",
+        "components": {},
+    }
+
+    # Check Redis connectivity (send queue)
+    try:
+        from app.campaign_engine.send_queue import get_queue_length, get_dlq_length
+        q_len = get_queue_length()
+        dlq_len = get_dlq_length()
+        health["components"]["redis"] = {
+            "status": "healthy" if q_len >= 0 else "unhealthy",
+            "send_queue_length": max(q_len, 0),
+            "dlq_length": max(dlq_len, 0),
+        }
+        if q_len < 0:
+            health["status"] = "degraded"
+    except Exception as e:
+        health["components"]["redis"] = {"status": "unhealthy", "error": str(e)}
+        health["status"] = "degraded"
+
+    # Check database connectivity
+    from app.core.db import SessionLocal
+    try:
+        db = SessionLocal()
+        from app.core.models import Campaign
+        active = db.query(Campaign).filter(
+            Campaign.status.in_(["queued", "sending", "ab_testing"])
+        ).count()
+        scheduled = db.query(Campaign).filter(Campaign.status == "scheduled").count()
+        health["components"]["database"] = {
+            "status": "healthy",
+            "active_campaigns": active,
+            "scheduled_campaigns": scheduled,
+        }
+        db.close()
+    except Exception as e:
+        health["components"]["database"] = {"status": "unhealthy", "error": str(e)}
+        health["status"] = "unhealthy"
+
+    return health
+
 
 def setup_logging():
     """Configure structlog with PII masking."""
