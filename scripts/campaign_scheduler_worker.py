@@ -214,10 +214,12 @@ def get_step_channel(campaign, step=None) -> str:
 async def render_and_send(db: Session, campaign, contacts: list):
     """Render personalized messages and send via the appropriate adapter.
 
-    Supports both single-channel and multi-step orchestration campaigns.
+    Supports both single-channel, multi-step orchestration, and A/B test campaigns.
+    For A/B tests: splits recipients into test/holdout groups, sends variants to
+    test groups, and schedules evaluation after the test duration.
     """
     from app.campaign_engine.renderer import MessageRenderer
-    from app.core.models import CampaignRecipient, Tenant
+    from app.core.models import CampaignRecipient, CampaignVariant, Tenant
 
     renderer = MessageRenderer()
     tenant = db.query(Tenant).filter(Tenant.id == campaign.tenant_id).first()
@@ -238,6 +240,133 @@ async def render_and_send(db: Session, campaign, contacts: list):
     sent_count = 0
     failed_count = 0
 
+    # ── A/B Test: Split recipients and send variants ──────────────────
+    if campaign.is_ab_test:
+        from app.campaign_engine.ab_testing import ABTestingEngine
+        ab_engine = ABTestingEngine(db)
+
+        # Create recipient records for all contacts first
+        contact_recipient_map = {}
+        for contact in contacts:
+            recipient = CampaignRecipient(
+                campaign_id=campaign.id,
+                tenant_id=campaign.tenant_id,
+                member_id=getattr(contact, "id", None),
+                contact_id=getattr(contact, "id", None),
+                channel=channel,
+                status="pending",
+                current_step=1 if has_orchestration else None,
+            )
+            db.add(recipient)
+            db.flush()
+            contact_recipient_map[recipient.id] = contact
+
+        # Split into test/holdout groups
+        all_recipient_ids = list(contact_recipient_map.keys())
+        groups = ab_engine.split_recipients(campaign, all_recipient_ids)
+
+        # Get variants
+        variants = (
+            db.query(CampaignVariant)
+            .filter(CampaignVariant.campaign_id == campaign.id)
+            .order_by(CampaignVariant.variant_name)
+            .all()
+        )
+        variant_map = {v.variant_name: v for v in variants}
+
+        # Send test variants
+        for group_name, recipient_ids in groups.items():
+            if group_name == "holdout":
+                # Mark holdout recipients as waiting
+                for rid in recipient_ids:
+                    r = db.query(CampaignRecipient).filter(CampaignRecipient.id == rid).first()
+                    if r:
+                        r.status = "holdout"
+                        r.variant_name = "holdout"
+                continue
+
+            # Extract variant name from group name (e.g., "test_A" → "A")
+            variant_name = group_name.replace("test_", "")
+            variant = variant_map.get(variant_name)
+
+            for rid in recipient_ids:
+                contact = contact_recipient_map.get(rid)
+                recipient = db.query(CampaignRecipient).filter(CampaignRecipient.id == rid).first()
+                if not contact or not recipient:
+                    failed_count += 1
+                    continue
+
+                try:
+                    # Override campaign content with variant content for rendering
+                    original_subject = campaign.content_subject
+                    original_body = campaign.content_body
+                    original_html = campaign.content_html
+
+                    if variant:
+                        if variant.content_subject:
+                            campaign.content_subject = variant.content_subject
+                        if variant.content_body:
+                            campaign.content_body = variant.content_body
+                        if variant.content_html:
+                            campaign.content_html = variant.content_html
+
+                    rendered = await renderer.render(
+                        db, campaign, contact,
+                        recipient_id=recipient.id,
+                    )
+
+                    # Restore original content
+                    campaign.content_subject = original_subject
+                    campaign.content_body = original_body
+                    campaign.content_html = original_html
+
+                    success = await dispatch_message(
+                        db=db, tenant=tenant, channel=channel,
+                        contact=contact, rendered=rendered,
+                    )
+
+                    recipient.status = "sent" if success else "failed"
+                    recipient.sent_at = datetime.now(timezone.utc) if success else None
+                    recipient.variant_name = variant_name
+                    if not success:
+                        recipient.error_message = "Dispatch failed"
+
+                    # Update variant stats
+                    if variant and success:
+                        variant.stats_sent = (variant.stats_sent or 0) + 1
+
+                    if success:
+                        sent_count += 1
+                    else:
+                        failed_count += 1
+
+                except Exception as e:
+                    logger.error(
+                        "scheduler.ab_send_failed",
+                        campaign_id=campaign.id,
+                        variant=variant_name,
+                        error=str(e),
+                    )
+                    failed_count += 1
+
+        # Update campaign – mark as "ab_testing" (not fully "sent" yet)
+        campaign.stats_sent = sent_count
+        campaign.stats_failed = failed_count
+        campaign.status = "ab_testing"
+        campaign.sent_at = datetime.now(timezone.utc)
+        db.commit()
+
+        logger.info(
+            "scheduler.ab_test_started",
+            campaign_id=campaign.id,
+            campaign_name=campaign.name,
+            test_sent=sent_count,
+            holdout_size=len(groups.get("holdout", [])),
+            duration_hours=campaign.ab_test_duration_hours,
+        )
+        return
+
+    # ── Standard send (non-A/B) ───────────────────────────────────────
     for contact in contacts:
         try:
             # Create recipient record first (needed for tracking)
@@ -458,6 +587,148 @@ async def dispatch_message(db, tenant, channel: str, contact, rendered) -> bool:
 
 # ── Main Processing Loop ─────────────────────────────────────────────
 
+async def evaluate_ab_tests(db: Session):
+    """Check for A/B tests whose test duration has expired and evaluate them.
+
+    If ab_test_auto_send is True, automatically sends the winning variant
+    to the holdout group.
+    """
+    from app.core.models import Campaign, CampaignRecipient
+    from app.campaign_engine.ab_testing import ABTestingEngine
+    from app.campaign_engine.renderer import MessageRenderer
+
+    now = datetime.now(timezone.utc)
+
+    # Find campaigns in "ab_testing" status whose test period has elapsed
+    ab_campaigns = (
+        db.query(Campaign)
+        .filter(
+            Campaign.status == "ab_testing",
+            Campaign.sent_at.isnot(None),
+        )
+        .all()
+    )
+
+    for campaign in ab_campaigns:
+        duration_hours = campaign.ab_test_duration_hours or 4
+        test_end = campaign.sent_at + timedelta(hours=duration_hours)
+
+        if now < test_end:
+            continue  # Test still running
+
+        logger.info(
+            "scheduler.ab_test_evaluating",
+            campaign_id=campaign.id,
+            campaign_name=campaign.name,
+        )
+
+        ab_engine = ABTestingEngine(db)
+        winner = ab_engine.evaluate_test(campaign)
+
+        if not winner:
+            logger.warning("scheduler.ab_test_no_winner", campaign_id=campaign.id)
+            campaign.status = "sent"
+            db.commit()
+            continue
+
+        # If auto_send is enabled, send winner to holdout group
+        if campaign.ab_test_auto_send:
+            winner_content = ab_engine.get_winner_content(campaign)
+            if winner_content:
+                await _send_to_holdout(
+                    db, campaign, winner_content,
+                )
+
+        campaign.status = "sent"
+        db.commit()
+
+        logger.info(
+            "scheduler.ab_test_completed",
+            campaign_id=campaign.id,
+            winner=winner.variant_name,
+            auto_sent=campaign.ab_test_auto_send,
+        )
+
+
+async def _send_to_holdout(db: Session, campaign, winner_content: dict):
+    """Send the winning variant to the holdout group."""
+    from app.campaign_engine.renderer import MessageRenderer
+    from app.core.models import CampaignRecipient, Tenant
+    from app.core.contact_models import Contact
+
+    renderer = MessageRenderer()
+    tenant = db.query(Tenant).filter(Tenant.id == campaign.tenant_id).first()
+    channel = campaign.channel
+
+    # Get holdout recipients
+    holdout_recipients = (
+        db.query(CampaignRecipient)
+        .filter(
+            CampaignRecipient.campaign_id == campaign.id,
+            CampaignRecipient.status == "holdout",
+        )
+        .all()
+    )
+
+    if not holdout_recipients:
+        return
+
+    # Temporarily override campaign content with winner content
+    original_subject = campaign.content_subject
+    original_body = campaign.content_body
+    original_html = campaign.content_html
+
+    campaign.content_subject = winner_content.get("subject", original_subject)
+    campaign.content_body = winner_content.get("body", original_body)
+    campaign.content_html = winner_content.get("html", original_html)
+
+    sent_count = 0
+    for recipient in holdout_recipients:
+        contact_id = recipient.contact_id or recipient.member_id
+        contact = db.query(Contact).filter(Contact.id == contact_id).first()
+        if not contact:
+            continue
+
+        try:
+            rendered = await renderer.render(
+                db, campaign, contact,
+                recipient_id=recipient.id,
+            )
+
+            success = await dispatch_message(
+                db=db, tenant=tenant, channel=channel,
+                contact=contact, rendered=rendered,
+            )
+
+            recipient.status = "sent" if success else "failed"
+            recipient.sent_at = datetime.now(timezone.utc) if success else None
+            recipient.variant_name = winner_content.get("variant_name", "winner")
+
+            if success:
+                sent_count += 1
+                campaign.stats_sent = (campaign.stats_sent or 0) + 1
+
+        except Exception as e:
+            logger.error(
+                "scheduler.holdout_send_failed",
+                recipient_id=recipient.id,
+                error=str(e),
+            )
+
+    # Restore original content
+    campaign.content_subject = original_subject
+    campaign.content_body = original_body
+    campaign.content_html = original_html
+
+    db.commit()
+    logger.info(
+        "scheduler.holdout_sent",
+        campaign_id=campaign.id,
+        holdout_total=len(holdout_recipients),
+        sent=sent_count,
+    )
+
+
 async def process_campaigns():
     """Main processing loop iteration."""
     db = SessionLocal()
@@ -486,7 +757,10 @@ async def process_campaigns():
                 campaign.status = "failed"
                 db.commit()
 
-        # 3. Process orchestration follow-up steps
+        # 3. Evaluate A/B tests whose test period has ended
+        await evaluate_ab_tests(db)
+
+        # 4. Process orchestration follow-up steps
         pending_steps = get_orchestration_pending(db)
         for recipient, campaign, step in pending_steps:
             logger.info(
