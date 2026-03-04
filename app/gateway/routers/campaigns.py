@@ -609,7 +609,11 @@ async def send_campaign(
     user: AuthContext = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Send a campaign immediately via the configured email channel."""
+    """Send a campaign immediately via the configured email channel.
+
+    Uses the centralized MessageRenderer for consistent rendering,
+    tracking pixel injection, and link rewriting.
+    """
     campaign = db.query(Campaign).filter(
         Campaign.id == campaign_id,
         Campaign.tenant_id == user.tenant_id,
@@ -626,18 +630,14 @@ async def send_campaign(
     if not members:
         raise HTTPException(status_code=400, detail="No recipients found for this campaign")
 
-    # Load template if linked
-    template = None
-    if campaign.template_id:
-        template = db.query(CampaignTemplate).filter(
-            CampaignTemplate.id == campaign.template_id
-        ).first()
-
     # Resolve SMTP config for this tenant via connector_hub persistence keys
     from app.gateway.persistence import persistence
     from app.integrations.email import SMTPMailer
+    from app.campaign_engine.renderer import MessageRenderer
     import smtplib as _smtplib
     from email.message import EmailMessage as _EmailMessage
+    import asyncio
+    import os
 
     def _cfg(field: str, default: str = "") -> str:
         key = f"integration_smtp_email_{user.tenant_id}_{field}"
@@ -665,8 +665,8 @@ async def send_campaign(
     campaign.stats_total = len(members)
     db.commit()
 
-    # Determine base URL for unsubscribe links
-    import os
+    # Initialize the centralized renderer (handles templates, tracking, link rewriting)
+    renderer = MessageRenderer()
     base_url = os.environ.get("PUBLIC_BASE_URL", "https://dev.ariia.ai/proxy")
 
     sent_count = 0
@@ -682,7 +682,7 @@ async def send_campaign(
             logger.info("campaign.skip_no_consent", contact_id=contact.id)
             continue
 
-        # Create recipient record FIRST so we have an ID for the unsubscribe URL
+        # Create recipient record FIRST so we have an ID for tracking
         recipient = CampaignRecipient(
             campaign_id=campaign_id,
             contact_id=contact.id,
@@ -693,11 +693,29 @@ async def send_campaign(
         db.add(recipient)
         db.flush()  # Get the recipient.id without committing
 
-        subject, html_body = _render_campaign_email(
-            campaign, template, contact,
-            recipient_id=recipient.id,
-            base_url=base_url,
-        )
+        try:
+            # Use the centralized MessageRenderer for consistent rendering
+            # This handles: template resolution, Jinja2 personalization,
+            # tracking pixel injection, and link rewriting
+            rendered = await renderer.render(
+                db, campaign, contact,
+                recipient_id=recipient.id,
+            )
+            subject = rendered.subject
+            html_body = rendered.body_html
+        except Exception as e:
+            logger.warning("campaign.render_fallback", contact_id=contact.id, error=str(e))
+            # Fallback to legacy renderer if MessageRenderer fails
+            template = None
+            if campaign.template_id:
+                template = db.query(CampaignTemplate).filter(
+                    CampaignTemplate.id == campaign.template_id
+                ).first()
+            subject, html_body = _render_campaign_email(
+                campaign, template, contact,
+                recipient_id=recipient.id,
+                base_url=base_url,
+            )
 
         if campaign.channel == "email" and mailer:
             try:
@@ -712,7 +730,6 @@ async def send_campaign(
                 msg.set_content(html_body, subtype="html")
 
                 # Send synchronously (in async context via run_in_executor)
-                import asyncio
                 loop = asyncio.get_event_loop()
 
                 def _do_send():
@@ -744,6 +761,7 @@ async def send_campaign(
                 logger.info("campaign.email_sent", contact_id=contact.id, to=contact.email)
             except Exception as e:
                 recipient.status = "failed"
+                recipient.error_message = str(e)[:500]
                 failed_count += 1
                 logger.error("campaign.email_failed", contact_id=contact.id, error=str(e))
         else:
@@ -1189,12 +1207,31 @@ def _resolve_target_members(db: Session, tenant_id: int, target_type: str, filte
 
     if target_type == "segment" and filter_json:
         try:
+            from app.core.contact_models import ContactSegment
+            from app.contacts.repository import ContactRepository
             filters = json.loads(filter_json)
             segment_id = filters.get("segment_id")
             if segment_id:
-                segment = db.query(MemberSegment).filter(MemberSegment.id == segment_id).first()
-                if segment and segment.filter_json:
+                # Try new ContactSegment model first
+                segment = db.query(ContactSegment).filter(
+                    ContactSegment.id == segment_id,
+                    ContactSegment.tenant_id == tenant_id,
+                ).first()
+                if segment and segment.filter_groups_json:
+                    repo = ContactRepository()
+                    filter_groups = json.loads(segment.filter_groups_json)
+                    group_connector = segment.group_connector or "and"
+                    contacts, _total = repo.evaluate_segment_v2(
+                        db, tenant_id, filter_groups, group_connector,
+                        page=1, page_size=100000,
+                    )
+                    return contacts
+                elif segment and segment.filter_json:
                     return _apply_segment_filter(db, tenant_id, segment.filter_json)
+                # Fallback to legacy MemberSegment
+                legacy_segment = db.query(MemberSegment).filter(MemberSegment.id == segment_id).first()
+                if legacy_segment and legacy_segment.filter_json:
+                    return _apply_segment_filter(db, tenant_id, legacy_segment.filter_json)
         except (json.JSONDecodeError, TypeError):
             pass
 
