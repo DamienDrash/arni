@@ -464,3 +464,44 @@ class WebhookEndpoint(Base):
             "last_received_at": self.last_received_at.isoformat() if self.last_received_at else None,
             "total_received": self.total_received or 0,
         }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Helper: Resolve integration config from Settings (persistence layer)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def get_integration_config(tenant_id: int, connector_id: str) -> dict | None:
+    """
+    Load integration configuration for a given tenant and connector from the
+    Settings table.  Keys follow the pattern used by connector_hub:
+        integration_{connector_id}_{tenant_id}_{field}
+
+    Returns a dict with all stored fields, or None if the integration is not
+    configured / not enabled.
+    """
+    from app.gateway.persistence import persistence
+
+    def _get(field: str, default: str = "") -> str:
+        key = f"integration_{connector_id}_{tenant_id}_{field}"
+        return persistence.get_setting(key, default, tenant_id=tenant_id) or default
+
+    enabled = _get("enabled", "false").lower() == "true"
+    if not enabled:
+        return None
+
+    # Collect all common fields
+    config: dict = {}
+    common_fields = [
+        "host", "port", "username", "password",
+        "from_email", "from_name", "use_starttls",
+        "imap_host", "imap_port",
+        "bot_token", "server_token",
+        "api_key", "api_secret",
+        "webhook_url", "verify_token",
+    ]
+    for field in common_fields:
+        val = _get(field)
+        if val:
+            config[field] = val
+
+    return config if config else None
