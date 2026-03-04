@@ -52,7 +52,7 @@ class AnalyticsProcessor:
             campaign = db.query(Campaign).filter(
                 Campaign.id == recipient.campaign_id
             ).first()
-            contact_id = recipient.contact_id or recipient.member_id
+            contact_id = recipient.contact_id
             tenant_id = recipient.tenant_id or (campaign.tenant_id if campaign else None)
             channel = recipient.channel or (campaign.channel if campaign else raw_event.get("channel", "email"))
         else:

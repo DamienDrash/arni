@@ -251,7 +251,7 @@ async def render_and_send(db: Session, campaign, contacts: list):
             recipient = CampaignRecipient(
                 campaign_id=campaign.id,
                 tenant_id=campaign.tenant_id,
-                member_id=getattr(contact, "id", None),
+                member_id=None,  # Legacy FK to studio_members – not used
                 contact_id=getattr(contact, "id", None),
                 channel=channel,
                 status="pending",
@@ -373,7 +373,7 @@ async def render_and_send(db: Session, campaign, contacts: list):
             recipient = CampaignRecipient(
                 campaign_id=campaign.id,
                 tenant_id=campaign.tenant_id,
-                member_id=getattr(contact, "id", None),
+                member_id=None,  # Legacy FK to studio_members – not used
                 contact_id=getattr(contact, "id", None),
                 channel=channel,
                 status="pending",
@@ -444,7 +444,7 @@ async def process_orchestration_step(db: Session, recipient, campaign, step):
 
     renderer = MessageRenderer()
     tenant = db.query(Tenant).filter(Tenant.id == campaign.tenant_id).first()
-    contact = db.query(Contact).filter(Contact.id == (recipient.contact_id or recipient.member_id)).first()
+    contact = db.query(Contact).filter(Contact.id == recipient.contact_id).first()
 
     if not contact:
         logger.warning("scheduler.orchestration_no_contact", recipient_id=recipient.id)
@@ -684,7 +684,7 @@ async def _send_to_holdout(db: Session, campaign, winner_content: dict):
 
     sent_count = 0
     for recipient in holdout_recipients:
-        contact_id = recipient.contact_id or recipient.member_id
+        contact_id = recipient.contact_id
         contact = db.query(Contact).filter(Contact.id == contact_id).first()
         if not contact:
             continue
