@@ -431,14 +431,17 @@ def _all_tool_definitions() -> dict[str, ToolDefinition]:
             description=(
                 "Get a Calendly booking link for online appointment scheduling. "
                 "Call this tool when the user wants to book an appointment, consultation, "
-                "or meeting via Calendly."
+                "or meeting. IMPORTANT: If the user does not specify a concrete event type, "
+                "call this tool with an EMPTY event_type_name to proactively list ALL "
+                "available appointment types with their booking links. Do NOT ask the user "
+                "to choose first – show them the options directly."
             ),
             parameters=[
                 ToolParameter(
                     name="event_type_name",
                     type="string",
-                    description="The type of appointment to book (e.g. 'Erstgespräch', 'Beratung', 'Personal Training')",
-                    required=True,
+                    description="The type of appointment to book (e.g. 'Erstgespräch', 'Beratung', 'Personal Training'). Leave EMPTY to list all available types.",
+                    required=False,
                 ),
             ],
         ),

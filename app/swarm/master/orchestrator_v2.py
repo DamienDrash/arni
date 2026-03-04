@@ -62,6 +62,13 @@ REGELN:
 - Nutze knowledge_base für Fakten über das Unternehmen.
 - Deine Antwort muss sich anfühlen wie aus einem Guss – nicht wie zusammengestückelt.
 - Antworte in der Sprache des Nutzers.
+
+TONALITÄT:
+- Verwende IMMER die Du-Form ("du", "dein", "dir") – NIEMALS die Sie-Form.
+- Sei freundlich, empathisch und professionell.
+- Halte Antworten kurz und prägnant (max. 3-4 Sätze), es sei denn der Nutzer fragt nach Details.
+- Vermeide Fachjargon – erkläre einfach und verständlich.
+- Wenn du Preise nennst, beziehe dich IMMER auf die offizielle Preisliste.
 """
 
 
@@ -411,7 +418,12 @@ class MasterAgentV2(BaseAgent):
     async def _handle_calendly_booking(
         self, tc: ToolCallRequest, message: InboundMessage
     ) -> ToolCallResult:
-        """Get a Calendly booking link for the given event type."""
+        """Get a Calendly booking link for the given event type.
+
+        P2-FIX: When no event_type_name is provided, proactively lists
+        all available event types with booking links instead of asking
+        the user to specify one first.
+        """
         event_type_name = tc.arguments.get("event_type_name", "")
         try:
             from app.swarm.tools.calendly_tools import get_booking_link

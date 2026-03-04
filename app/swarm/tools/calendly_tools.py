@@ -47,7 +47,7 @@ async def get_booking_link(
     adapter = CalendlyAdapter()
 
     # Step 1: Get all event types
-    result = await adapter.execute("scheduling.event_types.list", tenant_id)
+    result = await adapter.execute_capability("scheduling.event_types.list", tenant_id)
 
     if not result.success:
         logger.warning(
@@ -113,7 +113,7 @@ async def list_event_types(tenant_id: int = 1) -> str:
     from app.integrations.adapters.calendly_adapter import CalendlyAdapter
 
     adapter = CalendlyAdapter()
-    result = await adapter.execute("scheduling.event_types.list", tenant_id)
+    result = await adapter.execute_capability("scheduling.event_types.list", tenant_id)
 
     if not result.success:
         return f"Fehler beim Abrufen der Terminarten: {result.error}"
@@ -151,7 +151,7 @@ async def get_upcoming_events(
     from app.integrations.adapters.calendly_adapter import CalendlyAdapter
 
     adapter = CalendlyAdapter()
-    result = await adapter.execute(
+    result = await adapter.execute_capability(
         "scheduling.events.list",
         tenant_id,
         status="active",
