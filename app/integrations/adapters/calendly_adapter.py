@@ -125,17 +125,36 @@ class CalendlyAdapter(BaseAdapter):
         """Get Calendly credentials for a tenant.
 
         Returns (api_token, organization_uri).
+        Looks up keys using the standard integration naming convention:
+          integration_calendly_{tenant_id}_api_key
+        Falls back to legacy key names for backwards compatibility.
         """
         try:
             from app.gateway.persistence import persistence
 
-            api_token = (persistence.get_setting(f"calendly_api_key_{tenant_id}") or
-                         persistence.get_setting("calendly_api_key", "")).strip()
-            org_uri = (persistence.get_setting(f"calendly_organization_uri_{tenant_id}") or
-                       persistence.get_setting("calendly_organization_uri", "")).strip()
+            # Standard integration naming convention (set by Connector Hub)
+            api_token = (
+                persistence.get_setting(f"integration_calendly_{tenant_id}_api_key", "", tenant_id=tenant_id) or
+                # Legacy fallback keys
+                persistence.get_setting(f"calendly_api_key_{tenant_id}", "", tenant_id=tenant_id) or
+                persistence.get_setting("calendly_api_key", "", tenant_id=tenant_id)
+            ).strip()
+
+            org_uri = (
+                persistence.get_setting(f"integration_calendly_{tenant_id}_organization_uri", "", tenant_id=tenant_id) or
+                # Legacy fallback keys
+                persistence.get_setting(f"calendly_organization_uri_{tenant_id}", "", tenant_id=tenant_id) or
+                persistence.get_setting("calendly_organization_uri", "", tenant_id=tenant_id)
+            ).strip()
+
+            logger.debug("calendly.credentials_loaded",
+                         tenant_id=tenant_id,
+                         has_token=bool(api_token),
+                         has_org_uri=bool(org_uri))
 
             return api_token or None, org_uri or None
-        except Exception:
+        except Exception as exc:
+            logger.error("calendly.credentials_load_failed", tenant_id=tenant_id, error=str(exc))
             return None, None
 
     async def _calendly_request(
