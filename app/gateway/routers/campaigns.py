@@ -464,8 +464,12 @@ async def get_campaign_preview(
     if not campaign:
         raise HTTPException(status_code=404, detail="Preview not found or expired")
 
-    if campaign.preview_expires_at and campaign.preview_expires_at < datetime.now(timezone.utc):
-        raise HTTPException(status_code=410, detail="Preview has expired")
+    if campaign.preview_expires_at:
+        expires_at = campaign.preview_expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < datetime.now(timezone.utc):
+            raise HTTPException(status_code=410, detail="Preview has expired")
 
     # Get template if linked
     template = None
