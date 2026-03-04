@@ -147,6 +147,12 @@ services:
       - AUTH_SECRET=${AUTH_SECRET}
     depends_on:
       - ariia-core
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import redis,os; r=redis.Redis.from_url(os.environ.get(\"REDIS_URL\",\"redis://ariia-redis:6379/0\")); r.ping()' && ps aux | grep -v grep | grep email_polling || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     volumes:
       - .:/app
       - ariia_data:/app/data
@@ -163,10 +169,15 @@ services:
       - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
       - AUTH_SECRET=${AUTH_SECRET}
       - CAMPAIGN_POLL_INTERVAL=30
+      - TRACKING_BASE_URL=${TRACKING_BASE_URL:-https://api.ariia.app}
     depends_on:
       - ariia-core
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep campaign_scheduler || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     volumes:
       - ariia_data:/app/data
     networks:
@@ -222,11 +233,15 @@ services:
       - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
       - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
       - AUTH_SECRET=${AUTH_SECRET}
-      - ANALYTICS_POLL_INTERVAL=30
+      - ANALYTICS_POLL_INTERVAL=2
     depends_on:
       - ariia-core
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "python -c 'import redis,os; r=redis.Redis.from_url(os.environ.get(\"REDIS_URL\",\"redis://ariia-redis:6379/0\")); r.ping()' && ps aux | grep -v grep | grep analytics_processing || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     volumes:
       - ariia_data:/app/data
     networks:
