@@ -4,7 +4,7 @@ import {
   Sparkles, Mail, MessageSquare, Smartphone, Send, Globe,
   Calendar, Users, Target, Filter, CheckCircle,
   ArrowRight, ArrowLeft, Eye, Loader2, BookOpen,
-  AlertCircle, Layers,
+  AlertCircle, Layers, Search, X,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/tokens";
@@ -18,6 +18,8 @@ import ABTestConfig from "@/components/campaigns/ABTestConfig";
 interface Template { id: number; name: string; type: string; primary_color: string | null; is_default: boolean; }
 interface Segment { id: number; name: string; description: string | null; member_count: number; }
 interface ContactSegment { id: number; name: string; description: string | null; contact_count?: number; }
+interface ContactItem { id: number; first_name: string; last_name: string; email: string; phone?: string; company?: string; tags?: { name: string; color?: string }[]; }
+interface TagItem { id: number; name: string; color?: string; contact_count?: number; }
 interface WizardProps { onCreated: () => void; onCancel: () => void; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -91,6 +93,15 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
   ]);
   const [showOrchestration, setShowOrchestration] = useState(false);
 
+  // Tags & Manual Contact Selection State
+  const [allTags, setAllTags] = useState<TagItem[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [allContacts, setAllContacts] = useState<ContactItem[]>([]);
+  const [selectedContactIds, setSelectedContactIds] = useState<number[]>([]);
+  const [contactSearch, setContactSearch] = useState("");
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [tagsLoading, setTagsLoading] = useState(false);
+
   // A/B Testing State
   const [abEnabled, setAbEnabled] = useState(false);
   const [abVariants, setAbVariants] = useState<{variant_name:string;content_subject:string;content_body:string;content_html:string;percentage:number}[]>([
@@ -119,6 +130,28 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
     load();
   }, []);
 
+  /* ─── Load Tags when "tags" target selected ─────────────────────────── */
+  useEffect(() => {
+    if (form.target_type === "tags" && allTags.length === 0) {
+      setTagsLoading(true);
+      apiFetch("/api/v2/contacts/tags")
+        .then(async (res) => { if (res.ok) { const data = await res.json(); setAllTags(data.items || data || []); } })
+        .catch(() => {})
+        .finally(() => setTagsLoading(false));
+    }
+  }, [form.target_type]);
+
+  /* ─── Load Contacts when "selected" target selected ─────────────────── */
+  useEffect(() => {
+    if (form.target_type === "selected" && allContacts.length === 0) {
+      setContactsLoading(true);
+      apiFetch("/api/v2/contacts?limit=200")
+        .then(async (res) => { if (res.ok) { const data = await res.json(); setAllContacts(data.items || data || []); } })
+        .catch(() => {})
+        .finally(() => setContactsLoading(false));
+    }
+  }, [form.target_type]);
+
   /* ─── Actions ────────────────────────────────────────────────────────── */
 
   const handleCreate = async () => {
@@ -132,7 +165,10 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
           target_type: form.target_type, template_id: form.template_id || undefined,
           content_subject: form.content_subject || undefined, content_body: form.content_body || undefined,
           ai_prompt: form.ai_prompt || undefined, scheduled_at: form.scheduled_at || undefined,
-          target_filter_json: form.target_segment_id ? JSON.stringify({ segment_id: form.target_segment_id }) : undefined,
+          target_filter_json: form.target_segment_id ? JSON.stringify({ segment_id: form.target_segment_id })
+            : form.target_type === "tags" && selectedTags.length > 0 ? JSON.stringify({ tags: selectedTags })
+            : form.target_type === "selected" && selectedContactIds.length > 0 ? JSON.stringify({ contact_ids: selectedContactIds })
+            : undefined,
         }),
       });
       if (!res.ok) { setAiError("Kampagne konnte nicht erstellt werden."); setCreating(false); return; }
@@ -387,6 +423,154 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                 )}
               </div>
             )}
+
+            {/* Tag Picker */}
+            {form.target_type === "tags" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <label style={S.label}>Tags auswählen</label>
+                {tagsLoading ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "16px 0", justifyContent: "center" }}>
+                    <Loader2 size={16} style={{ color: T.accent, animation: "spin 1s linear infinite" }} />
+                    <span style={{ fontSize: 13, color: T.textMuted }}>Tags werden geladen...</span>
+                  </div>
+                ) : allTags.length === 0 ? (
+                  <p style={{ fontSize: 13, color: T.textDim, padding: "16px 0", textAlign: "center" }}>Keine Tags vorhanden. Erstellen Sie zuerst Tags im Kontakte-Modul.</p>
+                ) : (
+                  <>
+                    {selectedTags.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
+                        {selectedTags.map((tag) => (
+                          <span key={tag} style={{
+                            display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8,
+                            background: T.accentDim, border: `1px solid ${T.accent}`, fontSize: 12, fontWeight: 600, color: T.accentLight,
+                          }}>
+                            {tag}
+                            <button onClick={() => setSelectedTags(selectedTags.filter(t => t !== tag))} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
+                              <X size={12} style={{ color: T.textMuted }} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {allTags.map((tag) => {
+                        const isSelected = selectedTags.includes(tag.name);
+                        return (
+                          <button key={tag.id} onClick={() => {
+                            setSelectedTags(isSelected ? selectedTags.filter(t => t !== tag.name) : [...selectedTags, tag.name]);
+                          }} style={{
+                            display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 10,
+                            border: `1px solid ${isSelected ? T.accent : T.border}`, background: isSelected ? T.accentDim : T.surfaceAlt,
+                            cursor: "pointer", transition: "all .15s", fontSize: 12, fontWeight: 600,
+                            color: isSelected ? T.accentLight : T.textMuted,
+                          }}>
+                            {tag.color && <div style={{ width: 8, height: 8, borderRadius: "50%", background: tag.color, flexShrink: 0 }} />}
+                            {tag.name}
+                            {tag.contact_count !== undefined && (
+                              <span style={{ fontSize: 10, color: T.textDim, marginLeft: 2 }}>({tag.contact_count})</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedTags.length > 0 && (
+                      <p style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>
+                        {selectedTags.length} Tag{selectedTags.length !== 1 ? "s" : ""} ausgewählt
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Manual Contact Picker */}
+            {form.target_type === "selected" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <label style={S.label}>Kontakte auswählen</label>
+                {/* Search */}
+                <div style={{ position: "relative" }}>
+                  <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: T.textDim }} />
+                  <input
+                    type="text" placeholder="Kontakte suchen (Name, E-Mail, Firma)..."
+                    value={contactSearch} onChange={(e) => setContactSearch(e.target.value)}
+                    style={{ ...S.input, paddingLeft: 36 }}
+                  />
+                </div>
+                {/* Selected Contacts */}
+                {selectedContactIds.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {selectedContactIds.map((cid) => {
+                      const c = allContacts.find(ct => ct.id === cid);
+                      return c ? (
+                        <span key={cid} style={{
+                          display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8,
+                          background: T.accentDim, border: `1px solid ${T.accent}`, fontSize: 12, fontWeight: 600, color: T.accentLight,
+                        }}>
+                          {c.first_name} {c.last_name}
+                          <button onClick={() => setSelectedContactIds(selectedContactIds.filter(id => id !== cid))} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
+                            <X size={12} style={{ color: T.textMuted }} />
+                          </button>
+                        </span>
+                      ) : null;
+                    })}
+                    <p style={{ width: "100%", fontSize: 11, color: T.textMuted }}>
+                      {selectedContactIds.length} Kontakt{selectedContactIds.length !== 1 ? "e" : ""} ausgewählt
+                    </p>
+                  </div>
+                )}
+                {/* Contact List */}
+                {contactsLoading ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "16px 0", justifyContent: "center" }}>
+                    <Loader2 size={16} style={{ color: T.accent, animation: "spin 1s linear infinite" }} />
+                    <span style={{ fontSize: 13, color: T.textMuted }}>Kontakte werden geladen...</span>
+                  </div>
+                ) : (
+                  <div style={{ maxHeight: 280, overflowY: "auto", border: `1px solid ${T.border}`, borderRadius: 12, background: T.surfaceAlt }}>
+                    {allContacts
+                      .filter((c) => {
+                        if (!contactSearch.trim()) return true;
+                        const q = contactSearch.toLowerCase();
+                        return (
+                          (c.first_name || "").toLowerCase().includes(q) ||
+                          (c.last_name || "").toLowerCase().includes(q) ||
+                          (c.email || "").toLowerCase().includes(q) ||
+                          (c.company || "").toLowerCase().includes(q)
+                        );
+                      })
+                      .map((c) => {
+                        const isSelected = selectedContactIds.includes(c.id);
+                        return (
+                          <button key={c.id} onClick={() => {
+                            setSelectedContactIds(isSelected ? selectedContactIds.filter(id => id !== c.id) : [...selectedContactIds, c.id]);
+                          }} style={{
+                            display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", width: "100%",
+                            borderBottom: `1px solid ${T.border}`, background: isSelected ? T.accentDim : "transparent",
+                            cursor: "pointer", textAlign: "left", transition: "all .12s", border: "none",
+                          }}>
+                            <div style={{
+                              width: 20, height: 20, borderRadius: 4, border: `2px solid ${isSelected ? T.accent : T.border}`,
+                              background: isSelected ? T.accent : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                            }}>
+                              {isSelected && <CheckCircle size={12} style={{ color: "#fff" }} />}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 13, fontWeight: 600, color: T.text, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {c.first_name} {c.last_name}
+                              </p>
+                              <p style={{ fontSize: 11, color: T.textDim, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {c.email}{c.company ? ` · ${c.company}` : ""}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    {allContacts.length === 0 && !contactsLoading && (
+                      <p style={{ fontSize: 13, color: T.textDim, padding: "16px", textAlign: "center" }}>Keine Kontakte vorhanden.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -508,7 +692,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
               {[
                 { label: "Kampagne", value: form.name || "–" },
                 { label: "Kanal", value: CHANNELS.find(c => c.key === form.channel)?.label || form.channel },
-                { label: "Zielgruppe", value: form.target_type === "all_members" ? "Alle Kontakte" : form.target_type === "segment" ? "Segment" : form.target_type },
+                { label: "Zielgruppe", value: form.target_type === "all_members" ? "Alle Kontakte" : form.target_type === "segment" ? (segments.find(s => s.id === form.target_segment_id)?.name || "Segment") : form.target_type === "tags" ? (selectedTags.length > 0 ? `Nach Tags (${selectedTags.join(", ")})` : "Nach Tags") : form.target_type === "selected" ? `Manuell (${selectedContactIds.length} Kontakte)` : form.target_type },
                 { label: "Versand", value: form.scheduled_at ? new Date(form.scheduled_at).toLocaleString("de-DE") : "Sofort nach Freigabe" },
                 { label: "KI-Inhalt", value: form.ai_prompt ? "Ja \u2013 wird nach Erstellung generiert" : "Manuell" },
                 { label: "Orchestrierung", value: showOrchestration && orchSteps.length > 1 ? `${orchSteps.length} Schritte (Omnichannel)` : "Einzelversand" },
