@@ -1,10 +1,14 @@
 """ARIIA v2.2 – Campaign Scheduler Worker with Omnichannel Orchestration.
 
-Polls the database every 30 seconds for campaigns with status='scheduled'
-whose scheduled_at has passed, then dispatches them via the appropriate
-messaging adapter. Supports multi-step orchestration sequences.
+Uses APScheduler for reliable, interval-based job execution instead of a
+manual polling loop. The scheduler runs four jobs:
 
-@ARCH: Campaign Refactoring Phase 1 Task 1.6, Phase 3 Task 3.5
+  1. process_scheduled_campaigns – every 30s (configurable)
+  2. process_approved_campaigns  – every 30s
+  3. evaluate_ab_tests           – every 60s
+  4. process_orchestration_steps – every 30s
+
+@ARCH: Campaign Refactoring Phase 2 – TASK-010
 """
 import asyncio
 import json
@@ -21,6 +25,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+
 logger = structlog.get_logger()
 
 DATABASE_URL = os.environ.get(
@@ -28,8 +35,9 @@ DATABASE_URL = os.environ.get(
     "postgresql+psycopg://ariia:ariia_dev_password@ariia-postgres:5432/ariia",
 )
 POLL_INTERVAL = int(os.environ.get("CAMPAIGN_POLL_INTERVAL", "30"))
+AB_TEST_POLL_INTERVAL = int(os.environ.get("AB_TEST_POLL_INTERVAL", "60"))
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_size=3)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_size=5)
 SessionLocal = sessionmaker(bind=engine)
 
 
@@ -671,11 +679,12 @@ async def _send_to_holdout(db: Session, campaign, winner_content: dict):
         )
 
 
-async def process_campaigns():
-    """Main processing loop iteration."""
+# ── APScheduler Job Functions ────────────────────────────────────────────
+
+async def job_process_scheduled():
+    """APScheduler job: Process scheduled campaigns that are due."""
     db = SessionLocal()
     try:
-        # 1. Process scheduled campaigns that are due
         due_campaigns = get_due_campaigns(db)
         for campaign in due_campaigns:
             logger.info("scheduler.processing_scheduled", campaign_id=campaign.id, name=campaign.name)
@@ -686,8 +695,16 @@ async def process_campaigns():
                 logger.warning("scheduler.no_recipients", campaign_id=campaign.id)
                 campaign.status = "failed"
                 db.commit()
+    except Exception as e:
+        logger.error("scheduler.job_scheduled_error", error=str(e))
+    finally:
+        db.close()
 
-        # 2. Process approved campaigns with immediate send
+
+async def job_process_approved():
+    """APScheduler job: Process approved campaigns with immediate send."""
+    db = SessionLocal()
+    try:
         immediate_campaigns = get_approved_campaigns(db)
         for campaign in immediate_campaigns:
             logger.info("scheduler.processing_immediate", campaign_id=campaign.id, name=campaign.name)
@@ -698,11 +715,27 @@ async def process_campaigns():
                 logger.warning("scheduler.no_recipients", campaign_id=campaign.id)
                 campaign.status = "failed"
                 db.commit()
+    except Exception as e:
+        logger.error("scheduler.job_approved_error", error=str(e))
+    finally:
+        db.close()
 
-        # 3. Evaluate A/B tests whose test period has ended
+
+async def job_evaluate_ab_tests():
+    """APScheduler job: Evaluate A/B tests whose test period has ended."""
+    db = SessionLocal()
+    try:
         await evaluate_ab_tests(db)
+    except Exception as e:
+        logger.error("scheduler.job_ab_test_error", error=str(e))
+    finally:
+        db.close()
 
-        # 4. Process orchestration follow-up steps
+
+async def job_process_orchestration():
+    """APScheduler job: Process orchestration follow-up steps."""
+    db = SessionLocal()
+    try:
         pending_steps = get_orchestration_pending(db)
         for recipient, campaign, step in pending_steps:
             logger.info(
@@ -712,30 +745,71 @@ async def process_campaigns():
                 step_order=step.step_order,
             )
             await process_orchestration_step(db, recipient, campaign, step)
-
     except Exception as e:
-        logger.error("scheduler.process_error", error=str(e))
+        logger.error("scheduler.job_orchestration_error", error=str(e))
     finally:
         db.close()
 
 
-async def main():
-    """Main entry point – polls every POLL_INTERVAL seconds."""
+# ── Main Entry Point ─────────────────────────────────────────────────────
+
+def main():
+    """Main entry point – uses APScheduler for reliable job execution."""
+    scheduler = AsyncIOScheduler(
+        job_defaults={
+            "coalesce": True,          # Merge missed runs into one
+            "max_instances": 1,        # Prevent overlapping runs
+            "misfire_grace_time": 60,  # Allow 60s grace for misfires
+        },
+    )
+
+    # Register jobs with interval triggers
+    scheduler.add_job(
+        job_process_scheduled,
+        trigger=IntervalTrigger(seconds=POLL_INTERVAL),
+        id="process_scheduled_campaigns",
+        name="Process scheduled campaigns",
+    )
+    scheduler.add_job(
+        job_process_approved,
+        trigger=IntervalTrigger(seconds=POLL_INTERVAL),
+        id="process_approved_campaigns",
+        name="Process approved campaigns",
+    )
+    scheduler.add_job(
+        job_evaluate_ab_tests,
+        trigger=IntervalTrigger(seconds=AB_TEST_POLL_INTERVAL),
+        id="evaluate_ab_tests",
+        name="Evaluate A/B tests",
+    )
+    scheduler.add_job(
+        job_process_orchestration,
+        trigger=IntervalTrigger(seconds=POLL_INTERVAL),
+        id="process_orchestration_steps",
+        name="Process orchestration steps",
+    )
+
     logger.info(
         "campaign_scheduler.started",
         poll_interval=POLL_INTERVAL,
+        ab_test_poll_interval=AB_TEST_POLL_INTERVAL,
         database=DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "configured",
-        features=["single_channel", "omnichannel_orchestration", "tracking"],
+        features=["apscheduler", "send_queue", "ab_testing", "orchestration"],
+        jobs=[
+            {"id": j.id, "interval": str(j.trigger)}
+            for j in scheduler.get_jobs()
+        ],
     )
 
-    while True:
-        try:
-            await process_campaigns()
-        except Exception as e:
-            logger.error("campaign_scheduler.loop_error", error=str(e))
+    scheduler.start()
 
-        await asyncio.sleep(POLL_INTERVAL)
+    # Keep the event loop running
+    try:
+        asyncio.get_event_loop().run_forever()
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("campaign_scheduler.shutting_down")
+        scheduler.shutdown()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
