@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 logger = structlog.get_logger()
@@ -681,8 +681,7 @@ async def _send_to_holdout(db: Session, campaign, winner_content: dict):
 
 # ── APScheduler Job Functions ────────────────────────────────────────────
 
-async def job_process_scheduled():
-    """APScheduler job: Process scheduled campaigns that are due."""
+async def _async_job_process_scheduled():
     db = SessionLocal()
     try:
         due_campaigns = get_due_campaigns(db)
@@ -701,8 +700,12 @@ async def job_process_scheduled():
         db.close()
 
 
-async def job_process_approved():
-    """APScheduler job: Process approved campaigns with immediate send."""
+def job_process_scheduled():
+    """APScheduler job: Process scheduled campaigns that are due."""
+    asyncio.run(_async_job_process_scheduled())
+
+
+async def _async_job_process_approved():
     db = SessionLocal()
     try:
         immediate_campaigns = get_approved_campaigns(db)
@@ -721,8 +724,12 @@ async def job_process_approved():
         db.close()
 
 
-async def job_evaluate_ab_tests():
-    """APScheduler job: Evaluate A/B tests whose test period has ended."""
+def job_process_approved():
+    """APScheduler job: Process approved campaigns with immediate send."""
+    asyncio.run(_async_job_process_approved())
+
+
+async def _async_job_evaluate_ab_tests():
     db = SessionLocal()
     try:
         await evaluate_ab_tests(db)
@@ -732,8 +739,12 @@ async def job_evaluate_ab_tests():
         db.close()
 
 
-async def job_process_orchestration():
-    """APScheduler job: Process orchestration follow-up steps."""
+def job_evaluate_ab_tests():
+    """APScheduler job: Evaluate A/B tests whose test period has ended."""
+    asyncio.run(_async_job_evaluate_ab_tests())
+
+
+async def _async_job_process_orchestration():
     db = SessionLocal()
     try:
         pending_steps = get_orchestration_pending(db)
@@ -751,11 +762,16 @@ async def job_process_orchestration():
         db.close()
 
 
+def job_process_orchestration():
+    """APScheduler job: Process orchestration follow-up steps."""
+    asyncio.run(_async_job_process_orchestration())
+
+
 # ── Main Entry Point ─────────────────────────────────────────────────────
 
 def main():
     """Main entry point – uses APScheduler for reliable job execution."""
-    scheduler = AsyncIOScheduler(
+    scheduler = BackgroundScheduler(
         job_defaults={
             "coalesce": True,          # Merge missed runs into one
             "max_instances": 1,        # Prevent overlapping runs
@@ -801,20 +817,15 @@ def main():
         ],
     )
 
-    # Create and set event loop before starting the scheduler
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
     scheduler.start()
 
-    # Keep the event loop running
+    # Keep the main thread alive
     try:
-        loop.run_forever()
+        while True:
+            time.sleep(1)
     except (KeyboardInterrupt, SystemExit):
         logger.info("campaign_scheduler.shutting_down")
         scheduler.shutdown()
-    finally:
-        loop.close()
 
 
 if __name__ == "__main__":
