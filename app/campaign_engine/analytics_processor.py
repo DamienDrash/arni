@@ -170,10 +170,19 @@ class AnalyticsProcessor:
             "campaign_unsubscribed": f"Abmeldung von Kampagne \"{campaign.name}\"",
         }.get(activity_type, f"Kampagnen-Event: {event_type}")
 
+        title_map = {
+            "campaign_opened": f"Kampagne geöffnet",
+            "campaign_clicked": f"Link geklickt",
+            "campaign_converted": f"Conversion",
+            "campaign_unsubscribed": f"Abmeldung",
+        }
+        title = title_map.get(activity_type, f"Kampagnen-Event")
+
         activity = ContactActivity(
             contact_id=contact_id,
             tenant_id=tenant_id,
             activity_type=activity_type,
+            title=title,
             description=description,
             metadata_json=json.dumps({
                 "campaign_id": campaign.id,
