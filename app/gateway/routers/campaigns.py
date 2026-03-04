@@ -1305,3 +1305,43 @@ async def save_orchestration_steps(
 
     db.commit()
     return {"status": "ok", "count": len(payload.steps)}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# QUEUE STATS (v2 endpoint)
+# ══════════════════════════════════════════════════════════════════════════════
+
+v2_campaigns_router = APIRouter(prefix="/v2/admin/campaigns", tags=["campaigns-v2"])
+
+
+@v2_campaigns_router.get("/queue-stats")
+async def get_queue_stats(
+    user: AuthContext = Depends(get_current_user),
+):
+    """Return current send queue statistics for the campaign dashboard."""
+    from app.campaign_engine.send_queue import get_queue_length, get_dlq_length
+
+    send_queue_len = get_queue_length()
+    dlq_len = get_dlq_length()
+
+    # Try to get analytics queue length
+    analytics_queue_len = 0
+    try:
+        import redis as _redis
+        import os
+        r = _redis.Redis.from_url(
+            os.environ.get("REDIS_URL", "redis://ariia-redis:6379/0"),
+            decode_responses=True,
+        )
+        analytics_queue_len = r.llen("analytics:events") or 0
+    except Exception:
+        pass
+
+    return {
+        "send_queue_length": max(send_queue_len, 0),
+        "dead_letter_queue_length": max(dlq_len, 0),
+        "analytics_queue_length": analytics_queue_len,
+        "workers_active": send_queue_len >= 0,  # If Redis is reachable, workers are likely active
+        "last_processed_at": None,
+        "throughput_per_minute": 0,
+    }

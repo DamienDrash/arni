@@ -8,6 +8,9 @@ import {
 } from "lucide-react";
 import { T } from "@/lib/tokens";
 import CreateCampaignWizard from "@/components/campaigns/CreateCampaignWizard";
+import CampaignSendProgress from "@/components/campaigns/CampaignSendProgress";
+import ABTestResults from "@/components/campaigns/ABTestResults";
+import CampaignQueueMonitor from "@/components/campaigns/CampaignQueueMonitor";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { apiFetch } from "@/lib/api";
@@ -64,7 +67,9 @@ const STATUS_MAP: Record<string, { label: string; variant: "success" | "warning"
   pending_review: { label: "Prüfung ausstehend", variant: "warning" },
   approved: { label: "Genehmigt", variant: "success" },
   scheduled: { label: "Geplant", variant: "accent" },
+  queued: { label: "In Warteschlange", variant: "warning" },
   sending: { label: "Wird gesendet...", variant: "info" },
+  ab_testing: { label: "A/B-Test läuft", variant: "accent" },
   sent: { label: "Gesendet", variant: "success" },
   failed: { label: "Fehlgeschlagen", variant: "danger" },
   cancelled: { label: "Abgebrochen", variant: "default" },
@@ -243,6 +248,11 @@ export default function CampaignsPage() {
       {/* View: Campaign List */}
       {!loading && viewMode === "list" && (
         <div>
+          {/* Queue Monitor */}
+          <div style={{ marginBottom: 16 }}>
+            <CampaignQueueMonitor />
+          </div>
+
           {/* Quick Stats */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 24 }}>
             {[
@@ -693,27 +703,18 @@ function CampaignDetailModal({ campaign: c, onClose, onApprove, onSend, onDelete
           </div>
         )}
 
-        {/* Stats */}
-        {c.status === "sent" && (
-          <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>Performance</label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-              {[
-                { label: "Gesendet", value: c.stats_sent, color: T.text },
-                { label: "Zugestellt", value: c.stats_delivered, color: T.success },
-                { label: "Geöffnet", value: c.stats_opened, color: T.info },
-                { label: "Geklickt", value: c.stats_clicked, color: T.warning },
-              ].map((s, i) => (
-                <div key={i} style={{
-                  textAlign: "center", padding: 14, background: T.surfaceAlt,
-                  borderRadius: 10, border: `1px solid ${T.border}`,
-                }}>
-                  <p style={{ fontSize: 22, fontWeight: 800, color: s.color, margin: 0 }}>{s.value}</p>
-                  <p style={{ fontSize: 11, color: T.textMuted, margin: "4px 0 0" }}>{s.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Send Progress (for queued, sending, sent, ab_testing campaigns) */}
+        {["queued", "sending", "sent", "ab_testing"].includes(c.status) && (
+          <CampaignSendProgress
+            campaignId={c.id}
+            campaignStatus={c.status}
+            autoRefresh={["queued", "sending", "ab_testing"].includes(c.status)}
+          />
+        )}
+
+        {/* A/B Test Results (for campaigns with A/B testing) */}
+        {c.is_ab_test && ["sent", "ab_testing"].includes(c.status) && (
+          <ABTestResults campaignId={c.id} />
         )}
 
         {/* Schedule Info */}
