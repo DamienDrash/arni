@@ -662,126 +662,78 @@ async def send_campaign(
             use_starttls=True,
         )
 
+    # Validate SMTP config for email campaigns
+    if not smtp_host and campaign.channel == "email":
+        # Store SMTP config for the sending worker to use later
+        pass  # SMTP config is resolved per-tenant by the sending worker
+
+    # Create recipient records and enqueue into send queue
+    from app.campaign_engine.send_queue import enqueue_campaign_batch
+
     campaign.status = "sending"
     campaign.stats_total = len(members)
     db.commit()
 
-    # Initialize the centralized renderer (handles templates, tracking, link rewriting)
-    renderer = MessageRenderer()
-    base_url = os.environ.get("PUBLIC_BASE_URL", "https://dev.ariia.ai/proxy")
-
-    sent_count = 0
-    failed_count = 0
+    batch_recipients = []
+    skipped_count = 0
 
     for contact in members:
         # Only send to contacts with a valid email and consent
-        if not contact.email:
+        if campaign.channel == "email" and not contact.email:
             logger.warning("campaign.skip_no_email", contact_id=contact.id)
+            skipped_count += 1
             continue
 
         if hasattr(contact, 'consent_email') and contact.consent_email is False:
             logger.info("campaign.skip_no_consent", contact_id=contact.id)
+            skipped_count += 1
             continue
 
-        # Create recipient record FIRST so we have an ID for tracking
+        # Create recipient record (needed for tracking)
         recipient = CampaignRecipient(
             campaign_id=campaign_id,
             contact_id=contact.id,
             tenant_id=user.tenant_id,
             channel=campaign.channel,
-            status="pending",
+            status="queued",
         )
         db.add(recipient)
-        db.flush()  # Get the recipient.id without committing
+        db.flush()  # Get the recipient.id
 
-        try:
-            # Use the centralized MessageRenderer for consistent rendering
-            # This handles: template resolution, Jinja2 personalization,
-            # tracking pixel injection, and link rewriting
-            rendered = await renderer.render(
-                db, campaign, contact,
-                recipient_id=recipient.id,
-            )
-            subject = rendered.subject
-            html_body = rendered.body_html
-        except Exception as e:
-            logger.warning("campaign.render_fallback", contact_id=contact.id, error=str(e))
-            # Fallback to legacy renderer if MessageRenderer fails
-            template = None
-            if campaign.template_id:
-                template = db.query(CampaignTemplate).filter(
-                    CampaignTemplate.id == campaign.template_id
-                ).first()
-            subject, html_body = _render_campaign_email(
-                campaign, template, contact,
-                recipient_id=recipient.id,
-                base_url=base_url,
-            )
+        batch_recipients.append({
+            "recipient_id": recipient.id,
+            "contact_id": contact.id,
+        })
 
-        if campaign.channel == "email" and mailer:
-            try:
-                # Build email message
-                msg = _EmailMessage()
-                msg["Subject"] = " ".join(subject.splitlines()).strip()
-                msg["From"] = f"{mailer.from_name} <{mailer.from_email}>"
-                msg["To"] = contact.email
-                # Add List-Unsubscribe header for email clients
-                msg["List-Unsubscribe"] = f"<{base_url}/unsubscribe/{recipient.id}>"
-                msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-                msg.set_content(html_body, subtype="html")
+    db.commit()
 
-                # Send synchronously (in async context via run_in_executor)
-                loop = asyncio.get_event_loop()
+    # Enqueue all recipients into the send queue for async dispatch
+    enqueued = 0
+    if batch_recipients:
+        enqueued = enqueue_campaign_batch(
+            campaign_id=campaign_id,
+            tenant_id=user.tenant_id,
+            channel=campaign.channel,
+            recipients=batch_recipients,
+        )
 
-                def _do_send():
-                    conn = None
-                    try:
-                        if mailer.port == 465:
-                            conn = _smtplib.SMTP_SSL(mailer.host, mailer.port, timeout=30)
-                            conn.login(mailer.username, mailer.password)
-                            conn.send_message(msg)
-                        else:
-                            conn = _smtplib.SMTP(mailer.host, mailer.port, timeout=30)
-                            conn.ehlo()
-                            if mailer.use_starttls:
-                                conn.starttls()
-                                conn.ehlo()
-                            conn.login(mailer.username, mailer.password)
-                            conn.send_message(msg)
-                    finally:
-                        if conn:
-                            try:
-                                conn.quit()
-                            except Exception:
-                                pass
-
-                await loop.run_in_executor(None, _do_send)
-                recipient.status = "sent"
-                recipient.sent_at = datetime.now(timezone.utc)
-                sent_count += 1
-                logger.info("campaign.email_sent", contact_id=contact.id, to=contact.email)
-            except Exception as e:
-                recipient.status = "failed"
-                recipient.error_message = str(e)[:500]
-                failed_count += 1
-                logger.error("campaign.email_failed", contact_id=contact.id, error=str(e))
-        else:
-            # Non-email channels: mark as sent (placeholder for WhatsApp etc.)
-            recipient.status = "sent"
-            recipient.sent_at = datetime.now(timezone.utc)
-            sent_count += 1
-
-    campaign.status = "sent" if sent_count > 0 else "failed"
-    campaign.stats_sent = sent_count
-    campaign.stats_failed = failed_count
+    # Update campaign status
+    campaign.stats_total = len(batch_recipients)
+    campaign.status = "queued" if enqueued > 0 else "failed"
     campaign.sent_at = datetime.now(timezone.utc)
     db.commit()
 
-    logger.info("campaign.sent", campaign_id=campaign_id, recipients=sent_count, failed=failed_count)
+    logger.info(
+        "campaign.enqueued",
+        campaign_id=campaign_id,
+        enqueued=enqueued,
+        skipped=skipped_count,
+        total_contacts=len(members),
+    )
     return {
         "status": campaign.status,
-        "recipients": sent_count,
-        "failed": failed_count,
+        "recipients": enqueued,
+        "skipped": skipped_count,
         "sent_at": campaign.sent_at.isoformat(),
     }
 

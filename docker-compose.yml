@@ -183,7 +183,34 @@ services:
     networks:
       - ariia-network
 
-  # 7b. Automation Engine Worker
+  # 7b. Sending Worker (async message dispatch)
+  ariia-sending-worker:
+    build: .
+    restart: always
+    command: python scripts/sending_worker.py
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
+      - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - TRACKING_BASE_URL=${TRACKING_BASE_URL:-https://api.ariia.app}
+      - SEND_BATCH_SIZE=50
+      - SEND_POLL_INTERVAL=1
+      - SEND_MAX_RETRIES=3
+    depends_on:
+      - ariia-core
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import redis,os; r=redis.Redis.from_url(os.environ.get(\"REDIS_URL\",\"redis://ariia-redis:6379/0\")); r.ping()'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    volumes:
+      - ariia_data:/app/data
+    networks:
+      - ariia-network
+
+  # 7c. Automation Engine Worker
   ariia-automation-engine:
     build: .
     restart: always

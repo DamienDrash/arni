@@ -274,7 +274,9 @@ async def render_and_send(db: Session, campaign, contacts: list):
         )
         variant_map = {v.variant_name: v for v in variants}
 
-        # Send test variants
+        # Send test variants via send queue
+        from app.campaign_engine.send_queue import enqueue_campaign_batch
+
         for group_name, recipient_ids in groups.items():
             if group_name == "holdout":
                 # Mark holdout recipients as waiting
@@ -287,8 +289,9 @@ async def render_and_send(db: Session, campaign, contacts: list):
 
             # Extract variant name from group name (e.g., "test_A" → "A")
             variant_name = group_name.replace("test_", "")
-            variant = variant_map.get(variant_name)
 
+            # Prepare batch for this variant group
+            variant_batch = []
             for rid in recipient_ids:
                 contact = contact_recipient_map.get(rid)
                 recipient = db.query(CampaignRecipient).filter(CampaignRecipient.id == rid).first()
@@ -296,58 +299,25 @@ async def render_and_send(db: Session, campaign, contacts: list):
                     failed_count += 1
                     continue
 
-                try:
-                    # Override campaign content with variant content for rendering
-                    original_subject = campaign.content_subject
-                    original_body = campaign.content_body
-                    original_html = campaign.content_html
+                recipient.variant_name = variant_name
+                recipient.status = "queued"
+                variant_batch.append({
+                    "recipient_id": rid,
+                    "contact_id": getattr(contact, "id", None),
+                    "variant_name": variant_name,
+                })
+                sent_count += 1
 
-                    if variant:
-                        if variant.content_subject:
-                            campaign.content_subject = variant.content_subject
-                        if variant.content_body:
-                            campaign.content_body = variant.content_body
-                        if variant.content_html:
-                            campaign.content_html = variant.content_html
+            db.commit()
 
-                    rendered = await renderer.render(
-                        db, campaign, contact,
-                        recipient_id=recipient.id,
-                    )
-
-                    # Restore original content
-                    campaign.content_subject = original_subject
-                    campaign.content_body = original_body
-                    campaign.content_html = original_html
-
-                    success = await dispatch_message(
-                        db=db, tenant=tenant, channel=channel,
-                        contact=contact, rendered=rendered,
-                    )
-
-                    recipient.status = "sent" if success else "failed"
-                    recipient.sent_at = datetime.now(timezone.utc) if success else None
-                    recipient.variant_name = variant_name
-                    if not success:
-                        recipient.error_message = "Dispatch failed"
-
-                    # Update variant stats
-                    if variant and success:
-                        variant.stats_sent = (variant.stats_sent or 0) + 1
-
-                    if success:
-                        sent_count += 1
-                    else:
-                        failed_count += 1
-
-                except Exception as e:
-                    logger.error(
-                        "scheduler.ab_send_failed",
-                        campaign_id=campaign.id,
-                        variant=variant_name,
-                        error=str(e),
-                    )
-                    failed_count += 1
+            # Enqueue variant group into send queue
+            if variant_batch:
+                enqueue_campaign_batch(
+                    campaign_id=campaign.id,
+                    tenant_id=campaign.tenant_id,
+                    channel=channel,
+                    recipients=variant_batch,
+                )
 
         # Update campaign – mark as "ab_testing" (not fully "sent" yet)
         campaign.stats_sent = sent_count
@@ -367,55 +337,55 @@ async def render_and_send(db: Session, campaign, contacts: list):
         return
 
     # ── Standard send (non-A/B) ───────────────────────────────────────
+    from app.campaign_engine.send_queue import enqueue_campaign_batch
+
+    batch_recipients = []
     for contact in contacts:
         try:
-            # Create recipient record first (needed for tracking)
+            # Create recipient record (needed for tracking)
             recipient = CampaignRecipient(
                 campaign_id=campaign.id,
                 tenant_id=campaign.tenant_id,
                 member_id=None,  # Legacy FK to studio_members – not used
                 contact_id=getattr(contact, "id", None),
                 channel=channel,
-                status="pending",
+                status="queued",
                 current_step=1 if has_orchestration else None,
             )
             db.add(recipient)
             db.flush()  # Get the recipient.id for tracking
 
-            # Render personalized message (with tracking pixel/link rewriting)
-            rendered = await renderer.render(
-                db, campaign, contact,
-                recipient_id=recipient.id,
-            )
-
-            # Dispatch via adapter
-            success = await dispatch_message(
-                db=db,
-                tenant=tenant,
-                channel=channel,
-                contact=contact,
-                rendered=rendered,
-            )
-
-            # Update recipient status
-            recipient.status = "sent" if success else "failed"
-            recipient.sent_at = datetime.now(timezone.utc) if success else None
-            if not success:
-                recipient.error_message = "Dispatch failed"
-
-            if success:
-                sent_count += 1
-            else:
-                failed_count += 1
+            batch_recipients.append({
+                "recipient_id": recipient.id,
+                "contact_id": getattr(contact, "id", None),
+            })
+            sent_count += 1
 
         except Exception as e:
             logger.error(
-                "scheduler.send_failed",
+                "scheduler.recipient_create_failed",
                 campaign_id=campaign.id,
                 contact_id=getattr(contact, "id", None),
                 error=str(e),
             )
             failed_count += 1
+
+    db.commit()
+
+    # Enqueue all recipients into the send queue for async dispatch
+    if batch_recipients:
+        enqueued = enqueue_campaign_batch(
+            campaign_id=campaign.id,
+            tenant_id=campaign.tenant_id,
+            channel=channel,
+            recipients=batch_recipients,
+        )
+        logger.info(
+            "scheduler.enqueued_to_send_queue",
+            campaign_id=campaign.id,
+            enqueued=enqueued,
+            total=len(batch_recipients),
+        )
 
     # Update campaign stats
     campaign.stats_sent = sent_count
@@ -651,13 +621,10 @@ async def evaluate_ab_tests(db: Session):
 
 
 async def _send_to_holdout(db: Session, campaign, winner_content: dict):
-    """Send the winning variant to the holdout group."""
-    from app.campaign_engine.renderer import MessageRenderer
-    from app.core.models import CampaignRecipient, Tenant
-    from app.core.contact_models import Contact
+    """Send the winning variant to the holdout group via send queue."""
+    from app.core.models import CampaignRecipient
+    from app.campaign_engine.send_queue import enqueue_campaign_batch
 
-    renderer = MessageRenderer()
-    tenant = db.query(Tenant).filter(Tenant.id == campaign.tenant_id).first()
     channel = campaign.channel
 
     # Get holdout recipients
@@ -673,60 +640,35 @@ async def _send_to_holdout(db: Session, campaign, winner_content: dict):
     if not holdout_recipients:
         return
 
-    # Temporarily override campaign content with winner content
-    original_subject = campaign.content_subject
-    original_body = campaign.content_body
-    original_html = campaign.content_html
-
-    campaign.content_subject = winner_content.get("subject", original_subject)
-    campaign.content_body = winner_content.get("body", original_body)
-    campaign.content_html = winner_content.get("html", original_html)
-
-    sent_count = 0
+    # Update holdout recipients to queued and prepare batch
+    batch = []
     for recipient in holdout_recipients:
-        contact_id = recipient.contact_id
-        contact = db.query(Contact).filter(Contact.id == contact_id).first()
-        if not contact:
+        if not recipient.contact_id:
             continue
-
-        try:
-            rendered = await renderer.render(
-                db, campaign, contact,
-                recipient_id=recipient.id,
-            )
-
-            success = await dispatch_message(
-                db=db, tenant=tenant, channel=channel,
-                contact=contact, rendered=rendered,
-            )
-
-            recipient.status = "sent" if success else "failed"
-            recipient.sent_at = datetime.now(timezone.utc) if success else None
-            recipient.variant_name = winner_content.get("variant_name", "winner")
-
-            if success:
-                sent_count += 1
-                campaign.stats_sent = (campaign.stats_sent or 0) + 1
-
-        except Exception as e:
-            logger.error(
-                "scheduler.holdout_send_failed",
-                recipient_id=recipient.id,
-                error=str(e),
-            )
-
-    # Restore original content
-    campaign.content_subject = original_subject
-    campaign.content_body = original_body
-    campaign.content_html = original_html
+        recipient.status = "queued"
+        recipient.variant_name = winner_content.get("variant_name", "winner")
+        batch.append({
+            "recipient_id": recipient.id,
+            "contact_id": recipient.contact_id,
+            "variant_name": winner_content.get("variant_name", "winner"),
+        })
 
     db.commit()
-    logger.info(
-        "scheduler.holdout_sent",
-        campaign_id=campaign.id,
-        holdout_total=len(holdout_recipients),
-        sent=sent_count,
-    )
+
+    # Enqueue into send queue
+    if batch:
+        enqueued = enqueue_campaign_batch(
+            campaign_id=campaign.id,
+            tenant_id=campaign.tenant_id,
+            channel=channel,
+            recipients=batch,
+        )
+        logger.info(
+            "scheduler.holdout_enqueued",
+            campaign_id=campaign.id,
+            holdout_total=len(holdout_recipients),
+            enqueued=enqueued,
+        )
 
 
 async def process_campaigns():
