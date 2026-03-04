@@ -85,7 +85,7 @@ PROMPT_SETTINGS_SCHEMA: list[dict] = [
     {
         "key": "studio_name",
         "label": "Unternehmensname (vollständig)",
-        "help": 'z.B. "Athletik Movement", "GetImpulse Berlin GmbH"',
+        "help": 'z.B. "Athletik Movement", "ARIIA Solutions GmbH"',
         "category": "business",
         "multiline": False,
         "default": "Mein Unternehmen",
@@ -93,7 +93,7 @@ PROMPT_SETTINGS_SCHEMA: list[dict] = [
     {
         "key": "studio_short_name",
         "label": "Kurzname",
-        "help": 'z.B. "Athletik Movement", "GetImpulse"',
+        "help": 'z.B. "Athletik Movement", "ARIIA"',
         "category": "business",
         "multiline": False,
         "default": "Unternehmen",

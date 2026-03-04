@@ -19,7 +19,7 @@ async def test_deletion_logic():
         user_id=1,
         email="admin@test.com",
         tenant_id=2,
-        tenant_slug="getimpulse",
+        tenant_slug="demo-tenant",
         role="tenant_admin"
     )
     

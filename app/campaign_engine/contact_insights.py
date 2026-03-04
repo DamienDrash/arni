@@ -69,7 +69,7 @@ class ContactInsightsEngine:
         # Using raw SQL for performance with the analytics_events table
         events_query = text("""
             SELECT
-                cr.member_id AS contact_id,
+                COALESCE(cr.contact_id, cr.member_id) AS contact_id,
                 c.channel,
                 ce.event_type,
                 ce.created_at
@@ -78,8 +78,8 @@ class ContactInsightsEngine:
             JOIN campaigns c ON c.id = cr.campaign_id
             WHERE c.tenant_id = :tenant_id
               AND ce.created_at >= :cutoff
-              AND cr.member_id IS NOT NULL
-            ORDER BY cr.member_id, ce.created_at
+              AND (cr.contact_id IS NOT NULL OR cr.member_id IS NOT NULL)
+            ORDER BY COALESCE(cr.contact_id, cr.member_id), ce.created_at
         """)
 
         try:

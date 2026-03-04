@@ -68,7 +68,7 @@ def search_member_memory(user_identifier: str, query: str, tenant_id: int | None
             possible_dirs = [
                 "/app/data/knowledge/members",
                 "data/knowledge/members",
-                "/app/data/knowledge/tenants/getimpulse-berlin/members"
+                # Tenant-specific paths are resolved dynamically
             ]
             for m_dir in possible_dirs:
                 for tid in target_ids:

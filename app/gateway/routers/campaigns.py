@@ -92,7 +92,8 @@ class SegmentCreate(BaseModel):
 
 
 class FollowUpCreate(BaseModel):
-    member_id: Optional[int] = None
+    contact_id: Optional[int] = None
+    member_id: Optional[int] = None  # Legacy alias for contact_id
     conversation_id: Optional[str] = None
     reason: Optional[str] = None
     follow_up_at: str
@@ -982,11 +983,13 @@ async def list_follow_ups(
 
     result = []
     for fu in follow_ups:
-        contact = db.query(Contact).filter(Contact.id == fu.member_id).first() if fu.member_id else None
+        _contact_id = fu.member_id  # Legacy: ScheduledFollowUp still uses member_id column
+        contact = db.query(Contact).filter(Contact.id == _contact_id).first() if _contact_id else None
         result.append({
             "id": fu.id,
-            "member_id": fu.member_id,
-            "member_name": contact.full_name if contact else "Unknown",
+            "contact_id": _contact_id,
+            "member_id": _contact_id,  # Legacy compatibility
+            "contact_name": contact.full_name if contact else "Unknown",
             "conversation_id": fu.conversation_id,
             "reason": fu.reason,
             "follow_up_at": fu.follow_up_at.isoformat() if fu.follow_up_at else None,
@@ -1022,7 +1025,7 @@ async def create_follow_up(
 
     fu = ScheduledFollowUp(
         tenant_id=user.tenant_id,
-        member_id=body.member_id,
+        member_id=body.contact_id or body.member_id,  # Prefer contact_id, fallback to legacy
         conversation_id=body.conversation_id,
         reason=body.reason,
         follow_up_at=follow_up_at,
@@ -1156,7 +1159,7 @@ def _campaign_to_dict(c: Campaign) -> dict:
 def _resolve_target_members(db: Session, tenant_id: int, target_type: str, filter_json: str | None) -> list:
     """Resolve target contacts based on campaign targeting.
 
-    Migrated from legacy StudioMember to Contact v2 model.
+    Uses the Contact v2 model for all targeting.
     Returns a list of Contact objects.
     """
     q = db.query(Contact).filter(
@@ -1164,16 +1167,12 @@ def _resolve_target_members(db: Session, tenant_id: int, target_type: str, filte
         Contact.deleted_at.is_(None),
     )
 
-    if target_type == "all_members":
-        return q.all()
-
-    if target_type == "all_contacts":
+    if target_type in ("all_members", "all_contacts"):
         return q.all()
 
     if target_type == "selected" and filter_json:
         try:
             filters = json.loads(filter_json)
-            # Support both legacy member_ids and new contact_ids keys
             contact_ids = filters.get("contact_ids", filters.get("member_ids", []))
             if contact_ids:
                 return q.filter(Contact.id.in_(contact_ids)).all()

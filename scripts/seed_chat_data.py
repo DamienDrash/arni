@@ -144,7 +144,7 @@ TEMPLATES = {
         "escalation_rate": 0.10,
         "turns": [
             ("user",      "Ich hab mir den Knöchel verdreht und kann 4 Wochen nicht trainieren. Kann ich das Abo aussetzen?"),
-            ("assistant", "Oh nein, das tut mir leid! 😔 Natürlich pausieren wir für dich. Hast du ein Attest vom Arzt? Falls ja, schick es einfach an info@getimpulse.de – dann geht's ganz unkompliziert. Ohne Attest können wir mind. 2 Wochen pausieren."),
+            ("assistant", "Oh nein, das tut mir leid! 😔 Natürlich pausieren wir für dich. Hast du ein Attest vom Arzt? Falls ja, schick es einfach an info@example-company.de – dann geht's ganz unkompliziert. Ohne Attest können wir mind. 2 Wochen pausieren."),
             ("user",      "Ich bekomm das Attest nächste Woche"),
             ("assistant", "Kein Problem! Sobald du es hast, einfach mailen. Gute Besserung und meld dich wenn du wieder fit bist! 🤞"),
         ]
@@ -160,7 +160,7 @@ TEMPLATES = {
             ("user",      "Ich ziehe nächsten Monat um und das Studio ist zu weit weg"),
             ("assistant", "Ah, das verstehe ich! Wenn du innerhalb Berlins bleibst – wir schauen gerne ob ein anderes Studio näher liegt. Falls nicht, können wir die Kündigung natürlich veranlassen. Was möchtest du?"),
             ("user",      "Ich glaub kündigen ist dann doch besser"),
-            ("assistant", "Alright. Die Kündigung läuft über unser Büro – einfach eine kurze Mail an kuendigung@getimpulse.de mit deiner Mitgliedsnummer und dem gewünschten Datum. Wir wünschen dir alles Gute beim Umzug! 🏠"),
+            ("assistant", "Alright. Die Kündigung läuft über unser Büro – einfach eine kurze Mail an kuendigung@example-company.de mit deiner Mitgliedsnummer und dem gewünschten Datum. Wir wünschen dir alles Gute beim Umzug! 🏠"),
         ]
     },
     "kuendigung_eskaliert": {
@@ -200,7 +200,7 @@ TEMPLATES = {
             ("user",      "Ich bin Anfänger und weiß nicht womit ich anfangen soll"),
             ("assistant", "Hey {name}! Willkommen 🎉 Als Anfänger empfehle ich dir: Erstmal eine Einführungsstunde mit unserem PT-Team buchen – die zeigen dir die Geräte und erstellen einen Grundplan. Das ist inklusive und dauert ca. 45 Min. Interesse?"),
             ("user",      "Ja das klingt gut, wie buche ich das?"),
-            ("assistant", "Einfach an der Rezeption fragen oder kurz mailen an training@getimpulse.de. Am besten unter der Woche Vormittag – da ist mehr Zeit und Ruhe. 💪"),
+            ("assistant", "Einfach an der Rezeption fragen oder kurz mailen an training@example-company.de. Am besten unter der Woche Vormittag – da ist mehr Zeit und Ruhe. 💪"),
             ("user",      "Ok mach ich, danke!"),
             ("assistant", "Gern! Viel Spaß beim ersten Training – du machst das! 🔥"),
         ]
@@ -264,7 +264,7 @@ TEMPLATES = {
         "escalation_rate": 0.03,
         "turns": [
             ("user",      "Hallo! Ich überlege Mitglied zu werden, was brauche ich zum Anmelden?"),
-            ("assistant", "Hey, schön dass du zu uns kommen möchtest! 🎉 Für die Anmeldung brauchst du: Personalausweis oder Reisepass, IBAN für die Lastschrift, und du bist startklar! Online geht's auf getimpulse.de oder direkt bei uns vor Ort. Hast du noch Fragen?"),
+            ("assistant", "Hey, schön dass du zu uns kommen möchtest! 🎉 Für die Anmeldung brauchst du: Personalausweis oder Reisepass, IBAN für die Lastschrift, und du bist startklar! Online geht's auf unserer Webseite oder direkt bei uns vor Ort. Hast du noch Fragen?"),
             ("user",      "Gibt es eine Probetraining Möglichkeit?"),
             ("assistant", "Ja! Du kannst einen kostenlosen Probetrainingstag buchen – einfach Bescheid geben wann du kommen möchtest 😊 Danach entscheidest du in Ruhe."),
             ("user",      "Das klingt super, ich meld mich dann"),
@@ -290,7 +290,7 @@ TEMPLATES = {
         "escalation_rate": 0.04,
         "turns": [
             ("user",      "Gibt es Studentenrabatt?"),
-            ("assistant", "Hey! Ja, Studenten bekommen 20% auf unsere Tarife 🎓 Einfach den Studentenausweis bei Anmeldung zeigen oder per Mail an info@getimpulse.de schicken. Gilt für alle Abo-Laufzeiten."),
+            ("assistant", "Hey! Ja, Studenten bekommen 20% auf unsere Tarife 🎓 Einfach den Studentenausweis bei Anmeldung zeigen oder per Mail an info@example-company.de schicken. Gilt für alle Abo-Laufzeiten."),
             ("user",      "Cool! Und wie lange ist das gültig?"),
             ("assistant", "Solange du immatrikuliert bist – du musst jährlich deinen aktuellen Studentenausweis vorzeigen. Ganz einfach! 📚"),
             ("user",      "Top danke"),
