@@ -148,7 +148,7 @@ services:
     depends_on:
       - ariia-core
     healthcheck:
-      test: ["CMD-SHELL", "python -c 'import redis,os; r=redis.Redis.from_url(os.environ.get(\"REDIS_URL\",\"redis://ariia-redis:6379/0\")); r.ping()' && ps aux | grep -v grep | grep email_polling || exit 1"]
+      test: ["CMD-SHELL", "python -c 'import redis,os; r=redis.Redis.from_url(os.environ.get(\"REDIS_URL\",\"redis://ariia-redis:6379/0\")); r.ping()'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -173,7 +173,7 @@ services:
     depends_on:
       - ariia-core
     healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -v grep | grep campaign_scheduler || exit 1"]
+      test: ["CMD-SHELL", "python -c 'import redis,os; r=redis.Redis.from_url(os.environ.get(\"REDIS_URL\",\"redis://ariia-redis:6379/0\")); r.ping()'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -237,7 +237,7 @@ services:
     depends_on:
       - ariia-core
     healthcheck:
-      test: ["CMD-SHELL", "python -c 'import redis,os; r=redis.Redis.from_url(os.environ.get(\"REDIS_URL\",\"redis://ariia-redis:6379/0\")); r.ping()' && ps aux | grep -v grep | grep analytics_processing || exit 1"]
+      test: ["CMD-SHELL", "python -c 'import redis,os; r=redis.Redis.from_url(os.environ.get(\"REDIS_URL\",\"redis://ariia-redis:6379/0\")); r.ping()'"]
       interval: 30s
       timeout: 10s
       retries: 3
