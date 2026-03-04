@@ -26,7 +26,7 @@ logger = structlog.get_logger()
 # Base URL for tracking endpoints – configurable via env
 TRACKING_BASE_URL = os.environ.get(
     "TRACKING_BASE_URL",
-    "https://api.ariia.app",
+    "https://dev.ariia.ai",
 )
 
 
@@ -243,7 +243,7 @@ class MessageRenderer:
 
     def _inject_tracking_pixel(self, html: str, recipient_id: int) -> str:
         """Inject a 1x1 transparent tracking pixel before </body>."""
-        pixel_url = f"{TRACKING_BASE_URL}/track/open/{recipient_id}"
+        pixel_url = f"{TRACKING_BASE_URL}/tracking/open/{recipient_id}"
         pixel_tag = (
             f'<img src="{pixel_url}" width="1" height="1" '
             f'alt="" style="display:none;border:0;" />'
@@ -258,10 +258,10 @@ class MessageRenderer:
         def _replace_href(match: re.Match) -> str:
             original_url = match.group(1)
             # Skip tracking/unsubscribe/mailto links
-            if any(skip in original_url for skip in ["/track/", "mailto:", "tel:", "#"]):
+            if any(skip in original_url for skip in ["/tracking/", "mailto:", "tel:", "#"]):
                 return match.group(0)
             encoded = url_quote(original_url, safe="")
-            tracker_url = f"{TRACKING_BASE_URL}/track/click/{recipient_id}?url={encoded}"
+            tracker_url = f"{TRACKING_BASE_URL}/tracking/click/{recipient_id}?url={encoded}"
             return f'href="{tracker_url}"'
 
         return re.sub(r'href="([^"]+)"', _replace_href, html)

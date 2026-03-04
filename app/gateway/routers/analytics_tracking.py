@@ -70,7 +70,7 @@ def _push_event(event: dict):
 
 # ── Open Tracking (Pixel) ────────────────────────────────────────────
 
-@router.get("/track/open/{recipient_id}")
+@router.get("/tracking/open/{recipient_id}")
 async def track_open(recipient_id: int, request: Request):
     """Tracking pixel endpoint. Returns a 1x1 transparent GIF.
 
@@ -102,7 +102,7 @@ async def track_open(recipient_id: int, request: Request):
 
 # ── Click Tracking (Link Redirect) ───────────────────────────────────
 
-@router.get("/track/click/{recipient_id}")
+@router.get("/tracking/click/{recipient_id}")
 async def track_click(
     recipient_id: int,
     request: Request,
@@ -132,7 +132,7 @@ async def track_click(
 
 # ── Channel Webhooks ──────────────────────────────────────────────────
 
-@router.post("/track/webhook/{channel}")
+@router.post("/tracking/webhook/{channel}")
 async def track_webhook(channel: str, request: Request):
     """Webhook receiver for channel-specific status updates.
 

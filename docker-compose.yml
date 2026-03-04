@@ -169,7 +169,7 @@ services:
       - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
       - AUTH_SECRET=${AUTH_SECRET}
       - CAMPAIGN_POLL_INTERVAL=30
-      - TRACKING_BASE_URL=${TRACKING_BASE_URL:-https://api.ariia.app}
+      - TRACKING_BASE_URL=${TRACKING_BASE_URL:-https://dev.ariia.ai}
     depends_on:
       - ariia-core
     healthcheck:
@@ -193,7 +193,7 @@ services:
       - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
       - DATABASE_URL=postgresql+psycopg://ariia:${POSTGRES_PASSWORD:-ariia_dev_password}@ariia-postgres:5432/${POSTGRES_DB:-ariia}
       - AUTH_SECRET=${AUTH_SECRET}
-      - TRACKING_BASE_URL=${TRACKING_BASE_URL:-https://api.ariia.app}
+      - TRACKING_BASE_URL=${TRACKING_BASE_URL:-https://dev.ariia.ai}
       - SEND_BATCH_SIZE=50
       - SEND_POLL_INTERVAL=1
       - SEND_MAX_RETRIES=3
