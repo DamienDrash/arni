@@ -318,12 +318,63 @@ async def process_batch(redis_client: redis.Redis):
                 queue_remaining=redis_client.llen(SEND_QUEUE_KEY),
             )
 
+            # Update campaign stats and status after each batch
+            campaign_ids_processed = set()
+            # Re-parse jobs to get campaign IDs (we track them during processing)
+            # For simplicity, update stats for all active campaigns
+            _update_active_campaigns(db)
+
     except Exception as e:
         logger.error("sending_worker.batch_error", error=str(e))
     finally:
         db.close()
 
     return processed
+
+
+def _update_active_campaigns(db: Session):
+    """Update stats and status for all campaigns that are currently being sent."""
+    from app.core.models import Campaign, CampaignRecipient
+    from sqlalchemy import func
+
+    # Find campaigns with status 'queued' or 'sending'
+    active_campaigns = (
+        db.query(Campaign)
+        .filter(Campaign.status.in_(['queued', 'sending']))
+        .all()
+    )
+
+    for campaign in active_campaigns:
+        stats = (
+            db.query(
+                func.count(CampaignRecipient.id).label('total'),
+                func.count(CampaignRecipient.id).filter(CampaignRecipient.status == 'sent').label('sent'),
+                func.count(CampaignRecipient.id).filter(CampaignRecipient.status == 'failed').label('failed'),
+                func.count(CampaignRecipient.id).filter(CampaignRecipient.status == 'pending').label('pending'),
+            )
+            .filter(CampaignRecipient.campaign_id == campaign.id)
+            .first()
+        )
+
+        if stats:
+            campaign.stats_total = stats.total
+            campaign.stats_sent = stats.sent
+            campaign.stats_failed = stats.failed
+            campaign.stats_delivered = stats.sent  # Assume delivered = sent for now
+
+            # If no more pending recipients, mark campaign as sent
+            if stats.pending == 0 and stats.total > 0:
+                campaign.status = 'sent'
+                campaign.sent_at = datetime.now(timezone.utc)
+                logger.info(
+                    'sending_worker.campaign_completed',
+                    campaign_id=campaign.id,
+                    total=stats.total,
+                    sent=stats.sent,
+                    failed=stats.failed,
+                )
+
+    db.commit()
 
 
 # ── Campaign Stats Updater ────────────────────────────────────────────────

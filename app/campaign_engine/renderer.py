@@ -79,6 +79,10 @@ class MessageRenderer:
         raw_body = campaign.content_html or campaign.content_body or ""
         body = self._render_part(raw_body, context)
 
+        # If content was plain text (no content_html), convert to HTML
+        if not campaign.content_html and campaign.content_body:
+            body = self._plaintext_to_html(body)
+
         # 4. Wrap in full HTML structure (email only)
         if campaign.channel == "email":
             primary_color = (template.primary_color if template else "#6C5CE7") or "#6C5CE7"
@@ -238,6 +242,18 @@ class MessageRenderer:
         text = re.sub(r'&lt;', '<', text)
         text = re.sub(r'&gt;', '>', text)
         return text.strip()
+
+    def _plaintext_to_html(self, text: str) -> str:
+        """Convert plain text to HTML: auto-link URLs and convert newlines to <br>."""
+        import html as html_module
+        # Escape HTML special chars first
+        text = html_module.escape(text)
+        # Auto-link URLs (http/https)
+        url_pattern = r'(https?://[^\s<>"&]+)'
+        text = re.sub(url_pattern, r'<a href="\1">\1</a>', text)
+        # Convert newlines to <br>
+        text = text.replace('\n', '<br>\n')
+        return text
 
     # ── Phase 3: Tracking ──────────────────────────────────────────────
 
