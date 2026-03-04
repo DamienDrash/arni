@@ -255,46 +255,46 @@ class HandoffManager:
         """
         messages = {
             HandoffReason.USER_REQUEST: (
-                "Ich verbinde Sie gerne mit einem Mitarbeiter. "
-                f"Ihr Ticket ({ticket_id}) wurde erstellt und ein Teammitglied "
-                "wird sich in Kürze bei Ihnen melden."
+                "Ich verbinde dich gerne mit einem Mitarbeiter. "
+                f"Dein Ticket ({ticket_id}) wurde erstellt und ein Teammitglied "
+                "wird sich in K\u00fcrze bei dir melden."
             ),
             HandoffReason.LOW_CONFIDENCE: (
-                "Ich bin mir bei dieser Anfrage nicht sicher genug, um Ihnen "
-                "eine verlässliche Antwort zu geben. Ich habe daher ein Ticket "
-                f"({ticket_id}) für unser Support-Team erstellt. "
-                "Ein Mitarbeiter wird sich zeitnah bei Ihnen melden."
+                "Ich bin mir bei dieser Anfrage nicht sicher genug, um dir "
+                "eine verl\u00e4ssliche Antwort zu geben. Ich habe daher ein Ticket "
+                f"({ticket_id}) f\u00fcr unser Support-Team erstellt. "
+                "Ein Mitarbeiter wird sich zeitnah bei dir melden."
             ),
             HandoffReason.COMPLAINT: (
-                "Ich verstehe, dass Sie unzufrieden sind, und das tut mir leid. "
-                f"Ich habe Ihr Anliegen als Ticket ({ticket_id}) an unser Team "
-                "weitergeleitet. Ein Mitarbeiter wird sich persönlich um Ihr "
-                "Anliegen kümmern."
+                "Ich verstehe, dass du unzufrieden bist, und das tut mir leid. "
+                f"Ich habe dein Anliegen als Ticket ({ticket_id}) an unser Team "
+                "weitergeleitet. Ein Mitarbeiter wird sich pers\u00f6nlich um dein "
+                "Anliegen k\u00fcmmern."
             ),
             HandoffReason.LEGAL_MATTER: (
-                "Bei rechtlichen Angelegenheiten möchte ich Sie an unser "
-                f"Fachteam weiterleiten. Ihr Ticket ({ticket_id}) wurde mit "
-                "hoher Priorität erstellt."
+                "Bei rechtlichen Angelegenheiten m\u00f6chte ich dich an unser "
+                f"Fachteam weiterleiten. Dein Ticket ({ticket_id}) wurde mit "
+                "hoher Priorit\u00e4t erstellt."
             ),
             HandoffReason.CRITICAL_OPERATION: (
-                "Diese Aktion erfordert eine manuelle Prüfung durch unser Team. "
-                f"Ticket ({ticket_id}) wurde erstellt."
+                "Diese Aktion erfordert eine manuelle Pr\u00fcfung durch unser Team. "
+                f"Dein Ticket ({ticket_id}) wurde erstellt."
             ),
             HandoffReason.REPEATED_FAILURE: (
-                "Es scheint, als könnte ich Ihnen bei diesem Anliegen nicht "
+                "Es scheint, als k\u00f6nnte ich dir bei diesem Anliegen nicht "
                 f"optimal weiterhelfen. Ich habe ein Ticket ({ticket_id}) "
-                "für unser Support-Team erstellt."
+                "f\u00fcr unser Support-Team erstellt."
             ),
             HandoffReason.BILLING_DISPUTE: (
                 "Abrechnungsfragen werden von unserem Finanzteam bearbeitet. "
-                f"Ihr Ticket ({ticket_id}) wurde erstellt und wird prioritär "
+                f"Dein Ticket ({ticket_id}) wurde erstellt und wird priorit\u00e4r "
                 "behandelt."
             ),
         }
 
         return messages.get(
             reason,
-            f"Ihr Anliegen wurde an unser Team weitergeleitet. "
+            f"Dein Anliegen wurde an unser Team weitergeleitet. "
             f"Ticket-ID: {ticket_id}",
         )
 

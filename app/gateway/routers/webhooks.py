@@ -334,6 +334,55 @@ async def process_and_reply(message: InboundMessage) -> None:
                 return
             await bus.disconnect()
 
+        # 5b. Human-Mode Check: If user is in escalation mode, bypass AI
+        try:
+            hm_bus = RedisBus(settings.redis_url)
+            await hm_bus.connect()
+            try:
+                tid = message.tenant_id or persistence.get_system_tenant_id()
+                hm_key = human_mode_key(tid, message.user_id)
+                is_human_mode = await hm_bus.client.get(hm_key)
+            finally:
+                await hm_bus.disconnect()
+
+            if is_human_mode:
+                logger.info(
+                    "webhook.human_mode_active",
+                    user_id=message.user_id,
+                    tenant_id=message.tenant_id,
+                )
+                # Forward message to Admin Dashboard for human agent
+                await broadcast_to_admins(
+                    {
+                        "type": "human_mode.message",
+                        "user_id": message.user_id,
+                        "content": message.content,
+                        "platform": message.platform,
+                        "tenant_id": message.tenant_id,
+                    },
+                    tenant_id=message.tenant_id,
+                )
+                # Save the message to chat history
+                await asyncio.to_thread(
+                    persistence.save_message,
+                    user_id=message.user_id,
+                    role="user",
+                    content=message.content,
+                    platform=message.platform,
+                    tenant_id=message.tenant_id,
+                )
+                # Acknowledge to user that a human is handling their case
+                await send_to_user(
+                    message.user_id,
+                    message.platform,
+                    "Deine Nachricht wurde an unser Team weitergeleitet. "
+                    "Ein Mitarbeiter wird sich in K\u00fcrze bei dir melden.",
+                    tenant_id=message.tenant_id,
+                )
+                return
+        except Exception as e:
+            logger.warning("webhook.human_mode_check_failed", error=str(e))
+
         # 6. Swarm Routing (DYN-6: Per-request agent instantiation)
         from app.swarm.master.orchestrator_v2 import MasterAgentV2
         from app.swarm.router.router import SwarmRouter

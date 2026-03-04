@@ -32,6 +32,12 @@ from app.swarm.tool_calling import (
     create_worker_tools,
     create_tool_registry_for_tenant,
 )
+from app.agent.runtime.handoff import (
+    EscalationDetector,
+    HandoffManager,
+    HandoffReason,
+    HandoffPriority,
+)
 
 # Specialized sub-agents (workers)
 from app.swarm.agents.medic import AgentMedic
@@ -87,6 +93,8 @@ class MasterAgentV2(BaseAgent):
     def __init__(self, llm: LLMClient, *, tenant_id: int | None = None):
         self._llm = llm
         self._tenant_id = tenant_id
+        self._escalation_detector = EscalationDetector()
+        self._handoff_manager = HandoffManager()
         self._workers = {
             "ops_agent": AgentOps(),
             "sales_agent": AgentSales(),
@@ -149,6 +157,20 @@ class MasterAgentV2(BaseAgent):
         4. Repeat until LLM returns a final text response
         """
         logger.info("master_v2.orchestration.started", message_id=message.message_id)
+
+        # ── Escalation Detection (pre-processing) ──────────────────────
+        escalation = self._escalation_detector.detect(
+            message=message.content,
+            confidence=1.0,
+            failure_count=0,
+        )
+        if escalation:
+            reason, priority = escalation
+            return await self._handle_escalation(
+                message=message,
+                reason=reason,
+                priority=priority,
+            )
 
         # Build system prompt with tenant-specific context
         system_prompt = await self._build_system_prompt(message)
@@ -514,3 +536,96 @@ class MasterAgentV2(BaseAgent):
             logger.warning("master_v2.prompt_customization_failed", error=str(e))
 
         return base_prompt
+
+    # ── Escalation Handling ─────────────────────────────────────────────
+
+    async def _handle_escalation(
+        self,
+        message: InboundMessage,
+        reason: HandoffReason,
+        priority: HandoffPriority,
+    ) -> AgentResponse:
+        """Handle an escalation by creating a ticket and notifying the team.
+
+        This method:
+        1. Creates a formal HandoffTicket (stored in Redis)
+        2. Sets the human_mode flag so subsequent messages bypass the AI
+        3. Broadcasts an escalation event to the Admin Dashboard
+        4. Returns a user-friendly message
+        """
+        logger.info(
+            "master_v2.escalation_triggered",
+            reason=reason.value,
+            priority=priority.value,
+            user_id=message.user_id,
+            tenant_id=message.tenant_id,
+        )
+
+        # 1. Create the handoff ticket
+        ticket = await self._handoff_manager.create_handoff(
+            tenant_id=message.tenant_id or 0,
+            user_id=message.user_id,
+            reason=reason,
+            context=message.content,
+            priority=priority,
+            conversation_history=[],
+            agent_notes=f"Automatische Eskalation durch MasterAgentV2. Grund: {reason.value}",
+        )
+        ticket_id = ticket.get("ticket_id", "UNKNOWN")
+
+        # 2. Set human_mode flag in Redis
+        try:
+            from app.gateway.redis_bus import RedisBus
+            from app.core.redis_keys import human_mode_key
+            from config.settings import get_settings
+
+            settings = get_settings()
+            bus = RedisBus(settings.redis_url)
+            await bus.connect()
+            try:
+                tid = message.tenant_id or 0
+                key = human_mode_key(tid, message.user_id)
+                await bus.client.setex(key, 86400, "true")  # 24h expiry
+                logger.info(
+                    "master_v2.human_mode_set",
+                    user_id=message.user_id,
+                    tenant_id=tid,
+                    ticket_id=ticket_id,
+                )
+            finally:
+                await bus.disconnect()
+        except Exception as e:
+            logger.warning("master_v2.human_mode_set_failed", error=str(e))
+
+        # 3. Broadcast escalation event to Admin Dashboard (WebSocket)
+        try:
+            from app.gateway.utils import broadcast_to_admins
+            await broadcast_to_admins(
+                {
+                    "type": "escalation.new",
+                    "ticket_id": ticket_id,
+                    "reason": reason.value,
+                    "priority": priority.value,
+                    "user_id": message.user_id,
+                    "message": message.content,
+                    "platform": message.platform,
+                },
+                tenant_id=message.tenant_id,
+            )
+        except Exception as e:
+            logger.warning("master_v2.escalation_broadcast_failed", error=str(e))
+
+        # 4. Generate user-facing message (Du-Form)
+        user_message = self._handoff_manager.get_user_message(
+            reason=reason,
+            priority=priority,
+            ticket_id=ticket_id,
+        )
+
+        logger.info(
+            "master_v2.escalation_complete",
+            ticket_id=ticket_id,
+            reason=reason.value,
+        )
+
+        return AgentResponse(content=user_message, confidence=1.0)
