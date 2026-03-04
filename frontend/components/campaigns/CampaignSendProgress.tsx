@@ -5,7 +5,7 @@ import { T } from "@/lib/tokens";
 import { apiFetch } from "@/lib/api";
 import {
   Send, CheckCircle, AlertCircle, Clock, Loader2,
-  BarChart3, RefreshCw,
+  BarChart3, RefreshCw, Calendar,
 } from "lucide-react";
 
 /* ── Types ─────────────────────────────────────────────────────────── */
