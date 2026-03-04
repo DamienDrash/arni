@@ -801,14 +801,20 @@ def main():
         ],
     )
 
+    # Create and set event loop before starting the scheduler
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     scheduler.start()
 
     # Keep the event loop running
     try:
-        asyncio.get_event_loop().run_forever()
+        loop.run_forever()
     except (KeyboardInterrupt, SystemExit):
         logger.info("campaign_scheduler.shutting_down")
         scheduler.shutdown()
+    finally:
+        loop.close()
 
 
 if __name__ == "__main__":
