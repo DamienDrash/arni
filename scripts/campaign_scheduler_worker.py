@@ -136,7 +136,7 @@ async def resolve_recipients(db: Session, campaign) -> list:
     if campaign.target_type == "all_members":
         return (
             db.query(Contact)
-            .filter(Contact.tenant_id == tenant_id, Contact.is_active.is_(True))
+            .filter(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None))
             .all()
         )
 
@@ -146,16 +146,44 @@ async def resolve_recipients(db: Session, campaign) -> list:
             segment_id = filters.get("segment_id")
             if segment_id:
                 from app.contacts.repository import ContactRepository
-                repo = ContactRepository(db)
-                return repo.evaluate_segment_v2(segment_id, tenant_id)
+                from app.core.contact_models import ContactSegment
+                repo = ContactRepository()
+                # Load the segment from DB to get filter_groups
+                segment = db.query(ContactSegment).filter(
+                    ContactSegment.id == segment_id,
+                    ContactSegment.tenant_id == tenant_id,
+                ).first()
+                if segment and segment.filter_groups_json:
+                    filter_groups = json.loads(segment.filter_groups_json)
+                    group_connector = segment.group_connector or "and"
+                    contacts, _total = repo.evaluate_segment_v2(
+                        db, tenant_id, filter_groups, group_connector,
+                        page=1, page_size=100000,
+                    )
+                    return contacts
+                elif segment and segment.filter_json:
+                    # Legacy flat filter fallback
+                    filter_data = json.loads(segment.filter_json)
+                    filter_groups = [{"connector": "and", "rules": [
+                        {"field": k, "operator": "eq", "value": v}
+                        for k, v in filter_data.items() if v
+                    ]}]
+                    contacts, _total = repo.evaluate_segment_v2(
+                        db, tenant_id, filter_groups, "and",
+                        page=1, page_size=100000,
+                    )
+                    return contacts
+                else:
+                    logger.warning("scheduler.segment_no_filters", segment_id=segment_id)
+                    return []
         except Exception as e:
             logger.error("scheduler.segment_resolve_failed", error=str(e), campaign_id=campaign.id)
             return []
 
-    # Fallback: all active contacts
+    # Fallback: all active contacts (not soft-deleted)
     return (
         db.query(Contact)
-        .filter(Contact.tenant_id == tenant_id, Contact.is_active.is_(True))
+        .filter(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None))
         .all()
     )
 
@@ -357,22 +385,24 @@ async def process_orchestration_step(db: Session, recipient, campaign, step):
 async def dispatch_message(db, tenant, channel: str, contact, rendered) -> bool:
     """Dispatch a single message via the integration adapter."""
     try:
-        from app.integrations.adapters.base import AdapterRegistry
+        from app.integrations.adapters.registry import get_adapter_registry
 
-        registry = AdapterRegistry()
+        registry = get_adapter_registry()
+        tenant_id = tenant.id if tenant else 0
 
         if channel == "email":
             email = getattr(contact, "email", None)
             if not email:
                 return False
-            adapter = registry.get_adapter("email", tenant_id=tenant.id if tenant else None)
+            adapter = registry.get_adapter("email")
             if adapter:
                 result = await adapter.execute_capability(
-                    "send_email",
-                    to=email,
+                    "messaging.send.html_email",
+                    tenant_id=tenant_id,
+                    to_email=email,
                     subject=rendered.subject,
-                    body_html=rendered.body_html,
-                    body_text=rendered.body_text,
+                    html_body=rendered.body_html,
+                    text_body=rendered.body_text,
                 )
                 return result.success if result else False
 
@@ -380,10 +410,11 @@ async def dispatch_message(db, tenant, channel: str, contact, rendered) -> bool:
             phone = getattr(contact, "phone", None)
             if not phone:
                 return False
-            adapter = registry.get_adapter("whatsapp", tenant_id=tenant.id if tenant else None)
+            adapter = registry.get_adapter("whatsapp")
             if adapter:
                 result = await adapter.execute_capability(
-                    "send_message",
+                    "messaging.send.whatsapp",
+                    tenant_id=tenant_id,
                     to=phone,
                     message=rendered.body_text,
                 )
@@ -393,10 +424,11 @@ async def dispatch_message(db, tenant, channel: str, contact, rendered) -> bool:
             phone = getattr(contact, "phone", None)
             if not phone:
                 return False
-            adapter = registry.get_adapter("sms", tenant_id=tenant.id if tenant else None)
+            adapter = registry.get_adapter("sms")
             if adapter:
                 result = await adapter.execute_capability(
-                    "send_sms",
+                    "messaging.send.sms",
+                    tenant_id=tenant_id,
                     to=phone,
                     message=rendered.body_text,
                 )
@@ -406,10 +438,11 @@ async def dispatch_message(db, tenant, channel: str, contact, rendered) -> bool:
             telegram_id = getattr(contact, "telegram_id", None) or getattr(contact, "phone", None)
             if not telegram_id:
                 return False
-            adapter = registry.get_adapter("telegram", tenant_id=tenant.id if tenant else None)
+            adapter = registry.get_adapter("telegram")
             if adapter:
                 result = await adapter.execute_capability(
-                    "send_message",
+                    "messaging.send.telegram",
+                    tenant_id=tenant_id,
                     chat_id=telegram_id,
                     message=rendered.body_text,
                 )
