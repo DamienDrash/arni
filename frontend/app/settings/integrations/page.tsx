@@ -134,61 +134,61 @@ const CATEGORIES: Array<{
   description: string;
   descriptionDe: string;
 }> = [
-  {
-    id: "all",
-    label: "All Integrations",
-    labelDe: "Alle Integrationen",
-    icon: <PlugZap size={16} />,
-    color: T.accent,
-    description: "Browse all available integrations",
-    descriptionDe: "Alle verfügbaren Integrationen durchsuchen",
-  },
-  {
-    id: "messaging",
-    label: "Communication",
-    labelDe: "Kommunikation",
-    icon: <MessageSquare size={16} />,
-    color: T.whatsapp,
-    description: "Connect messaging channels for customer communication",
-    descriptionDe: "Messaging-Kanäle für Kundenkommunikation verbinden",
-  },
-  {
-    id: "payments",
-    label: "Payments & Billing",
-    labelDe: "Zahlungen & Abrechnung",
-    icon: <CreditCard size={16} />,
-    color: "#6772E5",
-    description: "Process payments and manage invoices",
-    descriptionDe: "Zahlungen verarbeiten und Rechnungen verwalten",
-  },
-  {
-    id: "scheduling",
-    label: "Scheduling & Booking",
-    labelDe: "Termine & Buchungen",
-    icon: <Calendar size={16} />,
-    color: "#0069FF",
-    description: "Let customers book appointments and meetings",
-    descriptionDe: "Kunden Termine und Meetings buchen lassen",
-  },
-  {
-    id: "ai_voice",
-    label: "AI & Voice",
-    labelDe: "KI & Sprache",
-    icon: <Mic size={16} />,
-    color: "#F97316",
-    description: "Premium text-to-speech and speech recognition",
-    descriptionDe: "Premium Text-to-Speech und Spracherkennung",
-  },
-  {
-    id: "analytics",
-    label: "Analytics",
-    labelDe: "Analytik",
-    icon: <BarChart3 size={16} />,
-    color: "#8B5CF6",
-    description: "Track and analyze customer interactions",
-    descriptionDe: "Kundeninteraktionen verfolgen und analysieren",
-  },
-];
+    {
+      id: "all",
+      label: "All Integrations",
+      labelDe: "Alle Integrationen",
+      icon: <PlugZap size={16} />,
+      color: T.accent,
+      description: "Browse all available integrations",
+      descriptionDe: "Alle verfügbaren Integrationen durchsuchen",
+    },
+    {
+      id: "messaging",
+      label: "Communication",
+      labelDe: "Kommunikation",
+      icon: <MessageSquare size={16} />,
+      color: T.whatsapp,
+      description: "Connect messaging channels for customer communication",
+      descriptionDe: "Messaging-Kanäle für Kundenkommunikation verbinden",
+    },
+    {
+      id: "payments",
+      label: "Payments & Billing",
+      labelDe: "Zahlungen & Abrechnung",
+      icon: <CreditCard size={16} />,
+      color: "#6772E5",
+      description: "Process payments and manage invoices",
+      descriptionDe: "Zahlungen verarbeiten und Rechnungen verwalten",
+    },
+    {
+      id: "scheduling",
+      label: "Scheduling & Booking",
+      labelDe: "Termine & Buchungen",
+      icon: <Calendar size={16} />,
+      color: "#0069FF",
+      description: "Let customers book appointments and meetings",
+      descriptionDe: "Kunden Termine und Meetings buchen lassen",
+    },
+    {
+      id: "ai_voice",
+      label: "AI & Voice",
+      labelDe: "KI & Sprache",
+      icon: <Mic size={16} />,
+      color: "#F97316",
+      description: "Premium text-to-speech and speech recognition",
+      descriptionDe: "Premium Text-to-Speech und Spracherkennung",
+    },
+    {
+      id: "analytics",
+      label: "Analytics",
+      labelDe: "Analytik",
+      icon: <BarChart3 size={16} />,
+      color: "#8B5CF6",
+      description: "Track and analyze customer interactions",
+      descriptionDe: "Kundeninteraktionen verfolgen und analysieren",
+    },
+  ];
 
 // ══════════════════════════════════════════════════════════════════════════════
 // INTEGRATION DEFINITIONS
@@ -210,7 +210,7 @@ function WhatsAppQrCode() {
         setQrSrc(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
         setQrStatus("ready");
         setErrorMsg("");
-      } else if (res.status === 404) {
+      } else if (res.status === 425) {
         const data = await res.json().catch(() => ({ detail: "" }));
         if (data.detail === "CONNECTED") {
           setQrStatus("connected");
@@ -288,9 +288,11 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "whatsapp",
     setupSteps: [
       { title: "Overview", description: "WhatsApp Web connects via QR code — the simplest way to get started.", type: "info" },
-      { title: "Scan QR Code", description: "Open WhatsApp on your phone, go to Settings > Linked Devices > Link a Device, and scan the QR code below.", type: "config", fields: [
-        { key: "qr_display", label: "QR Code", type: "qr_code", helpText: "Scan this QR code with WhatsApp on your phone to connect" },
-      ]},
+      {
+        title: "Scan QR Code", description: "Open WhatsApp on your phone, go to Settings > Linked Devices > Link a Device, and scan the QR code below.", type: "config", fields: [
+          { key: "qr_display", label: "QR Code", type: "qr_code", helpText: "Scan this QR code with WhatsApp on your phone to connect" },
+        ]
+      },
       { title: "Verify Connection", description: "We'll verify your WhatsApp connection is active.", type: "test" },
       { title: "Ready!", description: "WhatsApp Web is connected and ready to receive messages.", type: "complete" },
     ],
@@ -309,13 +311,15 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "whatsapp",
     setupSteps: [
       { title: "Overview", description: "The WhatsApp Business API enables automated, high-volume messaging through Meta's Cloud API.", type: "info" },
-      { title: "API Credentials", description: "Enter your Meta Business API credentials.", type: "config", fields: [
-        { key: "mode", label: "Connection Mode", type: "select", options: ["api"], helpText: "API mode requires Professional plan or higher" },
-        { key: "phone_number_id", label: "Phone Number ID", type: "text", placeholder: "e.g. 123456789012345", helpText: "Found in Meta Business Suite > WhatsApp > API Setup" },
-        { key: "access_token", label: "Permanent Access Token", type: "password", placeholder: "EAABs...", helpText: "Generate in Meta Business Suite > System Users" },
-        { key: "verify_token", label: "Webhook Verify Token", type: "text", placeholder: "your-custom-verify-token", helpText: "Custom string for webhook verification" },
-        { key: "app_secret", label: "App Secret", type: "password", placeholder: "abc123...", helpText: "Found in Meta Developers > App Settings > Basic" },
-      ]},
+      {
+        title: "API Credentials", description: "Enter your Meta Business API credentials.", type: "config", fields: [
+          { key: "mode", label: "Connection Mode", type: "select", options: ["api"], helpText: "API mode requires Professional plan or higher" },
+          { key: "phone_number_id", label: "Phone Number ID", type: "text", placeholder: "e.g. 123456789012345", helpText: "Found in Meta Business Suite > WhatsApp > API Setup" },
+          { key: "access_token", label: "Permanent Access Token", type: "password", placeholder: "EAABs...", helpText: "Generate in Meta Business Suite > System Users" },
+          { key: "verify_token", label: "Webhook Verify Token", type: "text", placeholder: "your-custom-verify-token", helpText: "Custom string for webhook verification" },
+          { key: "app_secret", label: "App Secret", type: "password", placeholder: "abc123...", helpText: "Found in Meta Developers > App Settings > Basic" },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your API credentials and webhook configuration.", type: "test" },
       { title: "Connected!", description: "WhatsApp Business API is configured and ready for high-volume messaging.", type: "complete" },
     ],
@@ -335,10 +339,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "telegram",
     setupSteps: [
       { title: "Overview", description: "Create a Telegram Bot via @BotFather and connect it to ARIIA.", type: "info" },
-      { title: "Bot Configuration", description: "Enter your Telegram Bot credentials.", type: "config", fields: [
-        { key: "bot_token", label: "Bot Token", type: "password", placeholder: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11", helpText: "Get this from @BotFather on Telegram" },
-        { key: "admin_chat_id", label: "Admin Chat ID", type: "text", placeholder: "e.g. 123456789", helpText: "Optional: Your personal chat ID for admin notifications", optional: true },
-      ]},
+      {
+        title: "Bot Configuration", description: "Enter your Telegram Bot credentials.", type: "config", fields: [
+          { key: "bot_token", label: "Bot Token", type: "password", placeholder: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11", helpText: "Get this from @BotFather on Telegram" },
+          { key: "admin_chat_id", label: "Admin Chat ID", type: "text", placeholder: "e.g. 123456789", helpText: "Optional: Your personal chat ID for admin notifications", optional: true },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your bot token and set up the webhook.", type: "test" },
       { title: "Connected!", description: "Your Telegram Bot is live and ready to receive messages.", type: "complete" },
     ],
@@ -357,11 +363,13 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "postmark",
     setupSteps: [
       { title: "Overview", description: "Postmark provides reliable transactional email delivery with excellent deliverability rates.", type: "info" },
-      { title: "API Configuration", description: "Enter your Postmark server credentials.", type: "config", fields: [
-        { key: "server_token", label: "Server API Token", type: "password", placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", helpText: "Found in Postmark > Servers > Your Server > API Tokens" },
-        { key: "from_email", label: "Sender Email", type: "text", placeholder: "noreply@yourdomain.com", helpText: "Must be a verified sender signature in Postmark" },
-        { key: "from_name", label: "Sender Name", type: "text", placeholder: "Your Company", helpText: "Display name for outgoing emails", optional: true },
-      ]},
+      {
+        title: "API Configuration", description: "Enter your Postmark server credentials.", type: "config", fields: [
+          { key: "server_token", label: "Server API Token", type: "password", placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", helpText: "Found in Postmark > Servers > Your Server > API Tokens" },
+          { key: "from_email", label: "Sender Email", type: "text", placeholder: "noreply@yourdomain.com", helpText: "Must be a verified sender signature in Postmark" },
+          { key: "from_name", label: "Sender Name", type: "text", placeholder: "Your Company", helpText: "Display name for outgoing emails", optional: true },
+        ]
+      },
       { title: "Test Connection", description: "We'll send a test email to verify your configuration.", type: "test" },
       { title: "Connected!", description: "Postmark is configured for transactional email delivery.", type: "complete" },
     ],
@@ -381,16 +389,18 @@ const INTEGRATIONS: IntegrationDef[] = [
     popular: true,
     setupSteps: [
       { title: "Übersicht", description: "Verbinden Sie Ihren eigenen Mail-Server für den E-Mail-Versand (SMTP) und den Empfang (IMAP).", type: "info" },
-      { title: "Konfiguration", description: "Geben Sie Ihre SMTP und IMAP Serverdaten ein.", type: "config", fields: [
-        { key: "host", label: "SMTP Host", type: "text", placeholder: "smtp.gmail.com", helpText: "Hostname Ihres SMTP-Servers" },
-        { key: "port", label: "SMTP Port", type: "text", placeholder: "587", helpText: "Standard: 587 (STARTTLS) oder 465 (SSL)" },
-        { key: "imap_host", label: "IMAP Host", type: "text", placeholder: "imap.gmail.com", helpText: "Hostname Ihres IMAP-Servers (für Empfang)" },
-        { key: "imap_port", label: "IMAP Port", type: "text", placeholder: "993", helpText: "Standard: 993 (SSL/TLS)" },
-        { key: "username", label: "Benutzername", type: "text", placeholder: "user@example.com", helpText: "Login (meist Ihre E-Mail-Adresse)" },
-        { key: "password", label: "Passwort", type: "password", placeholder: "Passwort eingeben", helpText: "Passwort oder App-Passwort" },
-        { key: "from_email", label: "Absender-E-Mail", type: "text", placeholder: "noreply@ihredomain.de", helpText: "Absenderadresse für ausgehende E-Mails" },
-        { key: "from_name", label: "Absendername", type: "text", placeholder: "Ihr Unternehmen", helpText: "Anzeigename für ausgehende E-Mails", optional: true },
-      ]},
+      {
+        title: "Konfiguration", description: "Geben Sie Ihre SMTP und IMAP Serverdaten ein.", type: "config", fields: [
+          { key: "host", label: "SMTP Host", type: "text", placeholder: "smtp.gmail.com", helpText: "Hostname Ihres SMTP-Servers" },
+          { key: "port", label: "SMTP Port", type: "text", placeholder: "587", helpText: "Standard: 587 (STARTTLS) oder 465 (SSL)" },
+          { key: "imap_host", label: "IMAP Host", type: "text", placeholder: "imap.gmail.com", helpText: "Hostname Ihres IMAP-Servers (für Empfang)" },
+          { key: "imap_port", label: "IMAP Port", type: "text", placeholder: "993", helpText: "Standard: 993 (SSL/TLS)" },
+          { key: "username", label: "Benutzername", type: "text", placeholder: "user@example.com", helpText: "Login (meist Ihre E-Mail-Adresse)" },
+          { key: "password", label: "Passwort", type: "password", placeholder: "Passwort eingeben", helpText: "Passwort oder App-Passwort" },
+          { key: "from_email", label: "Absender-E-Mail", type: "text", placeholder: "noreply@ihredomain.de", helpText: "Absenderadresse für ausgehende E-Mails" },
+          { key: "from_name", label: "Absendername", type: "text", placeholder: "Ihr Unternehmen", helpText: "Anzeigename für ausgehende E-Mails", optional: true },
+        ]
+      },
       { title: "Verbindung testen", description: "Wir prüfen die Verbindung zu Ihrem Server.", type: "test" },
       { title: "Verbunden!", description: "Ihr Mail-Server ist konfiguriert und bereit für ARIIA.", type: "complete" },
     ],
@@ -408,11 +418,13 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "sms",
     setupSteps: [
       { title: "Overview", description: "Twilio enables SMS messaging in 180+ countries with local and toll-free numbers.", type: "info" },
-      { title: "Account Setup", description: "Enter your Twilio account credentials.", type: "config", fields: [
-        { key: "account_sid", label: "Account SID", type: "text", placeholder: "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", helpText: "Found on your Twilio Console Dashboard" },
-        { key: "auth_token", label: "Auth Token", type: "password", placeholder: "your_auth_token", helpText: "Found on your Twilio Console Dashboard" },
-        { key: "phone_number", label: "Twilio Phone Number", type: "text", placeholder: "+1234567890", helpText: "Your purchased Twilio phone number in E.164 format" },
-      ]},
+      {
+        title: "Account Setup", description: "Enter your Twilio account credentials.", type: "config", fields: [
+          { key: "account_sid", label: "Account SID", type: "text", placeholder: "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", helpText: "Found on your Twilio Console Dashboard" },
+          { key: "auth_token", label: "Auth Token", type: "password", placeholder: "your_auth_token", helpText: "Found on your Twilio Console Dashboard" },
+          { key: "phone_number", label: "Twilio Phone Number", type: "text", placeholder: "+1234567890", helpText: "Your purchased Twilio phone number in E.164 format" },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your Twilio credentials and phone number.", type: "test" },
       { title: "Connected!", description: "Twilio SMS is active and ready for messaging.", type: "complete" },
     ],
@@ -431,12 +443,14 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "twilio_voice",
     setupSteps: [
       { title: "Overview", description: "Twilio Voice enables programmable phone calls with AI-powered voice agents.", type: "info" },
-      { title: "Voice Configuration", description: "Configure your Twilio Voice settings.", type: "config", fields: [
-        { key: "account_sid", label: "Account SID", type: "text", placeholder: "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", helpText: "Same as your Twilio SMS Account SID" },
-        { key: "auth_token", label: "Auth Token", type: "password", placeholder: "your_auth_token", helpText: "Same as your Twilio SMS Auth Token" },
-        { key: "phone_number", label: "Voice Phone Number", type: "text", placeholder: "+1234567890", helpText: "Twilio number with voice capability enabled" },
-        { key: "twiml_app_sid", label: "TwiML App SID", type: "text", placeholder: "APxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", helpText: "Optional: For advanced call routing", optional: true },
-      ]},
+      {
+        title: "Voice Configuration", description: "Configure your Twilio Voice settings.", type: "config", fields: [
+          { key: "account_sid", label: "Account SID", type: "text", placeholder: "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", helpText: "Same as your Twilio SMS Account SID" },
+          { key: "auth_token", label: "Auth Token", type: "password", placeholder: "your_auth_token", helpText: "Same as your Twilio SMS Auth Token" },
+          { key: "phone_number", label: "Voice Phone Number", type: "text", placeholder: "+1234567890", helpText: "Twilio number with voice capability enabled" },
+          { key: "twiml_app_sid", label: "TwiML App SID", type: "text", placeholder: "APxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", helpText: "Optional: For advanced call routing", optional: true },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your voice configuration.", type: "test" },
       { title: "Connected!", description: "Twilio Voice is configured for inbound and outbound calls.", type: "complete" },
     ],
@@ -455,10 +469,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "instagram",
     setupSteps: [
       { title: "Overview", description: "Connect your Instagram Business account to respond to DMs automatically.", type: "info" },
-      { title: "Meta Configuration", description: "Enter your Instagram API credentials.", type: "config", fields: [
-        { key: "page_id", label: "Instagram Business Account ID", type: "text", placeholder: "e.g. 17841400123456789", helpText: "Found in Meta Business Suite > Instagram Accounts" },
-        { key: "access_token", label: "Page Access Token", type: "password", placeholder: "EAABs...", helpText: "Generate via Meta Graph API Explorer with instagram_manage_messages permission" },
-      ]},
+      {
+        title: "Meta Configuration", description: "Enter your Instagram API credentials.", type: "config", fields: [
+          { key: "page_id", label: "Instagram Business Account ID", type: "text", placeholder: "e.g. 17841400123456789", helpText: "Found in Meta Business Suite > Instagram Accounts" },
+          { key: "access_token", label: "Page Access Token", type: "password", placeholder: "EAABs...", helpText: "Generate via Meta Graph API Explorer with instagram_manage_messages permission" },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your Instagram API access.", type: "test" },
       { title: "Connected!", description: "Instagram Messenger is live and responding to DMs.", type: "complete" },
     ],
@@ -477,10 +493,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "facebook",
     setupSteps: [
       { title: "Overview", description: "Connect your Facebook Page to automate Messenger conversations.", type: "info" },
-      { title: "Page Configuration", description: "Enter your Facebook Page API credentials.", type: "config", fields: [
-        { key: "page_id", label: "Facebook Page ID", type: "text", placeholder: "e.g. 123456789012345", helpText: "Found in Facebook Page Settings > About" },
-        { key: "access_token", label: "Page Access Token", type: "password", placeholder: "EAABs...", helpText: "Generate via Meta Graph API with pages_messaging permission" },
-      ]},
+      {
+        title: "Page Configuration", description: "Enter your Facebook Page API credentials.", type: "config", fields: [
+          { key: "page_id", label: "Facebook Page ID", type: "text", placeholder: "e.g. 123456789012345", helpText: "Found in Facebook Page Settings > About" },
+          { key: "access_token", label: "Page Access Token", type: "password", placeholder: "EAABs...", helpText: "Generate via Meta Graph API with pages_messaging permission" },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your Facebook Page API access.", type: "test" },
       { title: "Connected!", description: "Facebook Messenger is live and automating conversations.", type: "complete" },
     ],
@@ -498,11 +516,13 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "viber",
     setupSteps: [
       { title: "Overview", description: "Viber is popular in Eastern Europe, Middle East and parts of Asia. Connect a Viber Bot to reach these markets.", type: "info" },
-      { title: "Bot Configuration", description: "Enter your Viber Bot credentials.", type: "config", fields: [
-        { key: "auth_token", label: "Bot Auth Token", type: "password", placeholder: "xxxxxxxxxxxxxxxxxxxxxxxx-xxxx", helpText: "Get this from Viber Admin Panel > Create Bot Account" },
-        { key: "bot_name", label: "Bot Name", type: "text", placeholder: "Your Company Bot", helpText: "Display name for your Viber Bot" },
-        { key: "bot_avatar", label: "Bot Avatar URL", type: "text", placeholder: "https://...", helpText: "URL to your bot's avatar image", optional: true },
-      ]},
+      {
+        title: "Bot Configuration", description: "Enter your Viber Bot credentials.", type: "config", fields: [
+          { key: "auth_token", label: "Bot Auth Token", type: "password", placeholder: "xxxxxxxxxxxxxxxxxxxxxxxx-xxxx", helpText: "Get this from Viber Admin Panel > Create Bot Account" },
+          { key: "bot_name", label: "Bot Name", type: "text", placeholder: "Your Company Bot", helpText: "Display name for your Viber Bot" },
+          { key: "bot_avatar", label: "Bot Avatar URL", type: "text", placeholder: "https://...", helpText: "URL to your bot's avatar image", optional: true },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your Viber Bot token and set up the webhook.", type: "test" },
       { title: "Connected!", description: "Viber Bot is live and ready for messaging.", type: "complete" },
     ],
@@ -521,10 +541,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "google_business",
     setupSteps: [
       { title: "Overview", description: "Google Business Messages lets customers message you directly from Google Search and Maps results.", type: "info" },
-      { title: "API Configuration", description: "Enter your Google Business Messages credentials.", type: "config", fields: [
-        { key: "service_account_json", label: "Service Account JSON", type: "password", placeholder: "Paste your service account JSON", helpText: "Download from Google Cloud Console > IAM > Service Accounts" },
-        { key: "agent_id", label: "Agent ID", type: "text", placeholder: "brands/xxx/agents/yyy", helpText: "Found in Business Communications Console" },
-      ]},
+      {
+        title: "API Configuration", description: "Enter your Google Business Messages credentials.", type: "config", fields: [
+          { key: "service_account_json", label: "Service Account JSON", type: "password", placeholder: "Paste your service account JSON", helpText: "Download from Google Cloud Console > IAM > Service Accounts" },
+          { key: "agent_id", label: "Agent ID", type: "text", placeholder: "brands/xxx/agents/yyy", helpText: "Found in Business Communications Console" },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your Google Business Messages configuration.", type: "test" },
       { title: "Connected!", description: "Google Business Messages is active.", type: "complete" },
     ],
@@ -542,10 +564,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "line",
     setupSteps: [
       { title: "Overview", description: "LINE is the dominant messaging platform in Japan, Thailand, and Taiwan with 200M+ users.", type: "info" },
-      { title: "Channel Configuration", description: "Enter your LINE Messaging API credentials.", type: "config", fields: [
-        { key: "channel_access_token", label: "Channel Access Token", type: "password", placeholder: "your-channel-access-token", helpText: "Found in LINE Developers Console > Messaging API" },
-        { key: "channel_secret", label: "Channel Secret", type: "password", placeholder: "your-channel-secret", helpText: "Found in LINE Developers Console > Basic Settings" },
-      ]},
+      {
+        title: "Channel Configuration", description: "Enter your LINE Messaging API credentials.", type: "config", fields: [
+          { key: "channel_access_token", label: "Channel Access Token", type: "password", placeholder: "your-channel-access-token", helpText: "Found in LINE Developers Console > Messaging API" },
+          { key: "channel_secret", label: "Channel Secret", type: "password", placeholder: "your-channel-secret", helpText: "Found in LINE Developers Console > Basic Settings" },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your LINE channel configuration.", type: "test" },
       { title: "Connected!", description: "LINE Messaging is active and ready.", type: "complete" },
     ],
@@ -564,12 +588,14 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "wechat",
     setupSteps: [
       { title: "Overview", description: "WeChat is essential for reaching the Chinese market with 1.3B+ monthly active users.", type: "info" },
-      { title: "Official Account Setup", description: "Configure your WeChat Official Account.", type: "config", fields: [
-        { key: "app_id", label: "App ID", type: "text", placeholder: "wx...", helpText: "Found in WeChat Official Account Admin Platform" },
-        { key: "app_secret", label: "App Secret", type: "password", placeholder: "your-app-secret", helpText: "Found in WeChat Official Account Admin Platform" },
-        { key: "token", label: "Token", type: "text", placeholder: "your-custom-token", helpText: "Custom token for server verification" },
-        { key: "encoding_aes_key", label: "Encoding AES Key", type: "password", placeholder: "43-char-key", helpText: "Message encryption key" },
-      ]},
+      {
+        title: "Official Account Setup", description: "Configure your WeChat Official Account.", type: "config", fields: [
+          { key: "app_id", label: "App ID", type: "text", placeholder: "wx...", helpText: "Found in WeChat Official Account Admin Platform" },
+          { key: "app_secret", label: "App Secret", type: "password", placeholder: "your-app-secret", helpText: "Found in WeChat Official Account Admin Platform" },
+          { key: "token", label: "Token", type: "text", placeholder: "your-custom-token", helpText: "Custom token for server verification" },
+          { key: "encoding_aes_key", label: "Encoding AES Key", type: "password", placeholder: "43-char-key", helpText: "Message encryption key" },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your WeChat configuration.", type: "test" },
       { title: "Connected!", description: "WeChat Official Account is configured.", type: "complete" },
     ],
@@ -590,11 +616,13 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "stripe",
     setupSteps: [
       { title: "Overview", description: "Stripe enables you to accept payments, manage subscriptions, and send invoices to your customers.", type: "info" },
-      { title: "API Keys", description: "Enter your Stripe API credentials.", type: "config", fields: [
-        { key: "publishable_key", label: "Publishable Key", type: "text", placeholder: "pk_live_...", helpText: "Found in Stripe Dashboard > Developers > API Keys" },
-        { key: "secret_key", label: "Secret Key", type: "password", placeholder: "sk_live_...", helpText: "Found in Stripe Dashboard > Developers > API Keys" },
-        { key: "webhook_secret", label: "Webhook Signing Secret", type: "password", placeholder: "whsec_...", helpText: "Found in Stripe Dashboard > Developers > Webhooks", optional: true },
-      ]},
+      {
+        title: "API Keys", description: "Enter your Stripe API credentials.", type: "config", fields: [
+          { key: "publishable_key", label: "Publishable Key", type: "text", placeholder: "pk_live_...", helpText: "Found in Stripe Dashboard > Developers > API Keys" },
+          { key: "secret_key", label: "Secret Key", type: "password", placeholder: "sk_live_...", helpText: "Found in Stripe Dashboard > Developers > API Keys" },
+          { key: "webhook_secret", label: "Webhook Signing Secret", type: "password", placeholder: "whsec_...", helpText: "Found in Stripe Dashboard > Developers > Webhooks", optional: true },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your Stripe API keys and webhook configuration.", type: "test" },
       { title: "Connected!", description: "Stripe is configured and ready to process payments.", type: "complete" },
     ],
@@ -613,11 +641,13 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "paypal",
     setupSteps: [
       { title: "Overview", description: "PayPal is trusted by millions of customers worldwide for secure online payments.", type: "info" },
-      { title: "API Credentials", description: "Enter your PayPal REST API credentials.", type: "config", fields: [
-        { key: "client_id", label: "Client ID", type: "text", placeholder: "AV...", helpText: "Found in PayPal Developer Dashboard > My Apps & Credentials" },
-        { key: "client_secret", label: "Client Secret", type: "password", placeholder: "EL...", helpText: "Found in PayPal Developer Dashboard > My Apps & Credentials" },
-        { key: "mode", label: "Environment", type: "select", options: ["sandbox", "live"], helpText: "Use sandbox for testing, live for production" },
-      ]},
+      {
+        title: "API Credentials", description: "Enter your PayPal REST API credentials.", type: "config", fields: [
+          { key: "client_id", label: "Client ID", type: "text", placeholder: "AV...", helpText: "Found in PayPal Developer Dashboard > My Apps & Credentials" },
+          { key: "client_secret", label: "Client Secret", type: "password", placeholder: "EL...", helpText: "Found in PayPal Developer Dashboard > My Apps & Credentials" },
+          { key: "mode", label: "Environment", type: "select", options: ["sandbox", "live"], helpText: "Use sandbox for testing, live for production" },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your PayPal API access.", type: "test" },
       { title: "Connected!", description: "PayPal is configured and ready for payments.", type: "complete" },
     ],
@@ -636,9 +666,11 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "mollie",
     setupSteps: [
       { title: "Overview", description: "Mollie supports iDEAL, SOFORT, Bancontact, and other European payment methods.", type: "info" },
-      { title: "API Key", description: "Enter your Mollie API key.", type: "config", fields: [
-        { key: "api_key", label: "API Key", type: "password", placeholder: "live_...", helpText: "Found in Mollie Dashboard > Developers > API Keys" },
-      ]},
+      {
+        title: "API Key", description: "Enter your Mollie API key.", type: "config", fields: [
+          { key: "api_key", label: "API Key", type: "password", placeholder: "live_...", helpText: "Found in Mollie Dashboard > Developers > API Keys" },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your Mollie API key.", type: "test" },
       { title: "Connected!", description: "Mollie is configured for European payments.", type: "complete" },
     ],
@@ -660,10 +692,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "calendly",
     setupSteps: [
       { title: "Overview", description: "Calendly makes it easy for your customers to schedule appointments without back-and-forth emails.", type: "info" },
-      { title: "API Configuration", description: "Enter your Calendly API credentials.", type: "config", fields: [
-        { key: "api_key", label: "Personal Access Token", type: "password", placeholder: "eyJhb...", helpText: "Found in Calendly > Integrations > API & Webhooks" },
-        { key: "organization_uri", label: "Organization URI", type: "text", placeholder: "https://api.calendly.com/organizations/...", helpText: "Your Calendly organization URL", optional: true },
-      ]},
+      {
+        title: "API Configuration", description: "Enter your Calendly API credentials.", type: "config", fields: [
+          { key: "api_key", label: "Personal Access Token", type: "password", placeholder: "eyJhb...", helpText: "Found in Calendly > Integrations > API & Webhooks" },
+          { key: "organization_uri", label: "Organization URI", type: "text", placeholder: "https://api.calendly.com/organizations/...", helpText: "Your Calendly organization URL", optional: true },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your Calendly API access.", type: "test" },
       { title: "Connected!", description: "Calendly is integrated — customers can now book appointments.", type: "complete" },
     ],
@@ -682,10 +716,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "calcom",
     setupSteps: [
       { title: "Overview", description: "Cal.com is an open-source scheduling platform with full API access and self-hosting options.", type: "info" },
-      { title: "API Configuration", description: "Enter your Cal.com API credentials.", type: "config", fields: [
-        { key: "api_key", label: "API Key", type: "password", placeholder: "cal_live_...", helpText: "Found in Cal.com > Settings > Developer > API Keys" },
-        { key: "base_url", label: "Base URL", type: "text", placeholder: "https://api.cal.com/v1", helpText: "Default: https://api.cal.com/v1 — change for self-hosted", optional: true },
-      ]},
+      {
+        title: "API Configuration", description: "Enter your Cal.com API credentials.", type: "config", fields: [
+          { key: "api_key", label: "API Key", type: "password", placeholder: "cal_live_...", helpText: "Found in Cal.com > Settings > Developer > API Keys" },
+          { key: "base_url", label: "Base URL", type: "text", placeholder: "https://api.cal.com/v1", helpText: "Default: https://api.cal.com/v1 — change for self-hosted", optional: true },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your Cal.com API access.", type: "test" },
       { title: "Connected!", description: "Cal.com is integrated for scheduling.", type: "complete" },
     ],
@@ -704,10 +740,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "acuity",
     setupSteps: [
       { title: "Overview", description: "Acuity Scheduling (by Squarespace) offers advanced scheduling with built-in payment processing.", type: "info" },
-      { title: "API Configuration", description: "Enter your Acuity API credentials.", type: "config", fields: [
-        { key: "user_id", label: "User ID", type: "text", placeholder: "12345678", helpText: "Found in Acuity > Integrations > API" },
-        { key: "api_key", label: "API Key", type: "password", placeholder: "your-api-key", helpText: "Found in Acuity > Integrations > API" },
-      ]},
+      {
+        title: "API Configuration", description: "Enter your Acuity API credentials.", type: "config", fields: [
+          { key: "user_id", label: "User ID", type: "text", placeholder: "12345678", helpText: "Found in Acuity > Integrations > API" },
+          { key: "api_key", label: "API Key", type: "password", placeholder: "your-api-key", helpText: "Found in Acuity > Integrations > API" },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your Acuity API access.", type: "test" },
       { title: "Connected!", description: "Acuity Scheduling is integrated.", type: "complete" },
     ],
@@ -729,11 +767,13 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "elevenlabs",
     setupSteps: [
       { title: "Overview", description: "ElevenLabs provides the most realistic AI voices available, supporting 29+ languages.", type: "info" },
-      { title: "API Configuration", description: "Enter your ElevenLabs API credentials.", type: "config", fields: [
-        { key: "api_key", label: "API Key", type: "password", placeholder: "xi-...", helpText: "Found in ElevenLabs > Profile > API Key" },
-        { key: "voice_id", label: "Default Voice ID", type: "text", placeholder: "21m00Tcm4TlvDq8ikWAM", helpText: "Choose a voice from ElevenLabs Voice Library", optional: true },
-        { key: "model_id", label: "Model", type: "select", options: ["eleven_multilingual_v2", "eleven_turbo_v2", "eleven_monolingual_v1"], helpText: "Multilingual v2 recommended for multi-language support" },
-      ]},
+      {
+        title: "API Configuration", description: "Enter your ElevenLabs API credentials.", type: "config", fields: [
+          { key: "api_key", label: "API Key", type: "password", placeholder: "xi-...", helpText: "Found in ElevenLabs > Profile > API Key" },
+          { key: "voice_id", label: "Default Voice ID", type: "text", placeholder: "21m00Tcm4TlvDq8ikWAM", helpText: "Choose a voice from ElevenLabs Voice Library", optional: true },
+          { key: "model_id", label: "Model", type: "select", options: ["eleven_multilingual_v2", "eleven_turbo_v2", "eleven_monolingual_v1"], helpText: "Multilingual v2 recommended for multi-language support" },
+        ]
+      },
       { title: "Test Connection", description: "We'll generate a test audio clip to verify your configuration.", type: "test" },
       { title: "Connected!", description: "ElevenLabs is configured for premium voice synthesis.", type: "complete" },
     ],
@@ -752,11 +792,13 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "openai_tts",
     setupSteps: [
       { title: "Overview", description: "OpenAI TTS provides natural-sounding voice synthesis with multiple voice options.", type: "info" },
-      { title: "API Configuration", description: "Enter your OpenAI API credentials.", type: "config", fields: [
-        { key: "api_key", label: "OpenAI API Key", type: "password", placeholder: "sk-...", helpText: "Found in OpenAI Platform > API Keys" },
-        { key: "voice", label: "Default Voice", type: "select", options: ["alloy", "echo", "fable", "onyx", "nova", "shimmer"], helpText: "Choose the default voice for TTS" },
-        { key: "model", label: "Model", type: "select", options: ["tts-1", "tts-1-hd"], helpText: "HD model provides higher quality but is slower" },
-      ]},
+      {
+        title: "API Configuration", description: "Enter your OpenAI API credentials.", type: "config", fields: [
+          { key: "api_key", label: "OpenAI API Key", type: "password", placeholder: "sk-...", helpText: "Found in OpenAI Platform > API Keys" },
+          { key: "voice", label: "Default Voice", type: "select", options: ["alloy", "echo", "fable", "onyx", "nova", "shimmer"], helpText: "Choose the default voice for TTS" },
+          { key: "model", label: "Model", type: "select", options: ["tts-1", "tts-1-hd"], helpText: "HD model provides higher quality but is slower" },
+        ]
+      },
       { title: "Test Connection", description: "We'll generate a test audio clip.", type: "test" },
       { title: "Connected!", description: "OpenAI TTS is configured.", type: "complete" },
     ],
@@ -775,10 +817,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "openai_whisper",
     setupSteps: [
       { title: "Overview", description: "OpenAI Whisper provides state-of-the-art speech recognition supporting 97 languages.", type: "info" },
-      { title: "API Configuration", description: "Enter your OpenAI API credentials.", type: "config", fields: [
-        { key: "api_key", label: "OpenAI API Key", type: "password", placeholder: "sk-...", helpText: "Found in OpenAI Platform > API Keys" },
-        { key: "model", label: "Model", type: "select", options: ["whisper-1"], helpText: "Whisper v1 is the current production model" },
-      ]},
+      {
+        title: "API Configuration", description: "Enter your OpenAI API credentials.", type: "config", fields: [
+          { key: "api_key", label: "OpenAI API Key", type: "password", placeholder: "sk-...", helpText: "Found in OpenAI Platform > API Keys" },
+          { key: "model", label: "Model", type: "select", options: ["whisper-1"], helpText: "Whisper v1 is the current production model" },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your API access.", type: "test" },
       { title: "Connected!", description: "OpenAI Whisper is configured for speech recognition.", type: "complete" },
     ],
@@ -797,10 +841,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "deepgram",
     setupSteps: [
       { title: "Overview", description: "Deepgram provides real-time speech recognition with streaming WebSocket support — ideal for live conversations.", type: "info" },
-      { title: "API Configuration", description: "Enter your Deepgram API credentials.", type: "config", fields: [
-        { key: "api_key", label: "API Key", type: "password", placeholder: "your-deepgram-api-key", helpText: "Found in Deepgram Console > API Keys" },
-        { key: "model", label: "Model", type: "select", options: ["nova-2", "nova", "enhanced", "base"], helpText: "Nova-2 recommended for best accuracy" },
-      ]},
+      {
+        title: "API Configuration", description: "Enter your Deepgram API credentials.", type: "config", fields: [
+          { key: "api_key", label: "API Key", type: "password", placeholder: "your-deepgram-api-key", helpText: "Found in Deepgram Console > API Keys" },
+          { key: "model", label: "Model", type: "select", options: ["nova-2", "nova", "enhanced", "base"], helpText: "Nova-2 recommended for best accuracy" },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your Deepgram API access.", type: "test" },
       { title: "Connected!", description: "Deepgram is configured for real-time transcription.", type: "complete" },
     ],
@@ -819,10 +865,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "google_tts",
     setupSteps: [
       { title: "Overview", description: "Google Cloud TTS offers 220+ voices in 40+ languages with WaveNet and Neural2 voice models.", type: "info" },
-      { title: "API Configuration", description: "Enter your Google Cloud credentials.", type: "config", fields: [
-        { key: "service_account_json", label: "Service Account JSON", type: "password", placeholder: "Paste your service account JSON", helpText: "Download from Google Cloud Console > IAM > Service Accounts" },
-        { key: "language_code", label: "Default Language", type: "text", placeholder: "de-DE", helpText: "BCP-47 language code (e.g. de-DE, en-US, fr-FR)" },
-      ]},
+      {
+        title: "API Configuration", description: "Enter your Google Cloud credentials.", type: "config", fields: [
+          { key: "service_account_json", label: "Service Account JSON", type: "password", placeholder: "Paste your service account JSON", helpText: "Download from Google Cloud Console > IAM > Service Accounts" },
+          { key: "language_code", label: "Default Language", type: "text", placeholder: "de-DE", helpText: "BCP-47 language code (e.g. de-DE, en-US, fr-FR)" },
+        ]
+      },
       { title: "Test Connection", description: "We'll generate a test audio clip.", type: "test" },
       { title: "Connected!", description: "Google Cloud TTS is configured.", type: "complete" },
     ],
@@ -841,10 +889,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "azure_speech",
     setupSteps: [
       { title: "Overview", description: "Azure Speech Services provides enterprise-grade TTS and STT with custom voice and language model support.", type: "info" },
-      { title: "API Configuration", description: "Enter your Azure Speech credentials.", type: "config", fields: [
-        { key: "subscription_key", label: "Subscription Key", type: "password", placeholder: "your-subscription-key", helpText: "Found in Azure Portal > Speech Service > Keys and Endpoint" },
-        { key: "region", label: "Service Region", type: "text", placeholder: "westeurope", helpText: "Azure region where your Speech resource is deployed" },
-      ]},
+      {
+        title: "API Configuration", description: "Enter your Azure Speech credentials.", type: "config", fields: [
+          { key: "subscription_key", label: "Subscription Key", type: "password", placeholder: "your-subscription-key", helpText: "Found in Azure Portal > Speech Service > Keys and Endpoint" },
+          { key: "region", label: "Service Region", type: "text", placeholder: "westeurope", helpText: "Azure region where your Speech resource is deployed" },
+        ]
+      },
       { title: "Test Connection", description: "We'll verify your Azure Speech configuration.", type: "test" },
       { title: "Connected!", description: "Azure Speech is configured for TTS and STT.", type: "complete" },
     ],
@@ -865,10 +915,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "google_analytics",
     setupSteps: [
       { title: "Overview", description: "Send conversation events and conversion data to Google Analytics 4.", type: "info" },
-      { title: "Configuration", description: "Enter your GA4 measurement details.", type: "config", fields: [
-        { key: "measurement_id", label: "Measurement ID", type: "text", placeholder: "G-XXXXXXXXXX", helpText: "Found in GA4 > Admin > Data Streams" },
-        { key: "api_secret", label: "API Secret", type: "password", placeholder: "your-api-secret", helpText: "Found in GA4 > Admin > Data Streams > Measurement Protocol" },
-      ]},
+      {
+        title: "Configuration", description: "Enter your GA4 measurement details.", type: "config", fields: [
+          { key: "measurement_id", label: "Measurement ID", type: "text", placeholder: "G-XXXXXXXXXX", helpText: "Found in GA4 > Admin > Data Streams" },
+          { key: "api_secret", label: "API Secret", type: "password", placeholder: "your-api-secret", helpText: "Found in GA4 > Admin > Data Streams > Measurement Protocol" },
+        ]
+      },
       { title: "Test Connection", description: "We'll send a test event to verify your configuration.", type: "test" },
       { title: "Connected!", description: "Google Analytics is tracking conversation events.", type: "complete" },
     ],
@@ -887,10 +939,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     connectorId: "mixpanel",
     setupSteps: [
       { title: "Overview", description: "Mixpanel provides detailed product analytics to understand how customers interact with your services.", type: "info" },
-      { title: "Configuration", description: "Enter your Mixpanel project credentials.", type: "config", fields: [
-        { key: "project_token", label: "Project Token", type: "text", placeholder: "your-project-token", helpText: "Found in Mixpanel > Settings > Project Settings" },
-        { key: "api_secret", label: "API Secret", type: "password", placeholder: "your-api-secret", helpText: "Found in Mixpanel > Settings > Project Settings", optional: true },
-      ]},
+      {
+        title: "Configuration", description: "Enter your Mixpanel project credentials.", type: "config", fields: [
+          { key: "project_token", label: "Project Token", type: "text", placeholder: "your-project-token", helpText: "Found in Mixpanel > Settings > Project Settings" },
+          { key: "api_secret", label: "API Secret", type: "password", placeholder: "your-api-secret", helpText: "Found in Mixpanel > Settings > Project Settings", optional: true },
+        ]
+      },
       { title: "Test Connection", description: "We'll send a test event to Mixpanel.", type: "test" },
       { title: "Connected!", description: "Mixpanel is configured for product analytics.", type: "complete" },
     ],
@@ -1163,7 +1217,7 @@ export default function SettingsIntegrationsPage() {
       );
     }
     return list;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategory, searchQuery, statusFilter, connectedIds, plan]);
 
   const connectedCount = connectedIds.size;
@@ -1535,121 +1589,91 @@ export default function SettingsIntegrationsPage() {
         {/* Step Content */}
         <AnimatePresence mode="wait">
           <motion.div {...fadeSlide} key={`step-${onboardingStep}`}>
-          {currentStepDef.type === "info" && (
-            <>
-              <Card style={{ padding: 28 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: T.infoDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.info, flexShrink: 0 }}>
-                    <BookOpen size={20} />
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: T.text, margin: "0 0 6px" }}>
-                      {currentStepDef.title}
-                    </h3>
-                    <p style={{ fontSize: 13, color: T.textMuted, margin: 0, lineHeight: 1.6 }}>
-                      {currentStepDef.description}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Feature highlights */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
-                  {selectedIntegration.tags.slice(0, 4).map((tag, i) => (
-                    <div key={tag} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, background: T.surfaceAlt, border: `1px solid ${T.border}` }}>
-                      <CheckCircle2 size={14} color={T.success} />
-                      <span style={{ fontSize: 12, fontWeight: 600, color: T.text, textTransform: "capitalize" }}>{tag}</span>
+            {currentStepDef.type === "info" && (
+              <>
+                <Card style={{ padding: 28 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: T.infoDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.info, flexShrink: 0 }}>
+                      <BookOpen size={20} />
                     </div>
-                  ))}
-                </div>
-
-                {/* Doc link */}
-                {selectedIntegration.docUrl && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderRadius: 10, background: T.surfaceAlt, border: `1px solid ${T.border}` }}>
-                    <ExternalLink size={14} color={T.accent} />
-                    <a href={selectedIntegration.docUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, fontWeight: 600, color: T.accent, textDecoration: "none" }}>
-                      {t("integrations.onboarding.viewDocs")}
-                    </a>
-                  </div>
-                )}
-
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}>
-                  <ActionButton onClick={() => setOnboardingStep(1)} label={t("integrations.onboarding.next")} icon={<ArrowRight size={14} />} />
-                </div>
-              </Card>
-            </>
-          )}
-
-          {currentStepDef.type === "config" && (
-            <>
-              <Card style={{ padding: 28 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: T.warningDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.warning, flexShrink: 0 }}>
-                    <Key size={20} />
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: T.text, margin: "0 0 6px" }}>
-                      {currentStepDef.title}
-                    </h3>
-                    <p style={{ fontSize: 13, color: T.textMuted, margin: 0, lineHeight: 1.6 }}>
-                      {currentStepDef.description}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Dynamic Fields */}
-                {/* Webhook Info Box - shown for connectors that need webhook configuration */}
-                {webhookInfo?.webhook_url && (
-                  <div style={{
-                    background: "linear-gradient(135deg, #0ea5e910, #6366f108)",
-                    border: "1px solid #0ea5e930",
-                    borderRadius: 12,
-                    padding: 20,
-                    marginBottom: 8,
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: 8, background: "#0ea5e918", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Link2 size={16} color="#0ea5e9" />
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: 0 }}>Webhook Konfiguration</p>
-                        <p style={{ fontSize: 11, color: T.textDim, margin: 0 }}>Diese Daten bei deinem Provider eintragen</p>
-                      </div>
+                    <div>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, color: T.text, margin: "0 0 6px" }}>
+                        {currentStepDef.title}
+                      </h3>
+                      <p style={{ fontSize: 13, color: T.textMuted, margin: 0, lineHeight: 1.6 }}>
+                        {currentStepDef.description}
+                      </p>
                     </div>
+                  </div>
 
-                    {/* Webhook URL */}
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6, display: "block" }}>
-                        Webhook URL
-                      </label>
-                      <div style={{
-                        display: "flex", alignItems: "center", gap: 8,
-                        background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8,
-                        padding: "10px 12px",
-                      }}>
-                        <code style={{ flex: 1, fontSize: 12, color: T.text, wordBreak: "break-all", fontFamily: "monospace" }}>
-                          {webhookInfo.webhook_url}
-                        </code>
-                        <button
-                          onClick={() => copyToClipboard(webhookInfo.webhook_url!, "webhook_url")}
-                          style={{
-                            background: copiedField === "webhook_url" ? "#10b98118" : T.surfaceAlt,
-                            border: `1px solid ${copiedField === "webhook_url" ? "#10b981" : T.border}`,
-                            borderRadius: 6, padding: "6px 10px", cursor: "pointer",
-                            display: "flex", alignItems: "center", gap: 4,
-                            color: copiedField === "webhook_url" ? "#10b981" : T.textDim,
-                            fontSize: 11, fontWeight: 600, transition: "all 0.2s",
-                          }}
-                        >
-                          {copiedField === "webhook_url" ? <><Check size={12} /> Kopiert</> : <><Copy size={12} /> Kopieren</>}
-                        </button>
+                  {/* Feature highlights */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
+                    {selectedIntegration.tags.slice(0, 4).map((tag, i) => (
+                      <div key={tag} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, background: T.surfaceAlt, border: `1px solid ${T.border}` }}>
+                        <CheckCircle2 size={14} color={T.success} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: T.text, textTransform: "capitalize" }}>{tag}</span>
                       </div>
-                    </div>
+                    ))}
+                  </div>
 
-                    {/* Verify Token */}
-                    {webhookInfo.verify_token && (
+                  {/* Doc link */}
+                  {selectedIntegration.docUrl && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderRadius: 10, background: T.surfaceAlt, border: `1px solid ${T.border}` }}>
+                      <ExternalLink size={14} color={T.accent} />
+                      <a href={selectedIntegration.docUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, fontWeight: 600, color: T.accent, textDecoration: "none" }}>
+                        {t("integrations.onboarding.viewDocs")}
+                      </a>
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}>
+                    <ActionButton onClick={() => setOnboardingStep(1)} label={t("integrations.onboarding.next")} icon={<ArrowRight size={14} />} />
+                  </div>
+                </Card>
+              </>
+            )}
+
+            {currentStepDef.type === "config" && (
+              <>
+                <Card style={{ padding: 28 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: T.warningDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.warning, flexShrink: 0 }}>
+                      <Key size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, color: T.text, margin: "0 0 6px" }}>
+                        {currentStepDef.title}
+                      </h3>
+                      <p style={{ fontSize: 13, color: T.textMuted, margin: 0, lineHeight: 1.6 }}>
+                        {currentStepDef.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Fields */}
+                  {/* Webhook Info Box - shown for connectors that need webhook configuration */}
+                  {webhookInfo?.webhook_url && (
+                    <div style={{
+                      background: "linear-gradient(135deg, #0ea5e910, #6366f108)",
+                      border: "1px solid #0ea5e930",
+                      borderRadius: 12,
+                      padding: 20,
+                      marginBottom: 8,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#0ea5e918", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Link2 size={16} color="#0ea5e9" />
+                        </div>
+                        <div>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: 0 }}>Webhook Konfiguration</p>
+                          <p style={{ fontSize: 11, color: T.textDim, margin: 0 }}>Diese Daten bei deinem Provider eintragen</p>
+                        </div>
+                      </div>
+
+                      {/* Webhook URL */}
                       <div style={{ marginBottom: 12 }}>
                         <label style={{ fontSize: 11, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6, display: "block" }}>
-                          Verify Token
+                          Webhook URL
                         </label>
                         <div style={{
                           display: "flex", alignItems: "center", gap: 8,
@@ -1657,236 +1681,266 @@ export default function SettingsIntegrationsPage() {
                           padding: "10px 12px",
                         }}>
                           <code style={{ flex: 1, fontSize: 12, color: T.text, wordBreak: "break-all", fontFamily: "monospace" }}>
-                            {webhookInfo.verify_token}
+                            {webhookInfo.webhook_url}
                           </code>
                           <button
-                            onClick={() => copyToClipboard(webhookInfo.verify_token!, "verify_token")}
+                            onClick={() => copyToClipboard(webhookInfo.webhook_url!, "webhook_url")}
                             style={{
-                              background: copiedField === "verify_token" ? "#10b98118" : T.surfaceAlt,
-                              border: `1px solid ${copiedField === "verify_token" ? "#10b981" : T.border}`,
+                              background: copiedField === "webhook_url" ? "#10b98118" : T.surfaceAlt,
+                              border: `1px solid ${copiedField === "webhook_url" ? "#10b981" : T.border}`,
                               borderRadius: 6, padding: "6px 10px", cursor: "pointer",
                               display: "flex", alignItems: "center", gap: 4,
-                              color: copiedField === "verify_token" ? "#10b981" : T.textDim,
+                              color: copiedField === "webhook_url" ? "#10b981" : T.textDim,
                               fontSize: 11, fontWeight: 600, transition: "all 0.2s",
                             }}
                           >
-                            {copiedField === "verify_token" ? <><Check size={12} /> Kopiert</> : <><Copy size={12} /> Kopieren</>}
+                            {copiedField === "webhook_url" ? <><Check size={12} /> Kopiert</> : <><Copy size={12} /> Kopieren</>}
                           </button>
                         </div>
                       </div>
-                    )}
 
-                    {/* Instructions */}
-                    {webhookInfo.instructions && (
-                      <div style={{
-                        display: "flex", alignItems: "flex-start", gap: 8,
-                        background: "#f59e0b10", border: "1px solid #f59e0b25",
-                        borderRadius: 8, padding: "10px 12px",
-                      }}>
-                        <Info size={14} color="#f59e0b" style={{ marginTop: 1, flexShrink: 0 }} />
-                        <p style={{ fontSize: 12, color: T.text, margin: 0, lineHeight: 1.5 }}>
-                          {webhookInfo.instructions}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-                  {currentStepDef.fields?.map((field) => {
-                    if (field.dependsOn) {
-                      const [k, v] = field.dependsOn.split("=");
-                      if (configValues[k] !== v) return null;
-                    }
-
-                    return (
-                      <div key={field.key}>
-                        <label style={labelStyle}>
-                          {field.label}
-                          {field.optional && <span style={{ fontWeight: 400, color: T.textDim, marginLeft: 6 }}>({t("integrations.onboarding.optional")})</span>}
-                        </label>
-                        {field.type === "select" && field.options ? (
-                          <select
-                            value={configValues[field.key] || ""}
-                            onChange={(e) => setConfigValues(c => ({ ...c, [field.key]: e.target.value }))}
-                            style={{ ...inputStyle, cursor: "pointer" }}
-                          >
-                            <option value="">{t("integrations.onboarding.selectOption")}</option>
-                            {field.options.map(opt => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
-                        ) : field.type === "toggle" ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {/* Verify Token */}
+                      {webhookInfo.verify_token && (
+                        <div style={{ marginBottom: 12 }}>
+                          <label style={{ fontSize: 11, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6, display: "block" }}>
+                            Verify Token
+                          </label>
+                          <div style={{
+                            display: "flex", alignItems: "center", gap: 8,
+                            background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8,
+                            padding: "10px 12px",
+                          }}>
+                            <code style={{ flex: 1, fontSize: 12, color: T.text, wordBreak: "break-all", fontFamily: "monospace" }}>
+                              {webhookInfo.verify_token}
+                            </code>
                             <button
-                              onClick={() => setConfigValues(c => ({ ...c, [field.key]: c[field.key] === "true" ? "false" : "true" }))}
+                              onClick={() => copyToClipboard(webhookInfo.verify_token!, "verify_token")}
                               style={{
-                                width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
-                                background: configValues[field.key] === "true" ? T.success : T.surfaceAlt,
-                                position: "relative", transition: "background 0.2s",
+                                background: copiedField === "verify_token" ? "#10b98118" : T.surfaceAlt,
+                                border: `1px solid ${copiedField === "verify_token" ? "#10b981" : T.border}`,
+                                borderRadius: 6, padding: "6px 10px", cursor: "pointer",
+                                display: "flex", alignItems: "center", gap: 4,
+                                color: copiedField === "verify_token" ? "#10b981" : T.textDim,
+                                fontSize: 11, fontWeight: 600, transition: "all 0.2s",
                               }}
                             >
-                              <div style={{
-                                width: 18, height: 18, borderRadius: 9, background: "#fff",
-                                position: "absolute", top: 3,
-                                left: configValues[field.key] === "true" ? 23 : 3,
-                                transition: "left 0.2s",
-                              }} />
+                              {copiedField === "verify_token" ? <><Check size={12} /> Kopiert</> : <><Copy size={12} /> Kopieren</>}
                             </button>
                           </div>
-                        ) : field.type === "qr_code" ? (
-                          <WhatsAppQrCode />
-                        ) : (
-                          <div style={{ position: "relative" }}>
-                            <input
-                              type={field.type === "password" && !showPassword[field.key] ? "password" : "text"}
-                              value={configValues[field.key] || ""}
-                              onChange={(e) => setConfigValues(c => ({ ...c, [field.key]: e.target.value }))}
-                              placeholder={field.placeholder || ""}
-                              style={{ ...inputStyle, paddingRight: field.type === "password" ? 40 : 14 }}
-                            />
-                            {field.type === "password" && (
-                              <button
-                                onClick={() => setShowPassword(s => ({ ...s, [field.key]: !s[field.key] }))}
-                                style={{
-                                  position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
-                                  background: "none", border: "none", color: T.textDim, cursor: "pointer", padding: 4,
-                                }}
-                              >
-                                {showPassword[field.key] ? <EyeOff size={14} /> : <Eye size={14} />}
-                              </button>
-                            )}
-                          </div>
-                        )}
-                        {field.helpText && (
-                          <p style={{ fontSize: 11, color: T.textDim, margin: "6px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
-                            <HelpCircle size={10} /> {field.helpText}
+                        </div>
+                      )}
+
+                      {/* Instructions */}
+                      {webhookInfo.instructions && (
+                        <div style={{
+                          display: "flex", alignItems: "flex-start", gap: 8,
+                          background: "#f59e0b10", border: "1px solid #f59e0b25",
+                          borderRadius: 8, padding: "10px 12px",
+                        }}>
+                          <Info size={14} color="#f59e0b" style={{ marginTop: 1, flexShrink: 0 }} />
+                          <p style={{ fontSize: 12, color: T.text, margin: 0, lineHeight: 1.5 }}>
+                            {webhookInfo.instructions}
                           </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}>
-                  <ActionButton onClick={() => setOnboardingStep(s => s - 1)} label={t("integrations.onboarding.back")} icon={<ArrowLeft size={14} />} variant="ghost" iconPosition="left" />
-                  <ActionButton onClick={() => setOnboardingStep(s => s + 1)} label={t("integrations.onboarding.next")} icon={<ArrowRight size={14} />} />
-                </div>
-              </Card>
-            </>
-          )}
-
-          {currentStepDef.type === "test" && (
-            <>
-              <Card style={{ padding: 28 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: T.infoDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.info, flexShrink: 0 }}>
-                    <Zap size={20} />
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: T.text, margin: "0 0 6px" }}>
-                      {currentStepDef.title}
-                    </h3>
-                    <p style={{ fontSize: 13, color: T.textMuted, margin: 0, lineHeight: 1.6 }}>
-                      {currentStepDef.description}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Test Area */}
-                <div style={{ padding: 28, borderRadius: 14, background: T.surfaceAlt, border: `1px solid ${T.border}`, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-                  {configTesting ? (
-                    <>
-                      <Loader2 size={36} color={selectedIntegration.color} className="animate-spin" />
-                      <p style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{t("integrations.onboarding.testing")}</p>
-                    </>
-                  ) : testResult ? (
-                    <>
-                      {testResult.status === "ok" ? (
-                        <CheckCircle2 size={40} color={T.success} />
-                      ) : (
-                        <AlertCircle size={40} color={T.danger} />
+                        </div>
                       )}
-                      <p style={{ fontSize: 14, fontWeight: 700, color: testResult.status === "ok" ? T.success : T.danger }}>
-                        {testResult.message}
-                      </p>
-                      {testResult.status !== "ok" && (
-                        <p style={{ fontSize: 12, color: T.textMuted, textAlign: "center" }}>
-                          {t("integrations.onboarding.testFailed")}
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ width: 60, height: 60, borderRadius: 18, background: `${selectedIntegration.color}18`, display: "flex", alignItems: "center", justifyContent: "center", color: selectedIntegration.color }}>
-                        {selectedIntegration.icon}
-                      </div>
-                      <p style={{ fontSize: 13, color: T.textMuted, textAlign: "center" }}>
-                        {t("integrations.onboarding.testReady")}
-                      </p>
-                    </>
+                    </div>
                   )}
 
-                  <button
-                    onClick={testConnection}
-                    disabled={configTesting || configSaving}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 8,
-                      padding: "10px 24px", borderRadius: 10,
-                      background: selectedIntegration.color, color: "#fff",
-                      fontSize: 13, fontWeight: 700, border: "none",
-                      cursor: configTesting ? "not-allowed" : "pointer",
-                      opacity: configTesting ? 0.6 : 1,
-                    }}
-                  >
-                    {configTesting ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                    {t("integrations.onboarding.runTest")}
-                  </button>
-                </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                    {currentStepDef.fields?.map((field) => {
+                      if (field.dependsOn) {
+                        const [k, v] = field.dependsOn.split("=");
+                        if (configValues[k] !== v) return null;
+                      }
 
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}>
-                  <ActionButton onClick={() => setOnboardingStep(s => s - 1)} label={t("integrations.onboarding.back")} icon={<ArrowLeft size={14} />} variant="ghost" iconPosition="left" />
-                  <ActionButton
-                    onClick={() => setOnboardingStep(s => s + 1)}
-                    label={t("integrations.onboarding.next")}
-                    icon={<ArrowRight size={14} />}
-                    disabled={!testResult || testResult.status !== "ok"}
-                  />
-                </div>
-              </Card>
-            </>
-          )}
+                      return (
+                        <div key={field.key}>
+                          <label style={labelStyle}>
+                            {field.label}
+                            {field.optional && <span style={{ fontWeight: 400, color: T.textDim, marginLeft: 6 }}>({t("integrations.onboarding.optional")})</span>}
+                          </label>
+                          {field.type === "select" && field.options ? (
+                            <select
+                              value={configValues[field.key] || ""}
+                              onChange={(e) => setConfigValues(c => ({ ...c, [field.key]: e.target.value }))}
+                              style={{ ...inputStyle, cursor: "pointer" }}
+                            >
+                              <option value="">{t("integrations.onboarding.selectOption")}</option>
+                              {field.options.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          ) : field.type === "toggle" ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <button
+                                onClick={() => setConfigValues(c => ({ ...c, [field.key]: c[field.key] === "true" ? "false" : "true" }))}
+                                style={{
+                                  width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+                                  background: configValues[field.key] === "true" ? T.success : T.surfaceAlt,
+                                  position: "relative", transition: "background 0.2s",
+                                }}
+                              >
+                                <div style={{
+                                  width: 18, height: 18, borderRadius: 9, background: "#fff",
+                                  position: "absolute", top: 3,
+                                  left: configValues[field.key] === "true" ? 23 : 3,
+                                  transition: "left 0.2s",
+                                }} />
+                              </button>
+                            </div>
+                          ) : field.type === "qr_code" ? (
+                            <WhatsAppQrCode />
+                          ) : (
+                            <div style={{ position: "relative" }}>
+                              <input
+                                type={field.type === "password" && !showPassword[field.key] ? "password" : "text"}
+                                value={configValues[field.key] || ""}
+                                onChange={(e) => setConfigValues(c => ({ ...c, [field.key]: e.target.value }))}
+                                placeholder={field.placeholder || ""}
+                                style={{ ...inputStyle, paddingRight: field.type === "password" ? 40 : 14 }}
+                              />
+                              {field.type === "password" && (
+                                <button
+                                  onClick={() => setShowPassword(s => ({ ...s, [field.key]: !s[field.key] }))}
+                                  style={{
+                                    position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+                                    background: "none", border: "none", color: T.textDim, cursor: "pointer", padding: 4,
+                                  }}
+                                >
+                                  {showPassword[field.key] ? <EyeOff size={14} /> : <Eye size={14} />}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                          {field.helpText && (
+                            <p style={{ fontSize: 11, color: T.textDim, margin: "6px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
+                              <HelpCircle size={10} /> {field.helpText}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
 
-          {currentStepDef.type === "complete" && (
-            <>
-              <Card style={{ padding: 36, textAlign: "center" }}>
-                <div style={{ width: 72, height: 72, borderRadius: 20, background: T.successDim, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-                  <CheckCircle2 size={36} color={T.success} />
-                </div>
-                <h3 style={{ fontSize: 20, fontWeight: 800, color: T.text, margin: "0 0 8px" }}>
-                  {currentStepDef.title}
-                </h3>
-                <p style={{ fontSize: 13, color: T.textMuted, margin: "0 0 8px", maxWidth: 420, marginLeft: "auto", marginRight: "auto" }}>
-                  {currentStepDef.description}
-                </p>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}>
+                    <ActionButton onClick={() => setOnboardingStep(s => s - 1)} label={t("integrations.onboarding.back")} icon={<ArrowLeft size={14} />} variant="ghost" iconPosition="left" />
+                    <ActionButton onClick={() => setOnboardingStep(s => s + 1)} label={t("integrations.onboarding.next")} icon={<ArrowRight size={14} />} />
+                  </div>
+                </Card>
+              </>
+            )}
 
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 10, background: T.surfaceAlt, border: `1px solid ${T.success}44`, margin: "16px 0 24px" }}>
-                  <div style={{ color: selectedIntegration.color }}>{selectedIntegration.icon}</div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{selectedIntegration.name}</span>
-                  <Badge variant="success">Connected</Badge>
-                </div>
+            {currentStepDef.type === "test" && (
+              <>
+                <Card style={{ padding: 28 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: T.infoDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.info, flexShrink: 0 }}>
+                      <Zap size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, color: T.text, margin: "0 0 6px" }}>
+                        {currentStepDef.title}
+                      </h3>
+                      <p style={{ fontSize: 13, color: T.textMuted, margin: 0, lineHeight: 1.6 }}>
+                        {currentStepDef.description}
+                      </p>
+                    </div>
+                  </div>
 
-                <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
-                  <ActionButton
-                    onClick={() => { setView("hub"); setSelectedIntegration(null); fetchCatalog(); }}
-                    label={t("integrations.onboarding.backToHub")}
-                    icon={<ArrowRight size={14} />}
-                    variant="success"
-                  />
-                </div>
-              </Card>
-            </>
-          )}
+                  {/* Test Area */}
+                  <div style={{ padding: 28, borderRadius: 14, background: T.surfaceAlt, border: `1px solid ${T.border}`, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+                    {configTesting ? (
+                      <>
+                        <Loader2 size={36} color={selectedIntegration.color} className="animate-spin" />
+                        <p style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{t("integrations.onboarding.testing")}</p>
+                      </>
+                    ) : testResult ? (
+                      <>
+                        {testResult.status === "ok" ? (
+                          <CheckCircle2 size={40} color={T.success} />
+                        ) : (
+                          <AlertCircle size={40} color={T.danger} />
+                        )}
+                        <p style={{ fontSize: 14, fontWeight: 700, color: testResult.status === "ok" ? T.success : T.danger }}>
+                          {testResult.message}
+                        </p>
+                        {testResult.status !== "ok" && (
+                          <p style={{ fontSize: 12, color: T.textMuted, textAlign: "center" }}>
+                            {t("integrations.onboarding.testFailed")}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ width: 60, height: 60, borderRadius: 18, background: `${selectedIntegration.color}18`, display: "flex", alignItems: "center", justifyContent: "center", color: selectedIntegration.color }}>
+                          {selectedIntegration.icon}
+                        </div>
+                        <p style={{ fontSize: 13, color: T.textMuted, textAlign: "center" }}>
+                          {t("integrations.onboarding.testReady")}
+                        </p>
+                      </>
+                    )}
+
+                    <button
+                      onClick={testConnection}
+                      disabled={configTesting || configSaving}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "10px 24px", borderRadius: 10,
+                        background: selectedIntegration.color, color: "#fff",
+                        fontSize: 13, fontWeight: 700, border: "none",
+                        cursor: configTesting ? "not-allowed" : "pointer",
+                        opacity: configTesting ? 0.6 : 1,
+                      }}
+                    >
+                      {configTesting ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                      {t("integrations.onboarding.runTest")}
+                    </button>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}>
+                    <ActionButton onClick={() => setOnboardingStep(s => s - 1)} label={t("integrations.onboarding.back")} icon={<ArrowLeft size={14} />} variant="ghost" iconPosition="left" />
+                    <ActionButton
+                      onClick={() => setOnboardingStep(s => s + 1)}
+                      label={t("integrations.onboarding.next")}
+                      icon={<ArrowRight size={14} />}
+                      disabled={!testResult || testResult.status !== "ok"}
+                    />
+                  </div>
+                </Card>
+              </>
+            )}
+
+            {currentStepDef.type === "complete" && (
+              <>
+                <Card style={{ padding: 36, textAlign: "center" }}>
+                  <div style={{ width: 72, height: 72, borderRadius: 20, background: T.successDim, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+                    <CheckCircle2 size={36} color={T.success} />
+                  </div>
+                  <h3 style={{ fontSize: 20, fontWeight: 800, color: T.text, margin: "0 0 8px" }}>
+                    {currentStepDef.title}
+                  </h3>
+                  <p style={{ fontSize: 13, color: T.textMuted, margin: "0 0 8px", maxWidth: 420, marginLeft: "auto", marginRight: "auto" }}>
+                    {currentStepDef.description}
+                  </p>
+
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 10, background: T.surfaceAlt, border: `1px solid ${T.success}44`, margin: "16px 0 24px" }}>
+                    <div style={{ color: selectedIntegration.color }}>{selectedIntegration.icon}</div>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{selectedIntegration.name}</span>
+                    <Badge variant="success">Connected</Badge>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
+                    <ActionButton
+                      onClick={() => { setView("hub"); setSelectedIntegration(null); fetchCatalog(); }}
+                      label={t("integrations.onboarding.backToHub")}
+                      icon={<ArrowRight size={14} />}
+                      variant="success"
+                    />
+                  </div>
+                </Card>
+              </>
+            )}
           </motion.div>
         </AnimatePresence>
       </motion.div>
