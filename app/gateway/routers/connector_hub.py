@@ -174,6 +174,12 @@ def reset_connector_config(
     enabled_key = _get_config_key(user.tenant_id, connector_id, "enabled")
     persistence.upsert_setting(enabled_key, "false", tenant_id=user.tenant_id)
     
+    # Special handling for WhatsApp session state
+    if connector_id == "whatsapp":
+        slug = persistence.get_tenant_slug(user.tenant_id)
+        if slug:
+            persistence.delete_setting(f"wa_session_status_{slug}", tenant_id=user.tenant_id)
+
     return {"status": "reset"}
 
 
