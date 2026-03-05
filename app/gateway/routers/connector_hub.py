@@ -179,6 +179,20 @@ def reset_connector_config(
         slug = persistence.get_tenant_slug(user.tenant_id)
         if slug:
             persistence.delete_setting(f"wa_session_status_{slug}", tenant_id=user.tenant_id)
+            
+            # Request WAHA to shut down the native container session
+            waha_url = persistence.get_setting("waha_api_url", tenant_id=user.tenant_id) or "http://ariia-whatsapp-bridge:3000"
+            waha_key = persistence.get_setting("waha_api_key", tenant_id=user.tenant_id) or "ariia-waha-secret"
+            import requests
+            try:
+                requests.post(
+                    f"{waha_url}/api/sessions/stop",
+                    headers={"X-Api-Key": waha_key, "Content-Type": "application/json"},
+                    json={"name": slug, "logout": True},
+                    timeout=5
+                )
+            except Exception as e:
+                logger.warning("connector.whatsapp.stop_failed", error=str(e), tenant=slug)
 
     return {"status": "reset"}
 
