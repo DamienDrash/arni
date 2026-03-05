@@ -180,6 +180,8 @@ services:
       start_period: 15s
     volumes:
       - ariia_data:/app/data
+      - ./scripts:/app/scripts
+      - ./app:/app/app
     networks:
       - ariia-network
 
@@ -207,6 +209,8 @@ services:
       start_period: 15s
     volumes:
       - ariia_data:/app/data
+      - ./scripts:/app/scripts
+      - ./app:/app/app
     networks:
       - ariia-network
 

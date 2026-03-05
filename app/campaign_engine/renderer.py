@@ -1,9 +1,12 @@
-"""ARIIA v2.2 – Message Renderer with Tracking.
+"""ARIIA v2.3 – Gold Standard Message Renderer with CSS Inlining & Tracking.
 
 Combines campaign content with templates and personalizes via Jinja2.
+Uses css-inline to convert <style> blocks into inline style attributes
+for maximum email client compatibility (Gmail, Outlook, Apple Mail, etc.).
+
 Supports email (full HTML wrapping), WhatsApp, SMS, and Telegram channels.
 
-@ARCH: Campaign Refactoring Phase 1, Task 1.3
+@ARCH: Campaign Refactoring Phase 1, Task 1.3 – Gold Standard
 """
 from __future__ import annotations
 
@@ -22,11 +25,30 @@ from app.core.contact_models import Contact
 
 logger = structlog.get_logger()
 
+# Lazy-load css_inline to avoid hard crash if not installed
+_css_inliner = None
+
+def _get_css_inliner():
+    global _css_inliner
+    if _css_inliner is None:
+        try:
+            import css_inline
+            _css_inliner = css_inline.CSSInliner(
+                inline_style_tags=True,
+                keep_style_tags=True,   # Keep <style> for media queries
+            )
+            logger.info("renderer.css_inliner_loaded")
+        except ImportError:
+            logger.warning("renderer.css_inline_not_installed",
+                           msg="pip install css-inline for Gold Standard email rendering")
+            _css_inliner = False  # Sentinel: tried but failed
+    return _css_inliner if _css_inliner is not False else None
+
 
 # Base URL for tracking endpoints – configurable via env
 TRACKING_BASE_URL = os.environ.get(
     "TRACKING_BASE_URL",
-    "https://dev.ariia.ai",
+    "https://www.ariia.ai",
 )
 
 
@@ -71,8 +93,9 @@ class MessageRenderer:
         # 2. Build context dict for Jinja2
         context = self._build_context(contact, campaign)
 
-        # 3. Compose HTML
-        header = self._render_part(template.header_html, context) if template and template.header_html else ""
+        # 3. Compose HTML parts
+        raw_header = (template.header_html or "") if template else ""
+        header = self._render_part(raw_header, context) if raw_header else ""
         footer = self._render_part(template.footer_html, context) if template and template.footer_html else ""
 
         # Use content_html first, fall back to content_body
@@ -88,6 +111,9 @@ class MessageRenderer:
             primary_color = (template.primary_color if template else "#6C5CE7") or "#6C5CE7"
             logo_url = (template.logo_url if template else None) or None
             full_html = self._wrap_email_html(header, body, footer, primary_color, logo_url)
+
+            # 4b. Gold Standard: CSS Inlining
+            full_html = self._inline_css(full_html)
         else:
             full_html = body  # WhatsApp/SMS/Telegram: no HTML wrapping
 
@@ -177,6 +203,20 @@ class MessageRenderer:
             logger.warning("renderer.jinja_error", error=str(e), template=template_str[:100])
             return template_str  # Return unrendered on error
 
+    @staticmethod
+    def _extract_style_blocks(html: str) -> tuple[str, str]:
+        """Extract all <style>...</style> blocks from HTML.
+
+        Returns:
+            tuple: (extracted_css, html_without_style_tags)
+        """
+        style_pattern = re.compile(r'<style[^>]*>(.*?)</style>', re.DOTALL | re.IGNORECASE)
+        styles = []
+        for match in style_pattern.finditer(html):
+            styles.append(match.group(1))
+        cleaned = style_pattern.sub('', html)
+        return '\n'.join(styles), cleaned.strip()
+
     def _wrap_email_html(
         self,
         header: str,
@@ -185,50 +225,141 @@ class MessageRenderer:
         color: str,
         logo_url: Optional[str] = None,
     ) -> str:
-        """Wrap content parts in a responsive email HTML structure."""
+        """Wrap content in a table-based responsive email HTML structure.
+
+        Gold Standard approach:
+        1. Extract <style> from template header_html → merge into <head>
+        2. Use table-based layout for Outlook compatibility
+        3. Include both base + template CSS in <head> (for Gmail/Apple Mail)
+        4. css-inline will later convert these to inline styles (for Outlook)
+        5. Dark mode meta tags to force light rendering
+        """
         logo_block = ""
         if logo_url:
-            logo_block = f'<img src="{logo_url}" alt="Logo" style="max-width:180px;height:auto;margin-bottom:12px;" />'
+            logo_block = (
+                f'<img src="{logo_url}" alt="Logo" '
+                f'style="max-width:180px;height:auto;margin-bottom:12px;display:block;" />'
+            )
+
+        # Extract <style> blocks from header content and move to <head>
+        template_css, header_content = self._extract_style_blocks(header)
 
         return f"""<!DOCTYPE html>
-<html lang="de">
+<html lang="de" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light only">
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
   <style>
-    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #f4f4f7; -webkit-font-smoothing: antialiased; }}
-    .container {{ max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }}
-    .header {{ background: {color}; color: #ffffff; padding: 28px 24px; }}
-    .header h1 {{ margin: 0; font-size: 22px; font-weight: 600; }}
-    .body {{ padding: 32px 24px; line-height: 1.7; color: #333333; font-size: 15px; }}
-    .body h2 {{ color: {color}; font-size: 18px; margin-top: 24px; }}
-    .body a {{ color: {color}; text-decoration: underline; }}
-    .footer {{ padding: 24px; background: #f4f4f7; color: #666666; font-size: 12px; text-align: center; line-height: 1.5; }}
-    .footer a {{ color: {color}; text-decoration: none; }}
-    .btn {{ display: inline-block; padding: 12px 28px; background: {color}; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 16px 0; }}
+    /* === Reset === */
+    body, table, td, a {{ -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }}
+    table, td {{ mso-table-lspace: 0pt; mso-table-rspace: 0pt; }}
+    img {{ -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }}
+    body {{ margin: 0 !important; padding: 0 !important; width: 100% !important; }}
+
+    /* === Base Layout === */
+    .email-wrapper {{ background-color: #ffffff; width: 100%; }}
+    .email-container {{ max-width: 600px; margin: 0 auto; }}
+
+    /* === Header === */
+    .email-header {{ background-color: #ffffff; padding: 28px 24px; text-align: center; border-bottom: 2px solid #f0f0f0; }}
+    .email-header h1 {{ margin: 0; font-size: 22px; font-weight: 600; color: #1a1a1a; }}
+
+    /* === Body === */
+    .email-body {{ background-color: #111111; padding: 40px 32px; line-height: 1.7; color: #f0f0f0; font-size: 15px; font-family: 'Funnel Sans', Arial, Helvetica, sans-serif; }}
+    .email-body h1, .email-body h2, .email-body h3 {{ color: {color}; font-family: 'Funnel Sans', Arial, Helvetica, sans-serif; }}
+    .email-body p {{ color: #f0f0f0; font-family: 'Funnel Sans', Arial, Helvetica, sans-serif; margin: 0 0 16px 0; }}
+    .email-body a {{ color: {color}; text-decoration: underline; }}
+
+    /* === CTA Button === */
+    .email-btn {{ display: inline-block; padding: 14px 32px; background-color: {color}; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; font-family: 'Funnel Sans', Arial, Helvetica, sans-serif; }}
+
+    /* === Footer === */
+    .email-footer {{ background-color: #ffffff; padding: 28px 24px; color: #666666; font-size: 12px; text-align: center; line-height: 1.5; border-top: 2px solid #f0f0f0; }}
+    .email-footer a {{ color: {color}; text-decoration: none; }}
+
+    /* === Responsive === */
     @media only screen and (max-width: 620px) {{
-      .container {{ margin: 0 !important; border-radius: 0 !important; }}
-      .body {{ padding: 24px 16px !important; }}
+      .email-container {{ width: 100% !important; }}
+      .email-body {{ padding: 24px 16px !important; }}
+      .email-header {{ padding: 20px 16px !important; }}
+      .email-footer {{ padding: 20px 16px !important; }}
     }}
+
+    /* === Tenant Template Overrides === */
+    {template_css}
   </style>
 </head>
-<body>
-  <div style="padding: 20px 0;">
-    <div class="container">
-      <div class="header">
-        {logo_block}
-        {header}
-      </div>
-      <div class="body">
-        {body}
-      </div>
-      <div class="footer">
-        {footer}
-      </div>
-    </div>
-  </div>
+<body style="margin:0;padding:0;background-color:#ffffff;font-family:'Funnel Sans',Arial,Helvetica,sans-serif;">
+  <!--[if mso]>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td align="center">
+  <![endif]-->
+  <table role="presentation" class="email-wrapper" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;">
+    <tr>
+      <td align="center" style="padding:20px 0;">
+        <!--[if mso]>
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0">
+        <tr><td>
+        <![endif]-->
+        <table role="presentation" class="email-container" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;margin:0 auto;">
+          <!-- HEADER -->
+          <tr>
+            <td class="email-header" style="background-color:#ffffff;padding:28px 24px;text-align:center;border-bottom:2px solid #f0f0f0;">
+              {logo_block}
+              {header_content}
+            </td>
+          </tr>
+          <!-- BODY -->
+          <tr>
+            <td class="email-body" style="background-color:#111111;padding:40px 32px;line-height:1.7;color:#f0f0f0;font-size:15px;font-family:'Funnel Sans',Arial,Helvetica,sans-serif;">
+              {body}
+            </td>
+          </tr>
+          <!-- FOOTER -->
+          <tr>
+            <td class="email-footer" style="background-color:#ffffff;padding:28px 24px;color:#666666;font-size:12px;text-align:center;line-height:1.5;border-top:2px solid #f0f0f0;">
+              {footer}
+            </td>
+          </tr>
+        </table>
+        <!--[if mso]>
+        </td></tr></table>
+        <![endif]-->
+      </td>
+    </tr>
+  </table>
+  <!--[if mso]>
+  </td></tr></table>
+  <![endif]-->
 </body>
 </html>"""
+
+    @staticmethod
+    def _inline_css(html: str) -> str:
+        """Inline CSS from <style> blocks into element style attributes.
+
+        Uses css-inline library for high-performance, spec-compliant inlining.
+        Falls back to returning the original HTML if css-inline is not available.
+        """
+        inliner = _get_css_inliner()
+        if inliner:
+            try:
+                return inliner.inline(html)
+            except Exception as e:
+                logger.warning("renderer.css_inline_failed", error=str(e))
+        return html
 
     def _html_to_text(self, html: str) -> str:
         """Simple HTML to plain text conversion."""

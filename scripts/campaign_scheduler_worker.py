@@ -1,12 +1,13 @@
 """ARIIA v2.2 – Campaign Scheduler Worker with Omnichannel Orchestration.
 
 Uses APScheduler for reliable, interval-based job execution instead of a
-manual polling loop. The scheduler runs four jobs:
+manual polling loop. The scheduler runs five jobs:
 
   1. process_scheduled_campaigns – every 30s (configurable)
   2. process_approved_campaigns  – every 30s
   3. evaluate_ab_tests           – every 60s
   4. process_orchestration_steps – every 30s
+  5. check_expired_trials        – every 3600s (1h)
 
 @ARCH: Campaign Refactoring Phase 2 – TASK-010
 """
@@ -769,6 +770,17 @@ def job_process_orchestration():
 
 # ── Main Entry Point ─────────────────────────────────────────────────────
 
+
+# ── Trial Expiration Check ────────────────────────────────────────────
+TRIAL_CHECK_INTERVAL = int(os.environ.get("TRIAL_CHECK_INTERVAL", "3600"))  # 1 hour
+
+def job_check_expired_trials():
+    """Periodically check and expire overdue trials."""
+    try:
+        from app.core.feature_gates import check_expired_trials
+        check_expired_trials()
+    except Exception as e:
+        logger.error("scheduler.job_trial_expire_error", error=str(e))
 def main():
     """Main entry point – uses APScheduler for reliable job execution."""
     scheduler = BackgroundScheduler(
@@ -805,12 +817,18 @@ def main():
         name="Process orchestration steps",
     )
 
+    scheduler.add_job(
+        job_check_expired_trials,
+        trigger=IntervalTrigger(seconds=TRIAL_CHECK_INTERVAL),
+        id="check_expired_trials",
+        name="Check and expire overdue trials",
+    )
     logger.info(
         "campaign_scheduler.started",
         poll_interval=POLL_INTERVAL,
         ab_test_poll_interval=AB_TEST_POLL_INTERVAL,
         database=DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "configured",
-        features=["apscheduler", "send_queue", "ab_testing", "orchestration"],
+        features=["apscheduler", "send_queue", "ab_testing", "orchestration", "trial_expiration"],
         jobs=[
             {"id": j.id, "interval": str(j.trigger)}
             for j in scheduler.get_jobs()
