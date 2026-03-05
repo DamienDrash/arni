@@ -141,6 +141,17 @@ export default function CampaignQueueMonitor() {
 
   const hasDeadLetters = stats.dead_letter_queue_length > 0;
 
+  const clearDlq = async () => {
+    try {
+      const res = await apiFetch("/v2/admin/campaigns/queue-dlq", { method: "DELETE" });
+      if (res.ok) {
+        setStats(prev => prev ? { ...prev, dead_letter_queue_length: 0 } : null);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
   return (
     <div style={S.container}>
       <div style={S.header}>
@@ -200,9 +211,25 @@ export default function CampaignQueueMonitor() {
           background: T.dangerDim,
           color: T.danger,
           border: `1px solid rgba(255,107,107,0.2)`,
+          justifyContent: "space-between",
         }}>
-          <AlertTriangle size={14} />
-          {stats.dead_letter_queue_length} Nachrichten konnten nach mehreren Versuchen nicht zugestellt werden.
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <AlertTriangle size={14} />
+            {stats.dead_letter_queue_length} Nachrichten konnten nach mehreren Versuchen nicht zugestellt werden.
+          </div>
+          <button
+            onClick={clearDlq}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: T.danger,
+              cursor: "pointer",
+              fontSize: 12,
+              textDecoration: "underline"
+            }}
+          >
+            Meldung verwerfen
+          </button>
         </div>
       )}
     </div>

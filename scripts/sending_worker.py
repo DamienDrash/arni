@@ -299,11 +299,17 @@ async def process_batch(redis_client: redis.Redis):
                 else:
                     # Move to dead letter queue after max retries
                     job["_failed_at"] = datetime.now(timezone.utc).isoformat()
-                    redis_client.rpush(DEAD_LETTER_QUEUE_KEY, json.dumps(job))
+                    tenant_id = job.get("tenant_id")
+                    if tenant_id:
+                        redis_client.rpush(f"campaign:send_dlq:{tenant_id}", json.dumps(job))
+                    else:
+                        redis_client.rpush(DEAD_LETTER_QUEUE_KEY, json.dumps(job))
+
                     logger.warning(
                         "sending_worker.dead_letter",
                         campaign_id=job.get("campaign_id"),
                         recipient_id=job.get("recipient_id"),
+                        tenant_id=tenant_id,
                         retries=retries,
                     )
 

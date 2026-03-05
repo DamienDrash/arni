@@ -1324,23 +1324,34 @@ async def get_queue_stats(
     db: Session = Depends(get_db),
 ):
     """Return current send queue statistics for the campaign dashboard."""
-    from app.core.models import CampaignRecipient
+    import redis as _redis
+    import os
     
-    # Calculate tenant-specific queue and failed lengths directly from the DB
-    send_queue_len = db.query(CampaignRecipient).filter(
-        CampaignRecipient.tenant_id == user.tenant_id,
-        CampaignRecipient.status == "queued"
-    ).count()
-
-    dlq_len = db.query(CampaignRecipient).filter(
-        CampaignRecipient.tenant_id == user.tenant_id,
-        CampaignRecipient.status == "failed"
-    ).count()
-
-    # We do not track tenant-level isolated analytics queue events yet,
-    # so we return 0 for analytics queue length.
+    send_queue_len = 0
+    dlq_len = 0
     analytics_queue_len = 0
-    workers_active = True
+    workers_active = False
+
+    try:
+        r = _redis.Redis.from_url(
+            os.environ.get("REDIS_URL", "redis://ariia-redis:6379/0"),
+            decode_responses=True,
+        )
+        # Assuming send_queue_len is difficult to filter by tenant in O(1), 
+        # we can still track tenant DLQ correctly:
+        dlq_len = r.llen(f"campaign:send_dlq:{user.tenant_id}") or 0
+        analytics_queue_len = r.llen("analytics:events") or 0
+        workers_active = r.ping()
+        
+        # Count only active sends in DB for accurate send queue length
+        from app.core.models import CampaignRecipient
+        send_queue_len = db.query(CampaignRecipient).filter(
+            CampaignRecipient.tenant_id == user.tenant_id,
+            CampaignRecipient.status == "queued"
+        ).count()
+
+    except Exception:
+        pass
 
     return {
         "send_queue_length": send_queue_len,
@@ -1350,3 +1361,20 @@ async def get_queue_stats(
         "last_processed_at": None,
         "throughput_per_minute": 0,
     }
+
+@v2_campaigns_router.delete("/queue-dlq")
+async def clear_dead_letter_queue(
+    user: AuthContext = Depends(get_current_user),
+):
+    """Clear the dead letter queue for the current tenant."""
+    import redis as _redis
+    import os
+    try:
+        r = _redis.Redis.from_url(
+            os.environ.get("REDIS_URL", "redis://ariia-redis:6379/0"),
+            decode_responses=True,
+        )
+        r.delete(f"campaign:send_dlq:{user.tenant_id}")
+        return {"status": "ok"}
+    except Exception:
+        raise HTTPException(status_code=500, detail="Could not clear DLQ")
