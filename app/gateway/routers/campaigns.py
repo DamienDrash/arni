@@ -286,7 +286,12 @@ async def delete_campaign(
     if campaign.status in ("sending",):
         raise HTTPException(status_code=400, detail="Cannot delete a campaign that is currently sending")
 
-    # Delete recipients and variants
+    # Import dependent models
+    from app.core.analytics_models import AnalyticsEvent, CampaignOrchestrationStep
+
+    # Order of deletion is important to satisfy foreign keys
+    db.query(AnalyticsEvent).filter(AnalyticsEvent.campaign_id == campaign_id).delete()
+    db.query(CampaignOrchestrationStep).filter(CampaignOrchestrationStep.campaign_id == campaign_id).delete()
     db.query(CampaignRecipient).filter(CampaignRecipient.campaign_id == campaign_id).delete()
     db.query(CampaignVariant).filter(CampaignVariant.campaign_id == campaign_id).delete()
     db.delete(campaign)
