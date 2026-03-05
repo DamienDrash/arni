@@ -3290,7 +3290,7 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
                         logger.warning("admin.whatsapp.session_failed_reset", tenant=slug)
                         await client.post(f"{waha_url}/api/sessions/stop", json={"name": session_name}, headers={"X-Api-Key": waha_key})
                         await asyncio.sleep(2)
-                        return {"status": "RESTARTING", "message": "Sitzung wird nach Fehler neu gestartet. Bitte kurz warten."}
+                        raise HTTPException(status_code=404, detail="RESTARTING")
 
                     webhook_url = f"http://ariia-core:8000/webhook/waha/{slug}"
                     await client.post(
@@ -3310,12 +3310,12 @@ async def get_whatsapp_qr_image(user: AuthContext = Depends(get_current_user)):
                             }
                         }
                     )
-                    return {"status": "STARTING", "message": "WhatsApp Bridge wird initialisiert..."}
+                    raise HTTPException(status_code=404, detail="STARTING")
                 else:
                     # Session exists (SCAN_QR_CODE or WORKING)
                     if current_session.get("status") == "WORKING":
                         # Signal success to frontend
-                        return {"status": "CONNECTED", "message": "WhatsApp ist bereit!"}
+                        raise HTTPException(status_code=404, detail="CONNECTED")
                     
                     # Update webhook dynamically
                     webhook_url = f"http://ariia-core:8000/webhook/waha/{slug}"
