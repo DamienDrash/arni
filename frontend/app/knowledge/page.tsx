@@ -153,6 +153,7 @@ export default function KnowledgePage() {
   const [uploadProgress, setUploadProgress] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [docFilter, setDocFilter] = useState("all");
+  const [previewDoc, setPreviewDoc] = useState<{ id: string, name: string } | null>(null);
 
   const selectedExists = useMemo(() => (selectedFile ? files.includes(selectedFile) : false), [files, selectedFile]);
   const isIngestOk = meta?.last_ingest_status === "ok";
@@ -180,8 +181,8 @@ export default function KnowledgePage() {
       const data = (await res.json()) as TenantOption[];
       setTenants(data);
       if (data.length > 0 && !selectedTenantSlug) setSelectedTenantSlug(data[0].slug);
-    }).catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    }).catch(() => { });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSystemAdmin]);
 
   /* ── Data Loading ─────────────────────────────────────────────────── */
@@ -707,9 +708,14 @@ export default function KnowledgePage() {
                         </td>
                         <td style={{ padding: "12px 16px", fontSize: 11, color: T.textDim }}>{formatDate(doc.created_at)}</td>
                         <td style={{ padding: "12px 16px" }}>
-                          <button onClick={() => deleteDocument(doc.document_id)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim, padding: 4 }} title="Löschen">
-                            <Trash2 size={14} />
-                          </button>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={() => setPreviewDoc({ id: doc.document_id, name: doc.filename })} style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim, padding: 4 }} title="Ansehen">
+                              <Eye size={14} />
+                            </button>
+                            <button onClick={() => deleteDocument(doc.document_id)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim, padding: 4 }} title="Löschen">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -741,6 +747,35 @@ export default function KnowledgePage() {
           </p>
         </div>
       </Card>
+
+      {/* Preview Modal */}
+      {previewDoc && (
+        <Modal
+          open={!!previewDoc}
+          onClose={() => setPreviewDoc(null)}
+          title={previewDoc.name}
+          width="800px"
+        >
+          <div style={{ width: "100%", height: "70vh", background: T.surfaceAlt, borderRadius: 8, overflow: "hidden" }}>
+            <iframe
+              src={`/proxy/memory-platform/knowledge/documents/${previewDoc.id}/content${slugParam}`}
+              style={{ width: "100%", height: "100%", border: "none" }}
+              title={previewDoc.name}
+            />
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+            <button
+              onClick={() => window.open(`/proxy/memory-platform/knowledge/documents/${previewDoc.id}/content${slugParam}`, "_blank")}
+              style={{ ...btnSecondary, marginRight: 12 }}
+            >
+              Im neuen Tab öffnen / Download
+            </button>
+            <button onClick={() => setPreviewDoc(null)} style={btnPrimary}>
+              Schließen
+            </button>
+          </div>
+        </Modal>
+      )}
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

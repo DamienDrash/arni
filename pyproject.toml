@@ -40,6 +40,7 @@ dependencies = [
     "cryptography>=44.0.0",    # Encryption for BYOK/Sensitive Settings
     "docker>=7.0.0",
     "apscheduler>=3.10.0,<4.0",  # Advanced job scheduling
+    "pdfplumber>=0.11.0",      # PDF parsing
 ]
 
 [project.optional-dependencies]

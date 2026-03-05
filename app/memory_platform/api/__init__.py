@@ -209,6 +209,44 @@ async def delete_document(
     return {"status": "deleted", "document_id": document_id}
 
 
+@router.get("/knowledge/documents/{document_id}/content")
+async def get_document_content(
+    document_id: str,
+    user=Depends(_get_auth()),
+):
+    """Retrieve the raw content/file of a document for preview."""
+    import os
+    from fastapi.responses import FileResponse
+    from app.memory_platform.ingestion import get_ingestion_service, UPLOAD_DIR
+
+    service = get_ingestion_service()
+    doc = service.get_document(document_id)
+    if not doc or doc.tenant_id != user.tenant_id:
+        raise HTTPException(status_code=404, detail="Dokument nicht gefunden")
+
+    tenant_dir = os.path.join(UPLOAD_DIR, str(user.tenant_id))
+    stored_path = os.path.join(tenant_dir, doc.filename)
+
+    if not os.path.exists(stored_path):
+        raise HTTPException(status_code=404, detail="Datei nicht gefunden")
+
+    media_type = doc.content_type
+    if not media_type:
+        ext = os.path.splitext(doc.filename)[1].lower()
+        if ext == ".pdf": media_type = "application/pdf"
+        elif ext in [".htm", ".html"]: media_type = "text/html"
+        elif ext == ".txt": media_type = "text/plain"
+        elif ext == ".csv": media_type = "text/csv"
+        else: media_type = "application/octet-stream"
+
+    return FileResponse(
+        stored_path,
+        media_type=media_type,
+        filename=doc.original_filename,
+        content_disposition_type="inline"
+    )
+
+
 @router.get("/knowledge/supported-formats")
 async def get_supported_formats(
     user=Depends(_get_auth()),
