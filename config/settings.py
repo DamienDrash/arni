@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     bridge_log_level: str = "silent"
     bridge_auth_dir: str = "/app/data/whatsapp/auth_info_baileys"
 
+    # --- Media Storage ---
+    media_public_base_url: str = ""
+    media_root_path: str = ""
+
     # --- System Admin (Bootstrap) ---
     system_admin_email: str = "admin@ariia.io"
     system_admin_password: str = "Admin!Password2026"

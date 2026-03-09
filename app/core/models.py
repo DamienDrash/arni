@@ -300,6 +300,10 @@ class Plan(Base):
     allowed_llm_models_json = Column(Text, nullable=True)     # JSON list of model IDs (optional fine-grained)
     token_price_per_1k_cents = Column(Integer, nullable=True, default=10)  # Price for 1K extra tokens
 
+    # Media & Image Generation quotas
+    ai_image_generations_per_month = Column(Integer, nullable=True)
+    media_storage_mb = Column(Integer, nullable=True)
+
     is_active = Column(Boolean, nullable=False, default=True)
     is_public = Column(Boolean, nullable=False, default=True)  # Show on public pricing page
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -394,6 +398,10 @@ class UsageRecord(Base):
     llm_tokens_used = Column(Integer, nullable=False, default=0)
 
     llm_tokens_purchased = Column(Integer, nullable=False, default=0)
+
+    # Media & Image Generation usage
+    ai_image_generations_used = Column(Integer, nullable=False, default=0)
+    media_storage_bytes_used = Column(Integer, nullable=False, default=0)
 
     __table_args__ = (
         UniqueConstraint("tenant_id", "period_year", "period_month", name="uq_usage_tenant_period"),
@@ -533,6 +541,10 @@ class Campaign(Base):
     # Smart Send
     smart_send_enabled = Column(Boolean, nullable=False, default=False)
 
+    # Media
+    featured_image_url = Column(String(512), nullable=True)
+    featured_image_asset_id = Column(Integer, nullable=True)
+
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
@@ -565,6 +577,7 @@ class CampaignTemplate(Base):
     # Styling
     primary_color = Column(String, nullable=True, default="#6C5CE7")
     logo_url = Column(String, nullable=True)
+    featured_image_url = Column(String(512), nullable=True)
 
     is_default = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)

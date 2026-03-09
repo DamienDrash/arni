@@ -14,6 +14,7 @@ from typing import Any
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.gateway.dependencies import redis_bus
 from app.gateway.routers import webhooks, voice, websocket
@@ -88,7 +89,19 @@ async def lifespan(app: FastAPI):
             _ai_db.close()
     except Exception as _ai_err:
         logger.warning("ariia.gateway.ai_config_seed_skipped", error=str(_ai_err))
-        
+
+    # Seed AI Image Providers (DALL-E, Stability AI)
+    try:
+        from app.ai_config.image_seed import seed_image_providers
+        from app.core.db import SessionLocal as _ImgSeedDB
+        _img_db = _ImgSeedDB()
+        try:
+            seed_image_providers(_img_db)
+        finally:
+            _img_db.close()
+    except Exception as _img_err:
+        logger.warning("ariia.gateway.image_providers_seed_skipped", error=str(_img_err))
+
     logger.info("ariia.gateway.startup", version="2.0.0", env=settings.environment)
     
     try:
@@ -249,6 +262,15 @@ app.include_router(ab_testing_api.router)
 app.include_router(docker_management.router)
 app.include_router(smtp_config.router)
 
+# --- Media & Image Provider Routers ---
+try:
+    from app.gateway.routers.media import router as media_router
+    from app.gateway.routers.image_providers import router as image_providers_router
+    app.include_router(media_router)
+    app.include_router(image_providers_router)
+except Exception as _media_err:
+    logger.warning("ariia.gateway.media_routers_skipped", error=str(_media_err))
+
 # --- Integration Registry API (Phase 2) ---
 from app.platform.api.integrations import router as integration_registry_router
 app.include_router(integration_registry_router)
@@ -320,6 +342,14 @@ app.include_router(llm_costs_router, prefix="/admin")
 # --- Memory Platform Router ---
 from app.memory_platform.api import router as memory_platform_router
 app.include_router(memory_platform_router)
+
+# --- Static Media Files ---
+try:
+    _media_root = os.path.join(BASE_DIR, "data", "media", "tenants")
+    os.makedirs(_media_root, exist_ok=True)
+    app.mount("/media/tenants", StaticFiles(directory=_media_root), name="media_tenants")
+except Exception as _static_err:
+    logger.warning("ariia.gateway.static_media_mount_skipped", error=str(_static_err))
 
 # --- Health Check ---
 @app.get("/health")

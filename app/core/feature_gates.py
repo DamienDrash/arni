@@ -212,6 +212,27 @@ class FeatureGate:
                 ),
             )
 
+    def check_image_generation_limit(self) -> None:
+        """Raise HTTP 402/429 if the tenant has reached their monthly AI image generation quota."""
+        limit = self._plan_data.get("ai_image_generations_per_month")
+        if limit is None or limit == -1:
+            return
+        if limit == 0:
+            raise HTTPException(status_code=402, detail="AI image generation is not available on your current plan.")
+        usage = self._get_current_usage()
+        if usage.get("ai_image_generations_used", 0) >= int(limit):
+            raise HTTPException(status_code=429, detail=f"Monthly AI image generation limit of {limit} reached.")
+
+    def check_media_storage_limit(self, bytes_to_add: int = 0) -> None:
+        """Raise HTTP 402 if adding bytes_to_add would exceed the media storage quota."""
+        limit_mb = self._plan_data.get("media_storage_mb")
+        if limit_mb is None or limit_mb == -1:
+            return
+        usage = self._get_current_usage()
+        current = usage.get("media_storage_bytes_used", 0)
+        if (current + bytes_to_add) > int(limit_mb) * 1024 * 1024:
+            raise HTTPException(status_code=402, detail=f"Media storage limit of {limit_mb}MB reached.")
+
     def check_member_limit(self) -> None:
         """Raise HTTP 402 if the tenant has reached their member quota."""
         max_members = self._plan_data.get("max_members")
@@ -250,12 +271,17 @@ class FeatureGate:
                         "messages_outbound": rec.messages_outbound,
                         "active_members": rec.active_members,
                         "llm_tokens_used": rec.llm_tokens_used,
+                        "ai_image_generations_used": getattr(rec, "ai_image_generations_used", 0) or 0,
+                        "media_storage_bytes_used": getattr(rec, "media_storage_bytes_used", 0) or 0,
                     }
             finally:
                 db.close()
         except Exception as exc:
             logger.warning("feature_gate.usage_load_failed", tenant_id=self._tenant_id, error=str(exc))
-        return {"messages_inbound": 0, "messages_outbound": 0, "active_members": 0, "llm_tokens_used": 0}
+        return {
+            "messages_inbound": 0, "messages_outbound": 0, "active_members": 0,
+            "llm_tokens_used": 0, "ai_image_generations_used": 0, "media_storage_bytes_used": 0,
+        }
 
     # ── Usage Tracking ────────────────────────────────────────────────────────
 
@@ -274,6 +300,14 @@ class FeatureGate:
     def set_active_members(self, count: int) -> None:
         """Set the active members counter for the current month."""
         self._set_usage_field("active_members", count)
+
+    def increment_image_generation_usage(self) -> None:
+        """Increment the AI image generation counter for the current month. Non-fatal."""
+        self._increment_usage_field("ai_image_generations_used", amount=1)
+
+    def increment_media_storage_usage(self, bytes_added: int) -> None:
+        """Increment the media storage bytes counter for the current month. Non-fatal."""
+        self._increment_usage_field("media_storage_bytes_used", amount=bytes_added)
 
     def _increment_usage_field(self, field: str, amount: int = 1) -> None:
         now = datetime.now(timezone.utc)
@@ -414,6 +448,8 @@ def seed_plans() -> None:
                 "on_premise_enabled": False,
                 "allowed_llm_providers_json": '["groq"]',
                 "token_price_per_1k_cents": 0,
+                "ai_image_generations_per_month": 5,
+                "media_storage_mb": 100,
             },
             {
                 "name": "Starter",
@@ -453,6 +489,8 @@ def seed_plans() -> None:
                 "on_premise_enabled": False,
                 "allowed_llm_providers_json": '["groq"]',
                 "token_price_per_1k_cents": 15,
+                "ai_image_generations_per_month": 0,
+                "media_storage_mb": 500,
             },
             {
                 "name": "Professional",
@@ -493,6 +531,8 @@ def seed_plans() -> None:
                 "on_premise_enabled": False,
                 "allowed_llm_providers_json": '["groq", "mistral", "openai"]',
                 "token_price_per_1k_cents": 10,
+                "ai_image_generations_per_month": 50,
+                "media_storage_mb": 2048,
             },
             {
                 "name": "Business",
@@ -533,6 +573,8 @@ def seed_plans() -> None:
                 "on_premise_enabled": False,
                 "allowed_llm_providers_json": '["groq", "mistral", "openai", "anthropic", "gemini"]',
                 "token_price_per_1k_cents": 7,
+                "ai_image_generations_per_month": 200,
+                "media_storage_mb": 10240,
             },
             {
                 "name": "Enterprise",
@@ -572,6 +614,8 @@ def seed_plans() -> None:
                 "on_premise_enabled": True,
                 "allowed_llm_providers_json": '["groq", "mistral", "openai", "anthropic", "gemini"]',
                 "token_price_per_1k_cents": 5,
+                "ai_image_generations_per_month": -1,
+                "media_storage_mb": -1,
             },
         ]
 
