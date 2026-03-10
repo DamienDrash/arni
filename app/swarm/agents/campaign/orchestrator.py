@@ -51,10 +51,19 @@ class CampaignOrchestrator:
         result = CampaignGenerationResult()
 
         try:
+            # Resolve tenant slug once
+            tenant_slug = ""
+            try:
+                from app.core.models import Tenant
+                tenant_obj = db.query(Tenant).filter(Tenant.id == request.tenant_id).first()
+                tenant_slug = tenant_obj.slug if tenant_obj else "default"
+            except Exception:
+                pass
+
             # Step 1: Gather knowledge context
             knowledge_context = ""
             if request.use_knowledge:
-                knowledge_context = await self._gather_knowledge(request, db)
+                knowledge_context = await self._gather_knowledge(request, db, tenant_slug=tenant_slug)
                 if knowledge_context:
                     result.pipeline_steps.append("knowledge_retrieval")
 
@@ -93,6 +102,49 @@ class CampaignOrchestrator:
                 result.error = text["error"]
                 return result
 
+            # Step 4.5: Gather relevant media assets for email campaigns
+            media_context = ""
+            if request.channel == "email" and db:
+                try:
+                    from app.core.media_models import MediaAsset
+                    from app.media.storage import get_public_url
+                    from sqlalchemy import or_, cast
+                    import sqlalchemy as sa
+
+                    keywords = (request.campaign_name or request.prompt)[:60]
+                    assets = db.query(MediaAsset).filter(
+                        MediaAsset.tenant_id == request.tenant_id,
+                        MediaAsset.mime_type != "image/webp",
+                        or_(
+                            MediaAsset.description.ilike(f"%{keywords}%"),
+                            MediaAsset.display_name.ilike(f"%{keywords}%"),
+                            cast(MediaAsset.tags, sa.Text).ilike(f"%{keywords}%"),
+                        )
+                    ).order_by(MediaAsset.created_at.desc()).limit(3).all()
+
+                    if not assets:
+                        # Fallback: just get the 3 most recent images
+                        assets = db.query(MediaAsset).filter(
+                            MediaAsset.tenant_id == request.tenant_id,
+                            MediaAsset.mime_type != "image/webp",
+                        ).order_by(MediaAsset.created_at.desc()).limit(3).all()
+
+                    if assets:
+                        lines = []
+                        for a in assets:
+                            url = get_public_url(tenant_slug, a.filename)
+                            desc = a.description or a.display_name or a.alt_text or a.filename
+                            tags = ", ".join(a.tags[:3]) if a.tags else ""
+                            line = f"- {desc}"
+                            if tags:
+                                line += f" (Tags: {tags})"
+                            line += f": {url}"
+                            lines.append(line)
+                        media_context = "\n".join(lines)
+                        result.pipeline_steps.append("media_retrieval")
+                except Exception as e:
+                    logger.warning("campaign_orchestrator.media_context_failed", error=str(e))
+
             # Step 5: DesignerAgent generates HTML (email only)
             if request.channel == "email":
                 result.pipeline_steps.append("designer")
@@ -102,6 +154,7 @@ class CampaignOrchestrator:
                     body=result.body,
                     variables=result.variables,
                     tenant_id=request.tenant_id,
+                    media_context=media_context,
                 )
 
             # Step 6: QAAgent validates
@@ -123,12 +176,13 @@ class CampaignOrchestrator:
 
         return result
 
-    async def _gather_knowledge(self, request: CampaignGenerationRequest, db: Session) -> str:
+    async def _gather_knowledge(self, request: CampaignGenerationRequest, db: Session, *, tenant_slug: str = "") -> str:
         try:
             from app.knowledge.knowledge_manager import KnowledgeManager
-            from app.core.models import Tenant
-            tenant = db.query(Tenant).filter(Tenant.id == request.tenant_id).first()
-            tenant_slug = tenant.slug if tenant else "default"
+            if not tenant_slug:
+                from app.core.models import Tenant
+                tenant = db.query(Tenant).filter(Tenant.id == request.tenant_id).first()
+                tenant_slug = tenant.slug if tenant else "default"
             km = KnowledgeManager()
             results = await km.search(
                 query=request.prompt,

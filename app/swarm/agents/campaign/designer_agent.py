@@ -27,6 +27,7 @@ class DesignerAgent(BaseAgent):
         body: str,
         variables: dict,
         tenant_id: int,
+        media_context: str = "",
     ) -> str:
         """Generate full HTML email. Uses template branding if available."""
         primary_color = "#6C5CE7"
@@ -63,6 +64,9 @@ ANFORDERUNGEN:
 5. Gib NUR den vollständigen HTML-Code zurück, kein Erklärungstext
 6. Füge {{{{ unsubscribe_url }}}} im Footer ein
 """
+
+        if media_context:
+            system_prompt += f"\n\nVERFÜGBARE BILDER FÜR DIESEN NEWSLETTER:\n{media_context}\nFüge das erste passende Bild als <img src=\"URL\" alt=\"beschreibung\" style=\"max-width:100%;height:auto;\"> in den HTML-Body an einer sinnvollen Stelle ein. Wenn kein Bild gut passt, lasse den img-Tag weg."
 
         user_prompt = f"""Betreff: {subject}
 
