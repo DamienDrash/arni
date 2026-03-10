@@ -50,6 +50,10 @@ _STARTER_DEFAULTS: dict[str, object] = {
     "white_label_enabled": False,
     "sla_guarantee_enabled": False,
     "on_premise_enabled": False,
+    "ai_image_generations_per_month": 0,
+    "ai_image_previews_per_month": 0,
+    "brand_style_enabled": False,
+    "text_overlay_images_enabled": False,
 }
 
 
@@ -223,6 +227,27 @@ class FeatureGate:
         if usage.get("ai_image_generations_used", 0) >= int(limit):
             raise HTTPException(status_code=429, detail=f"Monthly AI image generation limit of {limit} reached.")
 
+    def check_image_preview_limit(self) -> None:
+        """Raise HTTP 402/429 if the tenant has reached their monthly AI image preview quota."""
+        limit = self._plan_data.get("ai_image_previews_per_month")
+        if limit is None or int(limit) == 0:
+            raise HTTPException(status_code=402, detail="AI image preview is not available on your current plan.")
+        if int(limit) == -1:
+            return  # unlimited
+        usage = self._get_current_usage()
+        if usage.get("ai_image_previews_used", 0) >= int(limit):
+            raise HTTPException(status_code=429, detail=f"Monthly AI image preview limit of {limit} reached.")
+
+    def require_brand_style(self) -> None:
+        """Raise HTTP 402 if brand style image generation is not available on this plan."""
+        if not self._plan_data.get("brand_style_enabled", False):
+            raise HTTPException(status_code=402, detail="Brand style image generation requires a Business or Enterprise plan.")
+
+    def require_text_overlay_images(self) -> None:
+        """Raise HTTP 402 if text overlay image generation is not available on this plan."""
+        if not self._plan_data.get("text_overlay_images_enabled", False):
+            raise HTTPException(status_code=402, detail="Text overlay image generation requires a Professional plan or higher.")
+
     def check_media_storage_limit(self, bytes_to_add: int = 0) -> None:
         """Raise HTTP 402 if adding bytes_to_add would exceed the media storage quota."""
         limit_mb = self._plan_data.get("media_storage_mb")
@@ -272,6 +297,7 @@ class FeatureGate:
                         "active_members": rec.active_members,
                         "llm_tokens_used": rec.llm_tokens_used,
                         "ai_image_generations_used": getattr(rec, "ai_image_generations_used", 0) or 0,
+                        "ai_image_previews_used": getattr(rec, "ai_image_previews_used", 0) or 0,
                         "media_storage_bytes_used": getattr(rec, "media_storage_bytes_used", 0) or 0,
                     }
             finally:
@@ -280,7 +306,8 @@ class FeatureGate:
             logger.warning("feature_gate.usage_load_failed", tenant_id=self._tenant_id, error=str(exc))
         return {
             "messages_inbound": 0, "messages_outbound": 0, "active_members": 0,
-            "llm_tokens_used": 0, "ai_image_generations_used": 0, "media_storage_bytes_used": 0,
+            "llm_tokens_used": 0, "ai_image_generations_used": 0, "ai_image_previews_used": 0,
+            "media_storage_bytes_used": 0,
         }
 
     # ── Usage Tracking ────────────────────────────────────────────────────────
@@ -304,6 +331,10 @@ class FeatureGate:
     def increment_image_generation_usage(self) -> None:
         """Increment the AI image generation counter for the current month. Non-fatal."""
         self._increment_usage_field("ai_image_generations_used", amount=1)
+
+    def increment_image_preview_usage(self) -> None:
+        """Increment the AI image preview counter for the current month. Non-fatal."""
+        self._increment_usage_field("ai_image_previews_used", amount=1)
 
     def increment_media_storage_usage(self, bytes_added: int) -> None:
         """Increment the media storage bytes counter for the current month. Non-fatal."""
@@ -449,6 +480,9 @@ def seed_plans() -> None:
                 "allowed_llm_providers_json": '["groq"]',
                 "token_price_per_1k_cents": 0,
                 "ai_image_generations_per_month": 5,
+                "ai_image_previews_per_month": 20,
+                "brand_style_enabled": False,
+                "text_overlay_images_enabled": False,
                 "media_storage_mb": 100,
             },
             {
@@ -490,6 +524,9 @@ def seed_plans() -> None:
                 "allowed_llm_providers_json": '["groq"]',
                 "token_price_per_1k_cents": 15,
                 "ai_image_generations_per_month": 0,
+                "ai_image_previews_per_month": 20,
+                "brand_style_enabled": False,
+                "text_overlay_images_enabled": False,
                 "media_storage_mb": 500,
             },
             {
@@ -531,7 +568,10 @@ def seed_plans() -> None:
                 "on_premise_enabled": False,
                 "allowed_llm_providers_json": '["groq", "mistral", "openai"]',
                 "token_price_per_1k_cents": 10,
-                "ai_image_generations_per_month": 50,
+                "ai_image_generations_per_month": 25,
+                "ai_image_previews_per_month": 100,
+                "brand_style_enabled": False,
+                "text_overlay_images_enabled": True,
                 "media_storage_mb": 2048,
             },
             {
@@ -574,6 +614,9 @@ def seed_plans() -> None:
                 "allowed_llm_providers_json": '["groq", "mistral", "openai", "anthropic", "gemini"]',
                 "token_price_per_1k_cents": 7,
                 "ai_image_generations_per_month": 200,
+                "ai_image_previews_per_month": 500,
+                "brand_style_enabled": True,
+                "text_overlay_images_enabled": True,
                 "media_storage_mb": 10240,
             },
             {
@@ -615,6 +658,9 @@ def seed_plans() -> None:
                 "allowed_llm_providers_json": '["groq", "mistral", "openai", "anthropic", "gemini"]',
                 "token_price_per_1k_cents": 5,
                 "ai_image_generations_per_month": -1,
+                "ai_image_previews_per_month": -1,
+                "brand_style_enabled": True,
+                "text_overlay_images_enabled": True,
                 "media_storage_mb": -1,
             },
         ]
