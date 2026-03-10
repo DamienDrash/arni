@@ -5,61 +5,26 @@ from sqlalchemy.orm import Session
 
 logger = structlog.get_logger()
 
-DEFAULT_IMAGE_PROVIDERS = [
-    {
-        "slug": "fal_ai",
-        "name": "fal.ai (FLUX 1.1 Pro)",
-        "provider_type": "fal_ai",
-        "api_base_url": "https://fal.run",
-        "default_model": "fal-ai/flux-pro/v1.1",
-        "priority": 5,   # Highest priority (lower number = preferred)
-        "is_active": True,
-    },
-    {
-        "slug": "openai_images",
-        "name": "OpenAI Images (DALL-E 3)",
-        "provider_type": "openai_images",
-        "api_base_url": "https://api.openai.com/v1",
-        "default_model": "dall-e-3",
-        "priority": 10,
-        "is_active": True,
-    },
-    {
-        "slug": "stability_ai",
-        "name": "Stability AI",
-        "provider_type": "stability_ai",
-        "api_base_url": "https://api.stability.ai",
-        "default_model": "stable-image-core",
-        "priority": 20,
-        "is_active": False,
-    },
-    {
-        "slug": "fal_ai_schnell",
-        "name": "fal.ai (FLUX Schnell — Preview)",
-        "provider_type": "fal_ai_schnell",
-        "api_base_url": "https://fal.run",
-        "default_model": "fal-ai/flux/schnell",
-        "priority": 6,   # Used only for preview mode
-        "is_active": True,
-    },
-    {
-        "slug": "recraft_v3",
-        "name": "Recraft V3 (Brand Style)",
-        "provider_type": "recraft_v3",
-        "api_base_url": "https://fal.run",
-        "default_model": "fal-ai/recraft-v3",
-        "priority": 7,   # Used when brand style enabled
-        "is_active": True,
-    },
-    {
-        "slug": "ideogram_v2",
-        "name": "Ideogram v2 (Text Overlay)",
-        "provider_type": "ideogram_v2",
-        "api_base_url": "https://fal.run",
-        "default_model": "fal-ai/ideogram/v2",
-        "priority": 8,   # Used for text-overlay images
-        "is_active": True,
-    },
+# All fal.ai-based providers (slug → fal endpoint)
+_FAL_PROVIDERS = [
+    # Legacy / routing providers
+    {"slug": "fal_ai",          "name": "fal.ai (FLUX 1.1 Pro)",          "provider_type": "fal_ai",         "default_model": "fal-ai/flux-pro/v1.1",                        "priority": 5,  "is_active": True},
+    {"slug": "fal_ai_schnell",  "name": "FLUX Schnell (Vorschau)",         "provider_type": "fal_ai_schnell", "default_model": "fal-ai/flux/schnell",                          "priority": 6,  "is_active": True},
+    {"slug": "recraft_v3",      "name": "Recraft V3 (Brand Style)",        "provider_type": "recraft_v3",     "default_model": "fal-ai/recraft-v3",                            "priority": 7,  "is_active": True},
+    {"slug": "ideogram_v2",     "name": "Ideogram V2 (Text Overlay)",      "provider_type": "ideogram_v2",    "default_model": "fal-ai/ideogram/v2",                           "priority": 8,  "is_active": True},
+    # Top 10 selectable models via fal_generic dispatcher
+    {"slug": "flux2_pro",       "name": "FLUX.2 Pro",                      "provider_type": "fal_generic",    "default_model": "fal-ai/flux-2-pro",                            "priority": 1,  "is_active": True},
+    {"slug": "flux2_max",       "name": "FLUX.2 Max",                      "provider_type": "fal_generic",    "default_model": "fal-ai/flux-2-max",                            "priority": 2,  "is_active": True},
+    {"slug": "flux2_flex",      "name": "FLUX.2 Flex",                     "provider_type": "fal_generic",    "default_model": "fal-ai/flux-2-flex",                           "priority": 3,  "is_active": True},
+    {"slug": "seedream_45",     "name": "Seedream 4.5 (ByteDance)",        "provider_type": "fal_generic",    "default_model": "fal-ai/bytedance/seedream/v4.5/text-to-image", "priority": 9,  "is_active": True},
+    {"slug": "recraft_v4",      "name": "Recraft V4",                      "provider_type": "fal_generic",    "default_model": "fal-ai/recraft/v4/text-to-image",              "priority": 10, "is_active": True},
+    {"slug": "ideogram_v3_turbo","name": "Ideogram V3 Turbo",              "provider_type": "fal_generic",    "default_model": "fal-ai/ideogram/v3",                           "priority": 11, "is_active": True},
+    {"slug": "flux_pro_ultra",  "name": "FLUX 1.1 Pro Ultra (Raw)",        "provider_type": "fal_generic",    "default_model": "fal-ai/flux-pro/v1.1-ultra",                   "priority": 12, "is_active": True},
+    {"slug": "hidream_fast",    "name": "HiDream I1 Fast",                 "provider_type": "fal_generic",    "default_model": "fal-ai/hidream-i1-fast",                       "priority": 13, "is_active": True},
+]
+
+_OPENAI_PROVIDERS = [
+    {"slug": "openai_images",   "name": "OpenAI Images (DALL-E 3)",        "provider_type": "openai_images",  "default_model": "dall-e-3",                                     "priority": 20, "is_active": True, "api_base_url": "https://api.openai.com/v1"},
 ]
 
 
@@ -70,31 +35,35 @@ def seed_image_providers(db: Session) -> None:
     from config.settings import get_settings
 
     settings = get_settings()
+    fal_key_enc = encrypt_api_key(settings.fal_key) if settings.fal_key else None
+    openai_key_enc = encrypt_api_key(settings.openai_api_key) if settings.openai_api_key else None
 
-    for data in DEFAULT_IMAGE_PROVIDERS:
-        existing = db.query(ImageProvider).filter(
-            ImageProvider.slug == data["slug"]
-        ).first()
+    all_providers = [
+        {**p, "api_base_url": "https://fal.run", "_key_enc": fal_key_enc}
+        for p in _FAL_PROVIDERS
+    ] + [
+        {**p, "_key_enc": openai_key_enc}
+        for p in _OPENAI_PROVIDERS
+    ]
+
+    for data in all_providers:
+        key_enc = data.pop("_key_enc", None)
+        existing = db.query(ImageProvider).filter(ImageProvider.slug == data["slug"]).first()
         if existing:
-            # Update api_key if it became available since last seed
-            if data["slug"] == "fal_ai" and settings.fal_key and not existing.api_key_encrypted:
-                existing.api_key_encrypted = encrypt_api_key(settings.fal_key)
+            # Backfill key if it became available
+            if key_enc and not existing.api_key_encrypted:
+                existing.api_key_encrypted = key_enc
                 db.commit()
-            if data["slug"] in ("fal_ai_schnell", "recraft_v3", "ideogram_v2") and settings.fal_key:
-                if not existing.api_key_encrypted:
-                    existing.api_key_encrypted = encrypt_api_key(settings.fal_key)
-                    db.commit()
+            # Update name/model if changed (non-destructive)
+            if existing.name != data["name"] or existing.default_model != data["default_model"]:
+                existing.name = data["name"]
+                existing.default_model = data["default_model"]
+                db.commit()
             continue
 
         provider = ImageProvider(**data)
-
-        if data["slug"] == "fal_ai" and settings.fal_key:
-            provider.api_key_encrypted = encrypt_api_key(settings.fal_key)
-        elif data["slug"] == "openai_images" and settings.openai_api_key:
-            provider.api_key_encrypted = encrypt_api_key(settings.openai_api_key)
-        elif data["slug"] in ("fal_ai_schnell", "recraft_v3", "ideogram_v2") and settings.fal_key:
-            provider.api_key_encrypted = encrypt_api_key(settings.fal_key)
-
+        if key_enc:
+            provider.api_key_encrypted = key_enc
         db.add(provider)
         logger.info("image_seed.provider_created", slug=data["slug"])
 

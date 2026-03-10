@@ -21,6 +21,26 @@ interface ContactSegment { id: number; name: string; description: string | null;
 interface ContactItem { id: number; first_name: string; last_name: string; email: string; phone?: string; company?: string; tags?: { name: string; color?: string }[]; }
 interface TagItem { id: number; name: string; color?: string; contact_count?: number; }
 interface WizardProps { onCreated: () => void; onCancel: () => void; }
+interface ImageModel {
+  slug: string;
+  name: string;
+  price_per_image: number;
+  price_label: string;
+  cost_tier: string;
+  cost_multiplier: number;
+  elo_score: number | null;
+  elo_rank: number | null;
+  elo_source: string | null;
+  quality_stars: number;
+  speed_seconds: number;
+  best_for: string[];
+  description: string;
+  badge: string | null;
+  badge_color: string | null;
+  is_default: boolean;
+  cost_note?: string;
+  speed_note?: string;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Constants
@@ -90,6 +110,9 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [imagePreviewMode, setImagePreviewMode] = useState<'idle' | 'previewing' | 'final'>('idle');
   const [imageHasTextOverlay, setImageHasTextOverlay] = useState(false);
+  const [selectedModelSlug, setSelectedModelSlug] = useState<string>("flux2_pro");
+  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [imageModels, setImageModels] = useState<ImageModel[]>([]);
 
   const [form, setForm] = useState({
     name: "", description: "", type: "broadcast", channel: "email",
@@ -129,13 +152,15 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
   useEffect(() => {
     const load = async () => {
       try {
-        const [tplRes, segRes, csRes] = await Promise.all([
+        const [tplRes, segRes, csRes, modelRes] = await Promise.all([
           apiFetch("/admin/campaigns/templates"), apiFetch("/admin/campaigns/segments"),
           apiFetch("/v2/admin/contacts/segments").catch(() => null),
+          apiFetch("/admin/media/image-models").catch(() => null),
         ]);
         if (tplRes.ok) setTemplates(await tplRes.json());
         if (segRes.ok) setSegments(await segRes.json());
         if (csRes?.ok) setContactSegments(await csRes.json());
+        if (modelRes?.ok) { const d = await modelRes.json(); setImageModels(d.models || []); }
       } catch { /* ignore */ }
     };
     load();
@@ -202,6 +227,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
           tone: form.tone,
           task_context: "email",
           has_text_overlay: imageHasTextOverlay,
+          model_slug: "fal_ai_schnell",  // preview always uses schnell
         }),
       });
       const data = await res.json() as { url?: string; detail?: string };
@@ -233,6 +259,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
           tone: form.tone,
           task_context: "email",
           has_text_overlay: imageHasTextOverlay,
+          model_slug: selectedModelSlug,
         }),
       });
       const data = await res.json() as { url?: string; detail?: string };
@@ -811,6 +838,103 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                         placeholder="Bildprompt, z.B. Fitnessstudio, motivierende Atmosphäre, hell und modern"
                         onKeyDown={(e) => { if (e.key === "Enter") handleImagePreview(); }}
                       />
+
+                      {/* Model selector */}
+                      {imageModels.length > 0 && (
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setShowModelPicker(!showModelPicker)}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 6,
+                              padding: "6px 12px", borderRadius: 8,
+                              background: T.surface, border: `1px solid ${T.border}`,
+                              color: T.textMuted, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                            }}
+                          >
+                            <Sparkles size={12} />
+                            Modell: {imageModels.find(m => m.slug === selectedModelSlug)?.name ?? "FLUX.2 Pro"}
+                            {" · "}{imageModels.find(m => m.slug === selectedModelSlug)?.price_label ?? "$0.03 / Bild"}
+                            <span style={{ marginLeft: 2 }}>{showModelPicker ? "▲" : "▼"}</span>
+                          </button>
+
+                          {showModelPicker && (
+                            <div style={{
+                              marginTop: 8, borderRadius: 12,
+                              border: `1px solid ${T.border}`,
+                              background: T.surface,
+                              overflow: "hidden",
+                              maxHeight: 380, overflowY: "auto",
+                            }}>
+                              {imageModels.map((model) => {
+                                const isSelected = model.slug === selectedModelSlug;
+                                const stars = "★".repeat(model.quality_stars) + "☆".repeat(5 - model.quality_stars);
+                                const isExpensive = model.cost_tier === "premium";
+                                return (
+                                  <button
+                                    key={model.slug}
+                                    type="button"
+                                    onClick={() => { setSelectedModelSlug(model.slug); setShowModelPicker(false); }}
+                                    style={{
+                                      display: "block", width: "100%", textAlign: "left",
+                                      padding: "12px 16px",
+                                      background: isSelected ? T.accentDim : "transparent",
+                                      border: "none",
+                                      borderBottom: `1px solid ${T.border}`,
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        {model.badge && (
+                                          <span style={{
+                                            padding: "2px 7px", borderRadius: 20, fontSize: 10, fontWeight: 700,
+                                            background: (model.badge_color ?? T.accent) + "22",
+                                            color: model.badge_color ?? T.accent,
+                                            whiteSpace: "nowrap",
+                                          }}>
+                                            {model.badge}
+                                          </span>
+                                        )}
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? T.accent : T.text }}>
+                                          {model.name}
+                                        </span>
+                                      </div>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                                        <span style={{ fontSize: 11, color: T.warning, letterSpacing: 1 }}>{stars}</span>
+                                        <span style={{
+                                          fontSize: 11, fontWeight: 700,
+                                          color: isExpensive ? T.warning : T.success,
+                                        }}>
+                                          {model.price_label}
+                                          {isExpensive && " ⚡"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <p style={{ fontSize: 11, color: T.textMuted, margin: "3px 0 0", lineHeight: 1.4 }}>
+                                      {model.description}
+                                    </p>
+                                    <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+                                      {model.elo_score && (
+                                        <span style={{ fontSize: 10, color: T.textDim }}>
+                                          Elo {model.elo_score} · Rang #{model.elo_rank} · {model.elo_source}
+                                        </span>
+                                      )}
+                                      {model.cost_note && (
+                                        <span style={{ fontSize: 10, color: T.warning }}>⚡ {model.cost_note}</span>
+                                      )}
+                                      {model.speed_note && (
+                                        <span style={{ fontSize: 10, color: T.textDim }}>⏱ {model.speed_note}</span>
+                                      )}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Text overlay checkbox */}
                       <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: T.textMuted }}>
                         <input
@@ -831,7 +955,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                           {imageGenerating && imagePreviewMode === 'idle' ? (
                             <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Vorschau lädt...</>
                           ) : (
-                            <><Eye size={14} /> Vorschau</>
+                            <><Eye size={14} /> Vorschau (Schnell)</>
                           )}
                         </button>
                         {imagePreviewMode === 'previewing' && (
@@ -855,7 +979,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                               {imageGenerating ? (
                                 <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Generiere...</>
                               ) : (
-                                <><Sparkles size={14} /> Finale Qualität generieren</>
+                                <><Sparkles size={14} /> {imageModels.find(m => m.slug === selectedModelSlug)?.name ?? "Finale Qualität"}</>
                               )}
                             </button>
                           </>
@@ -883,7 +1007,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                       )}
                       {/* Info text */}
                       <p style={{ fontSize: 10, color: T.textDim, margin: 0 }}>
-                        Vorschau: schnell &amp; kostenlos &bull; Finale Version: höchste Qualität
+                        Vorschau: FLUX Schnell ($0.003) &bull; Finale Version: gewähltes Modell ({imageModels.find(m => m.slug === selectedModelSlug)?.price_label ?? "$0.03"})
                       </p>
                     </div>
                   )}

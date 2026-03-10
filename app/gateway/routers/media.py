@@ -26,6 +26,7 @@ class AIImageGenerateRequest(BaseModel):
     mode: str = "final"              # "preview" or "final"
     has_text_overlay: bool = False   # routes to Ideogram v2
     use_brand_style: bool = False    # routes to Recraft V3 (Business+ only)
+    model_slug: Optional[str] = None  # explicit model override from user selection
 
 
 class MediaAssetUpdate(BaseModel):
@@ -107,6 +108,13 @@ async def upload_media(
     }
 
 
+@router.get("/image-models")
+async def list_image_models(user: AuthContext = Depends(get_current_user)):
+    """Return the catalog of selectable image generation models with metadata."""
+    from app.ai_config.image_models_meta import SELECTABLE_MODELS
+    return {"models": SELECTABLE_MODELS}
+
+
 @router.post("/ai-generate", status_code=201)
 async def ai_generate_image(
     body: AIImageGenerateRequest,
@@ -146,6 +154,7 @@ async def ai_generate_image(
             size=body.size,
             quality=body.quality,
             created_by=user.user_id,
+            model_slug=body.model_slug,
         )
         result = await orch.run(req, db=db, tenant_slug=tenant.slug)
         if result.error:

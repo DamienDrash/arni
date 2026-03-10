@@ -27,6 +27,7 @@ class ImageGenerationAgent(BaseAgent):
         size: str = "1024x1024",
         quality: str = "standard",
         db=None,
+        model_slug: Optional[str] = None,
     ) -> tuple[bytes, str, str]:
         """Generate image. Returns (image_bytes, provider_slug, revised_prompt)."""
         import httpx
@@ -34,7 +35,11 @@ class ImageGenerationAgent(BaseAgent):
         from app.ai_config.image_service import ImageConfigService
         from app.ai_config.image_generator import generate_image
 
-        config = ImageConfigService(db).resolve_image_provider(tenant_id)
+        svc = ImageConfigService(db)
+        if model_slug:
+            config = svc.resolve_provider_by_slug(tenant_id, model_slug)
+        else:
+            config = svc.resolve_image_provider(tenant_id)
         result = await generate_image(config=config, prompt=prompt, size=size, quality=quality)
 
         if not result.urls:

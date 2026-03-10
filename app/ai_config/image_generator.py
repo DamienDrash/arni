@@ -48,6 +48,8 @@ async def generate_image(
         return await _generate_recraft(config, prompt, size, n, brand_colors=kwargs.get("brand_colors", []))
     elif config.provider_type == "ideogram_v2":
         return await _generate_ideogram(config, prompt, size, n)
+    elif config.provider_type == "fal_generic":
+        return await _generate_fal_generic(config, prompt, size, n)
     else:
         raise ValueError(f"Unsupported provider type: {config.provider_type}")
 
@@ -247,6 +249,93 @@ async def _generate_ideogram(config, prompt: str, size: str, n: int) -> Generate
     urls = [img["url"] if isinstance(img, dict) else img for img in images if img]
     logger.info("ideogram_v2.generate.complete", n_images=len(urls))
     return GeneratedImageResult(urls=urls, model="fal-ai/ideogram/v2", provider_slug=config.provider_slug, revised_prompt=prompt)
+
+
+async def _generate_fal_generic(config, prompt: str, size: str, n: int) -> GeneratedImageResult:
+    """Universal fal.ai dispatcher for any model endpoint with optional extra params."""
+    from app.ai_config.image_models_meta import MODELS_BY_SLUG
+
+    # Find metadata by matching the provider_slug to our catalog slug
+    meta = MODELS_BY_SLUG.get(config.provider_slug) or {}
+    endpoint = meta.get("fal_endpoint") or config.model
+    extra_params = meta.get("fal_params") or {}
+
+    fal_size = _FAL_SIZE_MAP.get(size, "square_hd")
+    payload: dict = {
+        "prompt": prompt,
+        "image_size": fal_size,
+        "num_images": n,
+        **extra_params,
+    }
+
+    # Ideogram V3 uses different param names
+    if "ideogram/v3" in endpoint:
+        resolution_map = {
+            "1024x1024": "RESOLUTION_1024_1024",
+            "1280x720": "RESOLUTION_1280_720",
+            "720x1280": "RESOLUTION_720_1280",
+            "1024x768": "RESOLUTION_1024_768",
+        }
+        payload = {
+            "prompt": prompt,
+            "resolution": resolution_map.get(size, "RESOLUTION_1024_1024"),
+            "style_type": "REALISTIC",
+            "magic_prompt_option": "AUTO",
+            "num_images": n,
+            **extra_params,
+        }
+    # FLUX Ultra: uses width/height instead of image_size
+    elif "flux-pro/v1.1-ultra" in endpoint:
+        w, h = 1024, 1024
+        if "x" in size:
+            try:
+                w, h = int(size.split("x")[0]), int(size.split("x")[1])
+            except (ValueError, IndexError):
+                pass
+        payload = {
+            "prompt": prompt,
+            "aspect_ratio": f"{w}:{h}",
+            "num_images": n,
+            **extra_params,
+        }
+    # HiDream / Seedream / Recraft V4 use width/height
+    elif any(x in endpoint for x in ("hidream", "seedream", "recraft/v4")):
+        w, h = 1024, 1024
+        if "x" in size:
+            try:
+                w, h = int(size.split("x")[0]), int(size.split("x")[1])
+            except (ValueError, IndexError):
+                pass
+        payload = {
+            "prompt": prompt,
+            "image_size": {"width": w, "height": h},
+            "num_images": n,
+            **extra_params,
+        }
+
+    url = f"https://fal.run/{endpoint}"
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.post(
+            url,
+            json=payload,
+            headers={"Authorization": f"Key {config.api_key}"},
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(f"fal.ai [{endpoint}] error {resp.status_code}: {resp.text[:400]}")
+        data = resp.json()
+
+    images = data.get("images", [])
+    urls = [
+        (img["url"] if isinstance(img, dict) else img)
+        for img in images if img
+    ]
+    logger.info("fal_generic.generate.complete", endpoint=endpoint, n_images=len(urls))
+    return GeneratedImageResult(
+        urls=urls,
+        model=endpoint,
+        provider_slug=config.provider_slug,
+        revised_prompt=data.get("prompt", prompt),
+    )
 
 
 def _hex_to_rgb(hex_color: str) -> dict:

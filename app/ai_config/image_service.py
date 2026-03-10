@@ -133,6 +133,35 @@ class ImageConfigService:
             is_byok=False,
         )
 
+    def resolve_provider_by_slug(self, tenant_id: int, slug: str) -> "ResolvedImageConfig":
+        """Resolve a specific provider by slug (user model selection)."""
+        from app.ai_config.image_models import ImageProvider
+        from app.ai_config.encryption import decrypt_api_key
+
+        provider = self._db.query(ImageProvider).filter(
+            ImageProvider.slug == slug,
+            ImageProvider.is_active.is_(True),
+        ).first()
+
+        if not provider:
+            # Slug not in DB → fall back to default
+            logger.warning("image_service.slug_not_found", slug=slug)
+            return self.resolve_image_provider(tenant_id)
+
+        api_key = decrypt_api_key(provider.api_key_encrypted) if provider.api_key_encrypted else ""
+        if not api_key:
+            logger.warning("image_service.slug_no_key", slug=slug)
+            return self.resolve_image_provider(tenant_id)
+
+        return ResolvedImageConfig(
+            provider_slug=provider.slug,
+            provider_type=provider.provider_type,
+            api_base_url=provider.api_base_url,
+            api_key=api_key,
+            model=provider.default_model or "",
+            is_byok=False,
+        )
+
     def list_providers(self) -> list:
         from app.ai_config.image_models import ImageProvider
         return self._db.query(ImageProvider).order_by(ImageProvider.priority).all()

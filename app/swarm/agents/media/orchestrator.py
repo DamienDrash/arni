@@ -19,6 +19,7 @@ class MediaGenerationRequest:
     size: str = "1024x1024"
     quality: str = "standard"
     created_by: Optional[int] = None
+    model_slug: Optional[str] = None  # explicit model override from user
 
 
 @dataclass
@@ -106,6 +107,7 @@ class MediaOrchestrator:
                     size=request.size,
                     quality=request.quality,
                     db=db,
+                    model_slug=request.model_slug,
                 )
 
                 # Step 3: Extract technical metadata (Pillow, no LLM)
