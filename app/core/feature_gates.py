@@ -20,6 +20,16 @@ from fastapi import HTTPException
 
 logger = structlog.get_logger()
 
+# Extra feature flags per plan slug that may not yet be DB columns.
+# These are merged into the DB-loaded plan dict so gates work before migration.
+_HARDCODED_PLAN_EXTRAS: dict[str, dict[str, object]] = {
+    "trial":      {"ai_image_previews_per_month": 20,  "brand_style_enabled": False, "text_overlay_images_enabled": False},
+    "starter":    {"ai_image_previews_per_month": 20,  "brand_style_enabled": False, "text_overlay_images_enabled": False},
+    "pro":        {"ai_image_previews_per_month": 100, "brand_style_enabled": False, "text_overlay_images_enabled": True},
+    "business":   {"ai_image_previews_per_month": 500, "brand_style_enabled": True,  "text_overlay_images_enabled": True},
+    "enterprise": {"ai_image_previews_per_month": -1,  "brand_style_enabled": True,  "text_overlay_images_enabled": True},
+}
+
 # Default plan used when no subscription exists for a tenant.
 # Maps to feature flags — mirrors the "Starter" plan seeded at startup.
 _STARTER_DEFAULTS: dict[str, object] = {
@@ -71,7 +81,12 @@ class FeatureGate:
     # ── Plan Loading ──────────────────────────────────────────────────────────
 
     def _load_plan(self) -> dict[str, object]:
-        """Load the tenant's plan data from DB. Falls back to Starter defaults."""
+        """Load the tenant's plan data from DB. Falls back to Starter defaults.
+
+        DB columns take precedence; missing keys are filled from the hardcoded
+        plan dict for the matching slug so that new feature flags work without
+        a DB migration.
+        """
         try:
             from app.core.db import SessionLocal
             from app.core.models import Subscription, Plan
@@ -84,7 +99,12 @@ class FeatureGate:
                 if sub:
                     plan = db.query(Plan).filter(Plan.id == sub.plan_id, Plan.is_active.is_(True)).first()
                     if plan:
-                        return {col.name: getattr(plan, col.name) for col in Plan.__table__.columns}
+                        db_data = {col.name: getattr(plan, col.name) for col in Plan.__table__.columns}
+                        # Merge with hardcoded defaults for the slug so new
+                        # feature-flag keys work before a DB migration runs.
+                        slug = db_data.get("slug", "")
+                        hardcoded = _HARDCODED_PLAN_EXTRAS.get(str(slug), {})
+                        return {**hardcoded, **db_data}
             finally:
                 db.close()
         except Exception as exc:
