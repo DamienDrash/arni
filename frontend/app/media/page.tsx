@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import {
   Image as ImageIcon, Upload, Sparkles, Copy, Trash2, CheckCircle,
-  AlertTriangle, RefreshCw, X, ChevronDown, Save, Wand2,
+  AlertTriangle, RefreshCw, X, ChevronDown, Save, Wand2, Star,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
@@ -32,6 +32,14 @@ interface MediaItem {
   width?: number;
   height?: number;
   dominant_colors?: string[];
+  image_provider_slug?: string;
+}
+
+interface BrandRef {
+  id: number;
+  label: string | null;
+  asset_id: number;
+  url: string | null;
 }
 
 interface AiGenerateForm {
@@ -94,6 +102,18 @@ function brightnessColor(brightness: number): string {
   if (brightness < 85) return T.textDim ?? "#666";
   if (brightness < 170) return T.warning ?? "#f59e0b";
   return T.success ?? "#22c55e";
+}
+
+function modelBadgeLabel(slug: string | undefined): string | null {
+  if (!slug) return null;
+  switch (slug) {
+    case "fal_ai": return "FLUX Pro";
+    case "fal_ai_schnell": return "FLUX Schnell";
+    case "recraft_v3": return "Recraft V3";
+    case "ideogram_v2": return "Ideogram";
+    case "openai_images": return "DALL-E";
+    default: return null;
+  }
 }
 
 function initMetaEdit(item: MediaItem): MetaEditState {
@@ -390,6 +410,11 @@ export default function MediaPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Brand references state
+  const [brandRefs, setBrandRefs] = useState<BrandRef[]>([]);
+  const [brandRefsLoading, setBrandRefsLoading] = useState(false);
+  const [showBrandRefs, setShowBrandRefs] = useState(false);
+
   // Upload state
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -422,6 +447,7 @@ export default function MediaPage() {
 
   useEffect(() => {
     fetchMedia();
+    apiFetch("/admin/media/brand-references").then(r => r.json()).then((data: BrandRef[]) => setBrandRefs(data)).catch(() => {});
   }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -481,6 +507,34 @@ export default function MediaPage() {
       setGenerateError(`Generierung fehlgeschlagen: ${e}`);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleAddBrandRef = async (assetId: string) => {
+    setBrandRefsLoading(true);
+    try {
+      const res = await apiFetch("/admin/media/brand-references", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ asset_id: Number(assetId), label: null }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const created = await res.json() as BrandRef;
+      setBrandRefs((prev) => [...prev, created]);
+    } catch (e) {
+      setError(`Referenz konnte nicht hinzugefügt werden: ${e}`);
+    } finally {
+      setBrandRefsLoading(false);
+    }
+  };
+
+  const handleDeleteBrandRef = async (refId: number) => {
+    try {
+      const res = await apiFetch(`/admin/media/brand-references/${refId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setBrandRefs((prev) => prev.filter((r) => r.id !== refId));
+    } catch (e) {
+      setError(`Referenz konnte nicht gelöscht werden: ${e}`);
     }
   };
 
@@ -687,6 +741,92 @@ export default function MediaPage() {
         </Card>
       )}
 
+      {/* Brand References Section */}
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        {/* Collapsible header */}
+        <button
+          onClick={() => setShowBrandRefs((v) => !v)}
+          style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "14px 24px", background: "none", border: "none", cursor: "pointer",
+            borderBottom: showBrandRefs ? `1px solid ${T.border}` : "none",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Star size={16} color={T.warning ?? "#f59e0b"} />
+            <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Marken-Referenzbilder</span>
+            {brandRefs.length > 0 && (
+              <span style={{
+                padding: "2px 8px", borderRadius: 20,
+                background: T.accentDim, color: T.accentLight,
+                fontSize: 11, fontWeight: 700,
+              }}>
+                {brandRefs.length}
+              </span>
+            )}
+          </div>
+          <ChevronDown
+            size={14}
+            color={T.textMuted}
+            style={{ transform: showBrandRefs ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+          />
+        </button>
+
+        {showBrandRefs && (
+          <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Info text */}
+            <p style={{ fontSize: 11, color: T.textDim, margin: 0 }}>
+              Business/Enterprise: Referenzbilder verbessern die Markenkonsistenz bei KI-generierten Bildern
+            </p>
+
+            {/* Existing brand ref thumbnails */}
+            {brandRefs.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {brandRefs.map((ref) => (
+                  <div key={ref.id} style={{ position: "relative" }}>
+                    {ref.url ? (
+                      <img
+                        src={ref.url}
+                        alt={ref.label ?? "Referenzbild"}
+                        style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 8, border: `1px solid ${T.border}` }}
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    ) : (
+                      <div style={{ width: 60, height: 60, borderRadius: 8, border: `1px solid ${T.border}`, background: T.surfaceAlt, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <ImageIcon size={20} color={T.textDim} />
+                      </div>
+                    )}
+                    <button
+                      onClick={() => handleDeleteBrandRef(ref.id)}
+                      title="Entfernen"
+                      style={{
+                        position: "absolute", top: -6, right: -6,
+                        width: 18, height: 18, borderRadius: "50%",
+                        background: T.danger, border: "none", cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 10, color: "#fff", fontWeight: 700,
+                        lineHeight: 1,
+                      }}
+                    >
+                      ×
+                    </button>
+                    {ref.label && (
+                      <p style={{ fontSize: 9, color: T.textDim, textAlign: "center", margin: "4px 0 0", maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ref.label}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {brandRefs.length === 0 && !brandRefsLoading && (
+              <p style={{ fontSize: 12, color: T.textDim, margin: 0 }}>
+                Noch keine Referenzbilder gesetzt. Klicken Sie auf &quot;⭐ Ref.&quot; bei einem Bild unten.
+              </p>
+            )}
+          </div>
+        )}
+      </Card>
+
       {/* Media Grid */}
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div style={{
@@ -747,6 +887,7 @@ export default function MediaPage() {
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
+                  {/* AI source badge */}
                   {item.source === "ai_generated" && (
                     <div style={{
                       position: "absolute", top: 8, right: 8,
@@ -755,6 +896,18 @@ export default function MediaPage() {
                     }}>
                       <Sparkles size={10} color="#fff" />
                       <span style={{ fontSize: 9, color: "#fff", fontWeight: 700 }}>KI</span>
+                    </div>
+                  )}
+                  {/* Model badge */}
+                  {modelBadgeLabel(item.image_provider_slug) && (
+                    <div style={{
+                      position: "absolute", top: 8, left: 8,
+                      background: "rgba(0,0,0,0.55)", borderRadius: 5,
+                      padding: "2px 6px",
+                    }}>
+                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>
+                        {modelBadgeLabel(item.image_provider_slug)}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -807,6 +960,26 @@ export default function MediaPage() {
                     >
                       {copiedId === item.id ? <CheckCircle size={12} /> : <Copy size={12} />}
                       {copiedId === item.id ? "Kopiert" : "URL"}
+                    </button>
+                    {/* Brand ref button */}
+                    <button
+                      onClick={() => handleAddBrandRef(item.id)}
+                      disabled={brandRefsLoading || brandRefs.some((r) => r.asset_id === Number(item.id))}
+                      title="Als Marken-Referenz setzen"
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                        padding: "7px 8px", borderRadius: 7,
+                        background: brandRefs.some((r) => r.asset_id === Number(item.id)) ? T.accentDim : "none",
+                        border: `1px solid ${brandRefs.some((r) => r.asset_id === Number(item.id)) ? T.accent + "60" : T.border}`,
+                        color: brandRefs.some((r) => r.asset_id === Number(item.id)) ? T.accentLight : T.textDim,
+                        fontSize: 10, fontWeight: 700,
+                        cursor: (brandRefsLoading || brandRefs.some((r) => r.asset_id === Number(item.id))) ? "not-allowed" : "pointer",
+                        opacity: brandRefsLoading ? 0.6 : 1,
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <Star size={11} />
+                      Ref.
                     </button>
                     <button
                       onClick={() => handleDelete(item.id)}

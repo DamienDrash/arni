@@ -87,6 +87,9 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
   const [imageGenPrompt, setImageGenPrompt] = useState("");
   const [showImageGen, setShowImageGen] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [imagePreviewMode, setImagePreviewMode] = useState<'idle' | 'previewing' | 'final'>('idle');
+  const [imageHasTextOverlay, setImageHasTextOverlay] = useState(false);
 
   const [form, setForm] = useState({
     name: "", description: "", type: "broadcast", channel: "email",
@@ -182,7 +185,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
     }
   };
 
-  const handleImageAiGenerate = async () => {
+  const handleImagePreview = async () => {
     if (!imageGenPrompt.trim()) return;
     setImageGenerating(true);
     setImageError(null);
@@ -193,20 +196,52 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
         body: JSON.stringify({
           prompt: imageGenPrompt,
           size: "1024x1024",
-          quality: "standard",
+          mode: "preview",
           campaign_name: form.name,
           channel: form.channel,
           tone: form.tone,
           task_context: "email",
+          has_text_overlay: imageHasTextOverlay,
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setForm((f) => ({ ...f, featured_image_url: data.url }));
-      setShowImageGen(false);
-      setImageGenPrompt("");
-    } catch {
-      setImageError("KI-Generierung fehlgeschlagen.");
+      const data = await res.json() as { url?: string; detail?: string };
+      if (!res.ok) throw new Error(data.detail || "Vorschau fehlgeschlagen");
+      setImagePreviewUrl(data.url ?? null);
+      setImagePreviewMode('previewing');
+      // Don't set featured_image_url yet — only on finalize
+    } catch (e: unknown) {
+      setImageError(e instanceof Error ? e.message : "Fehler");
+    } finally {
+      setImageGenerating(false);
+    }
+  };
+
+  const handleImageFinalize = async () => {
+    if (!imageGenPrompt.trim()) return;
+    setImageGenerating(true);
+    setImageError(null);
+    try {
+      const res = await apiFetch("/admin/media/ai-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: imageGenPrompt,
+          size: "1024x1024",
+          mode: "final",
+          campaign_name: form.name,
+          channel: form.channel,
+          tone: form.tone,
+          task_context: "email",
+          has_text_overlay: imageHasTextOverlay,
+        }),
+      });
+      const data = await res.json() as { url?: string; detail?: string };
+      if (!res.ok) throw new Error(data.detail || "Generierung fehlgeschlagen");
+      setForm((f: typeof form) => ({ ...f, featured_image_url: data.url ?? "" }));
+      setImagePreviewUrl(data.url ?? null);
+      setImagePreviewMode('final');
+    } catch (e: unknown) {
+      setImageError(e instanceof Error ? e.message : "Fehler");
     } finally {
       setImageGenerating(false);
     }
@@ -759,25 +794,97 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                       {imageUploading ? "Wird hochgeladen..." : "Bild hochladen"}
                       <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} disabled={imageUploading} />
                     </label>
-                    <button onClick={() => { setShowImageGen(!showImageGen); setImageError(null); }} style={{ ...S.secondaryBtn, color: T.accentLight }}>
+                    <button onClick={() => { setShowImageGen(!showImageGen); setImageError(null); if (showImageGen) { setImagePreviewMode('idle'); setImagePreviewUrl(null); } }} style={{ ...S.secondaryBtn, color: T.accentLight }}>
                       <Sparkles size={14} /> KI generieren
                     </button>
                   </div>
 
                   {/* AI generate form */}
                   {showImageGen && (
-                    <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                      {/* Prompt input */}
                       <input
                         style={S.input}
                         type="text"
                         value={imageGenPrompt}
                         onChange={(e) => setImageGenPrompt(e.target.value)}
                         placeholder="Bildprompt, z.B. Fitnessstudio, motivierende Atmosphäre, hell und modern"
-                        onKeyDown={(e) => { if (e.key === "Enter") handleImageAiGenerate(); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleImagePreview(); }}
                       />
-                      <button onClick={handleImageAiGenerate} disabled={imageGenerating || !imageGenPrompt.trim()} style={{ ...S.primaryBtn, opacity: imageGenerating || !imageGenPrompt.trim() ? 0.6 : 1 }}>
-                        {imageGenerating ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Generiere...</> : <><Sparkles size={14} /> Bild erstellen</>}
-                      </button>
+                      {/* Text overlay checkbox */}
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: T.textMuted }}>
+                        <input
+                          type="checkbox"
+                          checked={imageHasTextOverlay}
+                          onChange={(e) => setImageHasTextOverlay(e.target.checked)}
+                          style={{ width: 14, height: 14, accentColor: T.accent }}
+                        />
+                        Enthält Text (z.B. Kurszeiten, Promo-Code)
+                      </label>
+                      {/* Action buttons */}
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          onClick={handleImagePreview}
+                          disabled={imageGenerating || !imageGenPrompt.trim()}
+                          style={{ ...S.primaryBtn, opacity: imageGenerating || !imageGenPrompt.trim() ? 0.6 : 1 }}
+                        >
+                          {imageGenerating && imagePreviewMode === 'idle' ? (
+                            <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Vorschau lädt...</>
+                          ) : (
+                            <><Eye size={14} /> Vorschau</>
+                          )}
+                        </button>
+                        {imagePreviewMode === 'previewing' && (
+                          <>
+                            <button
+                              onClick={() => {
+                                if (imagePreviewUrl) {
+                                  setForm((f: typeof form) => ({ ...f, featured_image_url: imagePreviewUrl }));
+                                  setImagePreviewMode('final');
+                                }
+                              }}
+                              style={{ ...S.secondaryBtn, color: T.success }}
+                            >
+                              <CheckCircle size={14} /> Vorschau verwenden
+                            </button>
+                            <button
+                              onClick={handleImageFinalize}
+                              disabled={imageGenerating || !imageGenPrompt.trim()}
+                              style={{ ...S.primaryBtn, background: `linear-gradient(135deg, ${T.accent}, ${T.accentLight})`, opacity: imageGenerating || !imageGenPrompt.trim() ? 0.6 : 1 }}
+                            >
+                              {imageGenerating ? (
+                                <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Generiere...</>
+                              ) : (
+                                <><Sparkles size={14} /> Finale Qualität generieren</>
+                              )}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      {/* Preview thumbnail */}
+                      {imagePreviewUrl && imagePreviewMode !== 'idle' && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <img
+                            src={imagePreviewUrl}
+                            alt="Vorschau"
+                            style={{ height: 80, borderRadius: 8, border: `1px solid ${T.border}`, objectFit: "cover" }}
+                          />
+                          {imagePreviewMode === 'final' && (
+                            <span style={{
+                              display: "inline-flex", alignItems: "center", gap: 4,
+                              padding: "4px 10px", borderRadius: 20,
+                              background: T.successDim, border: `1px solid rgba(0,184,148,0.3)`,
+                              fontSize: 11, fontWeight: 700, color: T.success,
+                            }}>
+                              <CheckCircle size={11} /> Finale Version
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {/* Info text */}
+                      <p style={{ fontSize: 10, color: T.textDim, margin: 0 }}>
+                        Vorschau: schnell &amp; kostenlos &bull; Finale Version: höchste Qualität
+                      </p>
                     </div>
                   )}
 
@@ -794,7 +901,6 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
 
                   {form.featured_image_url && (
                     <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}`, maxHeight: 160 }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={form.featured_image_url} alt="Titelbild Vorschau" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
                       <button onClick={() => setForm({ ...form, featured_image_url: "" })} style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: 6, padding: "4px 6px", cursor: "pointer", display: "flex" }}>
                         <X size={14} style={{ color: "#fff" }} />
