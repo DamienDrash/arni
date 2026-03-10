@@ -78,6 +78,61 @@ class ImageConfigService:
             is_byok=False,
         )
 
+    def resolve_provider_for_mode(
+        self,
+        tenant_id: int,
+        mode: str = "final",
+        has_text_overlay: bool = False,
+        use_brand_style: bool = False,
+    ) -> "ResolvedImageConfig":
+        """Select the best provider based on generation mode and features.
+
+        Priority:
+        1. preview mode → FLUX Schnell
+        2. has_text_overlay → Ideogram v2
+        3. use_brand_style → Recraft V3
+        4. default → FLUX 1.1 Pro (fal_ai)
+        """
+        from app.ai_config.image_models import ImageProvider
+        from app.ai_config.encryption import decrypt_api_key
+
+        if mode == "preview":
+            target_slug = "fal_ai_schnell"
+        elif has_text_overlay:
+            target_slug = "ideogram_v2"
+        elif use_brand_style:
+            target_slug = "recraft_v3"
+        else:
+            target_slug = "fal_ai"
+
+        provider = self._db.query(ImageProvider).filter(
+            ImageProvider.slug == target_slug,
+            ImageProvider.is_active.is_(True),
+        ).first()
+
+        # Fall back to fal_ai if target not available
+        if not provider:
+            provider = self._db.query(ImageProvider).filter(
+                ImageProvider.slug == "fal_ai",
+                ImageProvider.is_active.is_(True),
+            ).first()
+
+        if not provider:
+            raise HTTPException(status_code=402, detail="No AI image provider configured.")
+
+        api_key = decrypt_api_key(provider.api_key_encrypted) if provider.api_key_encrypted else ""
+        if not api_key:
+            raise HTTPException(status_code=402, detail="AI image provider has no API key configured.")
+
+        return ResolvedImageConfig(
+            provider_slug=provider.slug,
+            provider_type=provider.provider_type,
+            api_base_url=provider.api_base_url,
+            api_key=api_key,
+            model=provider.default_model or "fal-ai/flux-pro/v1.1",
+            is_byok=False,
+        )
+
     def list_providers(self) -> list:
         from app.ai_config.image_models import ImageProvider
         return self._db.query(ImageProvider).order_by(ImageProvider.priority).all()

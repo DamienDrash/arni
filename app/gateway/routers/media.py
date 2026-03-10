@@ -23,6 +23,9 @@ class AIImageGenerateRequest(BaseModel):
     channel: Optional[str] = "email"
     tone: Optional[str] = "professional"
     task_context: Optional[str] = "general"
+    mode: str = "final"              # "preview" or "final"
+    has_text_overlay: bool = False   # routes to Ideogram v2
+    use_brand_style: bool = False    # routes to Recraft V3 (Business+ only)
 
 
 class MediaAssetUpdate(BaseModel):
@@ -160,16 +163,40 @@ async def ai_generate_image(
             "created_at": None,
         }
 
-    # Check quota BEFORE calling API
-    svc.check_image_gen_quota()
+    # Feature gates and quota checks
+    from app.core.feature_gates import FeatureGate
+    gate = FeatureGate(user.tenant_id)
 
-    # Resolve provider
+    if body.use_brand_style:
+        gate.require_brand_style()
+    if body.has_text_overlay:
+        gate.require_text_overlay_images()
+
+    if body.mode == "preview":
+        gate.check_image_preview_limit()
+    else:
+        # Check quota BEFORE calling API
+        svc.check_image_gen_quota()
+        gate.check_image_generation_limit()
+
+    # Resolve provider based on mode and features
     img_svc = ImageConfigService(db)
-    config = img_svc.resolve_image_provider(user.tenant_id)
+    config = img_svc.resolve_provider_for_mode(
+        user.tenant_id,
+        mode=body.mode,
+        has_text_overlay=body.has_text_overlay,
+        use_brand_style=body.use_brand_style,
+    )
 
     # Generate image
     try:
-        result = await generate_image(config=config, prompt=body.prompt, size=body.size, quality=body.quality)
+        result = await generate_image(
+            config=config,
+            prompt=body.prompt,
+            size=body.size,
+            quality=body.quality,
+            brand_colors=[],
+        )
     except Exception as e:
         logger.error("media.ai_generate_failed", error=str(e), tenant_id=user.tenant_id)
         raise HTTPException(status_code=502, detail=f"Image generation failed: {str(e)}")
@@ -205,7 +232,11 @@ async def ai_generate_image(
         image_data=image_data,
     )
 
-    svc.increment_image_gen_usage()
+    if body.mode == "preview":
+        gate.increment_image_preview_usage()
+    else:
+        svc.increment_image_gen_usage()
+        gate.increment_image_generation_usage()
     svc.increment_storage_usage(file_size)
 
     url = get_public_url(tenant.slug, filename)
@@ -219,6 +250,7 @@ async def ai_generate_image(
         "model": result.model,
         "file_size": file_size,
         "source": "ai_generated",
+        "mode": body.mode,
         "created_at": asset.created_at.isoformat() if asset.created_at else None,
     }
 
@@ -431,6 +463,59 @@ async def delete_media(
 
     logger.info("media.deleted", asset_id=asset_id, tenant_id=user.tenant_id)
     return {"status": "deleted", "id": asset_id}
+
+
+@router.get("/brand-references")
+async def list_brand_references(user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.core.media_models import TenantBrandReference, MediaAsset
+    refs = db.query(TenantBrandReference).filter(
+        TenantBrandReference.tenant_id == user.tenant_id
+    ).order_by(TenantBrandReference.created_at.desc()).all()
+    result = []
+    for ref in refs:
+        asset = db.query(MediaAsset).filter(MediaAsset.id == ref.asset_id).first() if ref.asset_id else None
+        result.append({
+            "id": ref.id,
+            "label": ref.label,
+            "asset_id": ref.asset_id,
+            "url": asset.url if asset else None,
+            "created_at": ref.created_at.isoformat() if ref.created_at else None,
+        })
+    return result
+
+
+class BrandReferenceCreate(BaseModel):
+    asset_id: int
+    label: Optional[str] = None
+
+
+@router.post("/brand-references", status_code=201)
+async def create_brand_reference(body: BrandReferenceCreate, user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.core.media_models import TenantBrandReference, MediaAsset
+    from app.core.feature_gates import FeatureGate
+    gate = FeatureGate(user.tenant_id)
+    gate.require_brand_style()
+    asset = db.query(MediaAsset).filter(MediaAsset.id == body.asset_id, MediaAsset.tenant_id == user.tenant_id).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    ref = TenantBrandReference(tenant_id=user.tenant_id, asset_id=body.asset_id, label=body.label)
+    db.add(ref)
+    db.commit()
+    db.refresh(ref)
+    return {"id": ref.id, "asset_id": ref.asset_id, "label": ref.label, "url": asset.url}
+
+
+@router.delete("/brand-references/{ref_id}", status_code=204)
+async def delete_brand_reference(ref_id: int, user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.core.media_models import TenantBrandReference
+    ref = db.query(TenantBrandReference).filter(
+        TenantBrandReference.id == ref_id,
+        TenantBrandReference.tenant_id == user.tenant_id,
+    ).first()
+    if not ref:
+        raise HTTPException(status_code=404, detail="Brand reference not found")
+    db.delete(ref)
+    db.commit()
 
 
 def _asset_to_dict(asset: MediaAsset, tenant_slug: str) -> dict:

@@ -28,3 +28,14 @@ class MediaAsset(Base):
     brightness      = Column(String(16), nullable=True)    # "light"|"dark"|"neutral"
     orientation     = Column(String(16), nullable=True)    # "landscape"|"portrait"|"square"
     aspect_ratio    = Column(String(16), nullable=True)    # e.g. "16:9"
+
+
+class TenantBrandReference(Base):
+    """Brand reference images uploaded per tenant for Recraft V3 brand-style generation."""
+    __tablename__ = "tenant_brand_references"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    asset_id = Column(Integer, ForeignKey("media_assets.id"), nullable=True)
+    label = Column(String(128), nullable=True)   # e.g. "Logo", "Hero", "Color Reference"
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
