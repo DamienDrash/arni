@@ -3,11 +3,14 @@
 import { useEffect, useState, useRef } from "react";
 import {
   Image as ImageIcon, Upload, Sparkles, Copy, Trash2, CheckCircle,
-  AlertTriangle, RefreshCw, X, ChevronDown,
+  AlertTriangle, RefreshCw, X, ChevronDown, Save, Wand2,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { T } from "@/lib/tokens";
+
+type UsageContext = "general" | "hero" | "thumbnail" | "email" | "social";
+type Orientation = "landscape" | "portrait" | "square";
 
 interface MediaItem {
   id: string;
@@ -18,12 +21,31 @@ interface MediaItem {
   created_at: string;
   source?: "upload" | "ai_generated";
   prompt?: string;
+  // Metadata fields
+  display_name?: string;
+  description?: string;
+  tags?: string[];
+  alt_text?: string;
+  usage_context?: UsageContext;
+  orientation?: Orientation;
+  brightness?: number; // 0–255
+  width?: number;
+  height?: number;
+  dominant_colors?: string[];
 }
 
 interface AiGenerateForm {
   prompt: string;
   size: "1024x1024" | "1792x1024" | "1024x1792";
   quality: "standard" | "hd";
+}
+
+interface MetaEditState {
+  display_name: string;
+  description: string;
+  tags: string; // comma-separated string for editing
+  alt_text: string;
+  usage_context: UsageContext;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -55,6 +77,312 @@ const selectStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
+const smallInputStyle: React.CSSProperties = {
+  ...inputStyle,
+  padding: "7px 10px",
+  fontSize: 12,
+  borderRadius: 7,
+};
+
+function brightnessLabel(brightness: number): string {
+  if (brightness < 85) return "Dunkel";
+  if (brightness < 170) return "Mittel";
+  return "Hell";
+}
+
+function brightnessColor(brightness: number): string {
+  if (brightness < 85) return T.textDim ?? "#666";
+  if (brightness < 170) return T.warning ?? "#f59e0b";
+  return T.success ?? "#22c55e";
+}
+
+function initMetaEdit(item: MediaItem): MetaEditState {
+  return {
+    display_name: item.display_name ?? "",
+    description: item.description ?? "",
+    tags: (item.tags ?? []).join(", "),
+    alt_text: item.alt_text ?? "",
+    usage_context: item.usage_context ?? "general",
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MetadataPanel — expandable accordion below each card
+   ───────────────────────────────────────────────────────────────────────── */
+function MetadataPanel({ item, onUpdated }: { item: MediaItem; onUpdated: (updated: MediaItem) => void }) {
+  const [open, setOpen] = useState(false);
+  const [edit, setEdit] = useState<MetaEditState>(() => initMetaEdit(item));
+  const [saving, setSaving] = useState(false);
+  const [describing, setDescribing] = useState(false);
+  const [saveOk, setSaveOk] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  // Sync edit state when item prop changes (e.g. after describe)
+  useEffect(() => {
+    setEdit(initMetaEdit(item));
+  }, [item]);
+
+  const handleDescribe = async () => {
+    setDescribing(true);
+    setErr(null);
+    try {
+      const res = await apiFetch(`/admin/media/${item.id}/describe`, { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as {
+        description?: string;
+        tags?: string[];
+        alt_text?: string;
+        usage_context?: UsageContext;
+        dominant_colors?: string[];
+        brightness?: number;
+      };
+      const updated: MediaItem = {
+        ...item,
+        description: data.description ?? item.description,
+        tags: data.tags ?? item.tags,
+        alt_text: data.alt_text ?? item.alt_text,
+        usage_context: data.usage_context ?? item.usage_context,
+        dominant_colors: data.dominant_colors ?? item.dominant_colors,
+        brightness: data.brightness ?? item.brightness,
+      };
+      onUpdated(updated);
+      // edit state will sync via useEffect above
+    } catch (e) {
+      setErr(`KI-Beschreibung fehlgeschlagen: ${e}`);
+    } finally {
+      setDescribing(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setErr(null);
+    try {
+      const tagsArray = edit.tags
+        .split(/,\s*/)
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const body = {
+        display_name: edit.display_name || undefined,
+        description: edit.description || undefined,
+        tags: tagsArray.length > 0 ? tagsArray : undefined,
+        alt_text: edit.alt_text || undefined,
+        usage_context: edit.usage_context,
+      };
+      const res = await apiFetch(`/admin/media/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const updated: MediaItem = { ...item, ...body, tags: tagsArray };
+      onUpdated(updated);
+      setSaveOk(true);
+      setTimeout(() => setSaveOk(false), 2000);
+    } catch (e) {
+      setErr(`Speichern fehlgeschlagen: ${e}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ borderTop: `1px solid ${T.border}` }}>
+      {/* Accordion toggle */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "8px 12px", background: "none", border: "none",
+          cursor: "pointer", color: T.textMuted, fontSize: 11, fontWeight: 600,
+        }}
+      >
+        <span>Metadaten</span>
+        <ChevronDown
+          size={12}
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+        />
+      </button>
+
+      {open && (
+        <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* Error */}
+          {err && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "8px 10px", borderRadius: 7,
+              background: T.dangerDim, border: `1px solid ${T.danger}30`,
+            }}>
+              <AlertTriangle size={12} color={T.danger} />
+              <span style={{ fontSize: 11, color: T.danger, flex: 1 }}>{err}</span>
+              <button onClick={() => setErr(null)} style={{ background: "none", border: "none", cursor: "pointer", color: T.danger, padding: 0 }}>
+                <X size={11} />
+              </button>
+            </div>
+          )}
+
+          {/* Read-only badges */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {item.orientation && (
+              <span style={{
+                padding: "2px 8px", borderRadius: 20,
+                background: T.accentDim, color: T.accent,
+                fontSize: 10, fontWeight: 700,
+              }}>
+                {item.orientation === "landscape" ? "Querformat" : item.orientation === "portrait" ? "Hochformat" : "Quadrat"}
+              </span>
+            )}
+            {item.brightness !== undefined && (
+              <span style={{
+                padding: "2px 8px", borderRadius: 20,
+                background: T.surfaceAlt,
+                border: `1px solid ${T.border}`,
+                color: brightnessColor(item.brightness),
+                fontSize: 10, fontWeight: 700,
+              }}>
+                {brightnessLabel(item.brightness)}
+              </span>
+            )}
+            {item.width !== undefined && item.height !== undefined && (
+              <span style={{
+                padding: "2px 8px", borderRadius: 20,
+                background: T.surfaceAlt,
+                border: `1px solid ${T.border}`,
+                color: T.textMuted,
+                fontSize: 10, fontWeight: 600,
+              }}>
+                {item.width}&times;{item.height}
+              </span>
+            )}
+          </div>
+
+          {/* Dominant colors */}
+          {item.dominant_colors && item.dominant_colors.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ fontSize: 10, color: T.textDim, marginRight: 2 }}>Farben:</span>
+              {item.dominant_colors.map((hex, i) => (
+                <div
+                  key={i}
+                  title={hex}
+                  style={{
+                    width: 16, height: 16, borderRadius: "50%",
+                    background: hex,
+                    border: `1px solid ${T.border}`,
+                    flexShrink: 0,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Editable: display_name */}
+          <div>
+            <label style={labelStyle}>Anzeigename</label>
+            <input
+              style={smallInputStyle}
+              type="text"
+              value={edit.display_name}
+              onChange={(e) => setEdit((prev) => ({ ...prev, display_name: e.target.value }))}
+              placeholder={item.filename}
+            />
+          </div>
+
+          {/* Editable: alt_text */}
+          <div>
+            <label style={labelStyle}>Alt-Text</label>
+            <input
+              style={smallInputStyle}
+              type="text"
+              value={edit.alt_text}
+              onChange={(e) => setEdit((prev) => ({ ...prev, alt_text: e.target.value }))}
+              placeholder="Beschreibung für Screenreader..."
+            />
+          </div>
+
+          {/* Editable: description */}
+          <div>
+            <label style={labelStyle}>Beschreibung</label>
+            <textarea
+              style={{ ...smallInputStyle, minHeight: 52, resize: "vertical", fontFamily: "inherit" }}
+              value={edit.description}
+              onChange={(e) => setEdit((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="Kurze Beschreibung des Bildes..."
+            />
+          </div>
+
+          {/* Editable: tags */}
+          <div>
+            <label style={labelStyle}>Tags (kommagetrennt)</label>
+            <input
+              style={smallInputStyle}
+              type="text"
+              value={edit.tags}
+              onChange={(e) => setEdit((prev) => ({ ...prev, tags: e.target.value }))}
+              placeholder="fitnessstudio, motivation, hell"
+            />
+          </div>
+
+          {/* Editable: usage_context */}
+          <div>
+            <label style={labelStyle}>Verwendungskontext</label>
+            <select
+              style={{ ...smallInputStyle, appearance: "none" as const }}
+              value={edit.usage_context}
+              onChange={(e) => setEdit((prev) => ({ ...prev, usage_context: e.target.value as UsageContext }))}
+            >
+              <option value="general">Allgemein</option>
+              <option value="hero">Hero-Bild</option>
+              <option value="thumbnail">Thumbnail</option>
+              <option value="email">E-Mail</option>
+              <option value="social">Social Media</option>
+            </select>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: "flex", gap: 7, marginTop: 2 }}>
+            <button
+              onClick={handleDescribe}
+              disabled={describing}
+              style={{
+                flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                padding: "7px 0", borderRadius: 7,
+                background: T.accentDim, border: `1px solid ${T.accent}30`,
+                color: T.accent, fontSize: 11, fontWeight: 700,
+                cursor: describing ? "not-allowed" : "pointer",
+                opacity: describing ? 0.6 : 1,
+              }}
+            >
+              {describing ? <RefreshCw size={11} className="animate-spin" /> : <Wand2 size={11} />}
+              {describing ? "Analysiert..." : "KI beschreiben"}
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                padding: "7px 0", borderRadius: 7,
+                background: saveOk ? T.successDim : T.surface,
+                border: `1px solid ${saveOk ? T.success + "40" : T.border}`,
+                color: saveOk ? T.success : T.textMuted,
+                fontSize: 11, fontWeight: 700,
+                cursor: saving ? "not-allowed" : "pointer",
+                opacity: saving ? 0.6 : 1,
+                transition: "all 0.2s ease",
+              }}
+            >
+              {saving ? <RefreshCw size={11} className="animate-spin" /> : saveOk ? <CheckCircle size={11} /> : <Save size={11} />}
+              {saving ? "Speichert..." : saveOk ? "Gespeichert" : "Speichern"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Main page
+   ───────────────────────────────────────────────────────────────────────── */
 export default function MediaPage() {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,7 +446,7 @@ export default function MediaPage() {
       const res = await apiFetch("/admin/media/upload", { method: "POST", body: form });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail || `HTTP ${res.status}`);
+        throw new Error((body as { detail?: string }).detail || `HTTP ${res.status}`);
       }
       await fetchMedia();
     } catch (e) {
@@ -144,7 +472,7 @@ export default function MediaPage() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail || `HTTP ${res.status}`);
+        throw new Error((body as { detail?: string }).detail || `HTTP ${res.status}`);
       }
       setShowAiForm(false);
       setAiForm({ prompt: "", size: "1024x1024", quality: "standard" });
@@ -174,6 +502,10 @@ export default function MediaPage() {
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const handleItemUpdated = (updated: MediaItem) => {
+    setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
   };
 
   const formatSize = (bytes: number) => {
@@ -411,7 +743,7 @@ export default function MediaPage() {
                 <div style={{ position: "relative", aspectRatio: "1", background: T.bg, overflow: "hidden" }}>
                   <img
                     src={item.url}
-                    alt={item.filename}
+                    alt={item.alt_text || item.display_name || item.filename}
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
@@ -429,8 +761,8 @@ export default function MediaPage() {
 
                 {/* Meta & actions */}
                 <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: T.text, margin: 0, wordBreak: "break-all", lineClamp: 2 }}>
-                    {item.filename}
+                  <p style={{ fontSize: 12, fontWeight: 600, color: T.text, margin: 0, wordBreak: "break-all" }}>
+                    {item.display_name || item.filename}
                   </p>
                   <p style={{ fontSize: 10, color: T.textDim, margin: 0 }}>
                     {formatSize(item.size)} &bull; {new Date(item.created_at).toLocaleDateString("de-DE")}
@@ -439,6 +771,25 @@ export default function MediaPage() {
                     <p style={{ fontSize: 10, color: T.textMuted, margin: 0, fontStyle: "italic", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>
                       {item.prompt}
                     </p>
+                  )}
+                  {/* Tag chips */}
+                  {item.tags && item.tags.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {item.tags.slice(0, 4).map((tag) => (
+                        <span key={tag} style={{
+                          padding: "1px 6px", borderRadius: 20,
+                          background: T.surface, border: `1px solid ${T.border}`,
+                          fontSize: 9, color: T.textMuted, fontWeight: 600,
+                        }}>
+                          {tag}
+                        </span>
+                      ))}
+                      {item.tags.length > 4 && (
+                        <span style={{ fontSize: 9, color: T.textDim, padding: "1px 4px" }}>
+                          +{item.tags.length - 4}
+                        </span>
+                      )}
+                    </div>
                   )}
                   <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
                     <button
@@ -475,6 +826,9 @@ export default function MediaPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Metadata accordion panel */}
+                <MetadataPanel item={item} onUpdated={handleItemUpdated} />
               </div>
             ))}
           </div>

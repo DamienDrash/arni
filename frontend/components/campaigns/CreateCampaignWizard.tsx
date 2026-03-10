@@ -190,7 +190,15 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
       const res = await apiFetch("/admin/media/ai-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: imageGenPrompt, size: "1024x1024", quality: "standard" }),
+        body: JSON.stringify({
+          prompt: imageGenPrompt,
+          size: "1024x1024",
+          quality: "standard",
+          campaign_name: form.name,
+          channel: form.channel,
+          tone: form.tone,
+          task_context: "email",
+        }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
