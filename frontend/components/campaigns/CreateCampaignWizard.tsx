@@ -4,7 +4,7 @@ import {
   Sparkles, Mail, MessageSquare, Smartphone, Send, Globe,
   Calendar, Users, Target, Filter, CheckCircle,
   ArrowRight, ArrowLeft, Eye, Loader2, BookOpen,
-  AlertCircle, Layers, Search, X,
+  AlertCircle, Layers, Search, X, Image, Info, XCircle,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/tokens";
@@ -87,6 +87,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
     template_id: null as number | null, ai_prompt: "", tone: "professional",
     use_knowledge: true, use_chat_history: false,
     content_subject: "", content_body: "", scheduled_at: "",
+    featured_image_url: "",
   });
   const [orchSteps, setOrchSteps] = useState<OrchestrationStep[]>([
     { step_order: 1, channel: "email", template_id: null, content_override_json: null, wait_hours: 0, condition_type: "always" },
@@ -165,6 +166,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
           target_type: form.target_type, template_id: form.template_id || undefined,
           content_subject: form.content_subject || undefined, content_body: form.content_body || undefined,
           ai_prompt: form.ai_prompt || undefined, scheduled_at: form.scheduled_at || undefined,
+          featured_image_url: form.featured_image_url || undefined,
           target_filter_json: form.target_segment_id ? JSON.stringify({ segment_id: form.target_segment_id })
             : form.target_type === "tags" && selectedTags.length > 0 ? JSON.stringify({ tags: selectedTags })
             : form.target_type === "selected" && selectedContactIds.length > 0 ? JSON.stringify({ contact_ids: selectedContactIds })
@@ -686,6 +688,36 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
               onAutoSendChange={setAbAutoSend}
             />
 
+            {/* Featured Image (email only) */}
+            {form.channel === "email" && (
+              <div>
+                <label style={{ ...S.label, marginBottom: 12 }}><Image size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> Titelbild (optional)</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <input
+                    style={S.input}
+                    type="url"
+                    value={form.featured_image_url}
+                    onChange={(e) => setForm({ ...form, featured_image_url: e.target.value })}
+                    placeholder="https://... oder aus Media-Bibliothek kopieren"
+                  />
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <a href="/media" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: T.accentLight, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <Image size={12} /> Media-Bibliothek öffnen →
+                    </a>
+                  </div>
+                  {form.featured_image_url && (
+                    <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}`, maxHeight: 160 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={form.featured_image_url} alt="Titelbild Vorschau" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+                      <button onClick={() => setForm({ ...form, featured_image_url: "" })} style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: 6, padding: "4px 6px", cursor: "pointer", display: "flex" }}>
+                        <X size={14} style={{ color: "#fff" }} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Summary */}
             <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 0 }}>
               <h4 style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 12 }}>Zusammenfassung</h4>
@@ -711,14 +743,72 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
         {step === 4 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: T.successDim, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <CheckCircle size={20} style={{ color: T.success }} />
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: aiResult?.qa_passed !== false ? T.successDim : "rgba(255,107,107,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {aiResult?.qa_passed !== false
+                  ? <CheckCircle size={20} style={{ color: T.success }} />
+                  : <XCircle size={20} style={{ color: T.danger }} />}
               </div>
               <div>
                 <h3 style={S.sectionTitle}>KI-Inhalt prüfen</h3>
                 <p style={S.sectionDesc}>Der KI-generierte Inhalt steht zur Prüfung bereit.</p>
               </div>
             </div>
+
+            {/* Pipeline Steps */}
+            {aiResult?.pipeline_steps && aiResult.pipeline_steps.length > 0 && (
+              <div>
+                <label style={S.label}>Swarm-Pipeline</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  {(aiResult.pipeline_steps as string[]).map((step: string, i: number) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ padding: "4px 12px", borderRadius: 20, background: T.accentDim, border: `1px solid rgba(108,92,231,0.3)`, fontSize: 11, fontWeight: 700, color: T.accentLight, textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>
+                        {step}
+                      </span>
+                      {i < aiResult.pipeline_steps.length - 1 && (
+                        <ArrowRight size={12} style={{ color: T.textDim, flexShrink: 0 }} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* QA Status */}
+            {aiResult?.qa_passed === false && aiResult.qa_issues && aiResult.qa_issues.length > 0 && (
+              <div style={{ padding: "14px 16px", background: "rgba(255,107,107,0.1)", border: `1px solid rgba(255,107,107,0.3)`, borderRadius: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <XCircle size={14} style={{ color: T.danger }} />
+                  <span style={{ fontSize: 12, fontWeight: 800, color: T.danger }}>QA-Fehler ({aiResult.qa_issues.length})</span>
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 16 }}>
+                  {(aiResult.qa_issues as string[]).map((issue: string, i: number) => (
+                    <li key={i} style={{ fontSize: 12, color: T.danger, lineHeight: 1.6 }}>{issue}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {aiResult?.qa_passed === true && (
+              <div style={{ padding: "10px 16px", background: T.successDim, border: `1px solid rgba(0,184,148,0.3)`, borderRadius: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                <CheckCircle size={14} style={{ color: T.success }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: T.success }}>QA bestanden – alle Qualitätskriterien erfüllt</span>
+              </div>
+            )}
+
+            {/* QA Suggestions */}
+            {aiResult?.qa_suggestions && aiResult.qa_suggestions.length > 0 && (
+              <div style={{ padding: "14px 16px", background: "rgba(9,132,227,0.1)", border: `1px solid rgba(9,132,227,0.3)`, borderRadius: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Info size={14} style={{ color: "#0984e3" }} />
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "#0984e3" }}>Verbesserungsvorschläge</span>
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 16 }}>
+                  {(aiResult.qa_suggestions as string[]).map((s: string, i: number) => (
+                    <li key={i} style={{ fontSize: 12, color: "#74b9ff", lineHeight: 1.6 }}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {aiResult?.content && (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
