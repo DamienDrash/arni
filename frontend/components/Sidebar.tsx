@@ -78,7 +78,6 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
       title: t("sidebar.sections.knowledge"),
       items: [
         { name: t("sidebar.knowledge"), href: "/knowledge", icon: BookOpen },
-        { name: "Media-Bibliothek", href: "/media", icon: ImageIcon },
         { name: t("sidebar.memberMemory"), href: "/member-memory", icon: Brain, feature: "memory_analyzer" },
         { name: "Notion", href: "/settings/notion", icon: Globe },
         { name: t("sidebar.systemPrompt"), href: "/system-prompt", icon: Bot, feature: "custom_prompts" },
@@ -89,6 +88,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
       items: [
         { name: "Kampagnen", href: "/campaigns", icon: Megaphone },
         { name: "Vorlagen", href: "/templates", icon: Layers },
+        { name: "Media-Bibliothek", href: "/media", icon: ImageIcon },
         { name: "Automations", href: "/automations", icon: Zap, feature: "automation" },
         { name: "Kampagnen-Analytics", href: "/campaign-analytics", icon: BarChart3 },
         { name: "Planung & Kalender", href: "/planning", icon: CalendarDays },
