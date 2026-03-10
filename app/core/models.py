@@ -303,6 +303,9 @@ class Plan(Base):
     # Media & Image Generation quotas
     ai_image_generations_per_month = Column(Integer, nullable=True)
     media_storage_mb = Column(Integer, nullable=True)
+    ai_image_previews_per_month = Column(Integer, nullable=True)
+    brand_style_enabled = Column(Boolean, nullable=False, default=False)
+    text_overlay_images_enabled = Column(Boolean, nullable=False, default=False)
 
     is_active = Column(Boolean, nullable=False, default=True)
     is_public = Column(Boolean, nullable=False, default=True)  # Show on public pricing page
