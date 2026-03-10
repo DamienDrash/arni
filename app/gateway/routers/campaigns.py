@@ -277,7 +277,8 @@ async def update_campaign(
     if campaign.status in ("sending", "sent"):
         raise HTTPException(status_code=400, detail="Cannot edit a campaign that is sending or already sent")
 
-    for field, value in body.model_dump(exclude_unset=True).items():
+    updated_fields = body.model_dump(exclude_unset=True)
+    for field, value in updated_fields.items():
         if field == "scheduled_at" and value:
             try:
                 setattr(campaign, field, datetime.fromisoformat(value.replace("Z", "+00:00")))
@@ -285,6 +286,24 @@ async def update_campaign(
                 pass
         else:
             setattr(campaign, field, value)
+
+    # Inject featured_image_url into content_html as hero image if not already present
+    image_url = updated_fields.get("featured_image_url") or campaign.featured_image_url
+    if image_url and campaign.content_html and image_url not in campaign.content_html:
+        hero_tag = f'<img src="{image_url}" alt="Campaign hero image" style="width:100%;max-width:600px;height:auto;display:block;margin:0 auto;" />'
+        html = campaign.content_html
+        # Try inserting after </header> or <div class="header"...> block, else after <body>
+        import re as _re
+        inserted = False
+        for pattern in (r'(</header>)', r'(</div>\s*<!-- ?header ?-->)', r'(<div[^>]*class="[^"]*header[^"]*"[^>]*>.*?</div>)', r'(<body[^>]*>)'):
+            m = _re.search(pattern, html, _re.IGNORECASE | _re.DOTALL)
+            if m:
+                pos = m.end()
+                campaign.content_html = html[:pos] + "\n" + hero_tag + "\n" + html[pos:]
+                inserted = True
+                break
+        if not inserted:
+            campaign.content_html = html.replace("<body>", f"<body>\n{hero_tag}\n", 1)
 
     db.commit()
     db.refresh(campaign)
@@ -373,7 +392,22 @@ async def ai_generate_content(
         campaign.ai_generated_content = json.dumps(generated, ensure_ascii=False)
         campaign.content_subject = result.subject or campaign.content_subject
         campaign.content_body = result.body or campaign.content_body
-        campaign.content_html = result.html or campaign.content_html
+        new_html = result.html or campaign.content_html
+        # If campaign already has a featured image, inject it into the freshly generated HTML
+        if new_html and campaign.featured_image_url and campaign.featured_image_url not in new_html:
+            import re as _re
+            hero_tag = f'<img src="{campaign.featured_image_url}" alt="Campaign hero image" style="width:100%;max-width:600px;height:auto;display:block;margin:0 auto;" />'
+            inserted = False
+            for pattern in (r'(</header>)', r'(<div[^>]*class="[^"]*header[^"]*"[^>]*>.*?</div>)', r'(<body[^>]*>)'):
+                m = _re.search(pattern, new_html, _re.IGNORECASE | _re.DOTALL)
+                if m:
+                    pos = m.end()
+                    new_html = new_html[:pos] + "\n" + hero_tag + "\n" + new_html[pos:]
+                    inserted = True
+                    break
+            if not inserted:
+                new_html = new_html.replace("<body>", f"<body>\n{hero_tag}\n", 1)
+        campaign.content_html = new_html
         campaign.status = "pending_review"
         campaign.preview_token = str(uuid.uuid4())
         campaign.preview_expires_at = datetime.now(timezone.utc) + timedelta(hours=48)
