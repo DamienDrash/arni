@@ -331,6 +331,8 @@ class AddonDefinition(Base):
     stripe_product_id = Column(String, nullable=True)
     stripe_price_id = Column(String, nullable=True)
     features_json = Column(Text, nullable=True)           # JSON list of feature keys this addon unlocks
+    image_quota_grant = Column(Integer, nullable=True, default=0)   # Extra AI images/month this addon provides
+    image_preview_quota_grant = Column(Integer, nullable=True, default=0)  # Extra preview images/month
     is_active = Column(Boolean, nullable=False, default=True)
     display_order = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

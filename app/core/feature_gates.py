@@ -216,27 +216,87 @@ class FeatureGate:
                 ),
             )
 
+    def _get_image_addon_quota(self) -> int:
+        """Sum image_quota_grant x quantity for all active image pack add-ons."""
+        try:
+            from app.core.db import SessionLocal
+            from app.core.models import TenantAddon, AddonDefinition
+            db = SessionLocal()
+            try:
+                rows = db.query(TenantAddon, AddonDefinition).join(
+                    AddonDefinition, TenantAddon.addon_slug == AddonDefinition.slug
+                ).filter(
+                    TenantAddon.tenant_id == self._tenant_id,
+                    TenantAddon.status == "active",
+                    AddonDefinition.image_quota_grant > 0,
+                ).all()
+                return sum((r.AddonDefinition.image_quota_grant or 0) * (r.TenantAddon.quantity or 1) for r in rows)
+            finally:
+                db.close()
+        except Exception:
+            return 0
+
+    def _get_image_preview_addon_quota(self) -> int:
+        """Sum image_preview_quota_grant x quantity for all active preview pack add-ons."""
+        try:
+            from app.core.db import SessionLocal
+            from app.core.models import TenantAddon, AddonDefinition
+            db = SessionLocal()
+            try:
+                rows = db.query(TenantAddon, AddonDefinition).join(
+                    AddonDefinition, TenantAddon.addon_slug == AddonDefinition.slug
+                ).filter(
+                    TenantAddon.tenant_id == self._tenant_id,
+                    TenantAddon.status == "active",
+                    AddonDefinition.image_preview_quota_grant > 0,
+                ).all()
+                return sum((r.AddonDefinition.image_preview_quota_grant or 0) * (r.TenantAddon.quantity or 1) for r in rows)
+            finally:
+                db.close()
+        except Exception:
+            return 0
+
     def check_image_generation_limit(self) -> None:
-        """Raise HTTP 402/429 if the tenant has reached their monthly AI image generation quota."""
-        limit = self._plan_data.get("ai_image_generations_per_month")
-        if limit is None or limit == -1:
-            return
-        if limit == 0:
+        """Raise HTTP 402/429 if the tenant has reached their monthly AI image generation quota.
+
+        Quota = plan base + sum of active image pack add-on grants (multiplied by quantity).
+        """
+        base_limit = self._plan_data.get("ai_image_generations_per_month")
+        if base_limit is None or int(base_limit) == 0:
             raise HTTPException(status_code=402, detail="AI image generation is not available on your current plan.")
-        usage = self._get_current_usage()
-        if usage.get("ai_image_generations_used", 0) >= int(limit):
-            raise HTTPException(status_code=429, detail=f"Monthly AI image generation limit of {limit} reached.")
+
+        if int(base_limit) == -1:
+            return  # plan is unlimited
+
+        # Sum quota grants from active image pack add-ons
+        addon_grant = self._get_image_addon_quota()
+        total_limit = int(base_limit) + addon_grant
+
+        used = self._get_current_usage().get("ai_image_generations_used", 0)
+        if used >= total_limit:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Monthly AI image generation limit of {total_limit} reached. Purchase an image pack to continue."
+            )
 
     def check_image_preview_limit(self) -> None:
         """Raise HTTP 402/429 if the tenant has reached their monthly AI image preview quota."""
-        limit = self._plan_data.get("ai_image_previews_per_month")
-        if limit is None or int(limit) == 0:
+        base_limit = self._plan_data.get("ai_image_previews_per_month")
+        if base_limit is None or int(base_limit) == 0:
             raise HTTPException(status_code=402, detail="AI image preview is not available on your current plan.")
-        if int(limit) == -1:
-            return  # unlimited
-        usage = self._get_current_usage()
-        if usage.get("ai_image_previews_used", 0) >= int(limit):
-            raise HTTPException(status_code=429, detail=f"Monthly AI image preview limit of {limit} reached.")
+
+        if int(base_limit) == -1:
+            return  # plan is unlimited
+
+        addon_grant = self._get_image_preview_addon_quota()
+        total_limit = int(base_limit) + addon_grant
+
+        used = self._get_current_usage().get("ai_image_previews_used", 0)
+        if used >= total_limit:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Monthly AI preview limit of {total_limit} reached. Purchase a preview pack to continue."
+            )
 
     def require_brand_style(self) -> None:
         """Raise HTTP 402 if brand style image generation is not available on this plan."""
@@ -731,7 +791,62 @@ def seed_plans() -> None:
                 "category": "integration",
                 "price_monthly_cents": 4900,
                 "features_json": '["automation_enabled"]',
+                "image_quota_grant": 0,
+                "image_preview_quota_grant": 0,
+                "is_active": True,
                 "display_order": 6,
+            },
+            {
+                "slug": "image_pack_s",
+                "name": "KI-Bilder Pack S",
+                "description": "25 zusaetzliche KI-generierte Bilder pro Monat (FLUX 1.1 Pro Qualitaet).",
+                "category": "ai",
+                "icon": "Image",
+                "price_monthly_cents": 900,
+                "features_json": '[]',
+                "image_quota_grant": 25,
+                "image_preview_quota_grant": 0,
+                "is_active": True,
+                "display_order": 10,
+            },
+            {
+                "slug": "image_pack_m",
+                "name": "KI-Bilder Pack M",
+                "description": "100 zusaetzliche KI-generierte Bilder pro Monat (FLUX 1.1 Pro Qualitaet).",
+                "category": "ai",
+                "icon": "Images",
+                "price_monthly_cents": 2900,
+                "features_json": '[]',
+                "image_quota_grant": 100,
+                "image_preview_quota_grant": 0,
+                "is_active": True,
+                "display_order": 11,
+            },
+            {
+                "slug": "image_pack_l",
+                "name": "KI-Bilder Pack L",
+                "description": "500 zusaetzliche KI-generierte Bilder pro Monat (FLUX 1.1 Pro Qualitaet).",
+                "category": "ai",
+                "icon": "ImagePlus",
+                "price_monthly_cents": 9900,
+                "features_json": '[]',
+                "image_quota_grant": 500,
+                "image_preview_quota_grant": 0,
+                "is_active": True,
+                "display_order": 12,
+            },
+            {
+                "slug": "image_preview_pack",
+                "name": "KI-Vorschau Pack",
+                "description": "500 zusaetzliche schnelle Vorschau-Generierungen pro Monat (FLUX Schnell).",
+                "category": "ai",
+                "icon": "ScanEye",
+                "price_monthly_cents": 400,
+                "features_json": '[]',
+                "image_quota_grant": 0,
+                "image_preview_quota_grant": 500,
+                "is_active": True,
+                "display_order": 13,
             },
         ]
 
@@ -739,8 +854,21 @@ def seed_plans() -> None:
             existing_addon = db.query(AddonDefinition).filter(
                 AddonDefinition.slug == adata["slug"]
             ).first()
-            if not existing_addon:
-                db.add(AddonDefinition(**adata))
+            if existing_addon:
+                # Backfill image quota fields if they are NULL (new columns on existing rows)
+                changed = False
+                if existing_addon.image_quota_grant is None and adata.get("image_quota_grant", 0):
+                    existing_addon.image_quota_grant = adata["image_quota_grant"]
+                    changed = True
+                if existing_addon.image_preview_quota_grant is None and adata.get("image_preview_quota_grant", 0):
+                    existing_addon.image_preview_quota_grant = adata["image_preview_quota_grant"]
+                    changed = True
+                if changed:
+                    db.commit()
+                continue
+            # Create new addon — filter dict keys to only those present on the model
+            addon = AddonDefinition(**{k: v for k, v in adata.items() if hasattr(AddonDefinition, k)})
+            db.add(addon)
             # Do NOT overwrite existing addons (admin may have customized them)
 
         db.commit()
