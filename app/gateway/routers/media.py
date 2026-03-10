@@ -155,6 +155,7 @@ async def ai_generate_image(
             "url": result.url,
             "source": "ai_generated",
             "qa_passed": result.qa_passed,
+            "qa_score": result.qa_score,
             "qa_issues": result.qa_issues,
             "qa_suggestions": result.qa_suggestions,
             "pipeline_steps": result.pipeline_steps,

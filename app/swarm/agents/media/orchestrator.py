@@ -26,6 +26,7 @@ class MediaGenerationResult:
     asset_id: Optional[int] = None
     url: str = ""
     qa_passed: bool = True
+    qa_score: int = 8
     qa_issues: list[str] = field(default_factory=list)
     qa_suggestions: list[str] = field(default_factory=list)
     pipeline_steps: list[str] = field(default_factory=list)
@@ -113,16 +114,13 @@ class MediaOrchestrator:
                 except Exception:
                     metadata = {}
 
-                # Step 4: QA validation
+                # Step 4: QA validation (visual + rules via GPT-4o Vision)
                 result.pipeline_steps.append("qa")
-                qa_result = self._qa_agent.validate(
-                    mime_type="image/png",
+                qa_result = await self._qa_agent.validate_visual(
+                    image_bytes=image_bytes,
                     channel=request.channel,
                     task_context=request.task_context,
-                    file_size=len(image_bytes),
-                    orientation=metadata.get("orientation", ""),
-                    width=metadata.get("width", 0),
-                    height=metadata.get("height", 0),
+                    tenant_id=request.tenant_id,
                 )
 
                 if qa_result.passed:
@@ -132,6 +130,7 @@ class MediaOrchestrator:
                     break
 
             result.qa_passed = qa_result.passed if qa_result else True
+            result.qa_score = qa_result.score if qa_result else 8
             result.qa_issues = qa_result.issues if qa_result else []
             result.qa_suggestions = qa_result.suggestions if qa_result else []
             result.revised_prompt = revised_prompt
