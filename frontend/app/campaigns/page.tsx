@@ -11,6 +11,7 @@ import CreateCampaignWizard from "@/components/campaigns/CreateCampaignWizard";
 import CampaignSendProgress from "@/components/campaigns/CampaignSendProgress";
 import ABTestResults from "@/components/campaigns/ABTestResults";
 import CampaignQueueMonitor from "@/components/campaigns/CampaignQueueMonitor";
+import CampaignPreviewModal from "@/components/campaigns/CampaignPreviewModal";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { apiFetch } from "@/lib/api";
@@ -102,6 +103,7 @@ export default function CampaignsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [previewToken, setPreviewToken] = useState<string | null>(null);
 
   const { plan } = usePermissions();
 
@@ -521,7 +523,7 @@ export default function CampaignsPage() {
                         )}
                         {campaign.preview_token && (
                           <button
-                            onClick={(e) => { e.stopPropagation(); window.open(`/campaigns/preview/${campaign.preview_token}`, "_blank"); }}
+                            onClick={(e) => { e.stopPropagation(); setPreviewToken(campaign.preview_token); }}
                             style={{
                               padding: "6px 10px", background: T.surfaceAlt, color: T.textMuted,
                               border: `1px solid ${T.border}`, borderRadius: 6, cursor: "pointer",
@@ -570,6 +572,17 @@ export default function CampaignsPage() {
           onApprove={(id) => { approveCampaign(id); setSelectedCampaign(null); }}
           onSend={(id) => { sendCampaign(id); setSelectedCampaign(null); }}
           onDelete={(id) => { deleteCampaign(id); setSelectedCampaign(null); }}
+          onOpenPreview={(token) => { setSelectedCampaign(null); setPreviewToken(token); }}
+        />
+      )}
+
+      {/* Campaign Preview Modal (replaces window.open) */}
+      {previewToken && (
+        <CampaignPreviewModal
+          token={previewToken}
+          onClose={() => setPreviewToken(null)}
+          onApproved={() => { loadCampaigns(); setPreviewToken(null); }}
+          onRejected={() => { loadCampaigns(); setPreviewToken(null); }}
         />
       )}
 
@@ -588,9 +601,10 @@ interface CampaignDetailModalProps {
   onApprove: (id: number) => void;
   onSend: (id: number) => void;
   onDelete: (id: number) => void;
+  onOpenPreview?: (token: string) => void;
 }
 
-function CampaignDetailModal({ campaign: c, onClose, onApprove, onSend, onDelete }: CampaignDetailModalProps) {
+function CampaignDetailModal({ campaign: c, onClose, onApprove, onSend, onDelete, onOpenPreview }: CampaignDetailModalProps) {
   const [orchestrationSteps, setOrchestrationSteps] = React.useState<OrchestrationStep[]>([]);
 
   React.useEffect(() => {
@@ -797,7 +811,7 @@ function CampaignDetailModal({ campaign: c, onClose, onApprove, onSend, onDelete
           )}
           {c.preview_token && (
             <button
-              onClick={() => window.open(`/campaigns/preview/${c.preview_token}`, "_blank")}
+              onClick={() => onOpenPreview?.(c.preview_token!)}
               style={{
                 display: "flex", alignItems: "center", gap: 6, padding: "10px 18px",
                 background: T.surfaceAlt, color: T.text,
