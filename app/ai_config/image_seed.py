@@ -7,8 +7,17 @@ logger = structlog.get_logger()
 
 DEFAULT_IMAGE_PROVIDERS = [
     {
+        "slug": "fal_ai",
+        "name": "fal.ai (FLUX 1.1 Pro)",
+        "provider_type": "fal_ai",
+        "api_base_url": "https://fal.run",
+        "default_model": "fal-ai/flux-pro/v1.1",
+        "priority": 5,   # Highest priority (lower number = preferred)
+        "is_active": True,
+    },
+    {
         "slug": "openai_images",
-        "name": "OpenAI Images (DALL-E)",
+        "name": "OpenAI Images (DALL-E 3)",
         "provider_type": "openai_images",
         "api_base_url": "https://api.openai.com/v1",
         "default_model": "dall-e-3",
@@ -40,12 +49,17 @@ def seed_image_providers(db: Session) -> None:
             ImageProvider.slug == data["slug"]
         ).first()
         if existing:
+            # Update api_key if it became available since last seed
+            if data["slug"] == "fal_ai" and settings.fal_key and not existing.api_key_encrypted:
+                existing.api_key_encrypted = encrypt_api_key(settings.fal_key)
+                db.commit()
             continue
 
         provider = ImageProvider(**data)
 
-        # Store openai_api_key for openai_images provider if available
-        if data["slug"] == "openai_images" and settings.openai_api_key:
+        if data["slug"] == "fal_ai" and settings.fal_key:
+            provider.api_key_encrypted = encrypt_api_key(settings.fal_key)
+        elif data["slug"] == "openai_images" and settings.openai_api_key:
             provider.api_key_encrypted = encrypt_api_key(settings.openai_api_key)
 
         db.add(provider)

@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     # --- OpenAI (System Default / Fallback) ---
     openai_api_key: str = ""
 
+    # --- fal.ai (Image Generation) ---
+    fal_key: str = ""
+
     # --- Security & Auth (Global) ---
     acp_secret: str = "ariia-acp-secret-changeme"
     auth_secret: str = "change-me-long-random-secret"
