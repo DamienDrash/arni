@@ -86,6 +86,7 @@ class CampaignOrchestrator:
             )
             result.subject = text.get("subject", "")
             result.body = text.get("body", "")
+            result.html = text.get("html", "")  # MarketingAgent may already include html
             result.variables = text.get("variables", {})
 
             if text.get("error"):

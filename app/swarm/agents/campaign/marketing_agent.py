@@ -84,10 +84,43 @@ REGELN:
                 return {"subject": "", "body": "", "variables": {}, "error": "No response from LLM"}
 
             import re
-            json_match = re.search(r'\{.*"subject".*\}', response, re.DOTALL)
-            if json_match:
-                return json.loads(json_match.group())
-            return {"subject": "", "body": response, "variables": {}}
+
+            def _extract_json(text: str) -> dict | None:
+                """Try several strategies to extract a JSON object from LLM output."""
+                # Strip markdown fences
+                cleaned = re.sub(r'^```[a-z]*\n?', '', text.strip())
+                cleaned = re.sub(r'\n?```$', '', cleaned).strip()
+                # Direct parse
+                try:
+                    return json.loads(cleaned)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+                # Find first JSON object containing "subject"
+                match = re.search(r'\{[^<>]*?"subject"[^<>]*?\}', cleaned, re.DOTALL)
+                if match:
+                    try:
+                        return json.loads(match.group())
+                    except (json.JSONDecodeError, ValueError):
+                        pass
+                return None
+
+            parsed = _extract_json(response)
+            if not parsed:
+                return {"subject": "", "body": response, "variables": {}}
+
+            # If body is itself a JSON string (LLM nested the response), unwrap it
+            body_raw = parsed.get("body", "")
+            if isinstance(body_raw, str) and body_raw.strip().startswith("{"):
+                inner = _extract_json(body_raw)
+                if inner and (inner.get("subject") or inner.get("body")):
+                    return {
+                        "subject": inner.get("subject") or parsed.get("subject", ""),
+                        "body": inner.get("body", ""),
+                        "html": inner.get("html", ""),
+                        "variables": inner.get("variables") or parsed.get("variables", {}),
+                    }
+
+            return parsed
         except Exception as e:
             logger.error("marketing_agent.generate_failed", error=str(e), tenant_id=tenant_id)
             return {"subject": "", "body": "", "variables": {}, "error": str(e)}
