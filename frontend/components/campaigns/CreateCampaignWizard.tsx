@@ -81,6 +81,13 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
   const [aiError, setAiError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+  // Image upload / AI generate state
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageGenerating, setImageGenerating] = useState(false);
+  const [imageGenPrompt, setImageGenPrompt] = useState("");
+  const [showImageGen, setShowImageGen] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+
   const [form, setForm] = useState({
     name: "", description: "", type: "broadcast", channel: "email",
     target_type: "all_members", target_segment_id: null as number | null,
@@ -152,6 +159,50 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
         .finally(() => setContactsLoading(false));
     }
   }, [form.target_type]);
+
+  /* ─── Image Upload / AI Generate ────────────────────────────────────── */
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageUploading(true);
+    setImageError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await apiFetch("/admin/media/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setForm((f) => ({ ...f, featured_image_url: data.url }));
+    } catch {
+      setImageError("Upload fehlgeschlagen.");
+    } finally {
+      setImageUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleImageAiGenerate = async () => {
+    if (!imageGenPrompt.trim()) return;
+    setImageGenerating(true);
+    setImageError(null);
+    try {
+      const res = await apiFetch("/admin/media/ai-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: imageGenPrompt, size: "1024x1024", quality: "standard" }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setForm((f) => ({ ...f, featured_image_url: data.url }));
+      setShowImageGen(false);
+      setImageGenPrompt("");
+    } catch {
+      setImageError("KI-Generierung fehlgeschlagen.");
+    } finally {
+      setImageGenerating(false);
+    }
+  };
 
   /* ─── Actions ────────────────────────────────────────────────────────── */
 
@@ -693,18 +744,46 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
               <div>
                 <label style={{ ...S.label, marginBottom: 12 }}><Image size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> Titelbild (optional)</label>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {/* Action row */}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <label style={{ ...S.secondaryBtn, cursor: imageUploading ? "default" : "pointer", opacity: imageUploading ? 0.6 : 1 }}>
+                      {imageUploading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Image size={14} />}
+                      {imageUploading ? "Wird hochgeladen..." : "Bild hochladen"}
+                      <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} disabled={imageUploading} />
+                    </label>
+                    <button onClick={() => { setShowImageGen(!showImageGen); setImageError(null); }} style={{ ...S.secondaryBtn, color: T.accentLight }}>
+                      <Sparkles size={14} /> KI generieren
+                    </button>
+                  </div>
+
+                  {/* AI generate form */}
+                  {showImageGen && (
+                    <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                      <input
+                        style={S.input}
+                        type="text"
+                        value={imageGenPrompt}
+                        onChange={(e) => setImageGenPrompt(e.target.value)}
+                        placeholder="Bildprompt, z.B. Fitnessstudio, motivierende Atmosphäre, hell und modern"
+                        onKeyDown={(e) => { if (e.key === "Enter") handleImageAiGenerate(); }}
+                      />
+                      <button onClick={handleImageAiGenerate} disabled={imageGenerating || !imageGenPrompt.trim()} style={{ ...S.primaryBtn, opacity: imageGenerating || !imageGenPrompt.trim() ? 0.6 : 1 }}>
+                        {imageGenerating ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Generiere...</> : <><Sparkles size={14} /> Bild erstellen</>}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* URL input (manual / paste) */}
                   <input
                     style={S.input}
                     type="url"
                     value={form.featured_image_url}
                     onChange={(e) => setForm({ ...form, featured_image_url: e.target.value })}
-                    placeholder="https://... oder aus Media-Bibliothek kopieren"
+                    placeholder="Oder URL direkt einfügen..."
                   />
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <a href="/media" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: T.accentLight, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      <Image size={12} /> Media-Bibliothek öffnen →
-                    </a>
-                  </div>
+
+                  {imageError && <p style={{ fontSize: 11, color: T.danger, margin: 0 }}>{imageError}</p>}
+
                   {form.featured_image_url && (
                     <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}`, maxHeight: 160 }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -820,7 +899,18 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                 )}
                 <div>
                   <label style={S.label}>Inhalt</label>
-                  <div style={{ padding: "12px 16px", background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 10, color: T.text, fontSize: 13, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{aiResult.content.body || aiResult.content.html || "–"}</div>
+                  {aiResult.content.html ? (
+                    <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden", background: "#ffffff" }}>
+                      <iframe
+                        srcDoc={aiResult.content.html}
+                        style={{ width: "100%", minHeight: 300, border: "none", display: "block" }}
+                        sandbox="allow-same-origin"
+                        title="E-Mail Vorschau"
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ padding: "12px 16px", background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 10, color: T.text, fontSize: 13, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{aiResult.content.body || "–"}</div>
+                  )}
                 </div>
               </div>
             )}
