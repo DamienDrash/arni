@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "files.manuscdn.com",
       },
+      {
+        protocol: "https",
+        hostname: "www.ariia.ai",
+        pathname: "/media/**",
+      },
     ],
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
@@ -31,6 +36,10 @@ const nextConfig: NextConfig = {
       {
         source: "/ws/:path*",
         destination: `${process.env.GATEWAY_INTERNAL_URL || "http://ariia-core:8000"}/ws/:path*`,
+      },
+      {
+        source: "/media/:path*",
+        destination: `${process.env.GATEWAY_INTERNAL_URL || "http://ariia-core:8000"}/media/:path*`,
       },
     ];
   },
