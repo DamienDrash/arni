@@ -18,6 +18,19 @@ class AIImageGenerateRequest(BaseModel):
     prompt: str
     size: str = "1024x1024"
     quality: str = "standard"
+    # Optional campaign context for orchestrator routing
+    campaign_name: Optional[str] = None
+    channel: Optional[str] = "email"
+    tone: Optional[str] = "professional"
+    task_context: Optional[str] = "general"
+
+
+class MediaAssetUpdate(BaseModel):
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[list[str]] = None
+    alt_text: Optional[str] = None
+    usage_context: Optional[str] = None
 
 
 @router.post("/upload", status_code=201)
@@ -112,6 +125,41 @@ async def ai_generate_image(
 
     svc = MediaService(db=db, tenant_id=user.tenant_id, tenant_slug=tenant.slug)
 
+    # If campaign context provided, route through MediaOrchestrator
+    if body.campaign_name or body.task_context != "general" or body.channel != "email":
+        from app.swarm.agents.media.orchestrator import MediaOrchestrator, MediaGenerationRequest
+        from app.swarm.llm import LLMClient
+        from config.settings import get_settings
+        settings = get_settings()
+        llm = LLMClient(openai_api_key=settings.openai_api_key)
+        orch = MediaOrchestrator(llm)
+        req = MediaGenerationRequest(
+            user_prompt=body.prompt,
+            tenant_id=user.tenant_id,
+            campaign_name=body.campaign_name or "",
+            channel=body.channel or "email",
+            tone=body.tone or "professional",
+            task_context=body.task_context or "general",
+            size=body.size,
+            quality=body.quality,
+            created_by=user.user_id,
+        )
+        result = await orch.run(req, db=db, tenant_slug=tenant.slug)
+        if result.error:
+            raise HTTPException(status_code=502, detail=result.error)
+        return {
+            "id": result.asset_id,
+            "url": result.url,
+            "source": "ai_generated",
+            "qa_passed": result.qa_passed,
+            "qa_issues": result.qa_issues,
+            "qa_suggestions": result.qa_suggestions,
+            "pipeline_steps": result.pipeline_steps,
+            "retries": result.retries,
+            "revised_prompt": result.revised_prompt,
+            "created_at": None,
+        }
+
     # Check quota BEFORE calling API
     svc.check_image_gen_quota()
 
@@ -192,7 +240,6 @@ async def list_media(
     assets = q.order_by(MediaAsset.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
 
     from app.core.models import Tenant
-    from app.media.storage import get_public_url
     tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
     slug = tenant.slug if tenant else "unknown"
 
@@ -202,6 +249,141 @@ async def list_media(
         "page": page,
         "limit": limit,
     }
+
+
+@router.get("/search")
+async def search_media(
+    q: Optional[str] = None,
+    context: Optional[str] = None,
+    channel: Optional[str] = None,
+    limit: int = Query(20, ge=1, le=100),
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Search media assets by description, tags, and context."""
+    from app.core.models import Tenant
+    from sqlalchemy import or_, cast, Text
+
+    query = db.query(MediaAsset).filter(MediaAsset.tenant_id == user.tenant_id)
+
+    if q:
+        query = query.filter(
+            or_(
+                MediaAsset.description.ilike(f"%{q}%"),
+                MediaAsset.display_name.ilike(f"%{q}%"),
+                MediaAsset.alt_text.ilike(f"%{q}%"),
+                cast(MediaAsset.tags, Text).ilike(f"%{q}%"),
+            )
+        )
+
+    if context:
+        query = query.filter(MediaAsset.usage_context == context)
+
+    if channel == "email":
+        query = query.filter(MediaAsset.mime_type != "image/webp")
+
+    total = query.count()
+    assets = query.order_by(MediaAsset.created_at.desc()).limit(limit).all()
+
+    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    slug = tenant.slug if tenant else "unknown"
+
+    return {
+        "items": [_asset_to_dict(a, slug) for a in assets],
+        "total": total,
+    }
+
+
+@router.patch("/{asset_id}")
+async def update_media_metadata(
+    asset_id: int,
+    body: MediaAssetUpdate,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update metadata for a media asset."""
+    asset = db.query(MediaAsset).filter(
+        MediaAsset.id == asset_id,
+        MediaAsset.tenant_id == user.tenant_id,
+    ).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Media asset not found")
+
+    if body.display_name is not None:
+        asset.display_name = body.display_name
+    if body.description is not None:
+        asset.description = body.description
+    if body.tags is not None:
+        asset.tags = body.tags
+    if body.alt_text is not None:
+        asset.alt_text = body.alt_text
+    if body.usage_context is not None:
+        asset.usage_context = body.usage_context
+
+    db.commit()
+
+    from app.core.models import Tenant
+    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    slug = tenant.slug if tenant else "unknown"
+    return _asset_to_dict(asset, slug)
+
+
+@router.post("/{asset_id}/describe")
+async def describe_media(
+    asset_id: int,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Use GPT-4o Vision to auto-generate description, tags, alt_text, usage_context for a media asset."""
+    asset = db.query(MediaAsset).filter(
+        MediaAsset.id == asset_id,
+        MediaAsset.tenant_id == user.tenant_id,
+    ).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Media asset not found")
+
+    from app.core.models import Tenant
+    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    slug = tenant.slug if tenant else "unknown"
+
+    # Read image bytes from disk
+    try:
+        from app.media.storage import get_media_path
+        image_path = get_media_path(slug, asset.filename)
+        image_bytes = image_path.read_bytes()
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Image file not found on disk: {e}")
+
+    # Run ImageAnalysisAgent
+    try:
+        from app.swarm.agents.media.analysis_agent import ImageAnalysisAgent
+        from app.swarm.llm import LLMClient
+        from config.settings import get_settings
+        settings = get_settings()
+        llm = LLMClient(openai_api_key=settings.openai_api_key)
+        ImageAnalysisAgent.set_llm(llm)
+        agent = ImageAnalysisAgent()
+        analysis = await agent.describe(image_bytes=image_bytes, tenant_id=user.tenant_id)
+    except Exception as e:
+        logger.error("media.describe_failed", error=str(e), asset_id=asset_id)
+        raise HTTPException(status_code=502, detail=f"Vision analysis failed: {e}")
+
+    if analysis:
+        if analysis.get("description"):
+            asset.description = analysis["description"]
+        if analysis.get("tags"):
+            asset.tags = analysis["tags"]
+        if analysis.get("alt_text"):
+            asset.alt_text = analysis["alt_text"]
+        if analysis.get("usage_context"):
+            asset.usage_context = analysis["usage_context"]
+        if analysis.get("dominant_colors"):
+            asset.dominant_colors = analysis["dominant_colors"]
+        if analysis.get("brightness"):
+            asset.brightness = analysis["brightness"]
+        db.commit()
+
+    return _asset_to_dict(asset, slug)
 
 
 @router.delete("/{asset_id}")
@@ -217,6 +399,19 @@ async def delete_media(
     ).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Media asset not found")
+
+    # Protect assets referenced by active campaigns
+    from app.core.models import Campaign
+    ref = db.query(Campaign).filter(
+        Campaign.tenant_id == user.tenant_id,
+        Campaign.featured_image_asset_id == asset_id,
+        Campaign.status.in_(["draft", "scheduled", "sending"]),
+    ).first()
+    if ref:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Asset is used by campaign '{ref.name}'. Remove the image from the campaign first.",
+        )
 
     from app.media.storage import delete_file
     from app.media.service import MediaService
@@ -247,8 +442,18 @@ def _asset_to_dict(asset: MediaAsset, tenant_slug: str) -> dict:
         "original_filename": asset.original_filename,
         "mime_type": asset.mime_type,
         "file_size": asset.file_size,
+        "width": asset.width,
+        "height": asset.height,
         "source": asset.source,
         "alt_text": asset.alt_text,
+        "display_name": asset.display_name,
+        "description": asset.description,
+        "tags": asset.tags or [],
+        "usage_context": asset.usage_context,
+        "dominant_colors": asset.dominant_colors or [],
+        "brightness": asset.brightness,
+        "orientation": asset.orientation,
+        "aspect_ratio": asset.aspect_ratio,
         "generation_prompt": asset.generation_prompt,
         "image_provider_slug": asset.image_provider_slug,
         "created_at": asset.created_at.isoformat() if asset.created_at else None,

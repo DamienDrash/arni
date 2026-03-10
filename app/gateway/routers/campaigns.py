@@ -193,6 +193,25 @@ async def create_campaign(
     db.commit()
     db.refresh(campaign)
 
+    # Link featured_image_asset_id if featured_image_url matches a MediaAsset
+    if body.featured_image_url:
+        from app.core.media_models import MediaAsset
+        from app.media.storage import get_public_url
+        # Try to find asset by URL suffix match
+        matching_asset = db.query(MediaAsset).filter(
+            MediaAsset.tenant_id == user.tenant_id,
+        ).all()
+        for ma in matching_asset:
+            try:
+                tenant_obj = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+                asset_url = get_public_url(tenant_obj.slug if tenant_obj else "", ma.filename)
+                if asset_url == body.featured_image_url or ma.filename in body.featured_image_url:
+                    campaign.featured_image_asset_id = ma.id
+                    db.commit()
+                    break
+            except Exception:
+                pass
+
     logger.info("campaign.created", campaign_id=campaign.id, tenant_id=user.tenant_id)
     return _campaign_to_dict(campaign)
 
