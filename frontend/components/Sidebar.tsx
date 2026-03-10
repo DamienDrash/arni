@@ -15,6 +15,7 @@ import {
   Crown,
   Database,
   Globe,
+  ImageIcon,
   LayoutDashboard,
   LogOut,
   ScrollText,
@@ -77,6 +78,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
       title: t("sidebar.sections.knowledge"),
       items: [
         { name: t("sidebar.knowledge"), href: "/knowledge", icon: BookOpen },
+        { name: "Media-Bibliothek", href: "/media", icon: ImageIcon },
         { name: t("sidebar.memberMemory"), href: "/member-memory", icon: Brain, feature: "memory_analyzer" },
         { name: "Notion", href: "/settings/notion", icon: Globe },
         { name: t("sidebar.systemPrompt"), href: "/system-prompt", icon: Bot, feature: "custom_prompts" },

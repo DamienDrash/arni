@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   SlidersHorizontal, PlugZap, Bot, UserCircle2, MessageSquare,
-  CreditCard, Palette, ShieldCheck, Cpu,
+  CreditCard, Palette, ShieldCheck, Cpu, Sparkles,
 } from "lucide-react";
 
 import { getStoredUser } from "@/lib/auth";
@@ -25,6 +25,7 @@ export default function SettingsSubnav() {
     { href: "/settings/prompts", label: t("settings.prompts.title"), icon: MessageSquare },
     { href: "/settings/billing", label: t("settings.billing.title"), icon: CreditCard },
     { href: "/settings/branding", label: t("settings.branding"), icon: Palette },
+    { href: "/settings/image-provider", label: "Bild-Provider", icon: Sparkles },
     { href: "/settings/automation", label: t("settings.automation"), icon: Bot },
   ];
 
@@ -33,7 +34,7 @@ export default function SettingsSubnav() {
       ? tabs.filter((tab) => ["/settings", "/settings/account", "/settings/ai", "/settings/general", "/settings/integrations"].includes(tab.href))
       : role === "tenant_admin"
         ? tabs.filter((tab) =>
-            ["/settings", "/settings/integrations", "/settings/account", "/settings/prompts", "/settings/billing", "/settings/branding", "/settings/ai"].includes(tab.href)
+            ["/settings", "/settings/integrations", "/settings/account", "/settings/prompts", "/settings/billing", "/settings/branding", "/settings/ai", "/settings/image-provider"].includes(tab.href)
           )
         : tabs.filter((tab) => tab.href === "/settings" || tab.href === "/settings/account");
 
