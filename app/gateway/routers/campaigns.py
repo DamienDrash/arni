@@ -55,6 +55,7 @@ class CampaignCreate(BaseModel):
     ai_prompt: Optional[str] = None
     scheduled_at: Optional[str] = None
     is_ab_test: bool = False
+    featured_image_url: Optional[str] = None
 
 
 class CampaignUpdate(BaseModel):
@@ -70,6 +71,7 @@ class CampaignUpdate(BaseModel):
     ai_prompt: Optional[str] = None
     scheduled_at: Optional[str] = None
     status: Optional[str] = None
+    featured_image_url: Optional[str] = None
 
 
 class TemplateCreate(BaseModel):
@@ -174,6 +176,7 @@ async def create_campaign(
         content_html=body.content_html,
         ai_prompt=body.ai_prompt,
         is_ab_test=body.is_ab_test,
+        featured_image_url=body.featured_image_url,
         status="draft",
         preview_token=str(uuid.uuid4()),
         preview_expires_at=datetime.now(timezone.utc) + timedelta(hours=48),
@@ -317,124 +320,41 @@ async def ai_generate_content(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
 
-    # Build context for AI
-    context_parts = [f"Campaign: {campaign.name}", f"Channel: {campaign.channel}"]
-
-    # Get member context if targeting specific members
-    if campaign.target_type != "all_members" and campaign.target_filter_json:
-        try:
-            filters = json.loads(campaign.target_filter_json)
-            member_count = db.query(Contact).filter(
-                Contact.tenant_id == user.tenant_id,
-                Contact.deleted_at.is_(None),
-            ).count()
-            context_parts.append(f"Target audience: {member_count} members")
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    # Get knowledge base context via semantic search in ChromaDB
-    knowledge_context = ""
-    if body.use_knowledge:
-        try:
-            from app.knowledge.knowledge_manager import KnowledgeManager
-            km = KnowledgeManager()
-            tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
-            tenant_slug = tenant.slug if tenant else "default"
-            search_results = await km.search(
-                query=body.prompt,
-                tenant_slug=tenant_slug,
-                n_results=5,
-                include_shared=True,
-            )
-            if search_results.has_results:
-                knowledge_context = search_results.to_context_string(max_results=5)
-                context_parts.append(f"Relevante Informationen aus der Wissensbasis:\n{knowledge_context}")
-        except Exception as e:
-            logger.warning("campaign.knowledge_search_failed", error=str(e))
-
-    # Get chat history context if requested
-    chat_context = ""
-    if body.use_chat_history:
-        recent_messages = db.query(ChatMessage).filter(
-            ChatMessage.tenant_id == user.tenant_id,
-            ChatMessage.role == "user",
-        ).order_by(desc(ChatMessage.created_at)).limit(20).all()
-        if recent_messages:
-            topics = set()
-            for msg in recent_messages:
-                if msg.content and len(msg.content) > 10:
-                    topics.add(msg.content[:100])
-            if topics:
-                chat_context = "Recent member topics: " + "; ".join(list(topics)[:5])
-                context_parts.append(chat_context)
-
-    # Build AI prompt
-    tone_map = {
-        "professional": "professionell und seriös",
-        "casual": "locker und freundlich",
-        "motivational": "motivierend und energiegeladen",
-        "urgent": "dringend und handlungsorientiert",
-    }
-    tone_desc = tone_map.get(body.tone, "professionell")
-
-    channel_format = {
-        "email": "Erstelle eine E-Mail mit Betreff und Inhalt. Verwende HTML-Formatierung für den Body.",
-        "whatsapp": "Erstelle eine kurze WhatsApp-Nachricht (max 1000 Zeichen). Verwende Emojis sparsam.",
-        "telegram": "Erstelle eine Telegram-Nachricht. Markdown-Formatierung ist erlaubt.",
-        "sms": "Erstelle eine SMS (max 160 Zeichen). Kurz und prägnant.",
-    }
-    format_instruction = channel_format.get(campaign.channel, channel_format["email"])
-
-    system_prompt = f"""Du bist ein erfahrener Marketing-Experte und Content Creator.
-Dein Ton ist {tone_desc}.
-{format_instruction}
-
-KONTEXT DES UNTERNEHMENS:
-{chr(10).join(context_parts)}
-
-WICHTIGE REGELN:
-1. Nutze die Informationen aus der Wissensbasis als primäre Quelle für Fakten, Preise, Angebote und Details.
-2. Erfinde KEINE Fakten, Preise oder Angebote, die nicht in der Wissensbasis stehen.
-3. Verwende Platzhalter wie {{{{contact.first_name}}}}, {{{{contact.company}}}} für Personalisierung.
-4. Der Inhalt muss zum Kanal passen ({campaign.channel}).
-5. Antworte im JSON-Format: {{"subject": "...", "body": "...", "html": "..."}}
-6. Für WhatsApp/SMS/Telegram: "html" kann leer sein.
-7. Schreibe den Inhalt auf Deutsch, es sei denn, der Prompt verlangt eine andere Sprache.
-"""
-
     try:
+        from app.swarm.agents.campaign.orchestrator import CampaignOrchestrator, CampaignGenerationRequest
         from app.swarm.llm import LLMClient
         from config.settings import get_settings
         settings = get_settings()
         llm = LLMClient(openai_api_key=settings.openai_api_key)
 
-        response = await llm.chat(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": body.prompt},
-            ],
+        orchestrator = CampaignOrchestrator(llm)
+        request = CampaignGenerationRequest(
+            campaign_name=campaign.name,
+            channel=campaign.channel,
+            tone=body.tone,
+            prompt=body.prompt,
             tenant_id=user.tenant_id,
-            temperature=0.7,
-            max_tokens=2000,
+            template_id=campaign.template_id if hasattr(campaign, "template_id") else None,
+            use_knowledge=body.use_knowledge,
+            use_chat_history=body.use_chat_history,
         )
+        result = await orchestrator.run(request, db)
 
-        # Try to parse JSON response
-        try:
-            # Find JSON in response
-            import re
-            json_match = re.search(r'\{[^{}]*"subject"[^{}]*\}', response, re.DOTALL)
-            if json_match:
-                generated = json.loads(json_match.group())
-            else:
-                generated = {"subject": "", "body": response, "html": ""}
-        except (json.JSONDecodeError, TypeError):
-            generated = {"subject": "", "body": response, "html": ""}
+        if result.error:
+            return {"status": "error", "error": result.error}
+
+        generated = {
+            "subject": result.subject,
+            "body": result.body,
+            "html": result.html,
+            "variables": result.variables,
+        }
 
         # Update campaign
         campaign.ai_generated_content = json.dumps(generated, ensure_ascii=False)
-        campaign.content_subject = generated.get("subject", campaign.content_subject)
-        campaign.content_body = generated.get("body", campaign.content_body)
-        campaign.content_html = generated.get("html", campaign.content_html)
+        campaign.content_subject = result.subject or campaign.content_subject
+        campaign.content_body = result.body or campaign.content_body
+        campaign.content_html = result.html or campaign.content_html
         campaign.status = "pending_review"
         campaign.preview_token = str(uuid.uuid4())
         campaign.preview_expires_at = datetime.now(timezone.utc) + timedelta(hours=48)
@@ -443,6 +363,10 @@ WICHTIGE REGELN:
         return {
             "status": "generated",
             "content": generated,
+            "pipeline_steps": result.pipeline_steps,
+            "qa_passed": result.qa_passed,
+            "qa_issues": result.qa_issues,
+            "qa_suggestions": result.qa_suggestions,
             "preview_url": f"/campaigns/preview/{campaign.preview_token}",
             "preview_expires_at": campaign.preview_expires_at.isoformat(),
         }
@@ -1106,6 +1030,7 @@ def _campaign_to_dict(c: Campaign) -> dict:
         "scheduled_at": c.scheduled_at.isoformat() if c.scheduled_at else None,
         "sent_at": c.sent_at.isoformat() if c.sent_at else None,
         "is_ab_test": c.is_ab_test,
+        "featured_image_url": c.featured_image_url,
         "stats_total": c.stats_total,
         "stats_sent": c.stats_sent,
         "stats_delivered": c.stats_delivered,
