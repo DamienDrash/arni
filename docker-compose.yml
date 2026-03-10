@@ -32,6 +32,7 @@ services:
       - QDRANT_URL=http://ariia-qdrant:6333
       - LOG_LEVEL=INFO
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - FAL_KEY=${FAL_KEY}
       - AUTH_SECRET=${AUTH_SECRET}
       - SYSTEM_ADMIN_EMAIL=${SYSTEM_ADMIN_EMAIL:-admin@ariia.io}
       - SYSTEM_ADMIN_PASSWORD=${SYSTEM_ADMIN_PASSWORD:-Admin!Password2026}
