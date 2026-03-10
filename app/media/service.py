@@ -2,10 +2,19 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
+import io
+import math
+from collections import Counter
 import structlog
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.core.media_models import MediaAsset
+
+try:
+    from PIL import Image, ImageStat
+    _PILLOW_AVAILABLE = True
+except ImportError:
+    _PILLOW_AVAILABLE = False
 
 logger = structlog.get_logger()
 
@@ -15,6 +24,55 @@ class MediaService:
         self._db = db
         self._tenant_id = tenant_id
         self._tenant_slug = tenant_slug
+
+    @staticmethod
+    def _extract_image_metadata(data: bytes) -> dict:
+        """Extract orientation, aspect_ratio, dominant_colors, and brightness from image bytes."""
+        try:
+            if not _PILLOW_AVAILABLE:
+                return {}
+            image = Image.open(io.BytesIO(data))
+            width, height = image.size
+
+            # Orientation
+            if width > height:
+                orientation = "landscape"
+            elif height > width:
+                orientation = "portrait"
+            else:
+                orientation = "square"
+
+            # Aspect ratio (reduced by GCD)
+            divisor = math.gcd(width, height)
+            aspect_ratio = f"{width // divisor}:{height // divisor}"
+
+            # Dominant colors: resize to 50x50 and count most common pixel colors
+            small = image.resize((50, 50), Image.LANCZOS).convert("RGB")
+            pixels = list(small.getdata())
+            counter = Counter(pixels)
+            top5 = counter.most_common(5)
+            dominant_colors = [f"#{r:02x}{g:02x}{b:02x}" for (r, g, b), _ in top5]
+
+            # Brightness: convert to grayscale and get mean
+            gray = image.convert("L")
+            mean_brightness = ImageStat.Stat(gray).mean[0]
+            if mean_brightness < 85:
+                brightness = "dark"
+            elif mean_brightness > 170:
+                brightness = "light"
+            else:
+                brightness = "neutral"
+
+            return {
+                "width": width,
+                "height": height,
+                "orientation": orientation,
+                "aspect_ratio": aspect_ratio,
+                "dominant_colors": dominant_colors,
+                "brightness": brightness,
+            }
+        except Exception:
+            return {}
 
     def _get_plan_limits(self) -> dict:
         from app.core.models import Plan, Subscription
@@ -99,17 +157,22 @@ class MediaService:
 
     def record_upload(self, filename: str, original_filename: str, file_size: int,
                       mime_type: str, width: Optional[int], height: Optional[int],
-                      created_by: Optional[int]) -> MediaAsset:
+                      created_by: Optional[int], image_data: bytes = None) -> MediaAsset:
+        meta = self._extract_image_metadata(image_data) if image_data else {}
         asset = MediaAsset(
             tenant_id=self._tenant_id,
             filename=filename,
             original_filename=original_filename,
             file_size=file_size,
             mime_type=mime_type,
-            width=width,
-            height=height,
+            width=meta.get("width") if meta.get("width") is not None else width,
+            height=meta.get("height") if meta.get("height") is not None else height,
             source="upload",
             created_by=created_by,
+            orientation=meta.get("orientation"),
+            aspect_ratio=meta.get("aspect_ratio"),
+            dominant_colors=meta.get("dominant_colors"),
+            brightness=meta.get("brightness"),
         )
         self._db.add(asset)
         self._db.commit()
@@ -118,7 +181,8 @@ class MediaService:
 
     def record_ai_generated(self, filename: str, file_size: int, mime_type: str,
                              prompt: str, provider_slug: str,
-                             created_by: Optional[int]) -> MediaAsset:
+                             created_by: Optional[int], image_data: bytes = None) -> MediaAsset:
+        meta = self._extract_image_metadata(image_data) if image_data else {}
         asset = MediaAsset(
             tenant_id=self._tenant_id,
             filename=filename,
@@ -128,6 +192,10 @@ class MediaService:
             generation_prompt=prompt,
             image_provider_slug=provider_slug,
             created_by=created_by,
+            orientation=meta.get("orientation"),
+            aspect_ratio=meta.get("aspect_ratio"),
+            dominant_colors=meta.get("dominant_colors"),
+            brightness=meta.get("brightness"),
         )
         self._db.add(asset)
         self._db.commit()

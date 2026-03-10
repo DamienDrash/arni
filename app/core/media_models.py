@@ -1,7 +1,7 @@
 """MediaAsset ORM model for tenant media uploads and AI-generated images."""
 from __future__ import annotations
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON
 from app.core.db import Base
 
 class MediaAsset(Base):
@@ -20,3 +20,11 @@ class MediaAsset(Base):
     image_provider_slug = Column(String(64), nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    display_name    = Column(String(255), nullable=True)
+    description     = Column(Text, nullable=True)
+    tags            = Column(JSON, nullable=True)          # list[str]
+    usage_context   = Column(String(64), nullable=True)    # "general"|"hero"|"thumbnail"|"logo"|"background"|"product"
+    dominant_colors = Column(JSON, nullable=True)          # list of hex strings, max 5
+    brightness      = Column(String(16), nullable=True)    # "light"|"dark"|"neutral"
+    orientation     = Column(String(16), nullable=True)    # "landscape"|"portrait"|"square"
+    aspect_ratio    = Column(String(16), nullable=True)    # e.g. "16:9"

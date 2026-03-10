@@ -10,7 +10,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "2026_03_05_media_image"
-down_revision = "2026_03_03_merge_all_heads"
+down_revision = "merge_all_heads_001"
 branch_labels = None
 depends_on = None
 

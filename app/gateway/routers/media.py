@@ -68,6 +68,7 @@ async def upload_media(
         width=None,
         height=None,
         created_by=user.user_id,
+        image_data=data,
     )
     if alt_text:
         asset.alt_text = alt_text
@@ -153,6 +154,7 @@ async def ai_generate_image(
         prompt=body.prompt,
         provider_slug=config.provider_slug,
         created_by=user.user_id,
+        image_data=image_data,
     )
 
     svc.increment_image_gen_usage()
