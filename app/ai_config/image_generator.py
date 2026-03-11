@@ -358,6 +358,89 @@ async def _generate_fal_generic(config, prompt: str, size: str, n: int) -> Gener
     )
 
 
+async def generate_edit_image(
+    config,                           # ResolvedImageConfig — provides api_key
+    image_url: str,                   # publicly accessible URL of the source image
+    prompt: str,
+    edit_model_slug: str = "nano_banana2_edit",
+    strength: float = 0.75,
+) -> GeneratedImageResult:
+    """Edit an existing image via the configured img2img provider."""
+    from app.ai_config.image_edit_models_meta import EDIT_MODELS_BY_SLUG
+    meta = EDIT_MODELS_BY_SLUG.get(edit_model_slug)
+    if not meta:
+        # Unknown slug — fall back to Nano Banana 2 edit
+        meta = EDIT_MODELS_BY_SLUG.get("nano_banana2_edit", {})
+    endpoint = meta.get("fal_endpoint", "fal-ai/gemini-3.1-flash-image-preview/edit")
+    supports_strength = meta.get("supports_strength", False)
+    return await _edit_fal_generic(
+        config=config,
+        image_url=image_url,
+        prompt=prompt,
+        endpoint=endpoint,
+        supports_strength=supports_strength,
+        strength=strength,
+    )
+
+
+async def _edit_fal_generic(
+    config,
+    image_url: str,
+    prompt: str,
+    endpoint: str,
+    supports_strength: bool,
+    strength: float,
+    n: int = 1,
+) -> GeneratedImageResult:
+    """Universal fal.ai img2img dispatcher."""
+    # GPT Image edit uses OpenAI-style payload
+    if "gpt-image" in endpoint:
+        payload: dict = {
+            "image_url": image_url,
+            "prompt": prompt,
+            "n": n,
+        }
+    else:
+        payload = {
+            "image_url": image_url,
+            "prompt": prompt,
+            "num_images": n,
+        }
+        if supports_strength:
+            payload["strength"] = max(0.0, min(1.0, strength))
+
+    url = f"https://fal.run/{endpoint}"
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.post(
+            url,
+            json=payload,
+            headers={"Authorization": f"Key {config.api_key}"},
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(f"fal.ai edit [{endpoint}] error {resp.status_code}: {resp.text[:400]}")
+        data = resp.json()
+
+    if "gpt-image" in endpoint:
+        items = data.get("data", [])
+        urls = []
+        for item in items:
+            if item.get("url"):
+                urls.append(item["url"])
+            elif item.get("b64_json"):
+                urls.append(f"data:image/png;base64,{item['b64_json']}")
+    else:
+        images = data.get("images", [])
+        urls = [img["url"] if isinstance(img, dict) else img for img in images if img]
+
+    logger.info("fal_edit.complete", endpoint=endpoint, n_images=len(urls))
+    return GeneratedImageResult(
+        urls=urls,
+        model=endpoint,
+        provider_slug=config.provider_slug,
+        revised_prompt=data.get("prompt", prompt),
+    )
+
+
 def _hex_to_rgb(hex_color: str) -> dict:
     """Convert #RRGGBB to {r, g, b} dict."""
     h = hex_color.lstrip("#")

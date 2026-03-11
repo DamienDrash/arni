@@ -112,7 +112,14 @@ async def upload_media(
 async def list_image_models(user: AuthContext = Depends(get_current_user)):
     """Return the catalog of selectable image generation models with metadata."""
     from app.ai_config.image_models_meta import SELECTABLE_MODELS
-    return {"models": SELECTABLE_MODELS}
+    return SELECTABLE_MODELS
+
+
+@router.get("/edit-models")
+async def list_edit_models(user: AuthContext = Depends(get_current_user)):
+    """Return the catalog of img2img editing models."""
+    from app.ai_config.image_edit_models_meta import SELECTABLE_EDIT_MODELS
+    return SELECTABLE_EDIT_MODELS
 
 
 @router.post("/ai-generate", status_code=201)
@@ -426,6 +433,96 @@ async def describe_media(
         db.commit()
 
     return _asset_to_dict(asset, slug)
+
+
+class AIImageEditRequest(BaseModel):
+    prompt: str
+    edit_model_slug: str = "nano_banana2_edit"
+    strength: float = 0.75   # 0.0–1.0, only used by models with supports_strength=True
+
+
+@router.post("/{asset_id}/ai-edit", status_code=201)
+async def ai_edit_image(
+    asset_id: int,
+    body: AIImageEditRequest,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Edit an existing media asset using img2img AI (reference image → new image)."""
+    from app.media.service import MediaService
+    from app.media.storage import save_bytes, get_public_url
+    from app.ai_config.image_service import ImageConfigService
+    from app.ai_config.image_generator import generate_edit_image
+    from app.core.models import Tenant
+    import httpx
+    import base64
+
+    # Load source asset
+    asset = db.query(MediaAsset).filter(
+        MediaAsset.id == asset_id,
+        MediaAsset.tenant_id == user.tenant_id,
+    ).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Media asset not found")
+
+    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    svc = MediaService(db=db, tenant_id=user.tenant_id, tenant_slug=tenant.slug)
+    svc.check_image_gen_quota()
+    svc.check_storage_quota(bytes_to_add=500_000)
+
+    # Build publicly accessible source image URL for fal.ai to fetch
+    image_url = get_public_url(tenant.slug, asset.filename)
+
+    # Resolve fal.ai API key — edit models share the same fal.ai key as t2i models
+    img_svc = ImageConfigService(db)
+    try:
+        config = img_svc.resolve_provider_by_slug(user.tenant_id, body.edit_model_slug)
+    except Exception:
+        config = img_svc.resolve_image_provider(user.tenant_id)
+
+    # Run img2img edit
+    result = await generate_edit_image(
+        config=config,
+        image_url=image_url,
+        prompt=body.prompt,
+        edit_model_slug=body.edit_model_slug,
+        strength=body.strength,
+    )
+
+    if not result.urls:
+        raise HTTPException(status_code=502, detail="Image edit returned no results")
+
+    # Download result image
+    result_url = result.urls[0]
+    if result_url.startswith("data:"):
+        b64_data = result_url.split(",", 1)[1]
+        image_data = base64.b64decode(b64_data)
+    else:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.get(result_url)
+            resp.raise_for_status()
+            image_data = resp.content
+
+    # Save to disk and DB
+    svc.check_storage_quota(bytes_to_add=len(image_data))
+    filename, file_size = await save_bytes(image_data, tenant.slug, ".png")
+    new_asset = svc.record_ai_generated(
+        filename=filename,
+        file_size=file_size,
+        mime_type="image/png",
+        prompt=body.prompt,
+        provider_slug=body.edit_model_slug,
+        created_by=user.user_id,
+        image_data=image_data,
+    )
+    svc.increment_image_gen_usage()
+    svc.increment_storage_usage(file_size)
+
+    logger.info("media.ai_edit.complete", asset_id=asset_id, new_asset_id=new_asset.id, model=body.edit_model_slug)
+    return _asset_to_dict(new_asset, tenant.slug)
 
 
 @router.delete("/{asset_id}")

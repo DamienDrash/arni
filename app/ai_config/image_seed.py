@@ -24,6 +24,13 @@ _FAL_PROVIDERS = [
     {"slug": "imagen4_standard","name": "Imagen 4 Standard",               "provider_type": "fal_generic",    "default_model": "fal-ai/imagen4/preview",                       "priority": 9,  "is_active": True},
     {"slug": "ideogram_v3",     "name": "Ideogram V3",                     "provider_type": "fal_generic",    "default_model": "fal-ai/ideogram/v3",                           "priority": 10, "is_active": True},
     {"slug": "recraft_v4",      "name": "Recraft V4",                      "provider_type": "fal_generic",    "default_model": "fal-ai/recraft/v4/text-to-image",              "priority": 11, "is_active": True},
+    # Image editing models (img2img)
+    {"slug": "nano_banana2_edit","name": "Nano Banana 2 Edit (Gemini Flash)","provider_type": "fal_generic",   "default_model": "fal-ai/gemini-3.1-flash-image-preview/edit",   "priority": 20, "is_active": True},
+    {"slug": "gpt_image_15_edit","name": "GPT Image 1.5 Edit",             "provider_type": "fal_generic",    "default_model": "fal-ai/gpt-image-1.5/edit",                    "priority": 21, "is_active": True},
+    {"slug": "seedream_45_edit", "name": "Seedream 4.5 Edit",              "provider_type": "fal_generic",    "default_model": "fal-ai/bytedance/seedream/v4.5/edit",          "priority": 22, "is_active": True},
+    {"slug": "flux2_flash_edit", "name": "FLUX.2 Dev Flash Edit",          "provider_type": "fal_generic",    "default_model": "fal-ai/flux-2/flash/edit",                     "priority": 23, "is_active": True},
+    {"slug": "flux2_turbo_edit", "name": "FLUX.2 Dev Turbo Edit",          "provider_type": "fal_generic",    "default_model": "fal-ai/flux-2/turbo/edit",                     "priority": 24, "is_active": True},
+    {"slug": "flux_kontext_pro", "name": "FLUX.1 Kontext Pro",             "provider_type": "fal_generic",    "default_model": "fal-ai/flux-pro/kontext",                      "priority": 25, "is_active": True},
 ]
 
 _OPENAI_PROVIDERS = [

@@ -49,6 +49,22 @@ interface AiGenerateForm {
   model_slug?: string;
 }
 
+interface EditModel {
+  slug: string;
+  name: string;
+  price_label: string;
+  elo_score: number | null;
+  elo_rank: number | null;
+  quality_stars: number;
+  badge: string | null;
+  badge_color: string | null;
+  cost_tier: string;
+  cost_note?: string;
+  description: string;
+  supports_strength: boolean;
+  is_default: boolean;
+}
+
 interface ImageModel {
   slug: string;
   name: string;
@@ -449,6 +465,16 @@ export default function MediaPage() {
   const [imageModels, setImageModels] = useState<ImageModel[]>([]);
   const [showModelPicker, setShowModelPicker] = useState(false);
 
+  // Edit modal state
+  const [editingItem, setEditingItem] = useState<MediaItem | null>(null);
+  const [editModels, setEditModels] = useState<EditModel[]>([]);
+  const [editForm, setEditForm] = useState<{ prompt: string; edit_model_slug: string; strength: number }>({
+    prompt: "", edit_model_slug: "nano_banana2_edit", strength: 0.75,
+  });
+  const [editing, setEditing] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editResult, setEditResult] = useState<MediaItem | null>(null);
+
   const fetchMedia = async () => {
     setLoading(true);
     setError(null);
@@ -472,6 +498,13 @@ export default function MediaPage() {
         setImageModels(data);
         const def = data.find(m => m.is_default);
         if (def) setAiForm(prev => ({ ...prev, model_slug: def.slug }));
+      }
+    }).catch(() => {});
+    apiFetch("/admin/media/edit-models").then(r => r.json()).then((data: EditModel[]) => {
+      if (Array.isArray(data)) {
+        setEditModels(data);
+        const def = data.find(m => m.is_default);
+        if (def) setEditForm(prev => ({ ...prev, edit_model_slug: def.slug }));
       }
     }).catch(() => {});
   }, []);
@@ -533,6 +566,31 @@ export default function MediaPage() {
       setGenerateError(`Generierung fehlgeschlagen: ${e}`);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleEditWithAI = async () => {
+    if (!editingItem || !editForm.prompt.trim()) return;
+    setEditing(true);
+    setEditError(null);
+    setEditResult(null);
+    try {
+      const res = await apiFetch(`/admin/media/${editingItem.id}/ai-edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { detail?: string };
+        throw new Error(err.detail ?? `HTTP ${res.status}`);
+      }
+      const newItem = await res.json() as MediaItem;
+      setItems((prev) => [newItem, ...prev]);
+      setEditResult(newItem);
+    } catch (e) {
+      setEditError(`Bearbeitung fehlgeschlagen: ${e}`);
+    } finally {
+      setEditing(false);
     }
   };
 
@@ -1087,6 +1145,25 @@ export default function MediaPage() {
                       Ref.
                     </button>
                     <button
+                      onClick={() => {
+                        setEditingItem(item);
+                        setEditForm({ prompt: "", edit_model_slug: editModels.find(m => m.is_default)?.slug ?? "nano_banana2_edit", strength: 0.75 });
+                        setEditResult(null);
+                        setEditError(null);
+                      }}
+                      title="Mit KI bearbeiten (Img2Img)"
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                        padding: "7px 8px", borderRadius: 7,
+                        background: "none", border: `1px solid ${T.border}`,
+                        color: T.textDim, fontSize: 10, fontWeight: 700, cursor: "pointer",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <Wand2 size={11} />
+                      Edit
+                    </button>
+                    <button
                       onClick={() => handleDelete(item.id)}
                       disabled={deletingId === item.id}
                       title="Löschen"
@@ -1117,6 +1194,153 @@ export default function MediaPage() {
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .animate-spin { animation: spin 1s linear infinite; }
       `}</style>
+
+      {/* ── AI Edit Modal ─────────────────────────────────────────────── */}
+      {editingItem && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 1000,
+            background: "rgba(0,0,0,0.65)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setEditingItem(null); }}
+        >
+          <div style={{
+            background: T.surface, borderRadius: 16,
+            border: `1px solid ${T.border}`,
+            width: "100%", maxWidth: 560,
+            overflow: "hidden", display: "flex", flexDirection: "column",
+          }}>
+            {/* Header */}
+            <div style={{ padding: "16px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 12 }}>
+              <Wand2 size={16} color={T.accent} />
+              <span style={{ fontSize: 14, fontWeight: 700, color: T.text, flex: 1 }}>Bild mit KI bearbeiten</span>
+              <button onClick={() => setEditingItem(null)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textDim }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, overflowY: "auto", maxHeight: "80vh" }}>
+              {/* Source preview */}
+              <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={editingItem.url}
+                  alt="Original"
+                  style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 10, border: `1px solid ${T.border}`, flexShrink: 0 }}
+                />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: T.text, margin: "0 0 4px" }}>
+                    {editingItem.display_name || editingItem.filename}
+                  </p>
+                  <p style={{ fontSize: 11, color: T.textDim, margin: 0 }}>Wird als Referenzbild für die KI-Bearbeitung verwendet</p>
+                </div>
+              </div>
+
+              {/* Model selector */}
+              <div>
+                <label style={labelStyle}>Bearbeitungsmodell</label>
+                <select
+                  value={editForm.edit_model_slug}
+                  onChange={(e) => setEditForm(f => ({ ...f, edit_model_slug: e.target.value }))}
+                  style={selectStyle}
+                >
+                  {editModels.map(m => (
+                    <option key={m.slug} value={m.slug}>
+                      {m.name} — {m.price_label}{m.elo_rank ? ` · Rang #${m.elo_rank}` : ""}
+                    </option>
+                  ))}
+                </select>
+                {(() => {
+                  const m = editModels.find(x => x.slug === editForm.edit_model_slug);
+                  return m ? (
+                    <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      {m.badge && (
+                        <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: m.badge_color ?? T.accentDim, color: "#fff", fontWeight: 700 }}>
+                          {m.badge}
+                        </span>
+                      )}
+                      <span style={{ fontSize: 11, color: T.textDim }}>{"★".repeat(m.quality_stars)}{"☆".repeat(5 - m.quality_stars)}</span>
+                      <span style={{ fontSize: 11, color: T.textDim, flex: 1 }}>{m.description}</span>
+                      {m.cost_note && <span style={{ fontSize: 11, color: "#f59e0b" }}>{m.cost_note}</span>}
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+
+              {/* Strength slider — only shown for models that support it */}
+              {editModels.find(m => m.slug === editForm.edit_model_slug)?.supports_strength && (
+                <div>
+                  <label style={labelStyle}>Bearbeitungsstärke: {Math.round(editForm.strength * 100)}%</label>
+                  <input
+                    type="range" min={0.1} max={1.0} step={0.05}
+                    value={editForm.strength}
+                    onChange={(e) => setEditForm(f => ({ ...f, strength: parseFloat(e.target.value) }))}
+                    style={{ width: "100%" }}
+                  />
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: T.textDim, marginTop: 2 }}>
+                    <span>Subtil (10%)</span><span>Komplett (100%)</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Prompt */}
+              <div>
+                <label style={labelStyle}>Bearbeitungsanweisung</label>
+                <textarea
+                  value={editForm.prompt}
+                  onChange={(e) => setEditForm(f => ({ ...f, prompt: e.target.value }))}
+                  placeholder='z.B. "Hintergrund durch Sonnenuntergang ersetzen" oder "Person in Sportkleidung einkleiden"'
+                  rows={3}
+                  style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+                />
+              </div>
+
+              {/* Error */}
+              {editError && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, background: T.dangerDim, border: `1px solid ${T.danger}30` }}>
+                  <AlertTriangle size={13} color={T.danger} />
+                  <span style={{ fontSize: 12, color: T.danger, flex: 1 }}>{editError}</span>
+                </div>
+              )}
+
+              {/* Result preview */}
+              {editResult && (
+                <div>
+                  <label style={{ ...labelStyle, color: T.success }}>✓ Ergebnis — zur Bibliothek hinzugefügt</label>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={editResult.url} alt="Bearbeitet" style={{ width: "100%", borderRadius: 10, border: `1px solid ${T.border}` }} />
+                </div>
+              )}
+
+              {/* Actions */}
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  onClick={handleEditWithAI}
+                  disabled={editing || !editForm.prompt.trim()}
+                  style={{
+                    flex: 1, padding: "11px 0", borderRadius: 9,
+                    background: editing || !editForm.prompt.trim() ? T.surfaceAlt : T.accent,
+                    border: "none", cursor: editing || !editForm.prompt.trim() ? "not-allowed" : "pointer",
+                    color: "#fff", fontSize: 13, fontWeight: 700,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}
+                >
+                  {editing ? <RefreshCw size={14} className="animate-spin" /> : <Wand2 size={14} />}
+                  {editing ? "Wird bearbeitet..." : "Jetzt bearbeiten"}
+                </button>
+                <button
+                  onClick={() => setEditingItem(null)}
+                  style={{ padding: "11px 18px", borderRadius: 9, background: "none", border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                >
+                  Schließen
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
