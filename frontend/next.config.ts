@@ -4,6 +4,11 @@ const nextConfig: NextConfig = {
   output: "standalone",
   devIndicators: {},
 
+  /* ── Proxy Timeout (AI operations can take 60-120s) ── */
+  experimental: {
+    proxyTimeout: 120000,
+  },
+
   /* ── Performance & SEO ── */
   compress: true,
   poweredByHeader: false,
