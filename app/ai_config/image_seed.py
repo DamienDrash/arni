@@ -12,15 +12,18 @@ _FAL_PROVIDERS = [
     {"slug": "fal_ai_schnell",  "name": "FLUX Schnell (Vorschau)",         "provider_type": "fal_ai_schnell", "default_model": "fal-ai/flux/schnell",                          "priority": 6,  "is_active": True},
     {"slug": "recraft_v3",      "name": "Recraft V3 (Brand Style)",        "provider_type": "recraft_v3",     "default_model": "fal-ai/recraft-v3",                            "priority": 7,  "is_active": True},
     {"slug": "ideogram_v2",     "name": "Ideogram V2 (Text Overlay)",      "provider_type": "ideogram_v2",    "default_model": "fal-ai/ideogram/v2",                           "priority": 8,  "is_active": True},
-    # Top 10 selectable models via fal_generic dispatcher
-    {"slug": "flux2_pro",       "name": "FLUX.2 Pro",                      "provider_type": "fal_generic",    "default_model": "fal-ai/flux-2-pro",                            "priority": 1,  "is_active": True},
-    {"slug": "flux2_max",       "name": "FLUX.2 Max",                      "provider_type": "fal_generic",    "default_model": "fal-ai/flux-2-max",                            "priority": 2,  "is_active": True},
-    {"slug": "flux2_flex",      "name": "FLUX.2 Flex",                     "provider_type": "fal_generic",    "default_model": "fal-ai/flux-2-flex",                           "priority": 3,  "is_active": True},
-    {"slug": "seedream_45",     "name": "Seedream 4.5 (ByteDance)",        "provider_type": "fal_generic",    "default_model": "fal-ai/bytedance/seedream/v4.5/text-to-image", "priority": 9,  "is_active": True},
-    {"slug": "recraft_v4",      "name": "Recraft V4",                      "provider_type": "fal_generic",    "default_model": "fal-ai/recraft/v4/text-to-image",              "priority": 10, "is_active": True},
-    {"slug": "ideogram_v3_turbo","name": "Ideogram V3 Turbo",              "provider_type": "fal_generic",    "default_model": "fal-ai/ideogram/v3",                           "priority": 11, "is_active": True},
-    {"slug": "flux_pro_ultra",  "name": "FLUX 1.1 Pro Ultra (Raw)",        "provider_type": "fal_generic",    "default_model": "fal-ai/flux-pro/v1.1-ultra",                   "priority": 12, "is_active": True},
-    {"slug": "hidream_fast",    "name": "HiDream I1 Fast",                 "provider_type": "fal_generic",    "default_model": "fal-ai/hidream-i1-fast",                       "priority": 13, "is_active": True},
+    # Selectable models (sorted by Elo rank from Artificial Analysis Arena)
+    {"slug": "gemini_flash",    "name": "Gemini 3.1 Flash (Nano Banana 2)","provider_type": "fal_generic",    "default_model": "fal-ai/gemini-3.1-flash-image-preview",        "priority": 1,  "is_active": True},
+    {"slug": "gemini_pro",      "name": "Gemini 3 Pro (Nano Banana Pro)",  "provider_type": "fal_generic",    "default_model": "fal-ai/gemini-3-pro-image-preview",            "priority": 2,  "is_active": True},
+    {"slug": "gpt_image_15",    "name": "GPT Image 1.5 (High)",            "provider_type": "fal_generic",    "default_model": "fal-ai/gpt-image-1.5",                         "priority": 3,  "is_active": True},
+    {"slug": "imagen4_ultra",   "name": "Imagen 4 Ultra",                  "provider_type": "fal_generic",    "default_model": "fal-ai/imagen4/preview/ultra",                 "priority": 4,  "is_active": True},
+    {"slug": "flux2_pro",       "name": "FLUX.2 Pro",                      "provider_type": "fal_generic",    "default_model": "fal-ai/flux-2-pro",                            "priority": 5,  "is_active": True},
+    {"slug": "seedream_45",     "name": "Seedream 4.5 (ByteDance)",        "provider_type": "fal_generic",    "default_model": "fal-ai/bytedance/seedream/v4.5/text-to-image", "priority": 6,  "is_active": True},
+    {"slug": "flux2_turbo",     "name": "FLUX.2 Dev Turbo",                "provider_type": "fal_generic",    "default_model": "fal-ai/flux-2/turbo",                          "priority": 7,  "is_active": True},
+    {"slug": "flux2_klein",     "name": "FLUX.2 Klein 9B",                 "provider_type": "fal_generic",    "default_model": "fal-ai/flux-2/klein/9b",                       "priority": 8,  "is_active": True},
+    {"slug": "imagen4_standard","name": "Imagen 4 Standard",               "provider_type": "fal_generic",    "default_model": "fal-ai/imagen4/preview",                       "priority": 9,  "is_active": True},
+    {"slug": "ideogram_v3",     "name": "Ideogram V3",                     "provider_type": "fal_generic",    "default_model": "fal-ai/ideogram/v3",                           "priority": 10, "is_active": True},
+    {"slug": "recraft_v4",      "name": "Recraft V4",                      "provider_type": "fal_generic",    "default_model": "fal-ai/recraft/v4/text-to-image",              "priority": 11, "is_active": True},
 ]
 
 _OPENAI_PROVIDERS = [

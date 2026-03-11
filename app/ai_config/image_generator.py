@@ -284,22 +284,32 @@ async def _generate_fal_generic(config, prompt: str, size: str, n: int) -> Gener
             "num_images": n,
             **extra_params,
         }
-    # FLUX Ultra: uses width/height instead of image_size
-    elif "flux-pro/v1.1-ultra" in endpoint:
+    # GPT Image 1.5 via fal.ai — uses OpenAI size string
+    elif "gpt-image" in endpoint:
+        payload = {
+            "prompt": prompt,
+            "size": size,
+            "n": n,
+            **extra_params,
+        }
+    # Gemini / Imagen 4 / FLUX.2 variants → aspect_ratio param
+    elif any(x in endpoint for x in ("gemini-3", "imagen4", "flux-pro/v1.1-ultra", "flux-2-pro", "flux-2/turbo", "flux-2/klein")):
         w, h = 1024, 1024
         if "x" in size:
             try:
                 w, h = int(size.split("x")[0]), int(size.split("x")[1])
             except (ValueError, IndexError):
                 pass
+        from math import gcd
+        d = gcd(w, h)
         payload = {
             "prompt": prompt,
-            "aspect_ratio": f"{w}:{h}",
+            "aspect_ratio": f"{w // d}:{h // d}",
             "num_images": n,
             **extra_params,
         }
-    # HiDream / Seedream / Recraft V4 use width/height
-    elif any(x in endpoint for x in ("hidream", "seedream", "recraft/v4")):
+    # Seedream / Recraft V4 use width/height dict
+    elif any(x in endpoint for x in ("seedream", "recraft/v4")):
         w, h = 1024, 1024
         if "x" in size:
             try:
@@ -324,11 +334,21 @@ async def _generate_fal_generic(config, prompt: str, size: str, n: int) -> Gener
             raise RuntimeError(f"fal.ai [{endpoint}] error {resp.status_code}: {resp.text[:400]}")
         data = resp.json()
 
-    images = data.get("images", [])
-    urls = [
-        (img["url"] if isinstance(img, dict) else img)
-        for img in images if img
-    ]
+    # GPT Image 1.5 via fal returns OpenAI-style data[].url or data[].b64_json
+    if "gpt-image" in endpoint:
+        items = data.get("data", [])
+        urls = []
+        for item in items:
+            if item.get("url"):
+                urls.append(item["url"])
+            elif item.get("b64_json"):
+                urls.append(f"data:image/png;base64,{item['b64_json']}")
+    else:
+        images = data.get("images", [])
+        urls = [
+            (img["url"] if isinstance(img, dict) else img)
+            for img in images if img
+        ]
     logger.info("fal_generic.generate.complete", endpoint=endpoint, n_images=len(urls))
     return GeneratedImageResult(
         urls=urls,
