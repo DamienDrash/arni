@@ -94,10 +94,14 @@ def _get_setting_with_env_fallback(
     default: str = "",
     tenant_id: int | None = None,
 ) -> str:
-    value = persistence.get_setting(key, None, tenant_id=tenant_id)
+    # SECURITY: never fall back to the system tenant's settings when reading
+    # for a specific tenant — prevents cross-tenant credential leakage.
+    value = persistence.get_setting(key, None, tenant_id=tenant_id, fallback_to_system=False)
     if value is not None:
         return value
-    if env_attr:
+    # Env-var fallback is platform-level and must only apply when no specific
+    # tenant is requested (e.g. system-admin reads or background tasks).
+    if env_attr and tenant_id is None:
         return str(getattr(settings, env_attr, default) or default)
     return default
 
