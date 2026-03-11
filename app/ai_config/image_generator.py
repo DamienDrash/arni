@@ -393,14 +393,29 @@ async def _edit_fal_generic(
     n: int = 1,
 ) -> GeneratedImageResult:
     """Universal fal.ai img2img dispatcher."""
-    # GPT Image edit uses OpenAI-style payload
+    # GPT Image edit uses OpenAI-style payload (image_url singular, n)
     if "gpt-image" in endpoint:
         payload: dict = {
             "image_url": image_url,
             "prompt": prompt,
             "n": n,
         }
+    # Gemini edit uses image_urls (array)
+    elif "gemini" in endpoint:
+        payload = {
+            "image_urls": [image_url],
+            "prompt": prompt,
+            "num_images": n,
+        }
+    # FLUX Kontext Pro uses image_url singular + prompt
+    elif "kontext" in endpoint:
+        payload = {
+            "image_url": image_url,
+            "prompt": prompt,
+            "num_images": n,
+        }
     else:
+        # Seedream, FLUX.2 flash/turbo edit — image_url singular
         payload = {
             "image_url": image_url,
             "prompt": prompt,
