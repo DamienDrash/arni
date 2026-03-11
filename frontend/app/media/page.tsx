@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import {
   Image as ImageIcon, Upload, Sparkles, Copy, Trash2, CheckCircle,
-  AlertTriangle, RefreshCw, X, ChevronDown, Save, Wand2, Star,
+  AlertTriangle, RefreshCw, X, ChevronDown, Save, Wand2, Star, Coins, ExternalLink,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
@@ -63,6 +63,7 @@ interface EditModel {
   description: string;
   supports_strength: boolean;
   is_default: boolean;
+  credit_cost: number;
 }
 
 interface ImageModel {
@@ -78,6 +79,7 @@ interface ImageModel {
   cost_note?: string;
   description: string;
   is_default: boolean;
+  credit_cost: number;
 }
 
 interface MetaEditState {
@@ -465,6 +467,9 @@ export default function MediaPage() {
   const [imageModels, setImageModels] = useState<ImageModel[]>([]);
   const [showModelPicker, setShowModelPicker] = useState(false);
 
+  // Credit balance state
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+
   // Edit modal state
   const [editingItem, setEditingItem] = useState<MediaItem | null>(null);
   const [editModels, setEditModels] = useState<EditModel[]>([]);
@@ -490,8 +495,21 @@ export default function MediaPage() {
     }
   };
 
+  const fetchCreditBalance = async () => {
+    try {
+      const res = await apiFetch("/admin/media/credits/balance");
+      if (res.ok) {
+        const data = await res.json() as { balance: number };
+        setCreditBalance(data.balance);
+      }
+    } catch {
+      // silently ignore — balance is non-critical
+    }
+  };
+
   useEffect(() => {
     fetchMedia();
+    fetchCreditBalance();
     apiFetch("/admin/media/brand-references").then(r => r.json()).then((data: BrandRef[]) => setBrandRefs(data)).catch(() => {});
     apiFetch("/admin/media/image-models").then(r => r.json()).then((data: ImageModel[]) => {
       if (Array.isArray(data)) {
@@ -562,6 +580,7 @@ export default function MediaPage() {
       setShowAiForm(false);
       setAiForm({ prompt: "", size: "1024x1024", quality: "standard", model_slug: imageModels.find(m => m.is_default)?.slug ?? "flux2_pro" });
       await fetchMedia();
+      await fetchCreditBalance();
     } catch (e) {
       setGenerateError(`Generierung fehlgeschlagen: ${e}`);
     } finally {
@@ -587,6 +606,7 @@ export default function MediaPage() {
       const newItem = await res.json() as MediaItem;
       setItems((prev) => [newItem, ...prev]);
       setEditResult(newItem);
+      await fetchCreditBalance();
     } catch (e) {
       setEditError(`Bearbeitung fehlgeschlagen: ${e}`);
     } finally {
@@ -669,7 +689,39 @@ export default function MediaPage() {
             <p style={{ fontSize: 12, color: T.textMuted, margin: 0 }}>{items.length} Dateien</p>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Credit Balance Pill */}
+          {creditBalance !== null && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "6px 12px", borderRadius: 20,
+              background: creditBalance < 5 ? (T.dangerDim ?? "#fee2e2") : T.accentDim,
+              border: `1px solid ${creditBalance < 5 ? (T.danger ?? "#ef4444") + "40" : T.accent + "40"}`,
+            }}>
+              <Coins size={13} color={creditBalance < 5 ? (T.danger ?? "#ef4444") : T.accent} />
+              <span style={{
+                fontSize: 12, fontWeight: 700,
+                color: creditBalance < 5 ? (T.danger ?? "#ef4444") : T.accent,
+              }}>
+                {creditBalance} Credits
+              </span>
+              <a
+                href="/billing"
+                style={{
+                  fontSize: 11, fontWeight: 600,
+                  color: T.textMuted,
+                  textDecoration: "none",
+                  display: "flex", alignItems: "center", gap: 2,
+                  paddingLeft: 4,
+                  borderLeft: `1px solid ${T.border}`,
+                  marginLeft: 2,
+                }}
+              >
+                Aufladen
+                <ExternalLink size={10} />
+              </a>
+            </div>
+          )}
           {/* Upload Button */}
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -831,6 +883,10 @@ export default function MediaPage() {
                           <span>{m.name}</span>
                           <span style={{ color: T.textMuted, fontSize: 12 }}>{m.price_label}</span>
                           {m.elo_rank && <span style={{ color: T.textDim, fontSize: 11 }}>#{m.elo_rank} Elo {m.elo_score}</span>}
+                          <span style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: T.accentDim, fontSize: 11, fontWeight: 700, color: T.accent }}>
+                            <Coins size={9} />
+                            {m.credit_cost}
+                          </span>
                         </>
                       ) : <span>Modell wählen</span>;
                     })()}
@@ -863,7 +919,13 @@ export default function MediaPage() {
                               </span>
                             )}
                             <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{m.name}</span>
-                            <span style={{ marginLeft: "auto", fontSize: 12, color: T.textMuted }}>{m.price_label}</span>
+                            <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
+                              <span style={{ fontSize: 12, color: T.textMuted }}>{m.price_label}</span>
+                              <span style={{ display: "flex", alignItems: "center", gap: 2, padding: "1px 6px", borderRadius: 4, background: T.accentDim, fontSize: 11, fontWeight: 700, color: T.accent }}>
+                                <Coins size={9} />
+                                {m.credit_cost}
+                              </span>
+                            </span>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: 11, color: T.textDim }}>
@@ -1248,7 +1310,7 @@ export default function MediaPage() {
                 >
                   {editModels.map(m => (
                     <option key={m.slug} value={m.slug}>
-                      {m.name} — {m.price_label}{m.elo_rank ? ` · Rang #${m.elo_rank}` : ""}
+                      {m.name} — {m.price_label} · {m.credit_cost} Credits{m.elo_rank ? ` · Rang #${m.elo_rank}` : ""}
                     </option>
                   ))}
                 </select>

@@ -302,6 +302,7 @@ class Plan(Base):
 
     # Media & Image Generation quotas
     ai_image_generations_per_month = Column(Integer, nullable=True)
+    monthly_image_credits = Column(Integer, nullable=True, default=0)
     media_storage_mb = Column(Integer, nullable=True)
     ai_image_previews_per_month = Column(Integer, nullable=True)
     brand_style_enabled = Column(Boolean, nullable=False, default=False)
@@ -446,6 +447,69 @@ class TokenPurchase(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+
+
+class ImageCreditPack(Base):
+    """Catalog of purchasable image credit packs."""
+    __tablename__ = "image_credit_packs"
+
+    id = Column(Integer, primary_key=True)
+    slug = Column(String(50), unique=True, nullable=False)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    credits = Column(Integer, nullable=False)
+    price_once_cents = Column(Integer, nullable=True)      # one-time purchase
+    price_monthly_cents = Column(Integer, nullable=True)   # monthly subscription
+    price_yearly_cents = Column(Integer, nullable=True)    # annual subscription (total)
+    stripe_product_id = Column(String(100), nullable=True)
+    stripe_price_once_id = Column(String(100), nullable=True)
+    stripe_price_monthly_id = Column(String(100), nullable=True)
+    stripe_price_yearly_id = Column(String(100), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    display_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class ImageCreditBalance(Base):
+    """Running credit balance per tenant."""
+    __tablename__ = "image_credit_balances"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), unique=True, nullable=False)
+    balance = Column(Integer, default=0, nullable=False)
+    last_grant_year = Column(Integer, nullable=True)
+    last_grant_month = Column(Integer, nullable=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class ImageCreditTransaction(Base):
+    """Immutable ledger of all credit movements."""
+    __tablename__ = "image_credit_transactions"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    delta = Column(Integer, nullable=False)       # positive = credit, negative = debit
+    reason = Column(String(50), nullable=False)   # plan_grant | topup | generation | edit | refund
+    reference_id = Column(String(200), nullable=True)
+    balance_after = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+
+class ImageCreditPurchase(Base):
+    """Stripe-backed credit pack purchases."""
+    __tablename__ = "image_credit_purchases"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    pack_slug = Column(String(50), nullable=False)
+    billing_interval = Column(String(20), nullable=False)  # once | monthly | yearly
+    credits_granted = Column(Integer, nullable=False)
+    price_cents = Column(Integer, nullable=False)
+    stripe_session_id = Column(String(200), nullable=True)
+    stripe_subscription_id = Column(String(200), nullable=True)
+    status = Column(String(20), default="pending", nullable=False)  # pending | active | canceled | completed
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class LLMModelCost(Base):

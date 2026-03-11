@@ -102,6 +102,19 @@ async def lifespan(app: FastAPI):
     except Exception as _img_err:
         logger.warning("ariia.gateway.image_providers_seed_skipped", error=str(_img_err))
 
+    # Seed Image Credit Packs and Plan Credits
+    try:
+        from app.billing.credit_seed import seed_credit_packs, seed_plan_credits
+        from app.core.db import SessionLocal as _CreditSeedDB
+        _credit_db = _CreditSeedDB()
+        try:
+            seed_credit_packs(_credit_db)
+            seed_plan_credits(_credit_db)
+        finally:
+            _credit_db.close()
+    except Exception as _credit_err:
+        logger.warning("ariia.gateway.credit_seed_skipped", error=str(_credit_err))
+
     logger.info("ariia.gateway.startup", version="2.0.0", env=settings.environment)
     
     try:

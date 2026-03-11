@@ -181,6 +181,9 @@ class WebhookProcessorV2:
         if checkout_type == "addon":
             return await self._handle_addon_checkout(db, session, tenant_id, event_id)
 
+        if checkout_type == "image_credit_purchase":
+            return await self._handle_image_credit_purchase(db, session, tenant_id, event_id)
+
         # Standard subscription checkout
         plan_slug = metadata.get("plan_slug", "")
         billing_interval_str = metadata.get("billing_interval", "month")
@@ -268,6 +271,67 @@ class WebhookProcessorV2:
 
         db.commit()
         return {"action": "token_purchase", "tokens_amount": tokens_amount}
+
+    # ── Image Credit Purchase ────────────────────────────────────────────
+
+    async def _handle_image_credit_purchase(self, db: Session, session: dict, tenant_id: int, event_id: str) -> dict:
+        """Handle image credit pack purchase checkout completion."""
+        from app.core.models import ImageCreditPurchase
+        from app.media.credit_service import add_credits
+
+        metadata = session.get("metadata", {})
+        pack_slug = metadata.get("pack_slug", "")
+        credits = int(metadata.get("credits", 0))
+        billing_interval = metadata.get("billing_interval", "once")
+        session_id = session.get("id")
+        stripe_sub_id = session.get("subscription")
+
+        # Find pending purchase record
+        purchase = db.query(ImageCreditPurchase).filter(
+            ImageCreditPurchase.stripe_session_id == session_id,
+            ImageCreditPurchase.tenant_id == tenant_id,
+        ).first()
+
+        if purchase:
+            # Idempotency check — don't grant credits twice
+            if purchase.status in ("active", "completed"):
+                logger.info("billing.webhook.image_credit_already_processed",
+                            session_id=session_id, tenant_id=tenant_id)
+                return {"action": "skipped", "reason": "already_processed"}
+            purchase.status = "completed" if billing_interval == "once" else "active"
+            if stripe_sub_id:
+                purchase.stripe_subscription_id = stripe_sub_id
+            db.flush()
+
+        if credits > 0:
+            add_credits(
+                db=db,
+                tenant_id=tenant_id,
+                amount=credits,
+                reason="topup",
+                reference_id=str(purchase.id) if purchase else session_id,
+            )
+
+        await billing_events.emit(
+            db=db,
+            tenant_id=tenant_id,
+            event_type=BillingEventType.CHECKOUT_COMPLETED,
+            payload={
+                "pack_slug": pack_slug,
+                "credits": credits,
+                "billing_interval": billing_interval,
+                "session_id": session_id,
+                "checkout_type": "image_credit_purchase",
+            },
+            actor_type="stripe",
+            stripe_event_id=event_id,
+            idempotency_key=f"image_credits_{event_id}",
+        )
+
+        db.commit()
+        logger.info("billing.webhook.image_credits_granted",
+                    tenant_id=tenant_id, credits=credits, pack_slug=pack_slug)
+        return {"action": "image_credits_granted", "credits": credits, "pack_slug": pack_slug}
 
     # ── Addon Checkout ──────────────────────────────────────────────────
 

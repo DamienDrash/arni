@@ -112,14 +112,71 @@ async def upload_media(
 async def list_image_models(user: AuthContext = Depends(get_current_user)):
     """Return the catalog of selectable image generation models with metadata."""
     from app.ai_config.image_models_meta import SELECTABLE_MODELS
-    return SELECTABLE_MODELS
+    from app.ai_config.image_credits_config import get_credit_cost
+    return [{**m, "credit_cost": get_credit_cost(m["slug"])} for m in SELECTABLE_MODELS]
 
 
 @router.get("/edit-models")
 async def list_edit_models(user: AuthContext = Depends(get_current_user)):
     """Return the catalog of img2img editing models."""
     from app.ai_config.image_edit_models_meta import SELECTABLE_EDIT_MODELS
-    return SELECTABLE_EDIT_MODELS
+    from app.ai_config.image_credits_config import get_credit_cost
+    return [{**m, "credit_cost": get_credit_cost(m["slug"])} for m in SELECTABLE_EDIT_MODELS]
+
+
+@router.get("/credits/balance")
+async def get_credit_balance(
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the current image credit balance for the tenant."""
+    from app.media.credit_service import get_balance
+    from app.core.models import Subscription, Plan
+
+    balance = get_balance(db, user.tenant_id)
+
+    # Get plan monthly grant and slug
+    monthly_grant = 0
+    plan_slug = None
+    sub = db.query(Subscription).filter(
+        Subscription.tenant_id == user.tenant_id,
+        Subscription.status.in_(["active", "trialing"]),
+    ).first()
+    if sub:
+        plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
+        if plan:
+            monthly_grant = getattr(plan, "monthly_image_credits", 0) or 0
+            plan_slug = plan.slug
+
+    return {"balance": balance, "monthly_grant": monthly_grant, "plan_slug": plan_slug}
+
+
+@router.get("/credits/packs")
+async def list_credit_packs(
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return all active image credit packs."""
+    from app.core.models import ImageCreditPack
+
+    packs = db.query(ImageCreditPack).filter(
+        ImageCreditPack.is_active.is_(True)
+    ).order_by(ImageCreditPack.display_order).all()
+
+    return [
+        {
+            "id": p.id,
+            "slug": p.slug,
+            "name": p.name,
+            "description": p.description,
+            "credits": p.credits,
+            "price_once_cents": p.price_once_cents,
+            "price_monthly_cents": p.price_monthly_cents,
+            "price_yearly_cents": p.price_yearly_cents,
+            "display_order": p.display_order,
+        }
+        for p in packs
+    ]
 
 
 @router.post("/ai-generate", status_code=201)
@@ -142,6 +199,20 @@ async def ai_generate_image(
         raise HTTPException(status_code=404, detail="Tenant not found")
 
     svc = MediaService(db=db, tenant_id=user.tenant_id, tenant_slug=tenant.slug)
+
+    # Credit check — grant monthly credits first, then verify balance
+    from app.media.credit_service import maybe_grant_monthly_credits, deduct_credits, get_balance
+    from app.ai_config.image_credits_config import get_credit_cost
+
+    maybe_grant_monthly_credits(db, user.tenant_id)
+    model_slug_for_cost = body.model_slug or "flux2_pro"
+    credit_cost = get_credit_cost(model_slug_for_cost)
+    current_balance = get_balance(db, user.tenant_id)
+    if current_balance < credit_cost:
+        raise HTTPException(
+            status_code=402,
+            detail=f"Nicht genügend Credits. Jetzt aufladen. (Benötigt: {credit_cost}, Verfügbar: {current_balance})",
+        )
 
     # If campaign context provided, route through MediaOrchestrator
     if body.campaign_name or body.task_context != "general" or body.channel != "email":
@@ -166,6 +237,8 @@ async def ai_generate_image(
         result = await orch.run(req, db=db, tenant_slug=tenant.slug)
         if result.error:
             raise HTTPException(status_code=502, detail=result.error)
+        # Deduct credits after successful generation
+        deduct_credits(db, user.tenant_id, credit_cost, "generation", str(result.asset_id) if result.asset_id else None)
         return {
             "id": result.asset_id,
             "url": result.url,
@@ -255,6 +328,9 @@ async def ai_generate_image(
         svc.increment_image_gen_usage()
         gate.increment_image_generation_usage()
     svc.increment_storage_usage(file_size)
+
+    # Deduct credits after successful generation (direct path)
+    deduct_credits(db, user.tenant_id, credit_cost, "generation", str(asset.id))
 
     url = get_public_url(tenant.slug, filename)
     logger.info("media.ai_generate_complete", asset_id=asset.id, tenant_id=user.tenant_id, provider=config.provider_slug)
@@ -473,6 +549,21 @@ async def ai_edit_image(
     svc.check_image_gen_quota()
     svc.check_storage_quota(bytes_to_add=500_000)
 
+    # Credit check for edit
+    from app.media.credit_service import maybe_grant_monthly_credits as _grant_monthly
+    from app.media.credit_service import deduct_credits as _deduct_credits
+    from app.media.credit_service import get_balance as _get_balance
+    from app.ai_config.image_credits_config import get_credit_cost as _get_credit_cost
+
+    _grant_monthly(db, user.tenant_id)
+    _edit_credit_cost = _get_credit_cost(body.edit_model_slug)
+    _edit_balance = _get_balance(db, user.tenant_id)
+    if _edit_balance < _edit_credit_cost:
+        raise HTTPException(
+            status_code=402,
+            detail=f"Nicht genügend Credits. Jetzt aufladen. (Benötigt: {_edit_credit_cost}, Verfügbar: {_edit_balance})",
+        )
+
     # Build publicly accessible source image URL for fal.ai to fetch
     image_url = get_public_url(tenant.slug, asset.filename)
 
@@ -520,6 +611,9 @@ async def ai_edit_image(
     )
     svc.increment_image_gen_usage()
     svc.increment_storage_usage(file_size)
+
+    # Deduct credits after successful edit
+    _deduct_credits(db, user.tenant_id, _edit_credit_cost, "edit", str(new_asset.id))
 
     logger.info("media.ai_edit.complete", asset_id=asset_id, new_asset_id=new_asset.id, model=body.edit_model_slug)
     return _asset_to_dict(new_asset, tenant.slug)

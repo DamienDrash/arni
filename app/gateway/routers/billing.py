@@ -34,7 +34,7 @@ from pydantic import BaseModel
 
 from app.core.auth import AuthContext, get_current_user, require_role
 from app.core.db import SessionLocal
-from app.core.models import Plan, Subscription, Tenant, AuditLog, TenantAddon, AddonDefinition
+from app.core.models import Plan, Subscription, Tenant, AuditLog, TenantAddon, AddonDefinition, ImageCreditPack, ImageCreditPurchase
 from app.gateway.persistence import persistence
 
 logger = structlog.get_logger()
@@ -1413,5 +1413,187 @@ def _on_token_purchase_completed(obj: dict, meta: dict) -> None:
     except Exception as exc:
         db.rollback()
         logger.error("billing.webhook.token_purchase_failed", error=str(exc))
+    finally:
+        db.close()
+
+
+# ── Image Credit Pack Checkout ─────────────────────────────────────────────────
+
+class ImageCreditCheckoutRequest(BaseModel):
+    pack_slug: str
+    billing_interval: str  # once | monthly | yearly
+
+
+@router.post("/billing/image-credits/checkout")
+async def image_credit_checkout(
+    req: ImageCreditCheckoutRequest,
+    user: AuthContext = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Create a Stripe checkout session for an image credit pack purchase."""
+    _require_billing_access(user)
+
+    if req.billing_interval not in ("once", "monthly", "yearly"):
+        raise HTTPException(status_code=422, detail="billing_interval must be 'once', 'monthly', or 'yearly'")
+
+    stripe = _get_stripe(user.tenant_id)
+
+    db = SessionLocal()
+    try:
+        pack = db.query(ImageCreditPack).filter(
+            ImageCreditPack.slug == req.pack_slug,
+            ImageCreditPack.is_active.is_(True),
+        ).first()
+        if not pack:
+            raise HTTPException(status_code=404, detail=f"Credit Pack '{req.pack_slug}' nicht gefunden")
+
+        if req.billing_interval == "once":
+            price_cents = pack.price_once_cents
+        elif req.billing_interval == "monthly":
+            price_cents = pack.price_monthly_cents
+        else:
+            price_cents = pack.price_yearly_cents
+
+        if not price_cents:
+            raise HTTPException(status_code=422, detail=f"Kein Preis für '{req.billing_interval}' konfiguriert")
+
+        tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+        tenant_name = tenant.name if tenant else f"Tenant {user.tenant_id}"
+
+        stripe_customer_id = _get_or_create_stripe_customer(
+            stripe,
+            tenant_id=user.tenant_id,
+            admin_email=user.email,
+            tenant_name=tenant_name,
+        )
+
+        base_url = (persistence.get_setting("gateway_public_url", "") or "").rstrip("/")
+        success_url = f"{base_url}/media?credits_success=true&session_id={{CHECKOUT_SESSION_ID}}"
+        cancel_url = f"{base_url}/media?credits_canceled=true"
+
+        if req.billing_interval == "once":
+            # One-time payment
+            session = stripe.checkout.Session.create(
+                mode="payment",
+                customer=stripe_customer_id,
+                line_items=[{
+                    "price_data": {
+                        "currency": "eur",
+                        "product_data": {
+                            "name": pack.name,
+                            "description": pack.description or f"{pack.credits} Credits für Bildgenerierung",
+                        },
+                        "unit_amount": price_cents,
+                    },
+                    "quantity": 1,
+                }],
+                success_url=success_url,
+                cancel_url=cancel_url,
+                metadata={
+                    "tenant_id": str(user.tenant_id),
+                    "pack_slug": req.pack_slug,
+                    "billing_interval": req.billing_interval,
+                    "credits": str(pack.credits),
+                    "checkout_type": "image_credit_purchase",
+                },
+            )
+        else:
+            # Subscription — use stored Stripe price ID if available, else dynamic
+            stripe_price_id = (
+                pack.stripe_price_monthly_id
+                if req.billing_interval == "monthly"
+                else pack.stripe_price_yearly_id
+            )
+            if stripe_price_id:
+                line_items = [{"price": stripe_price_id, "quantity": 1}]
+            else:
+                recurring_interval = "month" if req.billing_interval == "monthly" else "year"
+                line_items = [{
+                    "price_data": {
+                        "currency": "eur",
+                        "product_data": {
+                            "name": pack.name,
+                            "description": pack.description or f"{pack.credits} Credits/Monat für Bildgenerierung",
+                        },
+                        "unit_amount": price_cents,
+                        "recurring": {"interval": recurring_interval},
+                    },
+                    "quantity": 1,
+                }]
+
+            session = stripe.checkout.Session.create(
+                mode="subscription",
+                customer=stripe_customer_id,
+                line_items=line_items,
+                success_url=success_url,
+                cancel_url=cancel_url,
+                metadata={
+                    "tenant_id": str(user.tenant_id),
+                    "pack_slug": req.pack_slug,
+                    "billing_interval": req.billing_interval,
+                    "credits": str(pack.credits),
+                    "checkout_type": "image_credit_purchase",
+                },
+                subscription_data={"metadata": {
+                    "tenant_id": str(user.tenant_id),
+                    "pack_slug": req.pack_slug,
+                    "credits": str(pack.credits),
+                }},
+            )
+
+        # Create pending purchase record
+        purchase = ImageCreditPurchase(
+            tenant_id=user.tenant_id,
+            pack_slug=req.pack_slug,
+            billing_interval=req.billing_interval,
+            credits_granted=pack.credits,
+            price_cents=price_cents,
+            stripe_session_id=session["id"],
+            status="pending",
+        )
+        db.add(purchase)
+        db.commit()
+        db.refresh(purchase)
+
+        logger.info("billing.image_credit_checkout_created",
+                    tenant_id=user.tenant_id, pack_slug=req.pack_slug,
+                    billing_interval=req.billing_interval, session_id=session["id"])
+
+        return {"url": session["url"], "purchase_id": purchase.id}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("billing.image_credit_checkout_failed", error=str(exc), tenant_id=user.tenant_id)
+        raise HTTPException(status_code=502, detail=f"Stripe-Fehler: {exc}")
+    finally:
+        db.close()
+
+
+@router.get("/billing/image-credits/purchases")
+async def list_image_credit_purchases(
+    user: AuthContext = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    """List image credit pack purchases for the current tenant."""
+    _require_billing_access(user)
+
+    db = SessionLocal()
+    try:
+        purchases = db.query(ImageCreditPurchase).filter(
+            ImageCreditPurchase.tenant_id == user.tenant_id,
+        ).order_by(ImageCreditPurchase.created_at.desc()).limit(50).all()
+
+        return [
+            {
+                "id": p.id,
+                "pack_slug": p.pack_slug,
+                "billing_interval": p.billing_interval,
+                "credits_granted": p.credits_granted,
+                "price_cents": p.price_cents,
+                "status": p.status,
+                "stripe_session_id": p.stripe_session_id,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            }
+            for p in purchases
+        ]
     finally:
         db.close()
