@@ -69,7 +69,10 @@ class ImagePromptAgent(BaseAgent):
                                 if ref_desc:
                                     ref_parts.append(f"{label}: {'. '.join(ref_desc)}")
                     if ref_parts:
-                        reference_context = "Visual reference style — " + " | ".join(ref_parts) + "."
+                        reference_context = (
+                            "IMPORTANT — match the visual style of these brand reference images: "
+                            + " | ".join(ref_parts) + "."
+                        )
                         logger.info("image_prompt_agent.references_loaded", tenant_id=tenant_id, count=len(ref_parts))
                 except Exception as e:
                     logger.warning("image_prompt_agent.references_failed", error=str(e))

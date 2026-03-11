@@ -46,6 +46,22 @@ interface AiGenerateForm {
   prompt: string;
   size: "1024x1024" | "1792x1024" | "1024x1792";
   quality: "standard" | "hd";
+  model_slug?: string;
+}
+
+interface ImageModel {
+  slug: string;
+  name: string;
+  price_label: string;
+  elo_score: number | null;
+  elo_rank: number | null;
+  quality_stars: number;
+  badge: string | null;
+  badge_color: string | null;
+  cost_tier: string;
+  cost_note?: string;
+  description: string;
+  is_default: boolean;
 }
 
 interface MetaEditState {
@@ -428,7 +444,10 @@ export default function MediaPage() {
     prompt: "",
     size: "1024x1024",
     quality: "standard",
+    model_slug: "flux2_pro",
   });
+  const [imageModels, setImageModels] = useState<ImageModel[]>([]);
+  const [showModelPicker, setShowModelPicker] = useState(false);
 
   const fetchMedia = async () => {
     setLoading(true);
@@ -448,6 +467,13 @@ export default function MediaPage() {
   useEffect(() => {
     fetchMedia();
     apiFetch("/admin/media/brand-references").then(r => r.json()).then((data: BrandRef[]) => setBrandRefs(data)).catch(() => {});
+    apiFetch("/admin/media/image-models").then(r => r.json()).then((data: ImageModel[]) => {
+      if (Array.isArray(data)) {
+        setImageModels(data);
+        const def = data.find(m => m.is_default);
+        if (def) setAiForm(prev => ({ ...prev, model_slug: def.slug }));
+      }
+    }).catch(() => {});
   }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -501,7 +527,7 @@ export default function MediaPage() {
         throw new Error((body as { detail?: string }).detail || `HTTP ${res.status}`);
       }
       setShowAiForm(false);
-      setAiForm({ prompt: "", size: "1024x1024", quality: "standard" });
+      setAiForm({ prompt: "", size: "1024x1024", quality: "standard", model_slug: imageModels.find(m => m.is_default)?.slug ?? "flux2_pro" });
       await fetchMedia();
     } catch (e) {
       setGenerateError(`Generierung fehlgeschlagen: ${e}`);
@@ -662,7 +688,7 @@ export default function MediaPage() {
             </div>
             <div>
               <h2 style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: 0 }}>KI-Bildgenerierung</h2>
-              <p style={{ fontSize: 11, color: T.textMuted, margin: 0 }}>Bild via DALL-E generieren und in Bibliothek speichern</p>
+              <p style={{ fontSize: 11, color: T.textMuted, margin: 0 }}>KI-Bild mit gewähltem Modell generieren und in Bibliothek speichern</p>
             </div>
             <button
               onClick={() => setShowAiForm(false)}
@@ -720,6 +746,85 @@ export default function MediaPage() {
                 </div>
               </div>
             </div>
+            {/* Model picker */}
+            {imageModels.length > 0 && (
+              <div>
+                <label style={labelStyle}>Modell</label>
+                <button
+                  type="button"
+                  onClick={() => setShowModelPicker(p => !p)}
+                  style={{
+                    width: "100%", padding: "10px 14px", borderRadius: 10,
+                    background: T.surfaceAlt, border: `1px solid ${T.border}`,
+                    color: T.text, fontSize: 13, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                  }}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {(() => {
+                      const m = imageModels.find(x => x.slug === aiForm.model_slug);
+                      return m ? (
+                        <>
+                          {m.badge && (
+                            <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: m.badge_color ?? T.accentDim, color: "#fff", fontWeight: 700 }}>
+                              {m.badge}
+                            </span>
+                          )}
+                          <span>{m.name}</span>
+                          <span style={{ color: T.textMuted, fontSize: 12 }}>{m.price_label}</span>
+                          {m.elo_rank && <span style={{ color: T.textDim, fontSize: 11 }}>#{m.elo_rank} Elo {m.elo_score}</span>}
+                        </>
+                      ) : <span>Modell wählen</span>;
+                    })()}
+                  </span>
+                  <ChevronDown size={13} style={{ transform: showModelPicker ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }} />
+                </button>
+                {showModelPicker && (
+                  <div style={{
+                    marginTop: 4, borderRadius: 10, border: `1px solid ${T.border}`,
+                    background: T.surface, overflow: "hidden", maxHeight: 360, overflowY: "auto",
+                  }}>
+                    {imageModels.map(m => {
+                      const selected = m.slug === aiForm.model_slug;
+                      return (
+                        <button
+                          key={m.slug}
+                          type="button"
+                          onClick={() => { setAiForm(prev => ({ ...prev, model_slug: m.slug })); setShowModelPicker(false); }}
+                          style={{
+                            width: "100%", padding: "10px 14px", textAlign: "left",
+                            background: selected ? T.accentDim : "transparent",
+                            border: "none", borderBottom: `1px solid ${T.border}20`,
+                            cursor: "pointer", display: "flex", flexDirection: "column", gap: 3,
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            {m.badge && (
+                              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: m.badge_color ?? T.accentDim, color: "#fff", fontWeight: 700 }}>
+                                {m.badge}
+                              </span>
+                            )}
+                            <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{m.name}</span>
+                            <span style={{ marginLeft: "auto", fontSize: 12, color: T.textMuted }}>{m.price_label}</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: 11, color: T.textDim }}>
+                              {"★".repeat(m.quality_stars)}{"☆".repeat(5 - m.quality_stars)}
+                            </span>
+                            {m.elo_rank && <span style={{ fontSize: 11, color: T.textDim }}>Rang #{m.elo_rank}</span>}
+                            {m.cost_tier === "expensive" && (
+                              <span style={{ fontSize: 11, color: T.warning ?? "#f59e0b" }}>⚠️ Teuer</span>
+                            )}
+                          </div>
+                          {m.cost_note && <p style={{ fontSize: 11, color: T.warning ?? "#f59e0b", margin: 0 }}>{m.cost_note}</p>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button
                 onClick={handleAiGenerate}

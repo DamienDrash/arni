@@ -508,19 +508,45 @@ async def create_brand_reference(body: BrandReferenceCreate, user: AuthContext =
     from app.core.media_models import TenantBrandReference, MediaAsset
     from app.core.feature_gates import FeatureGate
     from app.core.models import Tenant
-    from app.media.storage import get_public_url
+    from app.media.storage import get_public_url, get_media_path
     gate = FeatureGate(user.tenant_id)
     gate.require_brand_style()
     asset = db.query(MediaAsset).filter(MediaAsset.id == body.asset_id, MediaAsset.tenant_id == user.tenant_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
     tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+
+    # Auto-analyze if the asset has never been described (so prompt injection has data)
+    if not asset.description and tenant:
+        try:
+            from app.swarm.agents.media.analysis_agent import ImageAnalysisAgent
+            from app.swarm.llm import LLMClient
+            from config.settings import get_settings
+            image_path = get_media_path(tenant.slug, asset.filename)
+            image_bytes = image_path.read_bytes()
+            settings = get_settings()
+            llm = LLMClient(openai_api_key=settings.openai_api_key)
+            ImageAnalysisAgent.set_llm(llm)
+            agent = ImageAnalysisAgent()
+            analysis = await agent.describe(image_bytes=image_bytes, tenant_id=user.tenant_id)
+            if analysis:
+                asset.description = analysis.get("description") or asset.description
+                asset.tags = analysis.get("tags") or asset.tags
+                asset.alt_text = analysis.get("alt_text") or asset.alt_text
+                asset.usage_context = analysis.get("usage_context") or asset.usage_context
+                asset.dominant_colors = analysis.get("dominant_colors") or asset.dominant_colors
+                db.commit()
+                logger.info("brand_reference.auto_analyzed", asset_id=asset.id, tenant_id=user.tenant_id)
+        except Exception as e:
+            logger.warning("brand_reference.auto_analyze_failed", asset_id=body.asset_id, error=str(e))
+
     ref = TenantBrandReference(tenant_id=user.tenant_id, asset_id=body.asset_id, label=body.label)
     db.add(ref)
     db.commit()
     db.refresh(ref)
     url = get_public_url(tenant.slug, asset.filename) if tenant else ""
-    return {"id": ref.id, "asset_id": ref.asset_id, "label": ref.label, "url": url}
+    return {"id": ref.id, "asset_id": ref.asset_id, "label": ref.label, "url": url,
+            "description": asset.description, "tags": asset.tags}
 
 
 @router.delete("/brand-references/{ref_id}", status_code=204)
