@@ -25,7 +25,13 @@ class ImageProvider(Base):
     supported_models_json = Column(Text, nullable=True)         # JSON: ["dall-e-3", "dall-e-2"]
     default_model = Column(String(128), nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
-    priority = Column(Integer, nullable=False, default=100)     # Lower = higher priority
+    priority = Column(Integer, nullable=False, default=9000)    # Lower = higher priority; ELO rank for ranked, 9000+ for unranked
+
+    # Enrichment (updated by model_sync_service)
+    fal_category = Column(String(32), nullable=True)            # "text-to-image" | "image-to-image"
+    elo_score = Column(Integer, nullable=True)                  # Elo score from AA leaderboard
+    elo_rank = Column(Integer, nullable=True)                   # Elo rank (1 = best) from AA leaderboard
+    price_per_image_cents = Column(Integer, nullable=True)      # Pricing from fal catalog (in €-cents * 1000, i.e. milli-cents)
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),

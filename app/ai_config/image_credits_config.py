@@ -46,3 +46,31 @@ DEFAULT_CREDIT_COST = 3  # fallback for unknown slugs
 
 def get_credit_cost(model_slug: str) -> int:
     return IMAGE_CREDIT_COSTS.get(model_slug, DEFAULT_CREDIT_COST)
+
+
+def price_to_credits(price_per_image: float | None) -> int:
+    """Auto-assign credit tier from fal.ai price per image (USD).
+
+    Tier thresholds (1 Credit = €0.04):
+      ≤ $0.006  → 1 credit  (Budget,   ~$6/1k)
+      ≤ $0.015  → 2 credits (Budget+,  ~$15/1k)
+      ≤ $0.035  → 3 credits (Standard, ~$35/1k)
+      ≤ $0.065  → 6 credits (Premium,  ~$65/1k)
+      ≤ $0.110  → 8 credits (Pro,      ~$110/1k)
+      >  $0.110 → 12 credits (Ultra,   >$110/1k)
+    Unknown price → DEFAULT_CREDIT_COST (3)
+    """
+    if price_per_image is None:
+        return DEFAULT_CREDIT_COST
+    p = float(price_per_image)
+    if p <= 0.006:
+        return 1
+    if p <= 0.015:
+        return 2
+    if p <= 0.035:
+        return 3
+    if p <= 0.065:
+        return 6
+    if p <= 0.110:
+        return 8
+    return 12

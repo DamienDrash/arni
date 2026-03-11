@@ -149,6 +149,28 @@ def _backfill_columns() -> None:
     # Plans — monthly_image_credits (added for credit system)
     _add_column_if_missing("plans", "monthly_image_credits", "INTEGER DEFAULT 0")
 
+    # ImageProvider — ELO + fal category enrichment (added for model sync)
+    _add_column_if_missing("ai_image_providers", "fal_category", "VARCHAR(32)")
+    _add_column_if_missing("ai_image_providers", "elo_score", "INTEGER")
+    _add_column_if_missing("ai_image_providers", "elo_rank", "INTEGER")
+    _add_column_if_missing("ai_image_providers", "price_per_image_cents", "INTEGER")
+
+    # Backfill fal_category for existing seeded providers (slug-based heuristic)
+    try:
+        with engine.connect() as conn:
+            conn.execute(_text("""
+                UPDATE ai_image_providers
+                SET fal_category = CASE
+                    WHEN slug LIKE '%_edit' OR slug = 'flux_kontext_pro' THEN 'image-to-image'
+                    ELSE 'text-to-image'
+                END
+                WHERE fal_category IS NULL
+                  AND provider_type IN ('fal_ai', 'fal_ai_schnell', 'fal_generic', 'recraft_v3', 'ideogram_v2')
+            """))
+            conn.commit()
+    except Exception:
+        pass
+
 # ─── FastAPI Dependencies ─────────────────────────────────────────────────────────
 
 

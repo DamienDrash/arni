@@ -108,20 +108,108 @@ async def upload_media(
     }
 
 
+def _build_model_response(provider, meta: dict, credit_cost: int) -> dict:
+    """Merge DB provider row with static enrichment metadata."""
+    return {
+        "slug": provider.slug,
+        "name": provider.name,
+        "fal_endpoint": provider.default_model,
+        "priority": provider.priority,
+        "elo_score": provider.elo_score,
+        "elo_rank": provider.elo_rank,
+        "is_aa_ranked": provider.elo_rank is not None,
+        "credit_cost": credit_cost,
+        # Static enrichment — None for newly-discovered models
+        "provider_type": meta.get("provider_type") or provider.provider_type,
+        "price_per_image": meta.get("price_per_image"),
+        "price_label": meta.get("price_label"),
+        "cost_tier": meta.get("cost_tier"),
+        "quality_stars": meta.get("quality_stars"),
+        "speed_seconds": meta.get("speed_seconds"),
+        "best_for": meta.get("best_for"),
+        "description": meta.get("description"),
+        "badge": meta.get("badge"),
+        "badge_color": meta.get("badge_color"),
+        "is_default": meta.get("is_default", False),
+        "is_preview": meta.get("is_preview", False),
+        "supports_strength": meta.get("supports_strength", False),
+        "cost_note": meta.get("cost_note"),
+        "speed_note": meta.get("speed_note"),
+    }
+
+
 @router.get("/image-models")
-async def list_image_models(user: AuthContext = Depends(get_current_user)):
-    """Return the catalog of selectable image generation models with metadata."""
-    from app.ai_config.image_models_meta import SELECTABLE_MODELS
-    from app.ai_config.image_credits_config import get_credit_cost
-    return [{**m, "credit_cost": get_credit_cost(m["slug"])} for m in SELECTABLE_MODELS]
+async def list_image_models(
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the catalog of selectable image generation models with metadata.
+    Primary source: DB (fal catalog sync). Enriched with static metadata where available.
+    Sorted by priority (ELO rank first, then newest unknown models last).
+    """
+    from app.ai_config.image_models import ImageProvider
+    from app.ai_config.image_models_meta import MODELS_BY_SLUG
+    from app.ai_config.image_credits_config import get_credit_cost, price_to_credits
+
+    providers = (
+        db.query(ImageProvider)
+        .filter(
+            ImageProvider.is_active.is_(True),
+            ImageProvider.fal_category == "text-to-image",
+        )
+        .order_by(ImageProvider.priority.asc())
+        .all()
+    )
+
+    result = []
+    for p in providers:
+        meta = MODELS_BY_SLUG.get(p.slug, {})
+        if meta.get("is_preview"):
+            continue  # Skip preview-only models (e.g. FLUX Schnell) from main list
+        # Credit cost: use explicit mapping if exists, else derive from fal price
+        price = (p.price_per_image_cents / 100000.0) if p.price_per_image_cents else None
+        credit_cost = get_credit_cost(p.slug) if p.slug in _get_explicit_slugs() else price_to_credits(price)
+        result.append(_build_model_response(p, meta, credit_cost))
+
+    return result
 
 
 @router.get("/edit-models")
-async def list_edit_models(user: AuthContext = Depends(get_current_user)):
-    """Return the catalog of img2img editing models."""
-    from app.ai_config.image_edit_models_meta import SELECTABLE_EDIT_MODELS
-    from app.ai_config.image_credits_config import get_credit_cost
-    return [{**m, "credit_cost": get_credit_cost(m["slug"])} for m in SELECTABLE_EDIT_MODELS]
+async def list_edit_models(
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the catalog of img2img editing models.
+    Primary source: DB (fal catalog sync). Enriched with static metadata where available.
+    """
+    from app.ai_config.image_models import ImageProvider
+    from app.ai_config.image_edit_models_meta import EDIT_MODELS_BY_SLUG
+    from app.ai_config.image_credits_config import get_credit_cost, price_to_credits
+
+    providers = (
+        db.query(ImageProvider)
+        .filter(
+            ImageProvider.is_active.is_(True),
+            ImageProvider.fal_category == "image-to-image",
+        )
+        .order_by(ImageProvider.priority.asc())
+        .all()
+    )
+
+    result = []
+    for p in providers:
+        meta = EDIT_MODELS_BY_SLUG.get(p.slug, {})
+        price = (p.price_per_image_cents / 100000.0) if p.price_per_image_cents else None
+        credit_cost = get_credit_cost(p.slug) if p.slug in _get_explicit_slugs() else price_to_credits(price)
+        result.append(_build_model_response(p, meta, credit_cost))
+
+    return result
+
+
+def _get_explicit_slugs() -> frozenset:
+    """Return slugs that have an explicit credit cost override (not auto-derived)."""
+    from app.ai_config.image_credits_config import IMAGE_CREDIT_COSTS
+    return frozenset(IMAGE_CREDIT_COSTS.keys())
 
 
 @router.get("/credits/balance")

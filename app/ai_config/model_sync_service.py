@@ -1,7 +1,9 @@
-"""Auto-sync image model metadata from Artificial Analysis + fal.ai.
+"""Auto-sync image model catalog from fal.ai (primary) + Artificial Analysis (ELO).
 
-Fetches fresh Elo rankings from the AA Arena and the fal.ai model catalog,
-then updates ImageProvider priorities and static catalog metadata in the DB.
+Priority logic:
+  1. Fetch fal.ai catalog — add new models, deactivate removed, update names/endpoints.
+  2. Fetch AA leaderboards — apply ELO scores and set priority = elo_rank for matched models.
+  3. Unranked active models — priority = 9001 + index (newest first among unknowns).
 
 Usage:
     From code:  from app.ai_config.model_sync_service import run_model_sync
@@ -10,6 +12,7 @@ Usage:
 """
 from __future__ import annotations
 import asyncio
+import re
 from datetime import datetime, timezone
 from typing import Any
 import httpx
@@ -53,36 +56,56 @@ AA_EDIT_SLUG_MAP: dict[str, str] = {
     "FLUX.2 [dev] Turbo": "flux2_turbo_edit",
 }
 
-# Known fal.ai endpoints for our slugs (for availability checks)
-SLUG_TO_FAL_ENDPOINT: dict[str, str] = {
-    "gpt_image_15":       "fal-ai/gpt-image-1.5",
-    "gemini_flash":       "fal-ai/nano-banana-2",
-    "gemini_pro":         "fal-ai/nano-banana-pro",
-    "flux2_max":          "fal-ai/flux-2-max",
-    "flux2_pro":          "fal-ai/flux-2-pro",
-    "flux2_flex":         "fal-ai/flux-2-flex",
-    "imagen4_ultra":      "fal-ai/imagen4/preview/ultra",
-    "seedream_45":        "fal-ai/bytedance/seedream/v4.5/text-to-image",
-    "flux2_turbo":        "fal-ai/flux-2/turbo",
-    "nano_banana":        "fal-ai/nano-banana",
-    "flux2_klein":        "fal-ai/flux-2/klein/9b",
-    "imagen4_standard":   "fal-ai/imagen4/preview",
-    "ideogram_v3":        "fal-ai/ideogram/v3",
-    "recraft_v4":         "fal-ai/recraft/v4/text-to-image",
-    "fal_ai_schnell":     "fal-ai/flux/schnell",
-    # Edit models
-    "gpt_image_15_edit":       "fal-ai/gpt-image-1.5/edit",
-    "nano_banana_pro_edit":    "fal-ai/nano-banana-pro/edit",
-    "nano_banana2_edit":       "fal-ai/nano-banana-2/edit",
-    "flux2_max_edit":          "fal-ai/flux-2-max/edit",
-    "seedream_45_edit":        "fal-ai/bytedance/seedream/v4.5/edit",
-    "nano_banana_edit":        "fal-ai/nano-banana/edit",
-    "flux2_pro_edit":          "fal-ai/flux-2-pro/edit",
-    "flux2_flex_edit":         "fal-ai/flux-2-flex/edit",
-    "flux_kontext_pro":        "fal-ai/flux-pro/kontext",
-    "flux2_flash_edit":        "fal-ai/flux-2/flash/edit",
-    "flux2_turbo_edit":        "fal-ai/flux-2/turbo/edit",
-}
+
+def _slug_from_fal_id(fal_id: str) -> str:
+    """Derive a stable DB slug from a fal.ai model ID.
+
+    e.g. "fal-ai/flux-2-pro"  → "flux2_pro"  (but existing DB slugs take precedence)
+         "fal-ai/some/new/model" → "fal_some_new_model"
+    """
+    s = fal_id.replace("fal-ai/", "fal_")
+    s = re.sub(r"[/\-\.]", "_", s)
+    s = re.sub(r"[^a-z0-9_]", "", s.lower())
+    s = re.sub(r"_+", "_", s).strip("_")
+    return s[:64]
+
+
+async def _fetch_fal_catalog(client: httpx.AsyncClient) -> list[dict]:
+    """Fetch all text-to-image and image-to-image models from fal.ai catalog."""
+    models: list[dict] = []
+    for page in range(1, 12):
+        try:
+            url = FAL_CATALOG_URL.format(page=page)
+            resp = await client.get(url, timeout=15.0)
+            resp.raise_for_status()
+            items = resp.json().get("items", [])
+            if not items:
+                break
+            for m in items:
+                fal_id = m.get("id", "")
+                cat = m.get("category", "")
+                if cat in ("text-to-image", "image-to-image") and fal_id:
+                    models.append({
+                        "id": fal_id,
+                        "category": cat,
+                        # fal catalog uses various field names for title/name
+                        "title": (
+                            m.get("title") or m.get("name") or m.get("display_name")
+                            or fal_id.split("/")[-1].replace("-", " ").title()
+                        ),
+                        # Pricing: look for common field patterns
+                        "price_per_image": (
+                            m.get("price_per_image")
+                            or m.get("pricePerImage")
+                            or (m.get("pricing") or {}).get("price_per_image")
+                            or (m.get("pricing") or {}).get("inference")
+                        ),
+                        "created_at": m.get("created_at") or m.get("publishedAt") or m.get("createdAt"),
+                    })
+        except Exception as e:
+            logger.warning("model_sync.fal_fetch_failed", page=page, error=str(e))
+            break
+    return models
 
 
 async def _fetch_aa_leaderboard(url: str, client: httpx.AsyncClient) -> list[dict]:
@@ -95,28 +118,6 @@ async def _fetch_aa_leaderboard(url: str, client: httpx.AsyncClient) -> list[dic
     except Exception as e:
         logger.warning("model_sync.aa_fetch_failed", url=url, error=str(e))
         return []
-
-
-async def _fetch_fal_catalog(client: httpx.AsyncClient) -> set[str]:
-    """Fetch all text-to-image and image-to-image model IDs from fal.ai."""
-    available: set[str] = set()
-    for page in range(1, 8):
-        try:
-            url = FAL_CATALOG_URL.format(page=page)
-            resp = await client.get(url, timeout=15.0)
-            resp.raise_for_status()
-            items = resp.json().get("items", [])
-            if not items:
-                break
-            for m in items:
-                mid = m.get("id", "")
-                cat = m.get("category", "")
-                if cat in ("text-to-image", "image-to-image") and mid:
-                    available.add(mid)
-        except Exception as e:
-            logger.warning("model_sync.fal_fetch_failed", page=page, error=str(e))
-            break
-    return available
 
 
 def _parse_aa_rankings(models: list[dict], slug_map: dict[str, str]) -> dict[str, dict]:
@@ -132,111 +133,215 @@ def _parse_aa_rankings(models: list[dict], slug_map: dict[str, str]) -> dict[str
                 "elo_score": round(elo_data["elo"]),
                 "elo_rank": rank,
                 "price_per_1k": m.get("pricePer1kImages"),
-                "appearances": elo_data.get("appearances", 0),
             }
     return results
 
 
-def _detect_new_models(
-    aa_models: list[dict],
-    slug_map: dict[str, str],
-    fal_catalog: set[str],
-) -> list[dict]:
-    """Detect AA models that have fal.ai endpoints but aren't in our catalog yet."""
-    # Rough name-to-endpoint heuristics for unknown models
-    new_models = []
-    known_names = set(slug_map.keys())
-    for m in aa_models:
-        name = m.get("name", "")
-        if name in known_names:
-            continue
-        elo = m["elos"][0]["elo"]
-        if elo < 1100:
-            continue  # skip low-ranked unknowns
-        price = m.get("pricePer1kImages")
-        new_models.append({
-            "name": name,
-            "creator": m.get("creator", {}).get("name", "?"),
-            "elo": round(elo),
-            "price_per_1k": price,
-            "release_date": m.get("releaseDate", "?"),
-        })
-    return new_models
+def _reconcile_fal_catalog(db, fal_models: list[dict]) -> dict[str, Any]:
+    """Step 1: Add/update/deactivate ImageProviders based on fal catalog.
+
+    Matching key: default_model (the fal endpoint ID).
+    New models are created with priority=9000 (to be updated in step 3).
+    Returns report dict.
+    """
+    from app.ai_config.image_models import ImageProvider
+    from app.ai_config.encryption import encrypt_api_key
+    from app.ai_config.image_credits_config import price_to_credits
+    from config.settings import get_settings
+
+    settings = get_settings()
+    fal_key_enc = encrypt_api_key(settings.fal_key) if settings.fal_key else None
+
+    report = {"added": [], "updated": [], "deactivated": [], "reactivated": []}
+
+    fal_ids_in_catalog = {m["id"] for m in fal_models}
+
+    # Index existing fal_generic providers by default_model
+    existing_by_endpoint: dict[str, Any] = {}
+    for p in db.query(ImageProvider).filter(
+        ImageProvider.provider_type.in_(["fal_generic", "fal_ai", "fal_ai_schnell", "recraft_v3", "ideogram_v2"])
+    ).all():
+        if p.default_model:
+            existing_by_endpoint[p.default_model] = p
+
+    for m in fal_models:
+        fal_id = m["id"]
+        title = m["title"]
+        category = m["category"]  # "text-to-image" or "image-to-image"
+        price = m["price_per_image"]
+
+        existing = existing_by_endpoint.get(fal_id)
+
+        if existing:
+            changed = False
+            # Reactivate if was deactivated
+            if not existing.is_active:
+                existing.is_active = True
+                report["reactivated"].append(fal_id)
+                changed = True
+            # Update fal_category if missing
+            if not existing.fal_category:
+                existing.fal_category = category
+                changed = True
+            # Update price if we got one and it's new info
+            if price is not None and existing.price_per_image_cents is None:
+                existing.price_per_image_cents = int(round(float(price) * 100000))  # store as micro-cents
+                changed = True
+            if changed:
+                report["updated"].append(fal_id)
+        else:
+            # New model — auto-create
+            slug = _slug_from_fal_id(fal_id)
+            # Ensure slug uniqueness
+            base_slug = slug
+            counter = 1
+            while db.query(ImageProvider).filter(ImageProvider.slug == slug).first():
+                slug = f"{base_slug}_{counter}"
+                counter += 1
+
+            auto_credit_cost = price_to_credits(price)
+            new_provider = ImageProvider(
+                slug=slug,
+                name=title,
+                provider_type="fal_generic",
+                api_base_url="https://fal.run",
+                default_model=fal_id,
+                fal_category=category,
+                priority=9000,  # Will be sorted in step 3
+                is_active=True,
+                price_per_image_cents=int(round(float(price) * 100000)) if price is not None else None,
+            )
+            if fal_key_enc:
+                new_provider.api_key_encrypted = fal_key_enc
+            db.add(new_provider)
+            report["added"].append({"slug": slug, "fal_id": fal_id, "category": category, "credits": auto_credit_cost})
+            logger.info("model_sync.new_model_added", slug=slug, fal_id=fal_id, category=category)
+
+    # Deactivate models that are no longer in fal catalog
+    for endpoint, provider in existing_by_endpoint.items():
+        if endpoint not in fal_ids_in_catalog and provider.is_active:
+            provider.is_active = False
+            report["deactivated"].append(endpoint)
+            logger.info("model_sync.model_deactivated", endpoint=endpoint)
+
+    db.commit()
+    return report
+
+
+def _apply_aa_rankings(db, t2i_rankings: dict, edit_rankings: dict) -> list[dict]:
+    """Step 2: Update ELO scores and set priority = elo_rank for matched providers."""
+    from app.ai_config.image_models import ImageProvider
+
+    updated = []
+    for slug, ranking in {**t2i_rankings, **edit_rankings}.items():
+        provider = db.query(ImageProvider).filter(ImageProvider.slug == slug).first()
+        if provider:
+            old_priority = provider.priority
+            provider.elo_score = ranking["elo_score"]
+            provider.elo_rank = ranking["elo_rank"]
+            provider.priority = ranking["elo_rank"]
+            if old_priority != ranking["elo_rank"]:
+                updated.append({
+                    "slug": slug,
+                    "old_priority": old_priority,
+                    "new_priority": ranking["elo_rank"],
+                    "elo": ranking["elo_score"],
+                })
+
+    if updated:
+        db.commit()
+    return updated
+
+
+def _sort_unranked(db) -> None:
+    """Step 3: Assign priority 9001+ to active providers without ELO rank.
+
+    Newest (by created_at DESC) gets 9001, then ascending.
+    This puts the most recently added unknown models first among the unknowns.
+    """
+    from app.ai_config.image_models import ImageProvider
+
+    unranked = (
+        db.query(ImageProvider)
+        .filter(
+            ImageProvider.is_active.is_(True),
+            ImageProvider.elo_rank.is_(None),
+        )
+        .order_by(ImageProvider.created_at.desc())
+        .all()
+    )
+    for i, provider in enumerate(unranked):
+        provider.priority = 9001 + i
+
+    if unranked:
+        db.commit()
 
 
 async def run_model_sync(db=None) -> dict[str, Any]:
     """
-    Fetch fresh leaderboard data and update ImageProvider priorities.
+    Full model sync: fal catalog → DB reconciliation → AA ELO → unranked sorting.
 
-    Returns a report dict with:
-      - updated: list of slugs whose priority changed
-      - new_t2i: unknown models from AA t2i leaderboard (not in catalog)
-      - new_edit: unknown models from AA edit leaderboard
-      - fal_missing: slugs whose fal endpoint is no longer in catalog
+    Returns report dict with:
+      - added: new fal models auto-created in DB
+      - updated: providers whose data was updated
+      - deactivated: providers no longer in fal catalog
+      - reactivated: providers that came back to fal catalog
+      - elo_updated: slugs whose priority/ELO changed
       - synced_at: ISO timestamp
     """
-    from app.ai_config.image_models_meta import MODELS_BY_SLUG
-    from app.ai_config.image_edit_models_meta import EDIT_MODELS_BY_SLUG
-
     report: dict[str, Any] = {
+        "added": [],
         "updated": [],
-        "new_t2i": [],
-        "new_edit": [],
-        "fal_missing": [],
+        "deactivated": [],
+        "reactivated": [],
+        "elo_updated": [],
         "synced_at": datetime.now(timezone.utc).isoformat(),
     }
 
     async with httpx.AsyncClient(
-        headers={"User-Agent": "ARIIA-ModelSync/1.0"},
+        headers={"User-Agent": "ARIIA-ModelSync/2.0"},
         follow_redirects=True,
     ) as client:
-        t2i_models, edit_models, fal_catalog = await asyncio.gather(
+        fal_models, t2i_aa_models, edit_aa_models = await asyncio.gather(
+            _fetch_fal_catalog(client),
             _fetch_aa_leaderboard(AA_T2I_URL, client),
             _fetch_aa_leaderboard(AA_EDIT_URL, client),
-            _fetch_fal_catalog(client),
         )
 
-    if not t2i_models and not edit_models:
-        logger.warning("model_sync.no_data_received")
+    logger.info(
+        "model_sync.data_fetched",
+        fal_models=len(fal_models),
+        aa_t2i=len(t2i_aa_models),
+        aa_edit=len(edit_aa_models),
+    )
+
+    if not fal_models:
+        logger.warning("model_sync.fal_catalog_empty")
         return report
 
-    t2i_rankings = _parse_aa_rankings(t2i_models, AA_T2I_SLUG_MAP)
-    edit_rankings = _parse_aa_rankings(edit_models, AA_EDIT_SLUG_MAP)
-
-    # Update ImageProvider priorities based on ELO rank (lower rank = lower priority number = shown first)
     if db is not None:
-        from app.ai_config.image_models import ImageProvider
-        for slug, ranking in {**t2i_rankings, **edit_rankings}.items():
-            provider = db.query(ImageProvider).filter(ImageProvider.slug == slug).first()
-            if provider:
-                new_priority = ranking["elo_rank"]
-                if provider.priority != new_priority:
-                    provider.priority = new_priority
-                    report["updated"].append({
-                        "slug": slug,
-                        "old_priority": provider.priority,
-                        "new_priority": new_priority,
-                        "elo": ranking["elo_score"],
-                    })
-        if report["updated"]:
-            db.commit()
+        # Step 1: Reconcile fal catalog
+        cat_report = _reconcile_fal_catalog(db, fal_models)
+        report["added"] = cat_report["added"]
+        report["updated"] = cat_report["updated"]
+        report["deactivated"] = cat_report["deactivated"]
+        report["reactivated"] = cat_report["reactivated"]
 
-    # Detect new models from AA that aren't in our catalog
-    report["new_t2i"] = _detect_new_models(t2i_models, AA_T2I_SLUG_MAP, fal_catalog)
-    report["new_edit"] = _detect_new_models(edit_models, AA_EDIT_SLUG_MAP, fal_catalog)
+        # Step 2: Apply AA ELO rankings
+        t2i_rankings = _parse_aa_rankings(t2i_aa_models, AA_T2I_SLUG_MAP)
+        edit_rankings = _parse_aa_rankings(edit_aa_models, AA_EDIT_SLUG_MAP)
+        report["elo_updated"] = _apply_aa_rankings(db, t2i_rankings, edit_rankings)
 
-    # Check if our known endpoints are still in fal catalog
-    if fal_catalog:
-        for slug, endpoint in SLUG_TO_FAL_ENDPOINT.items():
-            if endpoint not in fal_catalog:
-                report["fal_missing"].append({"slug": slug, "endpoint": endpoint})
+        # Step 3: Sort unranked models (newest first, after all ranked models)
+        _sort_unranked(db)
 
     logger.info(
         "model_sync.complete",
+        added=len(report["added"]),
         updated=len(report["updated"]),
-        new_t2i=len(report["new_t2i"]),
-        new_edit=len(report["new_edit"]),
-        fal_missing=len(report["fal_missing"]),
+        deactivated=len(report["deactivated"]),
+        reactivated=len(report["reactivated"]),
+        elo_updated=len(report["elo_updated"]),
     )
     return report
 
