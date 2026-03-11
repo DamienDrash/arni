@@ -478,17 +478,21 @@ async def delete_media(
 @router.get("/brand-references")
 async def list_brand_references(user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.core.media_models import TenantBrandReference, MediaAsset
+    from app.core.models import Tenant
+    from app.media.storage import get_public_url
+    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
     refs = db.query(TenantBrandReference).filter(
         TenantBrandReference.tenant_id == user.tenant_id
     ).order_by(TenantBrandReference.created_at.desc()).all()
     result = []
     for ref in refs:
         asset = db.query(MediaAsset).filter(MediaAsset.id == ref.asset_id).first() if ref.asset_id else None
+        url = get_public_url(tenant.slug, asset.filename) if (asset and tenant) else None
         result.append({
             "id": ref.id,
             "label": ref.label,
             "asset_id": ref.asset_id,
-            "url": asset.url if asset else None,
+            "url": url,
             "created_at": ref.created_at.isoformat() if ref.created_at else None,
         })
     return result
@@ -503,16 +507,20 @@ class BrandReferenceCreate(BaseModel):
 async def create_brand_reference(body: BrandReferenceCreate, user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.core.media_models import TenantBrandReference, MediaAsset
     from app.core.feature_gates import FeatureGate
+    from app.core.models import Tenant
+    from app.media.storage import get_public_url
     gate = FeatureGate(user.tenant_id)
     gate.require_brand_style()
     asset = db.query(MediaAsset).filter(MediaAsset.id == body.asset_id, MediaAsset.tenant_id == user.tenant_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
+    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
     ref = TenantBrandReference(tenant_id=user.tenant_id, asset_id=body.asset_id, label=body.label)
     db.add(ref)
     db.commit()
     db.refresh(ref)
-    return {"id": ref.id, "asset_id": ref.asset_id, "label": ref.label, "url": asset.url}
+    url = get_public_url(tenant.slug, asset.filename) if tenant else ""
+    return {"id": ref.id, "asset_id": ref.asset_id, "label": ref.label, "url": url}
 
 
 @router.delete("/brand-references/{ref_id}", status_code=204)
