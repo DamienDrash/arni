@@ -109,30 +109,44 @@ async def upload_media(
 
 
 def _build_model_response(provider, meta: dict, credit_cost: int) -> dict:
-    """Merge DB provider row with static enrichment metadata."""
+    """Merge DB provider row with static enrichment metadata.
+
+    ELO data: DB is authoritative (updated by weekly sync).
+    Static meta provides fallback elo_rank/score for display until first sync runs.
+    Unknown models (no static meta) get no stars/badges — shown as unrated at bottom.
+    """
+    # Effective ELO: DB value preferred, static meta as fallback (until first sync)
+    elo_rank = provider.elo_rank or meta.get("elo_rank")
+    elo_score = provider.elo_score or meta.get("elo_score")
+    is_aa_ranked = elo_rank is not None
+
+    # Only show enrichment (stars, badge, description) if we have static meta for this model.
+    # Newly-discovered fal models without static meta entry show as unrated.
+    has_meta = bool(meta)
+
     return {
         "slug": provider.slug,
         "name": provider.name,
         "fal_endpoint": provider.default_model,
         "priority": provider.priority,
-        "elo_score": provider.elo_score,
-        "elo_rank": provider.elo_rank,
-        "is_aa_ranked": provider.elo_rank is not None,
+        "elo_score": elo_score,
+        "elo_rank": elo_rank,
+        "is_aa_ranked": is_aa_ranked,
         "credit_cost": credit_cost,
-        # Static enrichment — None for newly-discovered models
+        # Static enrichment — only for known models
         # NOTE: price_per_image, price_label, cost_note intentionally omitted (internal only)
         "provider_type": meta.get("provider_type") or provider.provider_type,
-        "cost_tier": meta.get("cost_tier"),
-        "quality_stars": meta.get("quality_stars"),
-        "speed_seconds": meta.get("speed_seconds"),
-        "best_for": meta.get("best_for"),
-        "description": meta.get("description"),
-        "badge": meta.get("badge"),
-        "badge_color": meta.get("badge_color"),
+        "cost_tier": meta.get("cost_tier") if has_meta else None,
+        "quality_stars": meta.get("quality_stars") if has_meta else None,
+        "speed_seconds": meta.get("speed_seconds") if has_meta else None,
+        "best_for": meta.get("best_for") if has_meta else None,
+        "description": meta.get("description") if has_meta else None,
+        "badge": meta.get("badge") if has_meta else None,
+        "badge_color": meta.get("badge_color") if has_meta else None,
         "is_default": meta.get("is_default", False),
         "is_preview": meta.get("is_preview", False),
         "supports_strength": meta.get("supports_strength", False),
-        "speed_note": meta.get("speed_note"),
+        "speed_note": meta.get("speed_note") if has_meta else None,
     }
 
 

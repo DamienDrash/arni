@@ -170,7 +170,7 @@ async def lifespan(app: FastAPI):
     async def image_model_sync_loop():
         from app.ai_config.model_sync_service import run_model_sync
         from app.core.db import SessionLocal as _SL
-        await asyncio.sleep(3600)  # Wait 1h after startup before first sync
+        await asyncio.sleep(300)  # Wait 5min after startup before first sync
         while True:
             try:
                 db = _SL()
