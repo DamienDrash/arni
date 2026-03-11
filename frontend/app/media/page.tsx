@@ -877,7 +877,7 @@ export default function MediaPage() {
                             </span>
                           )}
                           <span>{m.name}</span>
-                          {m.elo_rank && <span style={{ color: T.textDim, fontSize: 11 }}>Rang #{m.elo_rank}</span>}
+                          {m.elo_score && <span style={{ color: T.textDim, fontSize: 11 }}>Elo {m.elo_score}</span>}
                           <span style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: T.accentDim, fontSize: 11, fontWeight: 700, color: T.accent }}>
                             <Coins size={9} />
                             {m.credit_cost}
@@ -927,7 +927,7 @@ export default function MediaPage() {
                                 {"★".repeat(m.quality_stars)}{"☆".repeat(5 - m.quality_stars)}
                               </span>
                             )}
-                            {m.elo_rank && <span style={{ fontSize: 11, color: T.textDim }}>Rang #{m.elo_rank}</span>}
+                            {m.elo_score && <span style={{ fontSize: 11, color: T.textDim }}>Elo {m.elo_score}</span>}
                           </div>
                         </button>
                       );
