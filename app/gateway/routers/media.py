@@ -120,9 +120,8 @@ def _build_model_response(provider, meta: dict, credit_cost: int) -> dict:
         "is_aa_ranked": provider.elo_rank is not None,
         "credit_cost": credit_cost,
         # Static enrichment — None for newly-discovered models
+        # NOTE: price_per_image, price_label, cost_note intentionally omitted (internal only)
         "provider_type": meta.get("provider_type") or provider.provider_type,
-        "price_per_image": meta.get("price_per_image"),
-        "price_label": meta.get("price_label"),
         "cost_tier": meta.get("cost_tier"),
         "quality_stars": meta.get("quality_stars"),
         "speed_seconds": meta.get("speed_seconds"),
@@ -133,7 +132,6 @@ def _build_model_response(provider, meta: dict, credit_cost: int) -> dict:
         "is_default": meta.get("is_default", False),
         "is_preview": meta.get("is_preview", False),
         "supports_strength": meta.get("supports_strength", False),
-        "cost_note": meta.get("cost_note"),
         "speed_note": meta.get("speed_note"),
     }
 

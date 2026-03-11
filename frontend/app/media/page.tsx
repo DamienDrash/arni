@@ -52,14 +52,12 @@ interface AiGenerateForm {
 interface EditModel {
   slug: string;
   name: string;
-  price_label: string;
   elo_score: number | null;
   elo_rank: number | null;
   quality_stars: number;
   badge: string | null;
   badge_color: string | null;
   cost_tier: string;
-  cost_note?: string;
   description: string;
   supports_strength: boolean;
   is_default: boolean;
@@ -69,14 +67,12 @@ interface EditModel {
 interface ImageModel {
   slug: string;
   name: string;
-  price_label: string;
   elo_score: number | null;
   elo_rank: number | null;
   quality_stars: number;
   badge: string | null;
   badge_color: string | null;
   cost_tier: string;
-  cost_note?: string;
   description: string;
   is_default: boolean;
   credit_cost: number;
@@ -881,8 +877,7 @@ export default function MediaPage() {
                             </span>
                           )}
                           <span>{m.name}</span>
-                          <span style={{ color: T.textMuted, fontSize: 12 }}>{m.price_label}</span>
-                          {m.elo_rank && <span style={{ color: T.textDim, fontSize: 11 }}>#{m.elo_rank} Elo {m.elo_score}</span>}
+                          {m.elo_rank && <span style={{ color: T.textDim, fontSize: 11 }}>Rang #{m.elo_rank}</span>}
                           <span style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: T.accentDim, fontSize: 11, fontWeight: 700, color: T.accent }}>
                             <Coins size={9} />
                             {m.credit_cost}
@@ -920,7 +915,6 @@ export default function MediaPage() {
                             )}
                             <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{m.name}</span>
                             <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
-                              <span style={{ fontSize: 12, color: T.textMuted }}>{m.price_label}</span>
                               <span style={{ display: "flex", alignItems: "center", gap: 2, padding: "1px 6px", borderRadius: 4, background: T.accentDim, fontSize: 11, fontWeight: 700, color: T.accent }}>
                                 <Coins size={9} />
                                 {m.credit_cost}
@@ -928,15 +922,13 @@ export default function MediaPage() {
                             </span>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: 11, color: T.textDim }}>
-                              {"★".repeat(m.quality_stars)}{"☆".repeat(5 - m.quality_stars)}
-                            </span>
-                            {m.elo_rank && <span style={{ fontSize: 11, color: T.textDim }}>Rang #{m.elo_rank}</span>}
-                            {m.cost_tier === "expensive" && (
-                              <span style={{ fontSize: 11, color: T.warning ?? "#f59e0b" }}>⚠️ Teuer</span>
+                            {m.quality_stars != null && (
+                              <span style={{ fontSize: 11, color: T.textDim }}>
+                                {"★".repeat(m.quality_stars)}{"☆".repeat(5 - m.quality_stars)}
+                              </span>
                             )}
+                            {m.elo_rank && <span style={{ fontSize: 11, color: T.textDim }}>Rang #{m.elo_rank}</span>}
                           </div>
-                          {m.cost_note && <p style={{ fontSize: 11, color: T.warning ?? "#f59e0b", margin: 0 }}>{m.cost_note}</p>}
                         </button>
                       );
                     })}
@@ -1310,7 +1302,7 @@ export default function MediaPage() {
                 >
                   {editModels.map(m => (
                     <option key={m.slug} value={m.slug}>
-                      {m.name} — {m.price_label} · {m.credit_cost} Credits{m.elo_rank ? ` · Rang #${m.elo_rank}` : ""}
+                      {m.name} · {m.credit_cost} Credits{m.elo_rank ? ` · Rang #${m.elo_rank}` : ""}
                     </option>
                   ))}
                 </select>
@@ -1323,9 +1315,8 @@ export default function MediaPage() {
                           {m.badge}
                         </span>
                       )}
-                      <span style={{ fontSize: 11, color: T.textDim }}>{"★".repeat(m.quality_stars)}{"☆".repeat(5 - m.quality_stars)}</span>
+                      {m.quality_stars != null && <span style={{ fontSize: 11, color: T.textDim }}>{"★".repeat(m.quality_stars)}{"☆".repeat(5 - m.quality_stars)}</span>}
                       <span style={{ fontSize: 11, color: T.textDim, flex: 1 }}>{m.description}</span>
-                      {m.cost_note && <span style={{ fontSize: 11, color: "#f59e0b" }}>{m.cost_note}</span>}
                     </div>
                   ) : null;
                 })()}
