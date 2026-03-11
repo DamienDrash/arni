@@ -292,8 +292,8 @@ async def _generate_fal_generic(config, prompt: str, size: str, n: int) -> Gener
             "n": n,
             **extra_params,
         }
-    # Gemini / Imagen 4 / FLUX.2 variants → aspect_ratio param
-    elif any(x in endpoint for x in ("gemini-3", "imagen4", "flux-pro/v1.1-ultra", "flux-2-pro", "flux-2/turbo", "flux-2/klein")):
+    # Gemini / Imagen 4 / FLUX.2 variants / Nano Banana → aspect_ratio param
+    elif any(x in endpoint for x in ("gemini-3", "imagen4", "nano-banana", "flux-pro/v1.1-ultra", "flux-2-pro", "flux-2-max", "flux-2-flex", "flux-2/turbo", "flux-2/klein")):
         w, h = 1024, 1024
         if "x" in size:
             try:
@@ -400,8 +400,8 @@ async def _edit_fal_generic(
             "prompt": prompt,
             "n": n,
         }
-    # Gemini edit uses image_urls (array)
-    elif "gemini" in endpoint:
+    # Gemini / Nano Banana edit uses image_urls (array)
+    elif "gemini" in endpoint or "nano-banana" in endpoint:
         payload = {
             "image_urls": [image_url],
             "prompt": prompt,

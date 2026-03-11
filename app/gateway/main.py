@@ -166,6 +166,30 @@ async def lifespan(app: FastAPI):
             await asyncio.sleep(900)  # Every 15 minutes
     background_tasks.append(asyncio.create_task(billing_sync_loop()))
 
+    # Image Model Sync (weekly — keeps AA leaderboard rankings + fal catalog fresh)
+    async def image_model_sync_loop():
+        from app.ai_config.model_sync_service import run_model_sync
+        from app.core.db import SessionLocal as _SL
+        await asyncio.sleep(3600)  # Wait 1h after startup before first sync
+        while True:
+            try:
+                db = _SL()
+                try:
+                    report = await run_model_sync(db)
+                    logger.info(
+                        "image_model_sync.weekly_run",
+                        updated=len(report.get("updated", [])),
+                        new_t2i=len(report.get("new_t2i", [])),
+                        new_edit=len(report.get("new_edit", [])),
+                        fal_missing=len(report.get("fal_missing", [])),
+                    )
+                finally:
+                    db.close()
+            except Exception as _e:
+                logger.warning("image_model_sync.failed", error=str(_e))
+            await asyncio.sleep(7 * 24 * 3600)  # Weekly
+    background_tasks.append(asyncio.create_task(image_model_sync_loop()))
+
     yield
     
     for task in background_tasks:

@@ -179,6 +179,22 @@ async def list_credit_packs(
     ]
 
 
+@router.post("/models/sync")
+async def sync_image_models(
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Trigger a manual sync of image model rankings from Artificial Analysis + fal.ai catalog.
+    System admin only."""
+    if user.role != "system_admin":
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="System admin only")
+
+    from app.ai_config.model_sync_service import run_model_sync
+    report = await run_model_sync(db)
+    return report
+
+
 @router.post("/ai-generate", status_code=201)
 async def ai_generate_image(
     body: AIImageGenerateRequest,

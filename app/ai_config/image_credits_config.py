@@ -16,6 +16,8 @@ IMAGE_CREDIT_COSTS: dict[str, int] = {
     "ideogram_v3":        3,
     # Text-to-image — Premium (6 credits)
     "gemini_flash":       6,
+    "flux2_max":          6,
+    "flux2_flex":         6,
     "imagen4_ultra":      6,
     "recraft_v3":         6,
     "ideogram_v2":        3,
@@ -28,9 +30,14 @@ IMAGE_CREDIT_COSTS: dict[str, int] = {
     # Image editing — Standard (4 credits)
     "seedream_45_edit":   4,
     "flux_kontext_pro":   4,
+    "flux2_pro_edit":     4,
     # Image editing — Premium (6 credits)
     "nano_banana2_edit":  6,
+    "nano_banana_edit":   6,
+    "flux2_max_edit":     6,
+    "flux2_flex_edit":    6,
     # Image editing — Ultra (12 credits)
+    "nano_banana_pro_edit": 10,
     "gpt_image_15_edit":  12,
 }
 
