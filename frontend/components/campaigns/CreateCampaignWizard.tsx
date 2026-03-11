@@ -160,7 +160,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
         if (tplRes.ok) setTemplates(await tplRes.json());
         if (segRes.ok) setSegments(await segRes.json());
         if (csRes?.ok) setContactSegments(await csRes.json());
-        if (modelRes?.ok) { const d = await modelRes.json(); setImageModels(d.models || []); }
+        if (modelRes?.ok) { const d = await modelRes.json(); setImageModels(Array.isArray(d) ? d : (d.models || [])); }
       } catch { /* ignore */ }
     };
     load();
