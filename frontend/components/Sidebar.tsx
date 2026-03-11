@@ -31,6 +31,7 @@ import {
   Contact2,
   Layers,
   CalendarDays,
+  Plug,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
@@ -95,9 +96,16 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
       ],
     },
     {
+      title: "INTEGRATIONEN",
+      items: [
+        { name: "Magicline", href: "/magicline", icon: Database },
+        { name: t("sidebar.sync"), href: "/sync", icon: Plug },
+        { name: "Weitere Integrationen", href: "/settings/integrations", icon: Globe },
+      ],
+    },
+    {
       title: t("sidebar.sections.studio"),
       items: [
-        { name: t("sidebar.sync"), href: "/sync", icon: Database },
         { name: "AI-Modelle", href: "/settings/ai", icon: Bot },
         { name: t("sidebar.billing"), href: "/settings/billing", icon: CreditCard },
         { name: t("sidebar.settings"), href: "/settings", icon: Settings },
