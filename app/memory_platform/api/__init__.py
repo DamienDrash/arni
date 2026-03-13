@@ -163,35 +163,79 @@ async def list_documents(
     source_type: str | None = Query(None),
     user=Depends(_get_auth()),
 ) -> list[dict[str, Any]]:
-    """List all documents in the knowledge base."""
-    from app.memory_platform.ingestion import get_ingestion_service
-    from app.memory_platform.models import DocumentSourceType
+    """List all documents in the knowledge base.
 
-    service = get_ingestion_service()
-    source = None
-    if source_type:
-        try:
-            source = DocumentSourceType(source_type)
-        except ValueError:
-            pass
+    Reads .meta.json sidecar files from data/knowledge_uploads/{tenant_id}/
+    (written by the ingestion worker after processing) plus legacy .md files
+    from data/knowledge/tenants/{slug}/.
+    """
+    import json as _json
+    import glob as _glob
+    from datetime import datetime, timezone
+    from app.memory_platform.ingestion import UPLOAD_DIR
 
-    docs = service.list_documents(
-        tenant_id=user.tenant_id,
-        source_type=source,
-        status=status,
-    )
+    result: list[dict[str, Any]] = []
 
-    return [{
-        "document_id": d.document_id,
-        "filename": d.original_filename,
-        "source_type": d.source_type.value if hasattr(d.source_type, 'value') else str(d.source_type),
-        "content_type": d.content_type,
-        "file_size": d.file_size,
-        "chunk_count": d.chunk_count,
-        "status": d.status,
-        "created_at": d.created_at,
-        "error": d.error_message,
-    } for d in docs]
+    # ── Read .meta.json sidecar files written by the worker ──────────
+    tenant_upload_dir = os.path.join(UPLOAD_DIR, str(user.tenant_id))
+    if os.path.isdir(tenant_upload_dir):
+        for meta_path in sorted(_glob.glob(os.path.join(tenant_upload_dir, "*.meta.json"))):
+            try:
+                with open(meta_path, encoding="utf-8") as f:
+                    data = _json.load(f)
+                doc_status = data.get("status", "unknown")
+                if status and doc_status != status:
+                    continue
+                doc_source = data.get("source_type", "file_upload")
+                if source_type and doc_source != source_type:
+                    continue
+                result.append({
+                    "document_id": data.get("document_id", ""),
+                    "filename": data.get("original_filename") or data.get("filename", ""),
+                    "source_type": doc_source,
+                    "content_type": data.get("content_type", ""),
+                    "file_size": data.get("file_size", 0),
+                    "chunk_count": data.get("chunk_count") or 0,
+                    "status": doc_status,
+                    "created_at": data.get("created_at", ""),
+                    "error": data.get("error_message"),
+                })
+            except Exception:
+                pass  # Skip unreadable meta files
+
+    # ── Include legacy .md files from data/knowledge/tenants/{slug}/ ─
+    if not source_type or source_type in ("manual_editor", "markdown"):
+        tenant_slug = getattr(user, "tenant_slug", None)
+        if tenant_slug:
+            knowledge_dir = os.path.join("data", "knowledge", "tenants", tenant_slug)
+            existing_names = {r["filename"] for r in result}
+            for md_path in sorted(_glob.glob(os.path.join(knowledge_dir, "*.md"))):
+                fname = os.path.basename(md_path)
+                if fname in existing_names:
+                    continue
+                file_size = 0
+                mtime = ""
+                try:
+                    st = os.stat(md_path)
+                    file_size = st.st_size
+                    mtime = datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat()
+                except OSError:
+                    pass
+                if status and status != "indexed":
+                    continue
+                result.append({
+                    "document_id": f"md-{tenant_slug}-{fname}",
+                    "filename": fname,
+                    "source_type": "manual_editor",
+                    "content_type": "text/markdown",
+                    "file_size": file_size,
+                    "chunk_count": 0,
+                    "status": "indexed",
+                    "created_at": mtime,
+                    "error": None,
+                })
+
+    return result
 
 
 @router.delete("/knowledge/documents/{document_id}")

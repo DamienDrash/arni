@@ -11,6 +11,7 @@ This service replaces the legacy ``app/knowledge/ingest.py`` module.
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import uuid
@@ -31,6 +32,7 @@ from app.memory_platform.models import (
 logger = structlog.get_logger()
 
 UPLOAD_DIR = os.path.join("data", "knowledge_uploads")
+DOCS_INDEX_FILE = os.path.join(UPLOAD_DIR, "documents_index.json")
 
 
 class IngestionService:
@@ -39,8 +41,74 @@ class IngestionService:
     def __init__(self) -> None:
         self._parser_registry = get_parser_registry()
         self._event_bus = get_event_bus()
-        self._documents: dict[str, KnowledgeDocument] = {}  # In-memory index
+        self._documents: dict[str, KnowledgeDocument] = {}
         os.makedirs(UPLOAD_DIR, exist_ok=True)
+        self._load_index()
+
+    # ── Index Persistence ────────────────────────────────────────────
+
+    def _load_index(self) -> None:
+        """Load document index from disk, restoring records after restart.
+
+        Also recovers orphaned files that exist in the upload directory but
+        have no matching index record (e.g. from pre-persistence uploads).
+        """
+        if os.path.exists(DOCS_INDEX_FILE):
+            try:
+                with open(DOCS_INDEX_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                for item in data:
+                    try:
+                        doc = KnowledgeDocument.model_validate(item)
+                        self._documents[doc.document_id] = doc
+                    except Exception:
+                        pass
+                logger.info("ingestion.index_loaded", count=len(self._documents))
+            except Exception as exc:
+                logger.warning("ingestion.index_load_failed", error=str(exc))
+
+        # Recover orphaned files: scan all tenant upload dirs
+        self._recover_orphaned_files()
+
+    def _recover_orphaned_files(self) -> None:
+        """Create minimal index entries for uploaded files with no matching record."""
+        if not os.path.exists(UPLOAD_DIR):
+            return
+        known_filenames = {doc.filename for doc in self._documents.values()}
+        recovered = 0
+        for entry in os.scandir(UPLOAD_DIR):
+            if not entry.is_dir() or not entry.name.isdigit():
+                continue
+            tenant_id = int(entry.name)
+            for file_entry in os.scandir(entry.path):
+                if not file_entry.is_file():
+                    continue
+                if file_entry.name in known_filenames:
+                    continue
+                # Build a minimal document record for the orphaned file
+                ext = os.path.splitext(file_entry.name)[1].lower()
+                doc = KnowledgeDocument(
+                    tenant_id=tenant_id,
+                    filename=file_entry.name,
+                    original_filename=file_entry.name,
+                    source_type=DocumentSourceType.FILE_UPLOAD,
+                    file_size=file_entry.stat().st_size,
+                    status="indexed",
+                )
+                self._documents[doc.document_id] = doc
+                recovered += 1
+        if recovered:
+            logger.info("ingestion.orphaned_files_recovered", count=recovered)
+            self._save_index()
+
+    def _save_index(self) -> None:
+        """Persist document index to disk."""
+        try:
+            data = [doc.model_dump(mode="json") for doc in self._documents.values()]
+            with open(DOCS_INDEX_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, default=str, ensure_ascii=False)
+        except Exception as exc:
+            logger.warning("ingestion.index_save_failed", error=str(exc))
 
     # ── File Upload ──────────────────────────────────────────────────
 
@@ -172,6 +240,7 @@ class IngestionService:
             )
 
         self._documents[doc.document_id] = doc
+        self._save_index()
         return doc
 
     # ── Text / Markdown Ingestion ────────────────────────────────────
@@ -246,6 +315,7 @@ class IngestionService:
             logger.error("ingestion.text_error", error=str(exc))
 
         self._documents[doc.document_id] = doc
+        self._save_index()
         return doc
 
     # ── Conversation Ingestion ───────────────────────────────────────
@@ -340,6 +410,7 @@ class IngestionService:
             os.remove(stored_path)
 
         del self._documents[document_id]
+        self._save_index()
         logger.info("ingestion.document_deleted", document_id=document_id)
         return True
 
