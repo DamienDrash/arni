@@ -227,132 +227,6 @@ async def create_campaign(
     return _campaign_to_dict(campaign)
 
 
-@router.get("/{campaign_id}")
-async def get_campaign(
-    campaign_id: int,
-    user: AuthContext = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Get campaign details."""
-    campaign = db.query(Campaign).filter(
-        Campaign.id == campaign_id,
-        Campaign.tenant_id == user.tenant_id,
-    ).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-
-    result = _campaign_to_dict(campaign)
-
-    # Include recipients count
-    result["recipients_count"] = db.query(CampaignRecipient).filter(
-        CampaignRecipient.campaign_id == campaign_id
-    ).count()
-
-    # Include variants if A/B test
-    if campaign.is_ab_test:
-        variants = db.query(CampaignVariant).filter(
-            CampaignVariant.campaign_id == campaign_id
-        ).all()
-        result["variants"] = [
-            {
-                "id": v.id,
-                "variant_name": v.variant_name,
-                "content_subject": v.content_subject,
-                "content_body": v.content_body,
-                "percentage": v.percentage,
-                "stats_sent": v.stats_sent,
-                "stats_opened": v.stats_opened,
-                "stats_clicked": v.stats_clicked,
-            }
-            for v in variants
-        ]
-
-    return result
-
-
-@router.put("/{campaign_id}")
-async def update_campaign(
-    campaign_id: int,
-    body: CampaignUpdate,
-    user: AuthContext = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Update a campaign."""
-    campaign = db.query(Campaign).filter(
-        Campaign.id == campaign_id,
-        Campaign.tenant_id == user.tenant_id,
-    ).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-
-    if campaign.status in ("sending", "sent"):
-        raise HTTPException(status_code=400, detail="Cannot edit a campaign that is sending or already sent")
-
-    updated_fields = body.model_dump(exclude_unset=True)
-    for field, value in updated_fields.items():
-        if field == "scheduled_at" and value:
-            try:
-                setattr(campaign, field, datetime.fromisoformat(value.replace("Z", "+00:00")))
-            except ValueError:
-                pass
-        else:
-            setattr(campaign, field, value)
-
-    # Inject featured_image_url into content_html as hero image if not already present
-    image_url = updated_fields.get("featured_image_url") or campaign.featured_image_url
-    if image_url and campaign.content_html and image_url not in campaign.content_html:
-        hero_tag = (
-            f'<div style="margin:-40px -32px 32px -32px;line-height:0;">'
-            f'<img src="{image_url}" alt="Campaign hero image" width="600" '
-            f'style="display:block;width:100%;max-width:600px;height:240px;'
-            f'object-fit:cover;border:0;outline:none;" /></div>'
-        )
-        html = campaign.content_html
-        import re as _re
-        # For full HTML documents insert after <body> tag
-        m = _re.search(r'(<body[^>]*>)', html, _re.IGNORECASE)
-        if m:
-            pos = m.end()
-            campaign.content_html = html[:pos] + "\n" + hero_tag + "\n" + html[pos:]
-        else:
-            # Inner-body HTML (DesignerAgent output) — prepend directly
-            campaign.content_html = hero_tag + html
-
-    db.commit()
-    db.refresh(campaign)
-    return _campaign_to_dict(campaign)
-
-
-@router.delete("/{campaign_id}")
-async def delete_campaign(
-    campaign_id: int,
-    user: AuthContext = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Delete a campaign."""
-    campaign = db.query(Campaign).filter(
-        Campaign.id == campaign_id,
-        Campaign.tenant_id == user.tenant_id,
-    ).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-
-    if campaign.status in ("sending",):
-        raise HTTPException(status_code=400, detail="Cannot delete a campaign that is currently sending")
-
-    # Import dependent models
-    from app.core.analytics_models import AnalyticsEvent, CampaignOrchestrationStep
-
-    # Order of deletion is important to satisfy foreign keys
-    db.query(AnalyticsEvent).filter(AnalyticsEvent.campaign_id == campaign_id).delete()
-    db.query(CampaignOrchestrationStep).filter(CampaignOrchestrationStep.campaign_id == campaign_id).delete()
-    db.query(CampaignRecipient).filter(CampaignRecipient.campaign_id == campaign_id).delete()
-    db.query(CampaignVariant).filter(CampaignVariant.campaign_id == campaign_id).delete()
-    db.delete(campaign)
-    db.commit()
-    return {"status": "deleted"}
-
-
 # ══════════════════════════════════════════════════════════════════════════════
 # AI CONTENT GENERATION
 # ══════════════════════════════════════════════════════════════════════════════
@@ -456,322 +330,6 @@ async def ai_generate_content(
             "status": "error",
             "error": str(e),
         }
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PREVIEW & APPROVAL
-# ══════════════════════════════════════════════════════════════════════════════
-
-@router.get("/preview/{token}")
-async def get_campaign_preview(
-    token: str,
-    db: Session = Depends(get_db),
-):
-    """Public preview endpoint - no auth required, token-based access."""
-    campaign = db.query(Campaign).filter(Campaign.preview_token == token).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Preview not found or expired")
-
-    if campaign.preview_expires_at:
-        expires_at = campaign.preview_expires_at
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
-        if expires_at < datetime.now(timezone.utc):
-            raise HTTPException(status_code=410, detail="Preview has expired")
-
-    # Get template if linked
-    template = None
-    if campaign.template_id:
-        template = db.query(CampaignTemplate).filter(
-            CampaignTemplate.id == campaign.template_id
-        ).first()
-
-    # Render a preview with sample contact data
-    rendered_html = None
-    try:
-        from app.campaign_engine.renderer import MessageRenderer
-        from app.core.contact_models import Contact
-
-        class _SampleContact:
-            id = 0
-            first_name = "Vorname"
-            last_name = "Nachname"
-            email = "preview@example.com"
-            phone = ""
-            company = ""
-            language = "de"
-            tags = []
-            consent_email = True
-
-        renderer = MessageRenderer()
-        rendered = await renderer.render(db, campaign, _SampleContact())
-        rendered_html = rendered.body_html
-    except Exception as _e:
-        logger.warning("preview.render_failed", error=str(_e))
-
-    return {
-        "campaign_name": campaign.name,
-        "channel": campaign.channel,
-        "status": campaign.status,
-        "content_subject": campaign.content_subject,
-        "content_body": campaign.content_body,
-        "content_html": campaign.content_html,
-        "ai_prompt": campaign.ai_prompt,
-        "template": {
-            "name": template.name,
-            "header_html": template.header_html,
-            "footer_html": template.footer_html,
-            "primary_color": template.primary_color,
-            "logo_url": template.logo_url,
-        } if template else None,
-        "scheduled_at": campaign.scheduled_at.isoformat() if campaign.scheduled_at else None,
-        "target_type": campaign.target_type,
-        "rendered_html": rendered_html,
-    }
-
-
-@router.post("/{campaign_id}/approve")
-async def approve_campaign(
-    campaign_id: int,
-    user: AuthContext = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Approve a campaign for sending."""
-    campaign = db.query(Campaign).filter(
-        Campaign.id == campaign_id,
-        Campaign.tenant_id == user.tenant_id,
-    ).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-
-    if campaign.status not in ("pending_review", "draft"):
-        raise HTTPException(status_code=400, detail=f"Campaign cannot be approved from status '{campaign.status}'")
-
-    campaign.status = "approved" if not campaign.scheduled_at else "scheduled"
-    db.commit()
-
-    return {"status": campaign.status, "message": "Campaign approved"}
-
-
-@router.post("/{campaign_id}/reject")
-async def reject_campaign(
-    campaign_id: int,
-    user: AuthContext = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Reject AI-generated content, return to draft."""
-    campaign = db.query(Campaign).filter(
-        Campaign.id == campaign_id,
-        Campaign.tenant_id == user.tenant_id,
-    ).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-
-    campaign.status = "draft"
-    campaign.ai_generated_content = None
-    db.commit()
-    return {"status": "draft", "message": "Campaign returned to draft"}
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# CAMPAIGN SENDING
-# ══════════════════════════════════════════════════════════════════════════════
-
-def _render_campaign_email(campaign, template, contact, recipient_id: int = 0, base_url: str = "") -> tuple[str, str]:
-    """Render the full HTML email for a campaign recipient.
-
-    Returns (subject, html_body).
-    Resolves all template variables including {{first_name}}, {{content}},
-    {{unsubscribe_url}} etc. in both the template AND the campaign body.
-    """
-    first_name = (contact.first_name or contact.name or "").split()[0] if (contact.first_name or contact.name) else ""
-    last_name = (contact.last_name or "") if hasattr(contact, "last_name") else ""
-    full_name = f"{first_name} {last_name}".strip() or contact.name or ""
-
-    subject = campaign.content_subject or campaign.name
-    # Also resolve variables in the subject line
-    subject = subject.replace("{{first_name}}", first_name)
-    subject = subject.replace("{{name}}", full_name)
-
-    # Build unsubscribe URL
-    unsubscribe_url = f"{base_url}/unsubscribe/{recipient_id}" if recipient_id and base_url else "#"
-
-    # Build body HTML – resolve variables in content_body first
-    body_content = campaign.content_body or campaign.content_html or ""
-    body_content = body_content.replace("{{first_name}}", first_name)
-    body_content = body_content.replace("{{name}}", full_name)
-    body_content = body_content.replace("{{unsubscribe_url}}", unsubscribe_url)
-
-    if template and template.body_template:
-        # Substitute variables in the body template
-        body_html = template.body_template
-        body_html = body_html.replace("{{first_name}}", first_name)
-        body_html = body_html.replace("{{name}}", full_name)
-        body_html = body_html.replace("{{content}}", body_content)
-        body_html = body_html.replace("{{cta_url}}", "https://calendly.com/dfrigewski/kostenloses-erstgesprach")
-        body_html = body_html.replace("{{cta_text}}", "Jetzt Termin buchen")
-        body_html = body_html.replace("{{closing}}", "Ich freue mich auf dich!")
-        body_html = body_html.replace("{{unsubscribe_url}}", unsubscribe_url)
-    else:
-        body_html = body_content
-
-    # Wrap with header + footer (also resolve unsubscribe in footer)
-    header = (template.header_html or "") if template else ""
-    footer = (template.footer_html or "") if template else ""
-    footer = footer.replace("{{unsubscribe_url}}", unsubscribe_url)
-    footer = footer.replace("{{first_name}}", first_name)
-
-    full_html = f"""<!DOCTYPE html>
-<html lang="de">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0; padding:0; background-color:#000000;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#000000;">
-    <tr><td align="center">
-      <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px; width:100%;">
-        <tr><td>{header}</td></tr>
-        <tr><td>{body_html}</td></tr>
-        <tr><td>{footer}</td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>"""
-
-    return subject, full_html
-
-
-@router.post("/{campaign_id}/send")
-async def send_campaign(
-    campaign_id: int,
-    user: AuthContext = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Send a campaign immediately via the configured email channel.
-
-    Uses the centralized MessageRenderer for consistent rendering,
-    tracking pixel injection, and link rewriting.
-    """
-    campaign = db.query(Campaign).filter(
-        Campaign.id == campaign_id,
-        Campaign.tenant_id == user.tenant_id,
-    ).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-
-    if campaign.status not in ("approved", "scheduled", "draft"):
-        raise HTTPException(status_code=400, detail=f"Campaign cannot be sent from status '{campaign.status}'")
-
-    # Resolve target contacts
-    members = _resolve_target_members(db, user.tenant_id, campaign.target_type, campaign.target_filter_json)
-
-    if not members:
-        raise HTTPException(status_code=400, detail="No recipients found for this campaign")
-
-    # Resolve SMTP config for this tenant via connector_hub persistence keys
-    from app.gateway.persistence import persistence
-    from app.integrations.email import SMTPMailer
-    from app.campaign_engine.renderer import MessageRenderer
-    import smtplib as _smtplib
-    from email.message import EmailMessage as _EmailMessage
-    import asyncio
-    import os
-
-    def _cfg(field: str, default: str = "") -> str:
-        key = f"integration_smtp_email_{user.tenant_id}_{field}"
-        return persistence.get_setting(key, default, tenant_id=user.tenant_id) or default
-
-    smtp_host = _cfg("host")
-    smtp_user = _cfg("username")
-
-    if not smtp_host and campaign.channel == "email":
-        raise HTTPException(status_code=400, detail="SMTP-E-Mail ist für diesen Tenant nicht konfiguriert.")
-
-    mailer = None
-    if smtp_host:
-        mailer = SMTPMailer(
-            host=smtp_host,
-            port=int(_cfg("port", "587")),
-            username=smtp_user,
-            password=_cfg("password"),
-            from_email=_cfg("from_email") or smtp_user,
-            from_name=_cfg("from_name", "ARIIA"),
-            use_starttls=True,
-        )
-
-    # Validate SMTP config for email campaigns
-    if not smtp_host and campaign.channel == "email":
-        # Store SMTP config for the sending worker to use later
-        pass  # SMTP config is resolved per-tenant by the sending worker
-
-    # Create recipient records and enqueue into send queue
-    from app.campaign_engine.send_queue import enqueue_campaign_batch
-
-    campaign.status = "sending"
-    campaign.stats_total = len(members)
-    db.commit()
-
-    batch_recipients = []
-    skipped_count = 0
-
-    for contact in members:
-        # Only send to contacts with a valid email and consent
-        if campaign.channel == "email" and not contact.email:
-            logger.warning("campaign.skip_no_email", contact_id=contact.id)
-            skipped_count += 1
-            continue
-
-        if hasattr(contact, 'consent_email') and contact.consent_email is False:
-            logger.info("campaign.skip_no_consent", contact_id=contact.id)
-            skipped_count += 1
-            continue
-
-        # Create recipient record (needed for tracking)
-        recipient = CampaignRecipient(
-            campaign_id=campaign_id,
-            contact_id=contact.id,
-            tenant_id=user.tenant_id,
-            channel=campaign.channel,
-            status="queued",
-        )
-        db.add(recipient)
-        db.flush()  # Get the recipient.id
-
-        batch_recipients.append({
-            "recipient_id": recipient.id,
-            "contact_id": contact.id,
-        })
-
-    db.commit()
-
-    # Enqueue all recipients into the send queue for async dispatch
-    enqueued = 0
-    if batch_recipients:
-        enqueued = enqueue_campaign_batch(
-            campaign_id=campaign_id,
-            tenant_id=user.tenant_id,
-            channel=campaign.channel,
-            recipients=batch_recipients,
-        )
-
-    # Update campaign status
-    campaign.stats_total = len(batch_recipients)
-    campaign.status = "queued" if enqueued > 0 else "failed"
-    campaign.sent_at = datetime.now(timezone.utc)
-    db.commit()
-
-    logger.info(
-        "campaign.enqueued",
-        campaign_id=campaign_id,
-        enqueued=enqueued,
-        skipped=skipped_count,
-        total_contacts=len(members),
-    )
-    return {
-        "status": campaign.status,
-        "recipients": enqueued,
-        "skipped": skipped_count,
-        "sent_at": campaign.sent_at.isoformat(),
-    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1106,6 +664,448 @@ async def campaign_analytics(
         "bounce_rate": round(total_failed / total_sent * 100, 1) if total_sent > 0 else 0,
         "pending_follow_ups": pending_follow_ups,
         "recent_campaigns": [_campaign_to_dict(c) for c in recent],
+    }
+
+
+@router.get("/{campaign_id}")
+async def get_campaign(
+    campaign_id: int,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get campaign details."""
+    campaign = db.query(Campaign).filter(
+        Campaign.id == campaign_id,
+        Campaign.tenant_id == user.tenant_id,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    result = _campaign_to_dict(campaign)
+
+    # Include recipients count
+    result["recipients_count"] = db.query(CampaignRecipient).filter(
+        CampaignRecipient.campaign_id == campaign_id
+    ).count()
+
+    # Include variants if A/B test
+    if campaign.is_ab_test:
+        variants = db.query(CampaignVariant).filter(
+            CampaignVariant.campaign_id == campaign_id
+        ).all()
+        result["variants"] = [
+            {
+                "id": v.id,
+                "variant_name": v.variant_name,
+                "content_subject": v.content_subject,
+                "content_body": v.content_body,
+                "percentage": v.percentage,
+                "stats_sent": v.stats_sent,
+                "stats_opened": v.stats_opened,
+                "stats_clicked": v.stats_clicked,
+            }
+            for v in variants
+        ]
+
+    return result
+
+
+@router.put("/{campaign_id}")
+async def update_campaign(
+    campaign_id: int,
+    body: CampaignUpdate,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update a campaign."""
+    campaign = db.query(Campaign).filter(
+        Campaign.id == campaign_id,
+        Campaign.tenant_id == user.tenant_id,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    if campaign.status in ("sending", "sent"):
+        raise HTTPException(status_code=400, detail="Cannot edit a campaign that is sending or already sent")
+
+    updated_fields = body.model_dump(exclude_unset=True)
+    for field, value in updated_fields.items():
+        if field == "scheduled_at" and value:
+            try:
+                setattr(campaign, field, datetime.fromisoformat(value.replace("Z", "+00:00")))
+            except ValueError:
+                pass
+        else:
+            setattr(campaign, field, value)
+
+    # Inject featured_image_url into content_html as hero image if not already present
+    image_url = updated_fields.get("featured_image_url") or campaign.featured_image_url
+    if image_url and campaign.content_html and image_url not in campaign.content_html:
+        hero_tag = (
+            f'<div style="margin:-40px -32px 32px -32px;line-height:0;">'
+            f'<img src="{image_url}" alt="Campaign hero image" width="600" '
+            f'style="display:block;width:100%;max-width:600px;height:240px;'
+            f'object-fit:cover;border:0;outline:none;" /></div>'
+        )
+        html = campaign.content_html
+        import re as _re
+        # For full HTML documents insert after <body> tag
+        m = _re.search(r'(<body[^>]*>)', html, _re.IGNORECASE)
+        if m:
+            pos = m.end()
+            campaign.content_html = html[:pos] + "\n" + hero_tag + "\n" + html[pos:]
+        else:
+            # Inner-body HTML (DesignerAgent output) — prepend directly
+            campaign.content_html = hero_tag + html
+
+    db.commit()
+    db.refresh(campaign)
+    return _campaign_to_dict(campaign)
+
+
+@router.delete("/{campaign_id}")
+async def delete_campaign(
+    campaign_id: int,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a campaign."""
+    campaign = db.query(Campaign).filter(
+        Campaign.id == campaign_id,
+        Campaign.tenant_id == user.tenant_id,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    if campaign.status in ("sending",):
+        raise HTTPException(status_code=400, detail="Cannot delete a campaign that is currently sending")
+
+    # Import dependent models
+    from app.core.analytics_models import AnalyticsEvent, CampaignOrchestrationStep
+
+    # Order of deletion is important to satisfy foreign keys
+    db.query(AnalyticsEvent).filter(AnalyticsEvent.campaign_id == campaign_id).delete()
+    db.query(CampaignOrchestrationStep).filter(CampaignOrchestrationStep.campaign_id == campaign_id).delete()
+    db.query(CampaignRecipient).filter(CampaignRecipient.campaign_id == campaign_id).delete()
+    db.query(CampaignVariant).filter(CampaignVariant.campaign_id == campaign_id).delete()
+    db.delete(campaign)
+    db.commit()
+    return {"status": "deleted"}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PREVIEW & APPROVAL
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/preview/{token}")
+async def get_campaign_preview(
+    token: str,
+    db: Session = Depends(get_db),
+):
+    """Public preview endpoint - no auth required, token-based access."""
+    campaign = db.query(Campaign).filter(Campaign.preview_token == token).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Preview not found or expired")
+
+    if campaign.preview_expires_at:
+        expires_at = campaign.preview_expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < datetime.now(timezone.utc):
+            raise HTTPException(status_code=410, detail="Preview has expired")
+
+    # Get template if linked
+    template = None
+    if campaign.template_id:
+        template = db.query(CampaignTemplate).filter(
+            CampaignTemplate.id == campaign.template_id
+        ).first()
+
+    # Render a preview with sample contact data
+    rendered_html = None
+    try:
+        from app.campaign_engine.renderer import MessageRenderer
+        from app.core.contact_models import Contact
+
+        class _SampleContact:
+            id = 0
+            first_name = "Vorname"
+            last_name = "Nachname"
+            email = "preview@example.com"
+            phone = ""
+            company = ""
+            language = "de"
+            tags = []
+            consent_email = True
+
+        renderer = MessageRenderer()
+        rendered = await renderer.render(db, campaign, _SampleContact())
+        rendered_html = rendered.body_html
+    except Exception as _e:
+        logger.warning("preview.render_failed", error=str(_e))
+
+    return {
+        "campaign_name": campaign.name,
+        "channel": campaign.channel,
+        "status": campaign.status,
+        "content_subject": campaign.content_subject,
+        "content_body": campaign.content_body,
+        "content_html": campaign.content_html,
+        "ai_prompt": campaign.ai_prompt,
+        "template": {
+            "name": template.name,
+            "header_html": template.header_html,
+            "footer_html": template.footer_html,
+            "primary_color": template.primary_color,
+            "logo_url": template.logo_url,
+        } if template else None,
+        "scheduled_at": campaign.scheduled_at.isoformat() if campaign.scheduled_at else None,
+        "target_type": campaign.target_type,
+        "rendered_html": rendered_html,
+    }
+
+
+@router.post("/{campaign_id}/approve")
+async def approve_campaign(
+    campaign_id: int,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Approve a campaign for sending."""
+    campaign = db.query(Campaign).filter(
+        Campaign.id == campaign_id,
+        Campaign.tenant_id == user.tenant_id,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    if campaign.status not in ("pending_review", "draft"):
+        raise HTTPException(status_code=400, detail=f"Campaign cannot be approved from status '{campaign.status}'")
+
+    campaign.status = "approved" if not campaign.scheduled_at else "scheduled"
+    db.commit()
+
+    return {"status": campaign.status, "message": "Campaign approved"}
+
+
+@router.post("/{campaign_id}/reject")
+async def reject_campaign(
+    campaign_id: int,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Reject AI-generated content, return to draft."""
+    campaign = db.query(Campaign).filter(
+        Campaign.id == campaign_id,
+        Campaign.tenant_id == user.tenant_id,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    campaign.status = "draft"
+    campaign.ai_generated_content = None
+    db.commit()
+    return {"status": "draft", "message": "Campaign returned to draft"}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CAMPAIGN SENDING
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _render_campaign_email(campaign, template, contact, recipient_id: int = 0, base_url: str = "") -> tuple[str, str]:
+    """Render the full HTML email for a campaign recipient.
+
+    Returns (subject, html_body).
+    Resolves all template variables including {{first_name}}, {{content}},
+    {{unsubscribe_url}} etc. in both the template AND the campaign body.
+    """
+    first_name = (contact.first_name or contact.name or "").split()[0] if (contact.first_name or contact.name) else ""
+    last_name = (contact.last_name or "") if hasattr(contact, "last_name") else ""
+    full_name = f"{first_name} {last_name}".strip() or contact.name or ""
+
+    subject = campaign.content_subject or campaign.name
+    # Also resolve variables in the subject line
+    subject = subject.replace("{{first_name}}", first_name)
+    subject = subject.replace("{{name}}", full_name)
+
+    # Build unsubscribe URL
+    unsubscribe_url = f"{base_url}/unsubscribe/{recipient_id}" if recipient_id and base_url else "#"
+
+    # Build body HTML – resolve variables in content_body first
+    body_content = campaign.content_body or campaign.content_html or ""
+    body_content = body_content.replace("{{first_name}}", first_name)
+    body_content = body_content.replace("{{name}}", full_name)
+    body_content = body_content.replace("{{unsubscribe_url}}", unsubscribe_url)
+
+    if template and template.body_template:
+        # Substitute variables in the body template
+        body_html = template.body_template
+        body_html = body_html.replace("{{first_name}}", first_name)
+        body_html = body_html.replace("{{name}}", full_name)
+        body_html = body_html.replace("{{content}}", body_content)
+        body_html = body_html.replace("{{cta_url}}", "https://calendly.com/dfrigewski/kostenloses-erstgesprach")
+        body_html = body_html.replace("{{cta_text}}", "Jetzt Termin buchen")
+        body_html = body_html.replace("{{closing}}", "Ich freue mich auf dich!")
+        body_html = body_html.replace("{{unsubscribe_url}}", unsubscribe_url)
+    else:
+        body_html = body_content
+
+    # Wrap with header + footer (also resolve unsubscribe in footer)
+    header = (template.header_html or "") if template else ""
+    footer = (template.footer_html or "") if template else ""
+    footer = footer.replace("{{unsubscribe_url}}", unsubscribe_url)
+    footer = footer.replace("{{first_name}}", first_name)
+
+    full_html = f"""<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0; padding:0; background-color:#000000;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#000000;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px; width:100%;">
+        <tr><td>{header}</td></tr>
+        <tr><td>{body_html}</td></tr>
+        <tr><td>{footer}</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+    return subject, full_html
+
+
+@router.post("/{campaign_id}/send")
+async def send_campaign(
+    campaign_id: int,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Send a campaign immediately via the configured email channel.
+
+    Uses the centralized MessageRenderer for consistent rendering,
+    tracking pixel injection, and link rewriting.
+    """
+    campaign = db.query(Campaign).filter(
+        Campaign.id == campaign_id,
+        Campaign.tenant_id == user.tenant_id,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    if campaign.status not in ("approved", "scheduled", "draft"):
+        raise HTTPException(status_code=400, detail=f"Campaign cannot be sent from status '{campaign.status}'")
+
+    # Resolve target contacts
+    members = _resolve_target_members(db, user.tenant_id, campaign.target_type, campaign.target_filter_json)
+
+    if not members:
+        raise HTTPException(status_code=400, detail="No recipients found for this campaign")
+
+    # Resolve SMTP config for this tenant via connector_hub persistence keys
+    from app.gateway.persistence import persistence
+    from app.integrations.email import SMTPMailer
+    from app.campaign_engine.renderer import MessageRenderer
+    import smtplib as _smtplib
+    from email.message import EmailMessage as _EmailMessage
+    import asyncio
+    import os
+
+    def _cfg(field: str, default: str = "") -> str:
+        key = f"integration_smtp_email_{user.tenant_id}_{field}"
+        return persistence.get_setting(key, default, tenant_id=user.tenant_id) or default
+
+    smtp_host = _cfg("host")
+    smtp_user = _cfg("username")
+
+    if not smtp_host and campaign.channel == "email":
+        raise HTTPException(status_code=400, detail="SMTP-E-Mail ist für diesen Tenant nicht konfiguriert.")
+
+    mailer = None
+    if smtp_host:
+        mailer = SMTPMailer(
+            host=smtp_host,
+            port=int(_cfg("port", "587")),
+            username=smtp_user,
+            password=_cfg("password"),
+            from_email=_cfg("from_email") or smtp_user,
+            from_name=_cfg("from_name", "ARIIA"),
+            use_starttls=True,
+        )
+
+    # Validate SMTP config for email campaigns
+    if not smtp_host and campaign.channel == "email":
+        # Store SMTP config for the sending worker to use later
+        pass  # SMTP config is resolved per-tenant by the sending worker
+
+    # Create recipient records and enqueue into send queue
+    from app.campaign_engine.send_queue import enqueue_campaign_batch
+
+    campaign.status = "sending"
+    campaign.stats_total = len(members)
+    db.commit()
+
+    batch_recipients = []
+    skipped_count = 0
+
+    for contact in members:
+        # Only send to contacts with a valid email and consent
+        if campaign.channel == "email" and not contact.email:
+            logger.warning("campaign.skip_no_email", contact_id=contact.id)
+            skipped_count += 1
+            continue
+
+        if hasattr(contact, 'consent_email') and contact.consent_email is False:
+            logger.info("campaign.skip_no_consent", contact_id=contact.id)
+            skipped_count += 1
+            continue
+
+        # Create recipient record (needed for tracking)
+        recipient = CampaignRecipient(
+            campaign_id=campaign_id,
+            contact_id=contact.id,
+            tenant_id=user.tenant_id,
+            channel=campaign.channel,
+            status="queued",
+        )
+        db.add(recipient)
+        db.flush()  # Get the recipient.id
+
+        batch_recipients.append({
+            "recipient_id": recipient.id,
+            "contact_id": contact.id,
+        })
+
+    db.commit()
+
+    # Enqueue all recipients into the send queue for async dispatch
+    enqueued = 0
+    if batch_recipients:
+        enqueued = enqueue_campaign_batch(
+            campaign_id=campaign_id,
+            tenant_id=user.tenant_id,
+            channel=campaign.channel,
+            recipients=batch_recipients,
+        )
+
+    # Update campaign status
+    campaign.stats_total = len(batch_recipients)
+    campaign.status = "queued" if enqueued > 0 else "failed"
+    campaign.sent_at = datetime.now(timezone.utc)
+    db.commit()
+
+    logger.info(
+        "campaign.enqueued",
+        campaign_id=campaign_id,
+        enqueued=enqueued,
+        skipped=skipped_count,
+        total_contacts=len(members),
+    )
+    return {
+        "status": campaign.status,
+        "recipients": enqueued,
+        "skipped": skipped_count,
+        "sent_at": campaign.sent_at.isoformat(),
     }
 
 
