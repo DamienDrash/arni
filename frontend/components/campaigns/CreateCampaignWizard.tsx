@@ -10,6 +10,7 @@ import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/tokens";
 import OrchestrationSteps, { OrchestrationStep } from "@/components/campaigns/OrchestrationSteps";
 import ABTestConfig from "@/components/campaigns/ABTestConfig";
+import CampaignPreviewModal from "@/components/campaigns/CampaignPreviewModal";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Types
@@ -40,6 +41,17 @@ interface ImageModel {
   is_default: boolean;
   cost_note?: string;
   speed_note?: string;
+}
+
+interface MediaAsset {
+  id: number;
+  url: string;
+  display_name: string | null;
+  description: string | null;
+  mime_type: string;
+  width: number | null;
+  height: number | null;
+  created_at: string | null;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -114,6 +126,22 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [imageModels, setImageModels] = useState<ImageModel[]>([]);
 
+  // Media library picker state
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [mediaPickerAssets, setMediaPickerAssets] = useState<MediaAsset[]>([]);
+  const [mediaPickerLoading, setMediaPickerLoading] = useState(false);
+  const [mediaPickerPage, setMediaPickerPage] = useState(1);
+  const [mediaPickerTotal, setMediaPickerTotal] = useState(0);
+
+  // Auto-generate image state
+  const [autoGenerateImage, setAutoGenerateImage] = useState(false);
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [creditCheckLoading, setCreditCheckLoading] = useState(false);
+  const [autoImageStatus, setAutoImageStatus] = useState<'idle' | 'generating' | 'done' | 'error'>('idle');
+  const [autoImageUrl, setAutoImageUrl] = useState<string | null>(null);
+  const [autoImageError, setAutoImageError] = useState<string | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+
   const [form, setForm] = useState({
     name: "", description: "", type: "broadcast", channel: "email",
     target_type: "all_members", target_segment_id: null as number | null,
@@ -160,7 +188,17 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
         if (tplRes.ok) setTemplates(await tplRes.json());
         if (segRes.ok) setSegments(await segRes.json());
         if (csRes?.ok) setContactSegments(await csRes.json());
-        if (modelRes?.ok) { const d = await modelRes.json(); setImageModels(Array.isArray(d) ? d : (d.models || [])); }
+        if (modelRes?.ok) {
+          const d = await modelRes.json();
+          const models: ImageModel[] = Array.isArray(d) ? d : (d.models || []);
+          setImageModels(models);
+          // Auto-select best ELO model (lowest rank number = best)
+          const ranked = models
+            .filter((m) => m.elo_rank != null)
+            .sort((a, b) => (a.elo_rank ?? 999) - (b.elo_rank ?? 999));
+          const best = ranked[0] ?? models.find((m) => m.slug === "flux2_pro") ?? models[0];
+          if (best) setSelectedModelSlug(best.slug);
+        }
       } catch { /* ignore */ }
     };
     load();
@@ -187,6 +225,79 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
         .finally(() => setContactsLoading(false));
     }
   }, [form.target_type]);
+
+  /* ─── Media Library Picker ───────────────────────────────────────────── */
+
+  const openMediaPicker = async (page = 1) => {
+    setShowMediaPicker(true);
+    setMediaPickerLoading(true);
+    setMediaPickerPage(page);
+    try {
+      const res = await apiFetch(`/admin/media?page=${page}&limit=24`);
+      if (res.ok) {
+        const data = await res.json();
+        setMediaPickerAssets(data.items ?? []);
+        setMediaPickerTotal(data.total ?? 0);
+      }
+    } catch { /* ignore */ } finally {
+      setMediaPickerLoading(false);
+    }
+  };
+
+  const selectMediaAsset = (asset: MediaAsset) => {
+    setForm(f => ({ ...f, featured_image_url: asset.url }));
+    setShowMediaPicker(false);
+  };
+
+  const checkCreditBalance = async () => {
+    setCreditCheckLoading(true);
+    try {
+      const res = await apiFetch("/admin/media/credits/balance");
+      if (res.ok) {
+        const data = await res.json();
+        setCreditBalance(data.balance ?? 0);
+      }
+    } catch { /* ignore */ } finally {
+      setCreditCheckLoading(false);
+    }
+  };
+
+  const triggerAutoImageGeneration = async (campaignId: number) => {
+    setAutoImageStatus('generating');
+    setAutoImageError(null);
+    try {
+      const prompt = form.ai_prompt.trim() || form.name;
+      const res = await apiFetch("/admin/media/ai-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          size: "1024x1024",
+          mode: "final",
+          campaign_name: form.name,
+          channel: form.channel,
+          tone: form.tone,
+          task_context: "email_hero",
+          has_text_overlay: false,
+          model_slug: selectedModelSlug,
+        }),
+      });
+      const data = await res.json() as { url?: string; detail?: string };
+      if (!res.ok) throw new Error(data.detail || "Bildgenerierung fehlgeschlagen");
+      const imgUrl = data.url ?? "";
+      // Persist generated image URL on the campaign
+      await apiFetch(`/admin/campaigns/${campaignId}`, {
+        method: "PUT",
+        body: JSON.stringify({ featured_image_url: imgUrl }),
+      });
+      setAutoImageUrl(imgUrl);
+      setForm((f) => ({ ...f, featured_image_url: imgUrl }));
+      setAutoImageStatus('done');
+    } catch (e: unknown) {
+      setAutoImageError(e instanceof Error ? e.message : "Fehler bei der Bildgenerierung");
+      setAutoImageStatus('error');
+    }
+  };
 
   /* ─── Image Upload / AI Generate ────────────────────────────────────── */
 
@@ -324,6 +435,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
       }
 
       if (form.ai_prompt.trim()) {
+        if (autoGenerateImage) triggerAutoImageGeneration(created.id); // fire in parallel
         setAiGenerating(true);
         try {
           const aiRes = await apiFetch("/admin/campaigns/ai-generate", {
@@ -334,6 +446,9 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
           else { setAiError("KI-Generierung fehlgeschlagen. Sie können den Inhalt manuell bearbeiten."); }
         } catch { setAiError("KI-Generierung fehlgeschlagen."); }
         setAiGenerating(false);
+      } else if (autoGenerateImage) {
+        setStep(4);
+        triggerAutoImageGeneration(created.id);
       } else { onCreated(); }
     } catch { setAiError("Ein Fehler ist aufgetreten."); }
     setCreating(false);
@@ -814,34 +929,65 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
               <div>
                 <label style={{ ...S.label, marginBottom: 12 }}><Image size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> Titelbild (optional)</label>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {/* Action row */}
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <label style={{ ...S.secondaryBtn, cursor: imageUploading ? "default" : "pointer", opacity: imageUploading ? 0.6 : 1 }}>
-                      {imageUploading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Image size={14} />}
-                      {imageUploading ? "Wird hochgeladen..." : "Bild hochladen"}
-                      <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} disabled={imageUploading} />
-                    </label>
-                    <button onClick={() => { setShowImageGen(!showImageGen); setImageError(null); if (showImageGen) { setImagePreviewMode('idle'); setImagePreviewUrl(null); } }} style={{ ...S.secondaryBtn, color: T.accentLight }}>
-                      <Sparkles size={14} /> KI generieren
-                    </button>
-                  </div>
 
-                  {/* AI generate form */}
-                  {showImageGen && (
-                    <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-                      {/* Prompt input */}
+                  {/* ── Auto-generate image checkbox ──────────────────────── */}
+                  <div style={{ border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 12, background: autoGenerateImage ? "rgba(108,92,231,0.06)" : "transparent" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
                       <input
-                        style={S.input}
-                        type="text"
-                        value={imageGenPrompt}
-                        onChange={(e) => setImageGenPrompt(e.target.value)}
-                        placeholder="Bildprompt, z.B. Fitnessstudio, motivierende Atmosphäre, hell und modern"
-                        onKeyDown={(e) => { if (e.key === "Enter") handleImagePreview(); }}
+                        type="checkbox"
+                        checked={autoGenerateImage}
+                        onChange={(e) => {
+                          setAutoGenerateImage(e.target.checked);
+                          if (e.target.checked) checkCreditBalance();
+                        }}
+                        style={{ width: 16, height: 16, accentColor: T.accent }}
                       />
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>KI-Bild automatisch generieren</span>
+                        <p style={{ margin: "2px 0 0", fontSize: 11, color: T.textDim }}>Generiert automatisch ein passendes Titelbild aus dem Kampagnen-Prompt</p>
+                      </div>
+                      {autoGenerateImage && <span style={{ padding: "2px 8px", background: "rgba(108,92,231,0.2)", color: T.accentLight, fontSize: 10, fontWeight: 800, borderRadius: 20, flexShrink: 0 }}>AUTO</span>}
+                    </label>
 
-                      {/* Model selector */}
-                      {imageModels.length > 0 && (
-                        <div>
+                    {/* Credit balance + warning */}
+                    {autoGenerateImage && (
+                      <div style={{ paddingLeft: 26, marginTop: 8 }}>
+                        {creditCheckLoading ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <Loader2 size={12} style={{ animation: "spin 1s linear infinite", color: T.textDim }} />
+                            <span style={{ fontSize: 11, color: T.textDim }}>Credits werden geprüft…</span>
+                          </div>
+                        ) : creditBalance !== null ? (() => {
+                          const needed = imageModels.find((m) => m.slug === selectedModelSlug)?.cost_multiplier ?? 3;
+                          const ok = creditBalance >= needed;
+                          return (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                              <span style={{ fontSize: 11, color: T.textDim }}>
+                                Guthaben: <strong style={{ color: ok ? T.success : T.danger }}>{creditBalance} Credits</strong>
+                                {" · "}benötigt: ~{needed} Credits
+                                {" · "}Modell: {imageModels.find((m) => m.slug === selectedModelSlug)?.name ?? "—"}
+                              </span>
+                              {!ok && (
+                                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 12px", background: "rgba(255,107,107,0.1)", border: `1px solid rgba(255,107,107,0.3)`, borderRadius: 8 }}>
+                                  <AlertCircle size={14} style={{ color: T.danger, flexShrink: 0, marginTop: 1 }} />
+                                  <span style={{ fontSize: 12, color: T.danger }}>
+                                    Nicht genug Credits für die Bildgenerierung. Bitte erwerben Sie weitere Credits unter <strong>Einstellungen → Medien</strong> oder wählen Sie ein günstigeres Modell.
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })() : null}
+                      </div>
+                    )}
+
+                    {/* Model selector for auto-generate */}
+                    {autoGenerateImage && imageModels.length > 0 && (() => {
+                      const bestRank1 = imageModels.filter(m => m.elo_rank != null).sort((a, b) => (a.elo_rank ?? 999) - (b.elo_rank ?? 999))[0];
+                      const selectedModel = imageModels.find(m => m.slug === selectedModelSlug);
+                      const isBest = selectedModel?.slug === bestRank1?.slug;
+                      return (
+                        <div style={{ paddingLeft: 26, marginTop: 8 }}>
                           <button
                             type="button"
                             onClick={() => setShowModelPicker(!showModelPicker)}
@@ -853,8 +999,9 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                             }}
                           >
                             <Sparkles size={12} />
-                            Modell: {imageModels.find(m => m.slug === selectedModelSlug)?.name ?? "FLUX.2 Pro"}
-                            {" · "}{imageModels.find(m => m.slug === selectedModelSlug)?.price_label ?? "$0.03 / Bild"}
+                            Modell: {selectedModel?.name ?? "—"}
+                            {isBest && <span style={{ padding: "1px 6px", background: "rgba(108,92,231,0.2)", color: T.accentLight, fontSize: 9, fontWeight: 800, borderRadius: 10 }}>BEST ELO</span>}
+                            {selectedModel && <span style={{ color: T.textDim }}>{selectedModel.price_label}</span>}
                             <span style={{ marginLeft: 2 }}>{showModelPicker ? "▲" : "▼"}</span>
                           </button>
 
@@ -864,12 +1011,12 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                               border: `1px solid ${T.border}`,
                               background: T.surface,
                               overflow: "hidden",
-                              maxHeight: 380, overflowY: "auto",
+                              maxHeight: 320, overflowY: "auto",
                             }}>
                               {imageModels.map((model) => {
                                 const isSelected = model.slug === selectedModelSlug;
+                                const isBestModel = model.slug === bestRank1?.slug;
                                 const stars = "★".repeat(model.quality_stars) + "☆".repeat(5 - model.quality_stars);
-                                const isExpensive = model.cost_tier === "premium";
                                 return (
                                   <button
                                     key={model.slug}
@@ -877,7 +1024,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                                     onClick={() => { setSelectedModelSlug(model.slug); setShowModelPicker(false); }}
                                     style={{
                                       display: "block", width: "100%", textAlign: "left",
-                                      padding: "12px 16px",
+                                      padding: "10px 14px",
                                       background: isSelected ? T.accentDim : "transparent",
                                       border: "none",
                                       borderBottom: `1px solid ${T.border}`,
@@ -885,152 +1032,261 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                                     }}
                                   >
                                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                        {model.badge && (
-                                          <span style={{
-                                            padding: "2px 7px", borderRadius: 20, fontSize: 10, fontWeight: 700,
-                                            background: (model.badge_color ?? T.accent) + "22",
-                                            color: model.badge_color ?? T.accent,
-                                            whiteSpace: "nowrap",
-                                          }}>
-                                            {model.badge}
-                                          </span>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                        {isBestModel && (
+                                          <span style={{ padding: "1px 6px", background: "rgba(108,92,231,0.2)", color: T.accentLight, fontSize: 9, fontWeight: 800, borderRadius: 10 }}>BEST ELO</span>
                                         )}
-                                        <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? T.accent : T.text }}>
-                                          {model.name}
-                                        </span>
+                                        {model.badge && !isBestModel && (
+                                          <span style={{ padding: "2px 7px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: (model.badge_color ?? T.accent) + "22", color: model.badge_color ?? T.accent }}>{model.badge}</span>
+                                        )}
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? T.accent : T.text }}>{model.name}</span>
                                       </div>
-                                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                                         <span style={{ fontSize: 11, color: T.warning, letterSpacing: 1 }}>{stars}</span>
-                                        <span style={{
-                                          fontSize: 11, fontWeight: 700,
-                                          color: isExpensive ? T.warning : T.success,
-                                        }}>
-                                          {model.price_label}
-                                          {isExpensive && " ⚡"}
-                                        </span>
+                                        <span style={{ fontSize: 11, fontWeight: 700, color: model.cost_tier === "premium" ? T.warning : T.success }}>{model.price_label}</span>
                                       </div>
                                     </div>
-                                    <p style={{ fontSize: 11, color: T.textMuted, margin: "3px 0 0", lineHeight: 1.4 }}>
-                                      {model.description}
-                                    </p>
-                                    <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
-                                      {model.elo_score && (
-                                        <span style={{ fontSize: 10, color: T.textDim }}>
-                                          Elo {model.elo_score} · Rang #{model.elo_rank} · {model.elo_source}
-                                        </span>
-                                      )}
-                                      {model.cost_note && (
-                                        <span style={{ fontSize: 10, color: T.warning }}>⚡ {model.cost_note}</span>
-                                      )}
-                                      {model.speed_note && (
-                                        <span style={{ fontSize: 10, color: T.textDim }}>⏱ {model.speed_note}</span>
-                                      )}
-                                    </div>
+                                    {model.elo_score && (
+                                      <p style={{ fontSize: 10, color: T.textDim, margin: "2px 0 0" }}>
+                                        Elo {model.elo_score} · Rang #{model.elo_rank} · {model.elo_source}
+                                      </p>
+                                    )}
                                   </button>
                                 );
                               })}
                             </div>
                           )}
                         </div>
-                      )}
+                      );
+                    })()}
+                  </div>
 
-                      {/* Text overlay checkbox */}
-                      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: T.textMuted }}>
-                        <input
-                          type="checkbox"
-                          checked={imageHasTextOverlay}
-                          onChange={(e) => setImageHasTextOverlay(e.target.checked)}
-                          style={{ width: 14, height: 14, accentColor: T.accent }}
-                        />
-                        Enthält Text (z.B. Kurszeiten, Promo-Code)
+                  {/* ── Manual upload / generate (disabled when auto-generate is on) ─ */}
+                  <div style={{ opacity: autoGenerateImage ? 0.35 : 1, pointerEvents: autoGenerateImage ? "none" : "auto", transition: "opacity .2s" }}>
+                    {autoGenerateImage && (
+                      <p style={{ fontSize: 11, color: T.textDim, marginBottom: 8, textAlign: "center" as const }}>Manuelles Hochladen und Generieren ist deaktiviert, solange die automatische KI-Bilderstellung aktiv ist.</p>
+                    )}
+                    {/* Action row */}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <label style={{ ...S.secondaryBtn, cursor: imageUploading ? "default" : "pointer", opacity: imageUploading ? 0.6 : 1 }}>
+                        {imageUploading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Image size={14} />}
+                        {imageUploading ? "Wird hochgeladen..." : "Bild hochladen"}
+                        <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} disabled={imageUploading} />
                       </label>
-                      {/* Action buttons */}
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <button
-                          onClick={handleImagePreview}
-                          disabled={imageGenerating || !imageGenPrompt.trim()}
-                          style={{ ...S.primaryBtn, opacity: imageGenerating || !imageGenPrompt.trim() ? 0.6 : 1 }}
-                        >
-                          {imageGenerating && imagePreviewMode === 'idle' ? (
-                            <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Vorschau lädt...</>
-                          ) : (
-                            <><Eye size={14} /> Vorschau (Schnell)</>
-                          )}
-                        </button>
-                        {imagePreviewMode === 'previewing' && (
-                          <>
-                            <button
-                              onClick={() => {
-                                if (imagePreviewUrl) {
-                                  setForm((f: typeof form) => ({ ...f, featured_image_url: imagePreviewUrl }));
-                                  setImagePreviewMode('final');
-                                }
-                              }}
-                              style={{ ...S.secondaryBtn, color: T.success }}
-                            >
-                              <CheckCircle size={14} /> Vorschau verwenden
-                            </button>
-                            <button
-                              onClick={handleImageFinalize}
-                              disabled={imageGenerating || !imageGenPrompt.trim()}
-                              style={{ ...S.primaryBtn, background: `linear-gradient(135deg, ${T.accent}, ${T.accentLight})`, opacity: imageGenerating || !imageGenPrompt.trim() ? 0.6 : 1 }}
-                            >
-                              {imageGenerating ? (
-                                <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Generiere...</>
-                              ) : (
-                                <><Sparkles size={14} /> {imageModels.find(m => m.slug === selectedModelSlug)?.name ?? "Finale Qualität"}</>
-                              )}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                      {/* Preview thumbnail */}
-                      {imagePreviewUrl && imagePreviewMode !== 'idle' && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <img
-                            src={imagePreviewUrl}
-                            alt="Vorschau"
-                            style={{ height: 80, borderRadius: 8, border: `1px solid ${T.border}`, objectFit: "cover" }}
-                          />
-                          {imagePreviewMode === 'final' && (
-                            <span style={{
-                              display: "inline-flex", alignItems: "center", gap: 4,
-                              padding: "4px 10px", borderRadius: 20,
-                              background: T.successDim, border: `1px solid rgba(0,184,148,0.3)`,
-                              fontSize: 11, fontWeight: 700, color: T.success,
-                            }}>
-                              <CheckCircle size={11} /> Finale Version
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      {/* Info text */}
-                      <p style={{ fontSize: 10, color: T.textDim, margin: 0 }}>
-                        Vorschau: FLUX Schnell ($0.003) &bull; Finale Version: gewähltes Modell ({imageModels.find(m => m.slug === selectedModelSlug)?.price_label ?? "$0.03"})
-                      </p>
-                    </div>
-                  )}
-
-                  {/* URL input (manual / paste) */}
-                  <input
-                    style={S.input}
-                    type="url"
-                    value={form.featured_image_url}
-                    onChange={(e) => setForm({ ...form, featured_image_url: e.target.value })}
-                    placeholder="Oder URL direkt einfügen..."
-                  />
-
-                  {imageError && <p style={{ fontSize: 11, color: T.danger, margin: 0 }}>{imageError}</p>}
-
-                  {form.featured_image_url && (
-                    <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}`, maxHeight: 160 }}>
-                      <img src={form.featured_image_url} alt="Titelbild Vorschau" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
-                      <button onClick={() => setForm({ ...form, featured_image_url: "" })} style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: 6, padding: "4px 6px", cursor: "pointer", display: "flex" }}>
-                        <X size={14} style={{ color: "#fff" }} />
+                      <button onClick={() => { setShowImageGen(!showImageGen); setImageError(null); if (showImageGen) { setImagePreviewMode('idle'); setImagePreviewUrl(null); } }} style={{ ...S.secondaryBtn, color: T.accentLight }}>
+                        <Sparkles size={14} /> KI generieren
+                      </button>
+                      <button type="button" onClick={() => openMediaPicker(1)} style={{ ...S.secondaryBtn, color: T.textMuted }}>
+                        <Search size={14} /> Mediathek
                       </button>
                     </div>
-                  )}
+
+                    {/* AI generate form */}
+                    {showImageGen && (
+                      <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                        {/* Prompt input */}
+                        <input
+                          style={S.input}
+                          type="text"
+                          value={imageGenPrompt}
+                          onChange={(e) => setImageGenPrompt(e.target.value)}
+                          placeholder="Bildprompt, z.B. Fitnessstudio, motivierende Atmosphäre, hell und modern"
+                          onKeyDown={(e) => { if (e.key === "Enter") handleImagePreview(); }}
+                        />
+
+                        {/* Model selector */}
+                        {imageModels.length > 0 && (
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => setShowModelPicker(!showModelPicker)}
+                              style={{
+                                display: "flex", alignItems: "center", gap: 6,
+                                padding: "6px 12px", borderRadius: 8,
+                                background: T.surface, border: `1px solid ${T.border}`,
+                                color: T.textMuted, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                              }}
+                            >
+                              <Sparkles size={12} />
+                              Modell: {imageModels.find(m => m.slug === selectedModelSlug)?.name ?? "FLUX.2 Pro"}
+                              {" · "}{imageModels.find(m => m.slug === selectedModelSlug)?.price_label ?? "$0.03 / Bild"}
+                              <span style={{ marginLeft: 2 }}>{showModelPicker ? "▲" : "▼"}</span>
+                            </button>
+
+                            {showModelPicker && (
+                              <div style={{
+                                marginTop: 8, borderRadius: 12,
+                                border: `1px solid ${T.border}`,
+                                background: T.surface,
+                                overflow: "hidden",
+                                maxHeight: 380, overflowY: "auto",
+                              }}>
+                                {imageModels.map((model) => {
+                                  const isSelected = model.slug === selectedModelSlug;
+                                  const stars = "★".repeat(model.quality_stars) + "☆".repeat(5 - model.quality_stars);
+                                  const isExpensive = model.cost_tier === "premium";
+                                  return (
+                                    <button
+                                      key={model.slug}
+                                      type="button"
+                                      onClick={() => { setSelectedModelSlug(model.slug); setShowModelPicker(false); }}
+                                      style={{
+                                        display: "block", width: "100%", textAlign: "left",
+                                        padding: "12px 16px",
+                                        background: isSelected ? T.accentDim : "transparent",
+                                        border: "none",
+                                        borderBottom: `1px solid ${T.border}`,
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                          {model.badge && (
+                                            <span style={{
+                                              padding: "2px 7px", borderRadius: 20, fontSize: 10, fontWeight: 700,
+                                              background: (model.badge_color ?? T.accent) + "22",
+                                              color: model.badge_color ?? T.accent,
+                                              whiteSpace: "nowrap",
+                                            }}>
+                                              {model.badge}
+                                            </span>
+                                          )}
+                                          <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? T.accent : T.text }}>
+                                            {model.name}
+                                          </span>
+                                        </div>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                                          <span style={{ fontSize: 11, color: T.warning, letterSpacing: 1 }}>{stars}</span>
+                                          <span style={{
+                                            fontSize: 11, fontWeight: 700,
+                                            color: isExpensive ? T.warning : T.success,
+                                          }}>
+                                            {model.price_label}
+                                            {isExpensive && " ⚡"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <p style={{ fontSize: 11, color: T.textMuted, margin: "3px 0 0", lineHeight: 1.4 }}>
+                                        {model.description}
+                                      </p>
+                                      <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+                                        {model.elo_score && (
+                                          <span style={{ fontSize: 10, color: T.textDim }}>
+                                            Elo {model.elo_score} · Rang #{model.elo_rank} · {model.elo_source}
+                                          </span>
+                                        )}
+                                        {model.cost_note && (
+                                          <span style={{ fontSize: 10, color: T.warning }}>⚡ {model.cost_note}</span>
+                                        )}
+                                        {model.speed_note && (
+                                          <span style={{ fontSize: 10, color: T.textDim }}>⏱ {model.speed_note}</span>
+                                        )}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Text overlay checkbox */}
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: T.textMuted }}>
+                          <input
+                            type="checkbox"
+                            checked={imageHasTextOverlay}
+                            onChange={(e) => setImageHasTextOverlay(e.target.checked)}
+                            style={{ width: 14, height: 14, accentColor: T.accent }}
+                          />
+                          Enthält Text (z.B. Kurszeiten, Promo-Code)
+                        </label>
+                        {/* Action buttons */}
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button
+                            onClick={handleImagePreview}
+                            disabled={imageGenerating || !imageGenPrompt.trim()}
+                            style={{ ...S.primaryBtn, opacity: imageGenerating || !imageGenPrompt.trim() ? 0.6 : 1 }}
+                          >
+                            {imageGenerating && imagePreviewMode === 'idle' ? (
+                              <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Vorschau lädt...</>
+                            ) : (
+                              <><Eye size={14} /> Vorschau (Schnell)</>
+                            )}
+                          </button>
+                          {imagePreviewMode === 'previewing' && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  if (imagePreviewUrl) {
+                                    setForm((f: typeof form) => ({ ...f, featured_image_url: imagePreviewUrl }));
+                                    setImagePreviewMode('final');
+                                  }
+                                }}
+                                style={{ ...S.secondaryBtn, color: T.success }}
+                              >
+                                <CheckCircle size={14} /> Vorschau verwenden
+                              </button>
+                              <button
+                                onClick={handleImageFinalize}
+                                disabled={imageGenerating || !imageGenPrompt.trim()}
+                                style={{ ...S.primaryBtn, background: `linear-gradient(135deg, ${T.accent}, ${T.accentLight})`, opacity: imageGenerating || !imageGenPrompt.trim() ? 0.6 : 1 }}
+                              >
+                                {imageGenerating ? (
+                                  <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Generiere...</>
+                                ) : (
+                                  <><Sparkles size={14} /> {imageModels.find(m => m.slug === selectedModelSlug)?.name ?? "Finale Qualität"}</>
+                                )}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        {/* Preview thumbnail */}
+                        {imagePreviewUrl && imagePreviewMode !== 'idle' && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <img
+                              src={imagePreviewUrl}
+                              alt="Vorschau"
+                              style={{ height: 80, borderRadius: 8, border: `1px solid ${T.border}`, objectFit: "cover" }}
+                            />
+                            {imagePreviewMode === 'final' && (
+                              <span style={{
+                                display: "inline-flex", alignItems: "center", gap: 4,
+                                padding: "4px 10px", borderRadius: 20,
+                                background: T.successDim, border: `1px solid rgba(0,184,148,0.3)`,
+                                fontSize: 11, fontWeight: 700, color: T.success,
+                              }}>
+                                <CheckCircle size={11} /> Finale Version
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {/* Info text */}
+                        <p style={{ fontSize: 10, color: T.textDim, margin: 0 }}>
+                          Vorschau: FLUX Schnell ($0.003) &bull; Finale Version: gewähltes Modell ({imageModels.find(m => m.slug === selectedModelSlug)?.price_label ?? "$0.03"})
+                        </p>
+                      </div>
+                    )}
+
+                    {/* URL input (manual / paste) */}
+                    <input
+                      style={S.input}
+                      type="url"
+                      value={form.featured_image_url}
+                      onChange={(e) => setForm({ ...form, featured_image_url: e.target.value })}
+                      placeholder="Oder URL direkt einfügen..."
+                    />
+
+                    {imageError && <p style={{ fontSize: 11, color: T.danger, margin: 0 }}>{imageError}</p>}
+
+                    {form.featured_image_url && (
+                      <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}`, maxHeight: 160 }}>
+                        <img src={form.featured_image_url} alt="Titelbild Vorschau" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+                        <button onClick={() => setForm({ ...form, featured_image_url: "" })} style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: 6, padding: "4px 6px", cursor: "pointer", display: "flex" }}>
+                          <X size={14} style={{ color: "#fff" }} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1076,10 +1332,10 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
               <div>
                 <label style={S.label}>Swarm-Pipeline</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  {(aiResult.pipeline_steps as string[]).map((step: string, i: number) => (
+                  {(aiResult.pipeline_steps as string[]).map((pipelineStep: string, i: number) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span style={{ padding: "4px 12px", borderRadius: 20, background: T.accentDim, border: `1px solid rgba(108,92,231,0.3)`, fontSize: 11, fontWeight: 700, color: T.accentLight, textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>
-                        {step}
+                        {pipelineStep}
                       </span>
                       {i < aiResult.pipeline_steps.length - 1 && (
                         <ArrowRight size={12} style={{ color: T.textDim, flexShrink: 0 }} />
@@ -1153,10 +1409,32 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
               </div>
             )}
 
+            {/* Auto-image status card */}
+            {autoGenerateImage && autoImageStatus !== 'idle' && (
+              <div style={{ padding: "14px 16px", background: T.surfaceAlt, border: `1px solid ${autoImageStatus === 'error' ? "rgba(255,107,107,0.4)" : autoImageStatus === 'done' ? "rgba(0,184,148,0.3)" : T.border}`, borderRadius: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Image size={14} style={{ color: autoImageStatus === 'error' ? T.danger : autoImageStatus === 'done' ? T.success : T.accentLight, flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>KI-Titelbild</span>
+                </div>
+                {autoImageStatus === 'generating' && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Loader2 size={14} style={{ animation: "spin 1s linear infinite", color: T.accentLight }} />
+                    <span style={{ fontSize: 12, color: T.textDim }}>Bild wird generiert…</span>
+                  </div>
+                )}
+                {autoImageStatus === 'done' && autoImageUrl && (
+                  <img src={autoImageUrl} alt="Generiertes Bild" style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 8 }} />
+                )}
+                {autoImageStatus === 'error' && autoImageError && (
+                  <span style={{ fontSize: 12, color: T.danger }}>{autoImageError}</span>
+                )}
+              </div>
+            )}
+
             {previewUrl && (
-              <a href={previewUrl} target="_blank" rel="noopener noreferrer" style={{ ...S.secondaryBtn, color: T.accentLight, textDecoration: "none", display: "inline-flex", width: "fit-content" }}>
-                <Eye size={16} /> Vollständige Vorschau öffnen
-              </a>
+              <button onClick={() => setShowPreviewModal(true)} style={{ ...S.secondaryBtn, color: T.accentLight }}>
+                <Eye size={16} /> Vollständige Vorschau anzeigen
+              </button>
             )}
 
             <div style={{ display: "flex", gap: 10 }}>
@@ -1209,6 +1487,87 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
 
       {/* Spin animation */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* Preview Modal */}
+      {showPreviewModal && previewUrl && (() => {
+        const token = previewUrl.split("/").pop() ?? "";
+        return (
+          <CampaignPreviewModal
+            token={token}
+            onClose={() => setShowPreviewModal(false)}
+            onApproved={() => { setShowPreviewModal(false); onCreated(); }}
+            onRejected={() => setShowPreviewModal(false)}
+          />
+        );
+      })()}
+
+      {/* Media Library Picker Modal */}
+      {showMediaPicker && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 1100,
+          background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center",
+        }} onClick={() => setShowMediaPicker(false)}>
+          <div style={{
+            background: T.surface, border: `1px solid ${T.border}`, borderRadius: 16,
+            width: "min(860px, 95vw)", maxHeight: "85vh", display: "flex", flexDirection: "column",
+            overflow: "hidden",
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${T.border}` }}>
+              <span style={{ fontWeight: 700, fontSize: 15, color: T.text }}>Mediathek</span>
+              <button type="button" onClick={() => setShowMediaPicker(false)} style={{ background: "none", border: "none", color: T.textDim, cursor: "pointer" }}>
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ overflowY: "auto", flex: 1, padding: 16 }}>
+              {mediaPickerLoading ? (
+                <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+                  <Loader2 size={28} style={{ animation: "spin 1s linear infinite", color: T.accentLight }} />
+                </div>
+              ) : mediaPickerAssets.length === 0 ? (
+                <p style={{ textAlign: "center", color: T.textDim, padding: 40 }}>Keine Bilder in der Mediathek.</p>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+                  {mediaPickerAssets.map(asset => (
+                    <button
+                      key={asset.id}
+                      type="button"
+                      onClick={() => selectMediaAsset(asset)}
+                      style={{
+                        background: T.surfaceAlt, border: `2px solid ${form.featured_image_url === asset.url ? T.accent : T.border}`,
+                        borderRadius: 10, overflow: "hidden", cursor: "pointer", padding: 0, textAlign: "left",
+                        transition: "border-color .15s",
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={asset.url}
+                        alt={asset.display_name ?? ""}
+                        style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }}
+                      />
+                      <div style={{ padding: "6px 8px" }}>
+                        <p style={{ margin: 0, fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {asset.display_name || asset.description || "Bild"}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {mediaPickerTotal > 24 && (
+              <div style={{ display: "flex", justifyContent: "center", gap: 8, padding: "12px 16px", borderTop: `1px solid ${T.border}` }}>
+                <button type="button" disabled={mediaPickerPage <= 1} onClick={() => openMediaPicker(mediaPickerPage - 1)}
+                  style={{ ...S.secondaryBtn, opacity: mediaPickerPage <= 1 ? 0.4 : 1 }}>← Zurück</button>
+                <span style={{ fontSize: 12, color: T.textDim, alignSelf: "center" }}>
+                  Seite {mediaPickerPage} / {Math.ceil(mediaPickerTotal / 24)}
+                </span>
+                <button type="button" disabled={mediaPickerPage >= Math.ceil(mediaPickerTotal / 24)} onClick={() => openMediaPicker(mediaPickerPage + 1)}
+                  style={{ ...S.secondaryBtn, opacity: mediaPickerPage >= Math.ceil(mediaPickerTotal / 24) ? 0.4 : 1 }}>Weiter →</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
