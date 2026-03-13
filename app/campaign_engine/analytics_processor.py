@@ -74,12 +74,13 @@ class AnalyticsProcessor:
         )
         db.add(analytics_event)
 
-        # 2. Update recipient status
+        # 2. Update recipient status — returns True only if this is a new/unique event
+        is_unique = False
         if recipient:
-            self._update_recipient(recipient, event_type)
+            is_unique = self._update_recipient(recipient, event_type)
 
-        # 3. Update campaign aggregate stats
-        if campaign:
+        # 3. Update campaign aggregate stats — only count unique events per recipient
+        if campaign and is_unique:
             self._update_campaign_stats(campaign, event_type)
 
         # 4. Create ContactActivity entry for timeline
@@ -100,9 +101,32 @@ class AnalyticsProcessor:
             logger.error("analytics.commit_failed", error=str(e))
             return False
 
-    def _update_recipient(self, recipient: CampaignRecipient, event_type: str):
-        """Update the recipient record based on the event type."""
+    def _update_recipient(self, recipient: CampaignRecipient, event_type: str) -> bool:
+        """Update the recipient record based on the event type.
+
+        Returns True if this is the FIRST time this event occurred for this
+        recipient (i.e. it should be counted as a unique stat).
+        """
         now = datetime.now(timezone.utc)
+        is_unique = False
+
+        # Set timestamps only on first occurrence — use as uniqueness gate
+        if event_type == "delivered" and not recipient.delivered_at:
+            recipient.delivered_at = now
+            is_unique = True
+        elif event_type == "opened" and not recipient.opened_at:
+            recipient.opened_at = now
+            is_unique = True
+        elif event_type == "clicked" and not recipient.clicked_at:
+            recipient.clicked_at = now
+            is_unique = True
+        elif event_type == "converted" and not recipient.converted_at:
+            recipient.converted_at = now
+            is_unique = True
+        elif event_type in ("bounced", "unsubscribed"):
+            is_unique = True  # These are one-time events by nature
+
+        # Upgrade status (never downgrade)
         status_map = {
             "delivered": "delivered",
             "opened": "opened",
@@ -111,25 +135,15 @@ class AnalyticsProcessor:
             "unsubscribed": "unsubscribed",
             "converted": "converted",
         }
-
         new_status = status_map.get(event_type)
         if new_status:
-            # Only upgrade status (don't downgrade from clicked to opened)
             status_priority = ["pending", "sent", "delivered", "opened", "clicked", "converted"]
             current_idx = status_priority.index(recipient.status) if recipient.status in status_priority else -1
             new_idx = status_priority.index(new_status) if new_status in status_priority else -1
             if new_idx > current_idx:
                 recipient.status = new_status
 
-        # Set timestamps
-        if event_type == "delivered" and not recipient.delivered_at:
-            recipient.delivered_at = now
-        elif event_type == "opened" and not recipient.opened_at:
-            recipient.opened_at = now
-        elif event_type == "clicked" and not recipient.clicked_at:
-            recipient.clicked_at = now
-        elif event_type == "converted" and not recipient.converted_at:
-            recipient.converted_at = now
+        return is_unique
 
     def _update_campaign_stats(self, campaign: Campaign, event_type: str):
         """Increment the aggregate stats counter on the campaign."""

@@ -225,6 +225,14 @@ async def process_send_job(db: Session, job: dict) -> bool:
         if not success:
             recipient.error_message = "Dispatch failed"
 
+        # Atomically increment campaign sent/delivered counters
+        if success:
+            from sqlalchemy import text
+            db.execute(
+                text("UPDATE campaigns SET stats_sent = COALESCE(stats_sent, 0) + 1, stats_delivered = COALESCE(stats_delivered, 0) + 1 WHERE id = :id"),
+                {"id": campaign_id},
+            )
+
         db.commit()
 
         logger.info(
@@ -366,7 +374,9 @@ def _update_active_campaigns(db: Session):
             campaign.stats_total = stats.total
             campaign.stats_sent = stats.sent
             campaign.stats_failed = stats.failed
-            campaign.stats_delivered = stats.sent  # Assume delivered = sent for now
+            # Delivered = all recipients that advanced past "pending" and didn't fail
+            # (sent + opened + clicked + converted — regardless of current status)
+            campaign.stats_delivered = stats.total - stats.failed - stats.pending
 
             # If no more pending recipients, mark campaign as sent
             if stats.pending == 0 and stats.total > 0:

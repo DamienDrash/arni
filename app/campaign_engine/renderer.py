@@ -91,13 +91,9 @@ class MessageRenderer:
         template = self._resolve_template(db, campaign, template_override)
 
         # 2. Build context dict for Jinja2
-        context = self._build_context(contact, campaign)
+        context = self._build_context(contact, campaign, db=db, recipient_id=recipient_id)
 
         # 3. Compose HTML parts
-        raw_header = (template.header_html or "") if template else ""
-        header = self._render_part(raw_header, context) if raw_header else ""
-        footer = self._render_part(template.footer_html, context) if template and template.footer_html else ""
-
         # Use content_html first, fall back to content_body
         raw_body = campaign.content_html or campaign.content_body or ""
         body = self._render_part(raw_body, context)
@@ -110,9 +106,13 @@ class MessageRenderer:
         if campaign.channel == "email":
             primary_color = (template.primary_color if template else "#6C5CE7") or "#6C5CE7"
             logo_url = (template.logo_url if template else None) or None
+
+            raw_header = (template.header_html or "") if template else ""
+            header = self._render_part(raw_header, context) if raw_header else ""
+            footer = self._render_part(template.footer_html, context) if template and template.footer_html else ""
             full_html = self._wrap_email_html(header, body, footer, primary_color, logo_url)
 
-            # 4b. Gold Standard: CSS Inlining
+            # Gold Standard: CSS Inlining
             full_html = self._inline_css(full_html)
         else:
             full_html = body  # WhatsApp/SMS/Telegram: no HTML wrapping
@@ -171,8 +171,30 @@ class MessageRenderer:
             CampaignTemplate.is_active.is_(True),
         ).first()
 
-    def _build_context(self, contact: Contact, campaign: Campaign) -> dict:
+    def _build_context(
+        self,
+        contact: Contact,
+        campaign: Campaign,
+        db: Session | None = None,
+        recipient_id: int | None = None,
+    ) -> dict:
         """Build the Jinja2 template context from contact and campaign data."""
+        from app.core.models import Tenant
+
+        # Resolve tenant/studio name
+        studio_name = ""
+        if db:
+            tenant = db.query(Tenant).filter(Tenant.id == campaign.tenant_id).first()
+            studio_name = tenant.name if tenant else ""
+
+        # Unsubscribe URL — unique per contact/recipient
+        if recipient_id:
+            unsubscribe_url = f"{TRACKING_BASE_URL}/unsubscribe/{recipient_id}"
+        elif contact.id:
+            unsubscribe_url = f"{TRACKING_BASE_URL}/unsubscribe/c/{contact.id}"
+        else:
+            unsubscribe_url = f"{TRACKING_BASE_URL}/unsubscribe"
+
         return {
             "contact": {
                 "first_name": contact.first_name or "",
@@ -180,16 +202,18 @@ class MessageRenderer:
                 "full_name": f"{contact.first_name or ''} {contact.last_name or ''}".strip(),
                 "email": contact.email or "",
                 "phone": contact.phone or "",
-                "company": contact.company or "",
+                "company": contact.company or studio_name,
             },
             "campaign": {
                 "name": campaign.name,
                 "channel": campaign.channel,
             },
-            # Legacy placeholders for backward compatibility
+            # Top-level placeholders
             "first_name": contact.first_name or "",
             "last_name": contact.last_name or "",
-            "studio_name": contact.company or "",
+            "full_name": f"{contact.first_name or ''} {contact.last_name or ''}".strip(),
+            "studio_name": studio_name,
+            "unsubscribe_url": unsubscribe_url,
         }
 
     def _render_part(self, template_str: str, context: dict) -> str:
@@ -245,13 +269,13 @@ class MessageRenderer:
         template_css, header_content = self._extract_style_blocks(header)
 
         return f"""<!DOCTYPE html>
-<html lang="de" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<html lang="de" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" style="color-scheme: light dark;">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="color-scheme" content="light only">
-  <meta name="supported-color-schemes" content="light only">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
   <!--[if mso]>
   <noscript>
     <xml>
@@ -296,6 +320,28 @@ class MessageRenderer:
       .email-header {{ padding: 20px 16px !important; }}
       .email-footer {{ padding: 20px 16px !important; }}
     }}
+
+    /* === Dark Mode — lock brand colors in all clients === */
+    @media (prefers-color-scheme: dark) {{
+      .email-wrapper {{ background-color: #ffffff !important; }}
+      .email-header {{ background-color: #ffffff !important; border-bottom: 2px solid #f0f0f0 !important; }}
+      .email-header h1 {{ color: #1a1a1a !important; }}
+      .email-body {{ background-color: #111111 !important; color: #f0f0f0 !important; }}
+      .email-body h1, .email-body h2, .email-body h3 {{ color: {color} !important; }}
+      .email-body p, .email-body span, .email-body li, .email-body td {{ color: #f0f0f0 !important; }}
+      .email-body a {{ color: {color} !important; }}
+      .email-btn {{ background-color: {color} !important; color: #ffffff !important; }}
+      .email-footer {{ background-color: #ffffff !important; color: #666666 !important; border-top: 2px solid #f0f0f0 !important; }}
+      .email-footer a {{ color: {color} !important; }}
+      /* Template footer classes */
+      .footer {{ background-color: #ffffff !important; color: #666666 !important; }}
+      .footer a {{ color: {color} !important; }}
+    }}
+    /* Outlook intelligent dark mode */
+    [data-ogsb] .email-header, [data-ogsb] .footer {{ background-color: #ffffff !important; }}
+    [data-ogsb] .email-body {{ background-color: #111111 !important; }}
+    [data-ogsc] .email-body, [data-ogsc] .email-body p {{ color: #f0f0f0 !important; }}
+    [data-ogsb] .email-btn {{ background-color: {color} !important; }}
 
     /* === Tenant Template Overrides === */
     {template_css}
