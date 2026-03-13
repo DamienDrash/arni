@@ -1060,12 +1060,11 @@ def get_sync_status(
     integrations = []
 
     for source in sources:
-        prefix = f"integration_{source}_{user.tenant_id}"
-        enabled = persistence.get_setting(f"{prefix}_enabled") == "true"
-        last_sync = persistence.get_setting(f"sync_{source}_{user.tenant_id}_last")
-        status = persistence.get_setting(f"sync_{source}_{user.tenant_id}_status") or "idle"
-        last_result = persistence.get_setting(f"sync_{source}_{user.tenant_id}_result")
-        last_error = persistence.get_setting(f"sync_{source}_{user.tenant_id}_error")
+        enabled = persistence.get_setting(f"integration_{source}_enabled", tenant_id=user.tenant_id) == "true"
+        last_sync = persistence.get_setting(f"sync_{source}_last", tenant_id=user.tenant_id)
+        status = persistence.get_setting(f"sync_{source}_status", tenant_id=user.tenant_id) or "idle"
+        last_result = persistence.get_setting(f"sync_{source}_result", tenant_id=user.tenant_id)
+        last_error = persistence.get_setting(f"sync_{source}_error", tenant_id=user.tenant_id)
 
         integrations.append({
             "source": source,
