@@ -162,6 +162,17 @@ async def create_campaign(
             # Comma-separated IDs
             filter_json = json.dumps({"contact_ids": [int(x.strip()) for x in body.target_value.split(",") if x.strip()]})
 
+    # Auto-select tenant's default email template if none specified
+    resolved_template_id = body.template_id
+    if not resolved_template_id and body.channel == "email":
+        default_tmpl = db.query(CampaignTemplate).filter(
+            CampaignTemplate.tenant_id == user.tenant_id,
+            CampaignTemplate.is_default.is_(True),
+            CampaignTemplate.is_active.is_(True),
+        ).first()
+        if default_tmpl:
+            resolved_template_id = default_tmpl.id
+
     campaign = Campaign(
         tenant_id=user.tenant_id,
         name=body.name,
@@ -170,7 +181,7 @@ async def create_campaign(
         channel=body.channel,
         target_type=body.target_type,
         target_filter_json=filter_json,
-        template_id=body.template_id,
+        template_id=resolved_template_id,
         content_subject=body.content_subject,
         content_body=body.content_body,
         content_html=body.content_html,
@@ -290,20 +301,22 @@ async def update_campaign(
     # Inject featured_image_url into content_html as hero image if not already present
     image_url = updated_fields.get("featured_image_url") or campaign.featured_image_url
     if image_url and campaign.content_html and image_url not in campaign.content_html:
-        hero_tag = f'<img src="{image_url}" alt="Campaign hero image" style="width:100%;max-width:600px;height:auto;display:block;margin:0 auto;" />'
+        hero_tag = (
+            f'<div style="margin:-40px -32px 32px -32px;line-height:0;">'
+            f'<img src="{image_url}" alt="Campaign hero image" width="600" '
+            f'style="display:block;width:100%;max-width:600px;height:240px;'
+            f'object-fit:cover;border:0;outline:none;" /></div>'
+        )
         html = campaign.content_html
-        # Try inserting after </header> or <div class="header"...> block, else after <body>
         import re as _re
-        inserted = False
-        for pattern in (r'(</header>)', r'(</div>\s*<!-- ?header ?-->)', r'(<div[^>]*class="[^"]*header[^"]*"[^>]*>.*?</div>)', r'(<body[^>]*>)'):
-            m = _re.search(pattern, html, _re.IGNORECASE | _re.DOTALL)
-            if m:
-                pos = m.end()
-                campaign.content_html = html[:pos] + "\n" + hero_tag + "\n" + html[pos:]
-                inserted = True
-                break
-        if not inserted:
-            campaign.content_html = html.replace("<body>", f"<body>\n{hero_tag}\n", 1)
+        # For full HTML documents insert after <body> tag
+        m = _re.search(r'(<body[^>]*>)', html, _re.IGNORECASE)
+        if m:
+            pos = m.end()
+            campaign.content_html = html[:pos] + "\n" + hero_tag + "\n" + html[pos:]
+        else:
+            # Inner-body HTML (DesignerAgent output) — prepend directly
+            campaign.content_html = hero_tag + html
 
     db.commit()
     db.refresh(campaign)
@@ -393,25 +406,37 @@ async def ai_generate_content(
         campaign.content_subject = result.subject or campaign.content_subject
         campaign.content_body = result.body or campaign.content_body
         new_html = result.html or campaign.content_html
-        # If campaign already has a featured image, inject it into the freshly generated HTML
+        # Refresh to pick up featured_image_url set by a concurrent auto-generate image PATCH
+        db.refresh(campaign)
+        # If campaign already has a featured image but the DesignerAgent didn't embed it,
+        # prepend it as a hero block to the inner body HTML.
         if new_html and campaign.featured_image_url and campaign.featured_image_url not in new_html:
-            import re as _re
-            hero_tag = f'<img src="{campaign.featured_image_url}" alt="Campaign hero image" style="width:100%;max-width:600px;height:auto;display:block;margin:0 auto;" />'
-            inserted = False
-            for pattern in (r'(</header>)', r'(<div[^>]*class="[^"]*header[^"]*"[^>]*>.*?</div>)', r'(<body[^>]*>)'):
-                m = _re.search(pattern, new_html, _re.IGNORECASE | _re.DOTALL)
-                if m:
-                    pos = m.end()
-                    new_html = new_html[:pos] + "\n" + hero_tag + "\n" + new_html[pos:]
-                    inserted = True
-                    break
-            if not inserted:
-                new_html = new_html.replace("<body>", f"<body>\n{hero_tag}\n", 1)
+            hero_tag = (
+                f'<div style="margin:-40px -32px 32px -32px;line-height:0;">'
+                f'<img src="{campaign.featured_image_url}" alt="Campaign hero image" '
+                f'width="600" style="display:block;width:100%;max-width:600px;height:240px;'
+                f'object-fit:cover;border:0;" /></div>'
+            )
+            new_html = hero_tag + new_html
         campaign.content_html = new_html
         campaign.status = "pending_review"
         campaign.preview_token = str(uuid.uuid4())
         campaign.preview_expires_at = datetime.now(timezone.utc) + timedelta(hours=48)
         db.commit()
+
+        # Render preview HTML with sample contact
+        rendered_html = None
+        try:
+            from app.campaign_engine.renderer import MessageRenderer
+            class _SampleContact:
+                id = 0; first_name = "Vorname"; last_name = "Nachname"
+                email = "preview@example.com"; phone = ""; company = ""
+                language = "de"; tags = []; consent_email = True
+            renderer = MessageRenderer()
+            _rendered = await renderer.render(db, campaign, _SampleContact())
+            rendered_html = _rendered.body_html
+        except Exception as _re:
+            logger.warning("ai_generate.preview_render_failed", error=str(_re))
 
         return {
             "status": "generated",
@@ -422,6 +447,7 @@ async def ai_generate_content(
             "qa_suggestions": result.qa_suggestions,
             "preview_url": f"/campaigns/preview/{campaign.preview_token}",
             "preview_expires_at": campaign.preview_expires_at.isoformat(),
+            "rendered_html": rendered_html,
         }
 
     except Exception as e:
@@ -460,6 +486,29 @@ async def get_campaign_preview(
             CampaignTemplate.id == campaign.template_id
         ).first()
 
+    # Render a preview with sample contact data
+    rendered_html = None
+    try:
+        from app.campaign_engine.renderer import MessageRenderer
+        from app.core.contact_models import Contact
+
+        class _SampleContact:
+            id = 0
+            first_name = "Vorname"
+            last_name = "Nachname"
+            email = "preview@example.com"
+            phone = ""
+            company = ""
+            language = "de"
+            tags = []
+            consent_email = True
+
+        renderer = MessageRenderer()
+        rendered = await renderer.render(db, campaign, _SampleContact())
+        rendered_html = rendered.body_html
+    except Exception as _e:
+        logger.warning("preview.render_failed", error=str(_e))
+
     return {
         "campaign_name": campaign.name,
         "channel": campaign.channel,
@@ -477,6 +526,7 @@ async def get_campaign_preview(
         } if template else None,
         "scheduled_at": campaign.scheduled_at.isoformat() if campaign.scheduled_at else None,
         "target_type": campaign.target_type,
+        "rendered_html": rendered_html,
     }
 
 

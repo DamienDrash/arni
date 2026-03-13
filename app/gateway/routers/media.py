@@ -133,8 +133,9 @@ def _build_model_response(provider, meta: dict, credit_cost: int) -> dict:
         "elo_rank": elo_rank,
         "is_aa_ranked": is_aa_ranked,
         "credit_cost": credit_cost,
+        "cost_multiplier": credit_cost,  # alias used by campaign wizard
+        "price_label": meta.get("price_label") if has_meta else f"{credit_cost} Credits",
         # Static enrichment — only for known models
-        # NOTE: price_per_image, price_label, cost_note intentionally omitted (internal only)
         "provider_type": meta.get("provider_type") or provider.provider_type,
         "cost_tier": meta.get("cost_tier") if has_meta else None,
         "quality_stars": meta.get("quality_stars") if has_meta else None,

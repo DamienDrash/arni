@@ -26,6 +26,18 @@ from app.integrations.adapters.base import AdapterResult, BaseAdapter
 logger = structlog.get_logger()
 
 
+def _tenant_name(tenant_id: int) -> str:
+    """Return the tenant's business name, falling back to an empty string."""
+    try:
+        from app.gateway.persistence import get_db_session
+        from app.core.models import Tenant
+        with get_db_session() as db:
+            tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+            return tenant.name if tenant and tenant.name else ""
+    except Exception:
+        return ""
+
+
 class EmailAdapter(BaseAdapter):
     """Adapter for Email messaging via SMTP and Postmark.
 
@@ -156,7 +168,7 @@ class EmailAdapter(BaseAdapter):
                 username=kwargs["username"],
                 password=kwargs.get("password", ""),
                 from_email=kwargs.get("from_email", kwargs["username"]),
-                from_name=kwargs.get("from_name", "ARIIA"),
+                from_name=kwargs.get("from_name") or _tenant_name(tenant_id) or "Kein Name",
                 use_starttls=kwargs.get("use_starttls", True),
             )
 
@@ -171,7 +183,7 @@ class EmailAdapter(BaseAdapter):
                     username=config.get("username", ""),
                     password=config.get("password", ""),
                     from_email=config.get("from_email", ""),
-                    from_name=config.get("from_name", "ARIIA"),
+                    from_name=config.get("from_name") or _tenant_name(tenant_id) or "Kein Name",
                     use_starttls=config.get("use_starttls", True),
                 )
         except Exception as e:
@@ -186,7 +198,7 @@ class EmailAdapter(BaseAdapter):
             return {
                 "server_token": kwargs["server_token"],
                 "from_email": kwargs.get("from_email", ""),
-                "from_name": kwargs.get("from_name", "ARIIA"),
+                "from_name": kwargs.get("from_name") or _tenant_name(tenant_id) or "Kein Name",
             }
 
         # Tenant-based credential resolution
@@ -350,7 +362,7 @@ class EmailAdapter(BaseAdapter):
             )
 
         from_email = config.get("from_email", "")
-        from_name = config.get("from_name", "ARIIA")
+        from_name = config.get("from_name") or _tenant_name(tenant_id) or "Kein Name"
         server_token = config.get("server_token", "")
 
         payload: dict[str, Any] = {
@@ -415,7 +427,7 @@ class EmailAdapter(BaseAdapter):
             )
 
         from_email = config.get("from_email", "")
-        from_name = config.get("from_name", "ARIIA")
+        from_name = config.get("from_name") or _tenant_name(tenant_id) or "Kein Name"
         server_token = config.get("server_token", "")
 
         payload = {
