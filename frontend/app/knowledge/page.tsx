@@ -192,6 +192,11 @@ export default function KnowledgePage() {
     setMeta((await res.json()) as KnowledgeStatus);
   }, [slugParam]);
 
+  // Use a ref so loadFiles never has selectedFile as a dependency (avoids the cascade where
+  // creating a draft triggers loadFiles → server doesn't have the file yet → selectedFile reset)
+  const selectedFileRef = useRef<string | null>(null);
+  useEffect(() => { selectedFileRef.current = selectedFile; }, [selectedFile]);
+
   const loadFiles = useCallback(async () => {
     setError("");
     const res = await apiFetch(`/admin/knowledge${slugParam}`);
@@ -199,9 +204,10 @@ export default function KnowledgePage() {
     const data = await res.json();
     const next = Array.isArray(data) ? data : [];
     setFiles(next);
-    if (!selectedFile && next.length > 0) setSelectedFile(next[0]);
-    if (selectedFile && !next.includes(selectedFile)) setSelectedFile(next[0] || null);
-  }, [slugParam, selectedFile]);
+    const current = selectedFileRef.current;
+    if (!current && next.length > 0) setSelectedFile(next[0]);
+    if (current && !next.includes(current)) setSelectedFile(next[0] || null);
+  }, [slugParam]);
 
   const loadFile = useCallback(async (file: string) => {
     setStatus("Lade…"); setError("");
@@ -258,14 +264,24 @@ export default function KnowledgePage() {
     } finally { setReindexing(false); }
   }
 
-  /* ── Create Draft ─────────────────────────────────────────────────── */
-  function createDraftFile() {
+  /* ── Create File (saves immediately so loadFiles never races with a ghost draft) ── */
+  async function createFile() {
     if (!newName.trim()) return;
-    const safe = `${newName.trim().replace(/\s+/g, "-").toLowerCase()}${newName.endsWith(".md") ? "" : ".md"}`;
-    if (!files.includes(safe)) setFiles((prev) => [safe, ...prev]);
+    const base = newName.trim().replace(/\s+/g, "-").toLowerCase();
+    const safe = base.endsWith(".md") ? base : `${base}.md`;
+    setStatus("Erstelle…"); setError("");
+    const res = await apiFetch(`/admin/knowledge/file/${safe}${slugParam}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "", base_mtime: null, reason: "Neue Datei erstellt" }),
+    });
+    if (!res.ok) {
+      setError(`Fehler beim Erstellen der Datei (${res.status}).`); setStatus(""); return;
+    }
+    setNewName("");
+    await loadFiles();
     setSelectedFile(safe);
-    setContentHtml(`<h1>${t("knowledge.newDocument")}</h1><p>${t("knowledge.selectFile")}</p>`);
-    setLoadedMtime(null); setDirty(true); setConflict(false); setStatus("Entwurf erstellt"); setNewName("");
+    setStatus("Datei erstellt");
   }
 
   /* ── File Upload ──────────────────────────────────────────────────── */
@@ -467,8 +483,8 @@ export default function KnowledgePage() {
                 <Badge variant="info" size="xs">{files.length}</Badge>
               </div>
               <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && createDraftFile()} placeholder={t("knowledge.newDocumentPlaceholder")} style={{ ...inputBase, fontSize: 11, flex: 1 }} />
-                <button onClick={createDraftFile} style={{ ...btnPrimary, padding: "8px 10px" }} title="Neues Dokument"><Plus size={14} /></button>
+                <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void createFile()} placeholder={t("knowledge.newDocumentPlaceholder")} style={{ ...inputBase, fontSize: 11, flex: 1 }} />
+                <button onClick={() => void createFile()} style={{ ...btnPrimary, padding: "8px 10px" }} title="Neues Dokument"><Plus size={14} /></button>
               </div>
               <div style={{ position: "relative" }}>
                 <Search size={14} style={{ position: "absolute", left: 12, top: 11, color: T.textDim }} />
