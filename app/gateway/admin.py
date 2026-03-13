@@ -568,19 +568,22 @@ async def get_knowledge_file(
     user: AuthContext = Depends(get_current_user),
     tenant_slug: str | None = Query(None),
 ) -> dict[str, Any]:
-    """Read content of a knowledge file."""
+    """Read content of a knowledge file. Returns empty content for new files."""
     _require_tenant_admin_or_system(user)
     slug = _effective_slug(user, tenant_slug)
-    safe_name = os.path.basename(filename)  # Path traversal protection
+    safe_name = os.path.basename(filename)
+    if not safe_name.endswith(".md"):
+        safe_name += ".md"
     path = os.path.join(_knowledge_dir_for_slug(slug), safe_name)
     if not os.path.exists(path) and slug == "system":
         # Legacy fallback
         path = os.path.join(KNOWLEDGE_ROOT_DIR, safe_name)
     if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="File not found")
+        # Return empty content so the editor opens for new file creation
+        return {"filename": safe_name, "content": "", "mtime": None, "new": True}
     with open(path, "r", encoding="utf-8") as f:
         content = f.read()
-    return {"filename": safe_name, "content": content, "mtime": os.path.getmtime(path)}
+    return {"filename": safe_name, "content": content, "mtime": os.path.getmtime(path), "new": False}
 
 class SaveFileRequest(BaseModel):
     content: str
@@ -611,6 +614,8 @@ async def save_knowledge_file(
     slug = _effective_slug(user, tenant_slug)
     reason = _require_change_reason(body.reason)
     safe_name = os.path.basename(filename)
+    if not safe_name.endswith(".md"):
+        safe_name += ".md"
     path = os.path.join(_knowledge_dir_for_slug(slug), safe_name)
 
     if os.path.exists(path) and body.base_mtime is not None:
