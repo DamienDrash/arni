@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Typography from '@tiptap/extension-typography';
@@ -8,6 +8,17 @@ import { Bold, Italic, List, ListOrdered, Heading1, Heading2, Quote, Undo, Redo 
 import { T } from '@/lib/tokens';
 
 const TiptapEditor = ({ content, onChange }: { content: string, onChange: (html: string) => void }) => {
+    // Suppress onUpdate when we're programmatically setting content from props.
+    // Start as true so the editor's async initialization (immediatelyRender:false) can't
+    // fire onChange before the first real user edit.
+    const isSettingContent = useRef(true);
+
+    // Release the guard after the component has mounted and stabilised
+    useEffect(() => {
+        const id = setTimeout(() => { isSettingContent.current = false; }, 0);
+        return () => clearTimeout(id);
+    }, []);
+
     const editor = useEditor({
         extensions: [
             StarterKit,
@@ -20,17 +31,20 @@ const TiptapEditor = ({ content, onChange }: { content: string, onChange: (html:
             },
         },
         onUpdate: ({ editor }) => {
-            onChange(editor.getHTML());
+            if (!isSettingContent.current) {
+                onChange(editor.getHTML());
+            }
         },
         immediatelyRender: false, // Fix SSR hydration mismatch
     });
 
     // Update editor content when prop changes (e.g. after fetch)
+    // Guard with isSettingContent so the resulting onUpdate does not mark the editor dirty
     useEffect(() => {
-        if (editor && content && editor.getHTML() !== content) {
-            // Only update if content is actually different to avoid cursor jumps/loops
-            // For initial load, this works perfectly.
+        if (editor && editor.getHTML() !== content) {
+            isSettingContent.current = true;
             editor.commands.setContent(content);
+            isSettingContent.current = false;
         }
     }, [content, editor]);
 

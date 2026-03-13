@@ -658,6 +658,41 @@ async def save_knowledge_file(
         return {"status": "saved_but_ingest_failed", "error": str(e)}
 
 
+@router.delete("/knowledge/file/{filename}")
+async def delete_knowledge_file(
+    filename: str,
+    user: AuthContext = Depends(get_current_user),
+    tenant_slug: str | None = Query(None),
+) -> dict[str, Any]:
+    """Delete a knowledge markdown file and re-ingest."""
+    _require_tenant_admin_or_system(user)
+    slug = _effective_slug(user, tenant_slug)
+    safe_name = os.path.basename(filename)
+    if not safe_name.endswith(".md"):
+        safe_name += ".md"
+    path = os.path.join(_knowledge_dir_for_slug(slug), safe_name)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    os.remove(path)
+    _write_admin_audit(
+        actor=user,
+        action="knowledge.delete",
+        category="knowledge",
+        target_type="knowledge_file",
+        target_id=safe_name,
+        details={"filename": safe_name, "tenant_slug": slug},
+    )
+    try:
+        ingest_tenant_knowledge(tenant_slug=slug)
+        persistence.upsert_setting("knowledge_last_ingest_at", datetime.now(timezone.utc).isoformat(), tenant_id=user.tenant_id)
+        persistence.upsert_setting("knowledge_last_ingest_status", "ok", tenant_id=user.tenant_id)
+        persistence.upsert_setting("knowledge_last_ingest_error", "", tenant_id=user.tenant_id)
+    except Exception as e:
+        logger.error("admin.ingest_failed_after_delete", error=str(e))
+    logger.info("admin.knowledge_deleted", filename=safe_name, slug=slug)
+    return {"status": "deleted", "filename": safe_name}
+
+
 @router.get("/knowledge/status")
 async def get_knowledge_status(
     user: AuthContext = Depends(get_current_user),

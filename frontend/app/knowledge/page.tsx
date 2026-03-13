@@ -197,6 +197,9 @@ export default function KnowledgePage() {
   const selectedFileRef = useRef<string | null>(null);
   useEffect(() => { selectedFileRef.current = selectedFile; }, [selectedFile]);
 
+  // Track the filename of a file just created in this session — bypasses reason requirement
+  const justCreatedFileRef = useRef<string | null>(null);
+
   const loadFiles = useCallback(async () => {
     setError("");
     const res = await apiFetch(`/admin/knowledge${slugParam}`);
@@ -210,10 +213,14 @@ export default function KnowledgePage() {
   }, [slugParam]);
 
   const loadFile = useCallback(async (file: string) => {
+    setLoadedMtime(null); setDirty(false); // reset before fetch so stale mtime can't leak into auto-save
     setStatus("Lade…"); setError("");
     const res = await apiFetch(`/admin/knowledge/file/${file}${slugParam}`);
+    // Discard response if the user navigated away from this file while the fetch was in flight
+    if (selectedFileRef.current !== file) return;
     if (!res.ok) { setStatus(""); setError(`Fehler beim Laden (${res.status}).`); return; }
     const data = (await res.json()) as FilePayload;
+    if (selectedFileRef.current !== file) return; // second check after await
     setContentHtml(await marked.parse(data.content || ""));
     setLoadedMtime(typeof data.mtime === "number" ? data.mtime : null);
     setDirty(false); setConflict(false); setStatus("Geladen");
@@ -229,8 +236,11 @@ export default function KnowledgePage() {
   /* ── Save ──────────────────────────────────────────────────────────── */
   const save = useCallback(async (opts?: { force?: boolean; silent?: boolean }) => {
     if (!selectedFile) return;
+    const fileBeingSaved = selectedFile; // capture at call time to detect stale responses
     const reason = changeReason.trim();
-    if (reason.length < 8) {
+    const isNew = justCreatedFileRef.current === selectedFile;
+    const effectiveReason = (isNew && reason.length < 8) ? "Neue Datei erstellt" : reason;
+    if (effectiveReason.length < 8) {
       if (opts?.silent) return;
       setError(t("knowledge.reasonError")); setStatus(""); return;
     }
@@ -239,19 +249,34 @@ export default function KnowledgePage() {
     const res = await apiFetch(`/admin/knowledge/file/${selectedFile}${slugParam}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: markdown, base_mtime: opts?.force ? null : loadedMtime, reason }),
+      body: JSON.stringify({ content: markdown, base_mtime: opts?.force ? null : loadedMtime, reason: effectiveReason }),
     });
+    // Discard response if user switched/deleted the file while the request was in flight
+    if (selectedFileRef.current !== fileBeingSaved) return;
     if (!res.ok) {
       if (res.status === 409) { setConflict(true); setStatus("Konflikt"); setError("Diese Datei wurde zwischenzeitlich von einer anderen Quelle geändert."); return; }
       setStatus(""); setError(`Fehler beim Speichern (${res.status}).`); return;
     }
     const body = (await res.json().catch(() => ({}))) as { mtime?: number };
+    if (selectedFileRef.current !== fileBeingSaved) return; // second check after await
     if (typeof body.mtime === "number") setLoadedMtime(body.mtime);
     setDirty(false); setConflict(false);
+    if (justCreatedFileRef.current === selectedFile) justCreatedFileRef.current = null;
     if (!opts?.silent) { setSuccess("Erfolgreich gespeichert"); setTimeout(() => setSuccess(""), 3000); }
     setStatus(opts?.silent ? "Auto-gespeichert" : "Gespeichert");
     await Promise.all([loadFiles(), loadMeta()]);
   }, [selectedFile, contentHtml, loadedMtime, loadFiles, loadMeta, changeReason, slugParam, t]);
+
+  /* ── Delete File ──────────────────────────────────────────────────── */
+  async function deleteFile(file: string) {
+    if (!confirm(`Datei „${file}" wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.`)) return;
+    setStatus("Lösche…"); setError("");
+    const res = await apiFetch(`/admin/knowledge/file/${file}${slugParam}`, { method: "DELETE" });
+    if (!res.ok) { setError(`Fehler beim Löschen (${res.status}).`); setStatus(""); return; }
+    if (selectedFile === file) { setSelectedFile(null); setContentHtml(""); setDirty(false); setConflict(false); setLoadedMtime(null); }
+    setSuccess(`${file} gelöscht`); setTimeout(() => setSuccess(""), 3000);
+    await Promise.all([loadFiles(), loadMeta()]);
+  }
 
   /* ── Reindex ──────────────────────────────────────────────────────── */
   async function reindexNow() {
@@ -280,6 +305,7 @@ export default function KnowledgePage() {
     }
     setNewName("");
     await loadFiles();
+    justCreatedFileRef.current = safe;
     setSelectedFile(safe);
     setStatus("Datei erstellt");
   }
@@ -502,20 +528,29 @@ export default function KnowledgePage() {
                   {filteredFiles.map((f) => {
                     const isActive = selectedFile === f;
                     return (
-                      <button key={f} onClick={() => setSelectedFile(f)} style={{
-                        width: "100%", textAlign: "left", padding: "12px 14px", borderRadius: 10,
-                        border: `1px solid ${isActive ? `${T.accent}60` : "transparent"}`,
-                        background: isActive ? T.accentDim : "transparent",
-                        color: isActive ? T.accentLight : T.text,
-                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
-                        transition: "all 0.15s ease",
-                      }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <div key={f} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <button onClick={() => setSelectedFile(f)} style={{
+                          flex: 1, textAlign: "left", padding: "10px 12px", borderRadius: 10,
+                          border: `1px solid ${isActive ? `${T.accent}60` : "transparent"}`,
+                          background: isActive ? T.accentDim : "transparent",
+                          color: isActive ? T.accentLight : T.text,
+                          cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
+                          transition: "all 0.15s ease", minWidth: 0,
+                        }}>
                           <FileText size={14} style={{ flexShrink: 0, color: isActive ? T.accent : T.textDim }} />
                           <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f}</span>
-                        </div>
-                        <ChevronRight size={14} style={{ flexShrink: 0, color: isActive ? T.accent : T.textDim, opacity: isActive ? 1 : 0.3 }} />
-                      </button>
+                        </button>
+                        <button onClick={() => void deleteFile(f)} title="Löschen" style={{
+                          flexShrink: 0, background: "none", border: "none", cursor: "pointer",
+                          padding: 6, borderRadius: 8, color: T.textDim,
+                          transition: "color 0.15s ease",
+                        }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = T.danger)}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = T.textDim)}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -573,7 +608,7 @@ export default function KnowledgePage() {
               <div style={{ padding: "8px 20px", borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: `${T.surface}60`, fontSize: 10, color: T.textDim }}>
                 <span>Datei: {selectedFile}</span>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  {changeReason.trim().length >= 8 ? <Badge variant="success" size="xs">Bereit zum Speichern</Badge> : <Badge variant="warning" size="xs">Änderungsgrund erforderlich (min. 8 Zeichen)</Badge>}
+                  {(changeReason.trim().length >= 8 || justCreatedFileRef.current === selectedFile) ? <Badge variant="success" size="xs">Bereit zum Speichern</Badge> : <Badge variant="warning" size="xs">Änderungsgrund erforderlich (min. 8 Zeichen)</Badge>}
                 </div>
               </div>
             )}
