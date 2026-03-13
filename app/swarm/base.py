@@ -131,6 +131,7 @@ class BaseAgent(ABC):
         self,
         messages: list[dict[str, str]],
         tenant_id: int | None = None,
+        max_tokens: int = 2048,
     ) -> str | None:
         """Low-level LLM call with a raw message list."""
         if not self._llm:
@@ -149,13 +150,14 @@ class BaseAgent(ABC):
                     model=config.model,
                     api_key=config.api_key,
                     temperature=0.1,
-                    max_tokens=500,
+                    max_tokens=max_tokens,
                 )
             else:
                 return await self._llm.chat(
                     messages=messages,
                     tenant_id=tenant_id or 1,
                     agent_name=self.name,
+                    max_tokens=max_tokens,
                 )
         except Exception:
             return None

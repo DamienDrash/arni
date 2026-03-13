@@ -43,7 +43,7 @@ class MarketingAgent(BaseAgent):
         tone_desc = tone_map.get(tone, "professionell")
 
         channel_instructions = {
-            "email": "Erstelle einen E-Mail-Betreff und HTML-Body. Verwende Jinja2-Variablen wie {{ contact.first_name }}.",
+            "email": "Erstelle einen E-Mail-Betreff (subject) und den Textinhalt (body) als strukturierten Fließtext mit Absätzen. KEIN HTML, KEIN <html>, KEIN <body> — der HTML-Designer übernimmt die Formatierung. Nur {{ contact.first_name }} als Jinja2-Platzhalter.",
             "whatsapp": "Erstelle eine kurze WhatsApp-Nachricht (max 1000 Zeichen). Emojis sparsam.",
             "telegram": "Erstelle eine Telegram-Nachricht. Markdown erlaubt.",
             "sms": "Erstelle eine SMS (max 160 Zeichen). Kurz und prägnant.",

@@ -149,9 +149,12 @@ REGELN:
 - NUR HTML zurückgeben, KEIN Erklärungstext
 """
 
+        # Strip HTML document wrapper if MarketingAgent returned full HTML instead of plain text
+        clean_body = re.sub(r'<html[^>]*>|</html>|<head[^>]*>.*?</head>|<body[^>]*>|</body>', '', body, flags=re.DOTALL | re.IGNORECASE).strip()
+
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Betreff: {subject}\n\nInhalt:\n{body}"},
+            {"role": "user", "content": f"Betreff: {subject}\n\nInhalt:\n{clean_body}"},
         ]
 
         try:
@@ -169,9 +172,10 @@ REGELN:
             return html
         except Exception as e:
             logger.error("designer_agent.body_generation_failed", error=str(e), tenant_id=tenant_id)
-            # Fallback: plain body
+            # Fallback: strip any HTML document wrapper before embedding raw body
+            safe_body = re.sub(r'<html[^>]*>|</html>|<head[^>]*>.*?</head>|<body[^>]*>|</body>', '', body, flags=re.DOTALL | re.IGNORECASE).strip()
             return f"""<h1 style="color:{primary_color};">Hallo {{{{ contact.first_name }}}},</h1>
-<p style="color:#f0f0f0;">{body}</p>
+<p style="color:#f0f0f0;">{safe_body}</p>
 <p style="margin-top:40px;color:#f0f0f0;font-size:15px;">
   Mit freundlichen Grüßen,<br>
   <strong style="color:{primary_color};">{team_name}</strong>
