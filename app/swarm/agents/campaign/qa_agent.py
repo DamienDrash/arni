@@ -1,8 +1,12 @@
 """QAAgent: validates campaign content against channel constraints and compliance rules."""
 from __future__ import annotations
 from dataclasses import dataclass, field
+from typing import Optional, TYPE_CHECKING
 import re
 import structlog
+
+if TYPE_CHECKING:
+    from app.integrations.integration_context import IntegrationContext
 
 logger = structlog.get_logger()
 
@@ -25,6 +29,7 @@ class QAAgent:
         body: str,
         html: str,
         tenant_id: int,
+        integration_ctx: "Optional[IntegrationContext]" = None,
     ) -> QAResult:
         issues = []
         suggestions = []
@@ -64,6 +69,13 @@ class QAAgent:
         # Empty content check
         if not body and not html:
             issues.append("Campaign content is empty")
+
+        # Integration checks — deterministic, no LLM
+        if integration_ctx is not None:
+            integration_issues = integration_ctx.find_inactive_service_references(content)
+            issues.extend(integration_issues)
+            integration_suggestions = integration_ctx.find_missing_category_suggestions(content)
+            suggestions.extend(integration_suggestions)
 
         passed = len(issues) == 0
         if issues:

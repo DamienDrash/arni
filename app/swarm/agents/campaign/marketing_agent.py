@@ -29,7 +29,9 @@ class MarketingAgent(BaseAgent):
         prompt: str,
         knowledge_context: str = "",
         chat_context: str = "",
+        integration_context: str = "",
         tenant_id: int,
+        studio_name: str = "",
     ) -> dict:
         """Generate subject, body and Jinja2 variables for a campaign."""
         tone_map = {
@@ -48,11 +50,16 @@ class MarketingAgent(BaseAgent):
         }
         channel_instruction = channel_instructions.get(channel, channel_instructions["email"])
 
-        context_parts = [f"Kampagne: {campaign_name}", f"Kanal: {channel}"]
+        sender_name = studio_name or "Unser Team"
+        context_parts = [f"Kampagne: {campaign_name}", f"Kanal: {channel}", f"Studio/Absender: {sender_name}"]
         if knowledge_context:
             context_parts.append(f"Wissensbasis:\n{knowledge_context}")
+        else:
+            context_parts.append("Wissensbasis: (leer – keine studiospezifischen Inhalte verfügbar)")
         if chat_context:
             context_parts.append(f"Aktuelle Mitglieder-Themen:\n{chat_context}")
+        if integration_context:
+            context_parts.append(integration_context)
 
         system_prompt = f"""Du bist ein erfahrener Marketing-Experte und Content Creator für Fitnessstudios.
 Dein Ton ist {tone_desc}.
@@ -63,10 +70,13 @@ KONTEXT:
 
 REGELN:
 1. Nutze die Wissensbasis als primäre Quelle für Fakten und Angebote.
-2. Erfinde KEINE Fakten oder Preise die nicht in der Wissensbasis stehen.
-3. Verwende Jinja2-Platzhalter: {{{{ contact.first_name }}}}, {{{{ contact.company }}}} etc.
-4. Antworte NUR als JSON: {{"subject": "...", "body": "...", "variables": {{"first_name": "Max"}}}}
-5. Schreibe auf Deutsch, außer der Prompt verlangt explizit eine andere Sprache.
+2. Die Wissensbasis dient NUR als Hintergrundinformation. Zitiere KEINE Dokumententitel, Dateinamen, Artikelnamen oder interne Quellen aus der Wissensbasis — schreibe die Informationen in eigenen Worten um. Erfinde zudem KEINE Fakten oder Preise, die nicht darin stehen.
+3. Der einzige erlaubte Jinja2-Platzhalter für Personalisierung ist {{{{ contact.first_name }}}}. Verwende KEINE anderen contact.*-Variablen.
+4. Die E-Mail wird von "{sender_name}" versendet – verwende diesen Namen im Abschluss, NICHT als Jinja2-Variable.
+5. Für CTA-Links: Wenn keine echte Buchungs-URL in der Wissensbasis steht, verwende den Platzhalter [BUCHUNGS-URL] – erfinde KEINE E-Mail-Adressen oder URLs.
+6. Schreibe für Fitnessstudio-Mitglieder (Endkunden), nicht für Trainer oder Coaches – es sei denn, der Prompt beschreibt explizit eine B2B-Zielgruppe.
+7. Antworte NUR als JSON: {{"subject": "...", "body": "...", "variables": {{"first_name": "Max"}}}}
+8. Schreibe auf Deutsch, außer der Prompt verlangt explizit eine andere Sprache.
 """
 
         messages = [
