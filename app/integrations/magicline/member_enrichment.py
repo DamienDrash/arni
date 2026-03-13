@@ -254,8 +254,11 @@ def _compute_churn_prediction(
     }
 
 
-def _fetch_recent_bookings(client, customer_id: int) -> dict:
+def _fetch_recent_bookings(client, customer_id: int, slice_size: int = 200) -> dict:
     """Fetch and split bookings into upcoming (PLANNED) and past (COMPLETED/CANCELED).
+
+    Args:
+        slice_size: Records per request (default 200 covers ~90 days for active members).
 
     Returns::
         {
@@ -268,7 +271,7 @@ def _fetch_recent_bookings(client, customer_id: int) -> dict:
 
     # Appointment bookings
     try:
-        apt_payload = client.appointment_list_bookings(customer_id, slice_size=50)
+        apt_payload = client.appointment_list_bookings(customer_id, slice_size=slice_size)
         for item in _extract_items(apt_payload):
             start = item.get("startDateTime")
             title = (
@@ -289,7 +292,7 @@ def _fetch_recent_bookings(client, customer_id: int) -> dict:
 
     # Class bookings
     try:
-        class_payload = client.class_list_bookings(customer_id, slice_size=50)
+        class_payload = client.class_list_bookings(customer_id, slice_size=slice_size)
         for item in _extract_items(class_payload):
             class_info = item.get("classInformation") or {}
             class_details = item.get("classDetails") or {}
