@@ -1001,7 +1001,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                             <Sparkles size={12} />
                             Modell: {selectedModel?.name ?? "—"}
                             {isBest && <span style={{ padding: "1px 6px", background: "rgba(108,92,231,0.2)", color: T.accentLight, fontSize: 9, fontWeight: 800, borderRadius: 10 }}>BEST ELO</span>}
-                            {selectedModel && <span style={{ color: T.textDim }}>{selectedModel.price_label}</span>}
+                            {selectedModel && <span style={{ color: T.textDim }}>{selectedModel.cost_multiplier} Credits</span>}
                             <span style={{ marginLeft: 2 }}>{showModelPicker ? "▲" : "▼"}</span>
                           </button>
 
@@ -1043,7 +1043,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                                       </div>
                                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                                         <span style={{ fontSize: 11, color: T.warning, letterSpacing: 1 }}>{stars}</span>
-                                        <span style={{ fontSize: 11, fontWeight: 700, color: model.cost_tier === "premium" ? T.warning : T.success }}>{model.price_label}</span>
+                                        <span style={{ fontSize: 11, fontWeight: 700, color: model.cost_tier === "premium" ? T.warning : T.success }}>{model.cost_multiplier} Credits</span>
                                       </div>
                                     </div>
                                     {model.elo_score && (
@@ -1109,7 +1109,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                             >
                               <Sparkles size={12} />
                               Modell: {imageModels.find(m => m.slug === selectedModelSlug)?.name ?? "FLUX.2 Pro"}
-                              {" · "}{imageModels.find(m => m.slug === selectedModelSlug)?.price_label ?? "$0.03 / Bild"}
+                              {" · "}{imageModels.find(m => m.slug === selectedModelSlug)?.cost_multiplier ?? 3} Credits
                               <span style={{ marginLeft: 2 }}>{showModelPicker ? "▲" : "▼"}</span>
                             </button>
 
@@ -1161,7 +1161,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                                             fontSize: 11, fontWeight: 700,
                                             color: isExpensive ? T.warning : T.success,
                                           }}>
-                                            {model.price_label}
+                                            {model.cost_multiplier} Credits
                                             {isExpensive && " ⚡"}
                                           </span>
                                         </div>
@@ -1262,7 +1262,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                         )}
                         {/* Info text */}
                         <p style={{ fontSize: 10, color: T.textDim, margin: 0 }}>
-                          Vorschau: FLUX Schnell ($0.003) &bull; Finale Version: gewähltes Modell ({imageModels.find(m => m.slug === selectedModelSlug)?.price_label ?? "$0.03"})
+                          Vorschau: 1 Credit &bull; Finale Version: gewähltes Modell ({imageModels.find(m => m.slug === selectedModelSlug)?.cost_multiplier ?? 3} Credits)
                         </p>
                       </div>
                     )}
