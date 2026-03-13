@@ -119,14 +119,14 @@ class UserAccount(Base):
 
     # Email verification
     email_verified = Column(Boolean, default=False, nullable=False)
-    email_verified_at = Column(DateTime, nullable=True)
+    email_verified_at = Column(DateTime(timezone=True), nullable=True)
     email_verification_token = Column(String, nullable=True)
-    email_verification_sent_at = Column(DateTime, nullable=True)
+    email_verification_sent_at = Column(DateTime(timezone=True), nullable=True)
 
     # Password reset
     password_reset_token = Column(String, nullable=True)
-    password_reset_sent_at = Column(DateTime, nullable=True)
-    password_changed_at = Column(DateTime, nullable=True)
+    password_reset_sent_at = Column(DateTime(timezone=True), nullable=True)
+    password_changed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Account lockout
     failed_login_attempts = Column(Integer, default=0, nullable=False)
