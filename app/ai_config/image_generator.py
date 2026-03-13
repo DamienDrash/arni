@@ -334,7 +334,7 @@ async def _generate_fal_generic(config, prompt: str, size: str, n: int) -> Gener
             raise RuntimeError(f"fal.ai [{endpoint}] error {resp.status_code}: {resp.text[:400]}")
         data = resp.json()
 
-    # GPT Image 1.5 via fal returns OpenAI-style data[].url or data[].b64_json
+    # GPT Image 1.5 via fal — try OpenAI-style data[].url first, then fall back to fal-style images[]
     if "gpt-image" in endpoint:
         items = data.get("data", [])
         urls = []
@@ -343,12 +343,20 @@ async def _generate_fal_generic(config, prompt: str, size: str, n: int) -> Gener
                 urls.append(item["url"])
             elif item.get("b64_json"):
                 urls.append(f"data:image/png;base64,{item['b64_json']}")
+        # Fallback: fal may also return standard images[] format for this model
+        if not urls:
+            images = data.get("images", [])
+            urls = [(img["url"] if isinstance(img, dict) else img) for img in images if img]
     else:
         images = data.get("images", [])
         urls = [
             (img["url"] if isinstance(img, dict) else img)
             for img in images if img
         ]
+
+    if not urls:
+        # Log the full response structure to diagnose future format mismatches
+        logger.warning("fal_generic.empty_response", endpoint=endpoint, response_keys=list(data.keys()))
     logger.info("fal_generic.generate.complete", endpoint=endpoint, n_images=len(urls))
     return GeneratedImageResult(
         urls=urls,

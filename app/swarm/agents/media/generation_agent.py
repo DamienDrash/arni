@@ -42,6 +42,14 @@ class ImageGenerationAgent(BaseAgent):
             config = svc.resolve_image_provider(tenant_id)
         result = await generate_image(config=config, prompt=prompt, size=size, quality=quality)
 
+        # If primary model returned no images, retry once with the reliable fallback (flux2_pro)
+        if not result.urls and model_slug and model_slug != "flux2_pro":
+            logger.warning("image_generation_agent.fallback", original_slug=model_slug, tenant_id=tenant_id)
+            fallback_config = svc.resolve_provider_by_slug(tenant_id, "flux2_pro")
+            if fallback_config:
+                result = await generate_image(config=fallback_config, prompt=prompt, size=size, quality=quality)
+                config = fallback_config
+
         if not result.urls:
             raise ValueError("Image generation returned no results")
 

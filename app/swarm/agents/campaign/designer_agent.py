@@ -142,11 +142,12 @@ AUSGABE-FORMAT (NUR dieser HTML-Block, KEIN DOCTYPE, KEIN <html>, KEIN <head>, K
 </p>
 
 REGELN:
-- Baue 2-4 Kacheln aus den verschiedenen Inhaltsbereichen
-- CTA-Button: Wenn eine echte URL im Text vorhanden ist, verwende sie. Wenn keine URL vorhanden ist, lasse den CTA-Block weg (kein # als href)
-- {{{{ contact.first_name }}}} und {{{{ unsubscribe_url }}}} korrekt als Jinja2-Variablen
-- Füge am Ende einen kleinen Abmelden-Link ein: <a href="{{{{ unsubscribe_url }}}}" style="color:#999;font-size:11px;">Abmelden</a>
-- NUR HTML zurückgeben, KEIN Erklärungstext
+- Baue 2–4 Kacheln — jede Kachel hat einen fettgedruckten Titel und 1–2 Sätze Inhalt
+- Aufzählungslisten aus dem Text als <ul> mit individuellen Punkten umsetzen, nicht als Fließtext
+- CTA-Button: echte URL aus dem Text verwenden. Kein CTA wenn keine URL vorhanden (kein #)
+- {{{{ contact.first_name }}}} und {{{{ unsubscribe_url }}}} korrekt als Jinja2-Variablen beibehalten
+- Abmelden-Link am Ende: <a href="{{{{ unsubscribe_url }}}}" style="color:#999;font-size:11px;">Abmelden</a>
+- NUR HTML zurückgeben — kein Erklärungstext, keine Markdown-Codeblöcke
 """
 
         # Strip HTML document wrapper if MarketingAgent returned full HTML instead of plain text
