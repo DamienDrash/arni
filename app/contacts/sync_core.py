@@ -19,6 +19,7 @@ and the gateway integrations_sync router.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import traceback
 from datetime import datetime, timezone
@@ -539,6 +540,15 @@ class SyncCore:
                 integration_id=integration_id,
                 **summary,
             )
+
+            # Step 6: Trigger contact enrichment in background (Magicline only)
+            if integration_id == "magicline":
+                try:
+                    from app.integrations.magicline.contact_enrichment import enrich_contacts_for_tenant
+                    asyncio.ensure_future(enrich_contacts_for_tenant(tenant_id))
+                    logger.info("sync_core.enrichment_scheduled", tenant_id=tenant_id)
+                except Exception as _enrich_err:
+                    logger.warning("sync_core.enrichment_schedule_failed", error=str(_enrich_err))
 
             return {"success": True, "integration_id": integration_id, **summary}
 
