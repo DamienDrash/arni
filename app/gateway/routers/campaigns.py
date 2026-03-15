@@ -220,8 +220,8 @@ async def create_campaign(
                     campaign.featured_image_asset_id = ma.id
                     db.commit()
                     break
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("campaigns.featured_image_asset_link_failed", error=str(e))
 
     logger.info("campaign.created", campaign_id=campaign.id, tenant_id=user.tenant_id)
     return _campaign_to_dict(campaign)
@@ -1383,8 +1383,8 @@ async def get_queue_stats(
             CampaignRecipient.status == "queued"
         ).count()
 
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("campaigns.queue_stats_failed", error=str(e))
 
     return {
         "send_queue_length": send_queue_len,
@@ -1409,5 +1409,6 @@ async def clear_dead_letter_queue(
         )
         r.delete(f"campaign:send_dlq:{user.tenant_id}")
         return {"status": "ok"}
-    except Exception:
-        raise HTTPException(status_code=500, detail="Could not clear DLQ")
+    except Exception as e:
+        logger.error("campaigns.clear_dlq_failed", error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="Interner Serverfehler")

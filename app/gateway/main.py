@@ -42,12 +42,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 
 
 def _enforce_startup_guards() -> None:
-    if not settings.is_production:
-        return
-    weak_auth_secret = settings.auth_secret in {"", "change-me-long-random-secret", "changeme", "password123"}
-    weak_acp_secret = settings.acp_secret in {"", "ariia-acp-secret-changeme", "changeme", "password123"}
-    if weak_auth_secret or weak_acp_secret:
-        raise RuntimeError("Refusing startup in production due to weak/default secrets.")
+    weak_auth = settings.auth_secret in {"", "change-me-long-random-secret", "changeme", "password123"}
+    weak_acp = settings.acp_secret in {"", "ariia-acp-secret-changeme", "changeme", "password123"}
+    if weak_auth or weak_acp:
+        if settings.is_production:
+            raise RuntimeError("Refusing startup: weak secrets detected")
+        else:
+            logger.warning("startup.weak_secrets_detected", msg="Change secrets before production deployment")
 
 
 @asynccontextmanager
@@ -161,9 +162,9 @@ async def lifespan(app: FastAPI):
                     await sync_addons_from_stripe(db)
                 finally:
                     db.close()
-            except Exception:
-                pass
-            await asyncio.sleep(900)  # Every 15 minutes
+            except Exception as e:
+                logger.error("billing_sync_loop.failed", error=str(e), exc_info=True)
+            await asyncio.sleep(900)  # Retry nach 15 min auch bei Fehler
     background_tasks.append(asyncio.create_task(billing_sync_loop()))
 
     # Image Model Sync (weekly — keeps AA leaderboard rankings + fal catalog fresh)
@@ -190,10 +191,21 @@ async def lifespan(app: FastAPI):
             await asyncio.sleep(7 * 24 * 3600)  # Weekly
     background_tasks.append(asyncio.create_task(image_model_sync_loop()))
 
+    # Rate Limiter Cleanup Task
+    try:
+        from app.core.security import start_rate_limiter_cleanup
+        background_tasks.append(asyncio.create_task(start_rate_limiter_cleanup()))
+    except Exception as _rlc_err:
+        logger.warning("ariia.gateway.rate_limiter_cleanup_skipped", error=str(_rlc_err))
+
     yield
     
     for task in background_tasks:
         task.cancel()
+        try:
+            await asyncio.wait_for(asyncio.shield(task), timeout=5.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            pass
     await redis_bus.disconnect()
     logger.info("ariia.gateway.shutdown")
 
@@ -239,12 +251,20 @@ setup_instrumentation(app)
 # Configure CORS
 origins = [o.strip() for o in settings.cors_allowed_origins.split(",") if o.strip()]
 
+# Validate: wildcard origins + allow_credentials=True is a browser security violation
+if "*" in origins:
+    logger.warning(
+        "ariia.gateway.cors_wildcard_with_credentials",
+        msg="Using '*' in CORS origins with allow_credentials=True is insecure and rejected by browsers. "
+            "Set CORS_ALLOWED_ORIGINS to explicit origins before production deployment.",
+    )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "X-Requested-With"],
 )
 
 # --- Routers ---
@@ -362,6 +382,20 @@ try:
     app.include_router(contact_webhook_router)
 except Exception as _cwhook_err:
     logger.warning("ariia.gateway.contact_webhooks_skipped", error=str(_cwhook_err))
+
+# --- Chat Admin Router ---
+try:
+    from app.gateway.routers.chats import router as chats_router
+    app.include_router(chats_router)
+except Exception as _chats_err:
+    logger.warning("ariia.gateway.chats_router_skipped", error=str(_chats_err))
+
+# --- Member Memory Admin Router ---
+try:
+    from app.gateway.routers.member_memory_admin import router as member_memory_router
+    app.include_router(member_memory_router)
+except Exception as _mm_err:
+    logger.warning("ariia.gateway.member_memory_router_skipped", error=str(_mm_err))
 
 # --- Member Feedback ---
 from app.gateway.routers.feedback import router as feedback_router

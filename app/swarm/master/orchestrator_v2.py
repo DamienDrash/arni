@@ -115,29 +115,41 @@ class MasterAgentV2(BaseAgent):
         self._register_worker_handlers()
 
     def _register_worker_handlers(self):
-        """Connect tool definitions to actual worker agent handlers."""
+        """Connect tool definitions to actual worker agent handlers.
+
+        Each worker tool gets a handler closure that routes through the
+        worker agent's handle() method.  The per-request tenant_id is
+        injected via _execute_tool_call() — this method only wires up
+        the registry so ToolExecutor can discover handlers at validation
+        time.  Actual dispatch still goes through _execute_tool_call()
+        which builds a properly-scoped InboundMessage.
+        """
         for tool_name, worker in self._workers.items():
             tool_def = self._tool_registry.get(tool_name)
-            if tool_def:
-                # Create a closure to capture the worker reference
-                async def make_handler(w):
-                    async def handler(query: str, **kwargs):
-                        msg = InboundMessage(
-                            message_id="tool_call",
-                            platform="internal",
-                            user_id="system",
-                            content=query,
-                            content_type="text",
-                            metadata=kwargs,
-                            tenant_id=1,  # Will be overridden per request
-                        )
-                        result = await w.handle(msg)
-                        return result.content
-                    return handler
+            if tool_def is None:
+                continue
 
-                # We'll set the handler dynamically per request
-                # to inject the correct tenant_id
-                pass
+            # Capture worker in closure to avoid late-binding
+            def _make_handler(w):
+                async def handler(query: str, **kwargs) -> str:
+                    # This stub handler is only reached if ToolExecutor.execute()
+                    # is called directly (e.g. in tests).  Production flow goes
+                    # through MasterAgentV2._execute_tool_call() which injects
+                    # the real tenant_id into the InboundMessage.
+                    msg = InboundMessage(
+                        message_id="tool_call_stub",
+                        platform="internal",
+                        user_id="system",
+                        content=query,
+                        content_type="text",
+                        metadata=kwargs,
+                        tenant_id=None,
+                    )
+                    result = await w.handle(msg)
+                    return result.content
+                return handler
+
+            tool_def.handler = _make_handler(worker)
 
     @property
     def name(self) -> str:
@@ -156,6 +168,18 @@ class MasterAgentV2(BaseAgent):
         3. Feed results back as tool messages
         4. Repeat until LLM returns a final text response
         """
+        # Issue #1: Validate tenant_id — never fall back to tenant 1 (data-leakage risk)
+        if not message.tenant_id:
+            logger.error(
+                "swarm.missing_tenant_id",
+                agent="master_v2",
+                message_id=message.message_id,
+            )
+            return AgentResponse(
+                content="Interner Fehler: Tenant-Kontext fehlt.",
+                confidence=0.0,
+            )
+
         logger.info("master_v2.orchestration.started", message_id=message.message_id)
 
         # ── Escalation Detection (pre-processing) ──────────────────────
@@ -190,7 +214,7 @@ class MasterAgentV2(BaseAgent):
             llm_response = await self._llm.chat_with_tools(
                 messages=messages,
                 tools=tools,
-                tenant_id=message.tenant_id or 1,
+                tenant_id=message.tenant_id,
                 user_id=message.user_id,
                 agent_name="master_v2",
                 temperature=0.3,
@@ -302,7 +326,13 @@ class MasterAgentV2(BaseAgent):
                 success=True,
             )
         except Exception as e:
-            logger.error("master_v2.worker_error", tool=tool_name, error=str(e))
+            logger.error(
+                "master_v2.worker_error",
+                tool=tool_name,
+                error=str(e),
+                tenant_id=original_message.tenant_id,
+                message_id=original_message.message_id,
+            )
             return ToolCallResult(
                 tool_call_id=tc.id,
                 name=tool_name,
@@ -343,7 +373,20 @@ class MasterAgentV2(BaseAgent):
             if tenant_slug:
                 collection = collection_name_for_slug(tenant_slug)
             else:
-                collection = f"tenant_{message.tenant_id or 1}"
+                # Issue #30: Never fall back to tenant_1 — that would leak data
+                # across tenants.  If we cannot resolve the slug, log and fail.
+                logger.error(
+                    "master_v2.tenant_slug_missing",
+                    tenant_id=message.tenant_id,
+                    message_id=message.message_id,
+                )
+                return ToolCallResult(
+                    tool_call_id=tc.id,
+                    name="knowledge_base",
+                    content="Wissensdatenbank nicht verfügbar: Tenant-Kontext konnte nicht aufgelöst werden.",
+                    success=False,
+                    error="tenant_slug_missing",
+                )
 
             # KB-1 FIX: Fetch more results (top_k=5 min) to improve
             # recall with the default ChromaDB embedding model.
@@ -452,7 +495,7 @@ class MasterAgentV2(BaseAgent):
 
             result = await get_booking_link(
                 event_type_name=event_type_name,
-                tenant_id=message.tenant_id or 1,
+                tenant_id=message.tenant_id,
             )
             return ToolCallResult(
                 tool_call_id=tc.id,

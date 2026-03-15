@@ -38,7 +38,22 @@ class AgentMedic(BaseAgent):
         _tenant_slug = persistence.get_tenant_slug(message.tenant_id)
         _ctx = build_tenant_context(persistence, message.tenant_id or 0)
         medic_prompt = get_engine().render_for_tenant("medic/system.j2", _tenant_slug, **_ctx)
-        medic_disclaimer = "\n\n" + str(_ctx.get("medic_disclaimer_text", ""))
+
+        # Issue #14: medic_disclaimer_text is a legal requirement — never omit it.
+        _disclaimer_raw = str(_ctx.get("medic_disclaimer_text", "")).strip()
+        if _disclaimer_raw:
+            medic_disclaimer = "\n\n" + _disclaimer_raw
+        else:
+            # Hard-coded fallback: disclaimer MUST appear even if tenant has no custom text.
+            medic_disclaimer = (
+                "\n\n⚠️ *Wichtiger Hinweis:* Diese Informationen ersetzen keine professionelle "
+                "medizinische Beratung. Bei Notfällen bitte sofort 112 anrufen."
+            )
+            logger.warning(
+                "medic.disclaimer_fallback_used",
+                tenant_id=message.tenant_id,
+            )
+
         emergency_number = str(_ctx.get("studio_emergency_number", "112"))
 
         # Emergency detection → immediate alert (no LLM needed)
@@ -65,8 +80,11 @@ class AgentMedic(BaseAgent):
             {"role": "system", "content": medic_prompt},
             {"role": "user", "content": message.content}
         ]
-        
+
         max_turns = 3
+        # Issue #31: Loop detection — track previous tool calls to prevent infinite repetition
+        _called_tools: set = set()
+
         for turn in range(max_turns):
             response = await self._chat_with_messages(messages, tenant_id=message.tenant_id)
             if not response:
@@ -80,10 +98,27 @@ class AgentMedic(BaseAgent):
                     content=response + medic_disclaimer,
                     confidence=0.9
                 )
-            
+
             tool_name, tool_args = tool_call
+            call_id = f"{tool_name}({tool_args})"
+
+            # Issue #31: Anti-loop protection — break on duplicate tool call
+            if call_id in _called_tools:
+                logger.warning(
+                    "agent.medic.loop_detected",
+                    call=call_id,
+                    tenant_id=message.tenant_id,
+                )
+                messages.append({"role": "assistant", "content": response})
+                messages.append({
+                    "role": "user",
+                    "content": "OBSERVATION: Du wiederholst dich. Antworte dem User empathisch auf Basis der vorhandenen Infos.",
+                })
+                continue
+
+            _called_tools.add(call_id)
             logger.info("agent.medic.tool_use", tool=tool_name, args=tool_args, turn=turn+1)
-            
+
             # Execute tool
             if tool_name == "search_member_memory":
                 tool_result = member_memory.search_member_memory(message.user_id, tool_args.strip('"\''), tenant_id=message.tenant_id)

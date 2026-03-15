@@ -816,7 +816,13 @@ async def webhook_sms_tenant(
     from app.integrations.normalizer import MessageNormalizer
     norm = MessageNormalizer().normalize_sms(data_dict)
     norm.tenant_id = tenant_id
-    
+
+    dedup = get_deduplicator()
+    if dedup.is_duplicate(norm.message_id):
+        logger.debug("webhook.sms.duplicate_skipped", message_id=norm.message_id)
+        from fastapi.responses import Response
+        return Response(content='<?xml version="1.0" encoding="UTF-8"?><Response></Response>', media_type="text/xml")
+
     asyncio.create_task(save_inbound_to_db(norm))
     asyncio.create_task(process_and_reply(norm))
 

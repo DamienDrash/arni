@@ -256,4 +256,4 @@ async def _send_test_email(to_email: str, tenant_id: int, use_system: bool) -> d
         raise HTTPException(status_code=400, detail=f"SMTP-Fehler: {e}")
     except Exception as e:
         logger.error("smtp.test_error", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Unerwarteter Fehler: {e}")
+        raise HTTPException(status_code=500, detail="Interner Serverfehler")

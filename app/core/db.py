@@ -106,7 +106,7 @@ def set_tenant_id_context(dbapi_connection, connection_record, connection_proxy)
     cursor = dbapi_connection.cursor()
     try:
         if tid is not None:
-            cursor.execute(f"SET LOCAL app.current_tenant_id = '{tid}';")
+            cursor.execute("SET LOCAL app.current_tenant_id = %s", (str(tid),))
         else:
             cursor.execute("RESET app.current_tenant_id;")
     except Exception:
@@ -142,7 +142,7 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     async with factory() as session:
         tid = tenant_context.get()
         if tid is not None:
-            await session.execute(text(f"SET LOCAL app.current_tenant_id = '{tid}'"))
+            await session.execute(text("SET LOCAL app.current_tenant_id = :tid"), {"tid": str(tid)})
         try:
             yield session
         finally:

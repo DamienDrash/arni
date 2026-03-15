@@ -689,7 +689,8 @@ async def ai_edit_image(
     img_svc = ImageConfigService(db)
     try:
         config = img_svc.resolve_provider_by_slug(user.tenant_id, body.edit_model_slug)
-    except Exception:
+    except Exception as e:
+        logger.warning("media.resolve_provider_by_slug_failed", error=str(e))
         config = img_svc.resolve_image_provider(user.tenant_id)
 
     # Run img2img edit

@@ -9,8 +9,8 @@ class ChatSession(Base):
     user_id = Column(String, index=True)
     tenant_id = Column(Integer, index=True, nullable=False)
     platform = Column(String)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    last_message_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
+    last_message_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     is_active = Column(Boolean, default=True)
 
     # Enhanced User Identification (Sprint 13)
@@ -28,7 +28,7 @@ class ChatMessage(Base):
     tenant_id = Column(Integer, index=True, nullable=False)
     role = Column(String)  # "user" or "assistant"
     content = Column(Text)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    timestamp = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     metadata_json = Column(Text, nullable=True)  # JSON string for extra data
 
 
@@ -39,7 +39,7 @@ class Setting(Base):
     key = Column(String, primary_key=True, index=True)
     value = Column(String)
     description = Column(String, nullable=True)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class TenantConfig(Base):
@@ -49,7 +49,7 @@ class TenantConfig(Base):
     key = Column(String, index=True, nullable=False)
     value = Column(Text, nullable=True)
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc)
     )
@@ -62,9 +62,9 @@ class MemberFeedback(Base):
     session_id = Column(String, index=True, nullable=False)
     rating = Column(Integer, nullable=False)  # e.g. 1-5 or 1-10
     comment = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -77,16 +77,16 @@ class Tenant(Base):
     slug = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
     # DSGVO consent
-    tos_accepted_at = Column(DateTime, nullable=True)
-    privacy_accepted_at = Column(DateTime, nullable=True)
+    tos_accepted_at = Column(DateTime(timezone=True),nullable=True)
+    privacy_accepted_at = Column(DateTime(timezone=True),nullable=True)
 
     # Session configuration (per-tenant)
     session_idle_timeout_minutes = Column(Integer, default=30, nullable=False)
@@ -96,7 +96,7 @@ class Tenant(Base):
     mfa_required = Column(Boolean, default=False, nullable=False)
 
     # Onboarding
-    onboarding_completed_at = Column(DateTime, nullable=True)
+    onboarding_completed_at = Column(DateTime(timezone=True),nullable=True)
 
 
 class UserAccount(Base):
@@ -110,9 +110,9 @@ class UserAccount(Base):
     password_hash = Column(String, nullable=True)  # nullable for SSO/passwordless users
     language = Column(String, default="en", nullable=False)  # de|en|bg
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -130,17 +130,17 @@ class UserAccount(Base):
 
     # Account lockout
     failed_login_attempts = Column(Integer, default=0, nullable=False)
-    locked_until = Column(DateTime, nullable=True)
-    last_failed_login_at = Column(DateTime, nullable=True)
+    locked_until = Column(DateTime(timezone=True),nullable=True)
+    last_failed_login_at = Column(DateTime(timezone=True),nullable=True)
 
     # MFA
     mfa_enabled = Column(Boolean, default=False, nullable=False)
     mfa_secret_encrypted = Column(String, nullable=True)
     mfa_backup_codes_hash = Column(Text, nullable=True)
-    mfa_enabled_at = Column(DateTime, nullable=True)
+    mfa_enabled_at = Column(DateTime(timezone=True),nullable=True)
 
     # Tracking
-    last_login_at = Column(DateTime, nullable=True)
+    last_login_at = Column(DateTime(timezone=True),nullable=True)
 
 
 class AuditLog(Base):
@@ -155,7 +155,7 @@ class AuditLog(Base):
     target_type = Column(String, nullable=True)
     target_id = Column(String, nullable=True)
     details_json = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), index=True)
 
 
 class StudioMember(Base):
@@ -174,7 +174,7 @@ class StudioMember(Base):
     # --- Bulk sync fields (from /v1/customers, zero extra API calls) ---
     gender = Column(String, nullable=True)               # "MALE" / "FEMALE" / "DIVERSE"
     preferred_language = Column(String, nullable=True)   # "de", "en", …
-    member_since = Column(DateTime, nullable=True)       # createdDateTime
+    member_since = Column(DateTime(timezone=True),nullable=True)       # createdDateTime
     is_paused = Column(Boolean, nullable=True, default=False)
     pause_info = Column(Text, nullable=True)             # JSON: {"is_currently_paused": bool, "pause_until": "YYYY-MM-DD"|null, ...}
     contract_info = Column(Text, nullable=True)          # JSON: {"plan_name": "Premium", "status": "ACTIVE", "end_date": ...}
@@ -183,7 +183,7 @@ class StudioMember(Base):
     # --- Lazy enrichment (per-member API, cached with TTL) ---
     checkin_stats = Column(Text, nullable=True)    # JSON: {total_30d, total_90d, avg_per_week, last_visit, days_since, status}
     recent_bookings = Column(Text, nullable=True)  # JSON: [{type, title, start, status}, …]
-    enriched_at = Column(DateTime, nullable=True)
+    enriched_at = Column(DateTime(timezone=True),nullable=True)
 
     # --- Multi-Source Extensions (PR 2) ---
     source = Column(String, default="manual", nullable=False)  # manual, magicline, shopify, etc.
@@ -192,9 +192,9 @@ class StudioMember(Base):
     custom_fields = Column(Text, nullable=True)                # JSON dict: {"Schuhgröße": "42"}
     notes = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -232,7 +232,7 @@ class MemberImportLog(Base):
     skipped = Column(Integer, default=0)
     errors = Column(Integer, default=0)
     error_log = Column(Text, nullable=True)      # JSON details
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 # ─── Billing Models (S4.1) ───────────────────────────────────────────────────
@@ -310,9 +310,9 @@ class Plan(Base):
 
     is_active = Column(Boolean, nullable=False, default=True)
     is_public = Column(Boolean, nullable=False, default=True)  # Show on public pricing page
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -336,9 +336,9 @@ class AddonDefinition(Base):
     image_preview_quota_grant = Column(Integer, nullable=True, default=0)  # Extra preview images/month
     is_active = Column(Boolean, nullable=False, default=True)
     display_order = Column(Integer, nullable=False, default=0)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -354,7 +354,7 @@ class TenantAddon(Base):
     stripe_subscription_item_id = Column(String, nullable=True)
     quantity = Column(Integer, default=1)
     status = Column(String, default="active")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 class Subscription(Base):
@@ -372,17 +372,17 @@ class Subscription(Base):
     stripe_subscription_id = Column(String, nullable=True, unique=True)
     stripe_customer_id = Column(String, nullable=True)
 
-    current_period_start = Column(DateTime, nullable=True)
-    current_period_end = Column(DateTime, nullable=True)
-    trial_ends_at = Column(DateTime, nullable=True)
-    canceled_at = Column(DateTime, nullable=True)
+    current_period_start = Column(DateTime(timezone=True),nullable=True)
+    current_period_end = Column(DateTime(timezone=True),nullable=True)
+    trial_ends_at = Column(DateTime(timezone=True),nullable=True)
+    canceled_at = Column(DateTime(timezone=True),nullable=True)
     cancel_at_period_end = Column(Boolean, default=False, nullable=False)
     pending_plan_id = Column(Integer, nullable=True)
     billing_interval = Column(String, default="month", nullable=True)
 
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -425,9 +425,9 @@ class TenantLLMConfig(Base):
     model_id = Column(String, nullable=False)         # e.g. "gpt-4o"
     is_default = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -444,7 +444,7 @@ class TokenPurchase(Base):
     stripe_payment_intent_id = Column(String, nullable=True)
     stripe_checkout_session_id = Column(String, nullable=True)
     status = Column(String, nullable=False, default="pending")  # pending | completed | failed
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 
@@ -467,7 +467,7 @@ class ImageCreditPack(Base):
     stripe_price_yearly_id = Column(String(100), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     display_order = Column(Integer, default=0)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 class ImageCreditBalance(Base):
@@ -479,7 +479,7 @@ class ImageCreditBalance(Base):
     balance = Column(Integer, default=0, nullable=False)
     last_grant_year = Column(Integer, nullable=True)
     last_grant_month = Column(Integer, nullable=True)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 class ImageCreditTransaction(Base):
@@ -492,7 +492,7 @@ class ImageCreditTransaction(Base):
     reason = Column(String(50), nullable=False)   # plan_grant | topup | generation | edit | refund
     reference_id = Column(String(200), nullable=True)
     balance_after = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), index=True)
 
 
 class ImageCreditPurchase(Base):
@@ -508,8 +508,8 @@ class ImageCreditPurchase(Base):
     stripe_session_id = Column(String(200), nullable=True)
     stripe_subscription_id = Column(String(200), nullable=True)
     status = Column(String(20), default="pending", nullable=False)  # pending | active | canceled | completed
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 class LLMModelCost(Base):
@@ -522,7 +522,7 @@ class LLMModelCost(Base):
     input_cost_per_million = Column(Integer, nullable=False, default=0)   # Cost in USD-cents per 1M input tokens
     output_cost_per_million = Column(Integer, nullable=False, default=0)  # Cost in USD-cents per 1M output tokens
     is_active = Column(Boolean, nullable=False, default=True)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class LLMUsageLog(Base):
@@ -543,7 +543,7 @@ class LLMUsageLog(Base):
     latency_ms = Column(Integer, nullable=True)
     success = Column(Boolean, nullable=False, default=True)
     error_message = Column(String, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), index=True)
 
 
 class Campaign(Base):
@@ -580,11 +580,11 @@ class Campaign(Base):
 
     # Preview / Approval
     preview_token = Column(String, nullable=True, unique=True, index=True)
-    preview_expires_at = Column(DateTime, nullable=True)
+    preview_expires_at = Column(DateTime(timezone=True),nullable=True)
 
     # Scheduling
-    scheduled_at = Column(DateTime, nullable=True)
-    sent_at = Column(DateTime, nullable=True)
+    scheduled_at = Column(DateTime(timezone=True),nullable=True)
+    sent_at = Column(DateTime(timezone=True),nullable=True)
 
     # Stats
     stats_total = Column(Integer, nullable=False, default=0)
@@ -615,9 +615,9 @@ class Campaign(Base):
     featured_image_asset_id = Column(Integer, nullable=True)
 
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -650,9 +650,9 @@ class CampaignTemplate(Base):
 
     is_default = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -675,11 +675,11 @@ class CampaignVariant(Base):
 
     # A/B Winner Tracking
     is_winner = Column(Boolean, nullable=False, default=False)
-    winner_selected_at = Column(DateTime, nullable=True)
+    winner_selected_at = Column(DateTime(timezone=True),nullable=True)
     winner_metric = Column(String(30), nullable=True)       # open_rate | click_rate
     confidence_level = Column(Float, nullable=True)          # 0.0–1.0
 
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 class CampaignRecipient(Base):
@@ -696,15 +696,15 @@ class CampaignRecipient(Base):
 
     # Status: pending | sent | delivered | opened | clicked | failed | bounced | unsubscribed
     status = Column(String, nullable=False, default="pending")
-    sent_at = Column(DateTime, nullable=True)
-    delivered_at = Column(DateTime, nullable=True)
-    opened_at = Column(DateTime, nullable=True)
-    clicked_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime(timezone=True),nullable=True)
+    delivered_at = Column(DateTime(timezone=True),nullable=True)
+    opened_at = Column(DateTime(timezone=True),nullable=True)
+    clicked_at = Column(DateTime(timezone=True),nullable=True)
     error_message = Column(Text, nullable=True)
 
     # Phase 3: Orchestration & Analytics extensions
     current_step = Column(Integer, nullable=True, default=1)  # Current orchestration step
-    converted_at = Column(DateTime, nullable=True)             # Conversion timestamp
+    converted_at = Column(DateTime(timezone=True),nullable=True)             # Conversion timestamp
     conversion_value = Column(Float, nullable=True)            # Conversion value in EUR
 
 
@@ -723,9 +723,9 @@ class MemberSegment(Base):
 
     member_count = Column(Integer, nullable=False, default=0)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -745,19 +745,19 @@ class ScheduledFollowUp(Base):
     ai_context_json = Column(Text, nullable=True)  # Relevant chat context for the follow-up
 
     # Scheduling
-    follow_up_at = Column(DateTime, nullable=False)
+    follow_up_at = Column(DateTime(timezone=True),nullable=False)
     message_template = Column(Text, nullable=True)
     channel = Column(String, nullable=False, default="whatsapp")
 
     # Status: pending | sent | cancelled | failed
     status = Column(String, nullable=False, default="pending")
-    sent_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime(timezone=True),nullable=True)
     error_message = Column(Text, nullable=True)
 
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -774,9 +774,9 @@ class PendingInvitation(Base):
     role = Column(String, default="tenant_user", nullable=False)
     token = Column(String, unique=True, nullable=False, index=True)
     invited_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    expires_at = Column(DateTime, nullable=False)
-    accepted_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = Column(DateTime(timezone=True),nullable=False)
+    accepted_at = Column(DateTime(timezone=True),nullable=True)
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 class RefreshToken(Base):
@@ -789,8 +789,8 @@ class RefreshToken(Base):
     device_info = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     is_revoked = Column(Boolean, default=False, nullable=False)
-    expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = Column(DateTime(timezone=True),nullable=False)
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 class UserSession(Base):
@@ -803,5 +803,5 @@ class UserSession(Base):
     device_name = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
-    last_active_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_active_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))

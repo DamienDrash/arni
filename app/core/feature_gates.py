@@ -88,7 +88,15 @@ class FeatureGate:
             finally:
                 db.close()
         except Exception as exc:
-            logger.warning("feature_gate.plan_load_failed", tenant_id=self._tenant_id, error=str(exc))
+            logger.error(
+                "feature_gate.plan_load_failed_critical",
+                tenant_id=self._tenant_id,
+                error=str(exc),
+            )
+            # Distinguish: real DB failure vs. tenant has no plan.
+            # In both cases fall back to Starter defaults so the tenant is not hard-blocked,
+            # but emit an alert-level log so monitoring picks it up.
+            logger.warning("feature_gate.falling_back_to_starter", tenant_id=self._tenant_id)
         return dict(_STARTER_DEFAULTS)
 
     def _load_active_addons(self) -> set[str]:

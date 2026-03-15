@@ -78,7 +78,18 @@ class AgentSales(BaseAgent):
                 # Final answer reached
                 # If response is cancellation trigger, add metadata
                 if any(kw in content for kw in cancel_keywords):
-                     return AgentResponse(
+                    # Issue #21: requires_confirmation=True is set but the Gateway does
+                    # not yet enforce an interactive confirmation step.
+                    # TODO(gateway-integration): Intercept responses with
+                    # requires_confirmation=True in process_and_reply() and hold the
+                    # reply until the user explicitly confirms the destructive action.
+                    logger.warning(
+                        "sales.cancellation_requires_confirmation_not_enforced",
+                        message_id=message.message_id,
+                        tenant_id=message.tenant_id,
+                        user_id=message.user_id,
+                    )
+                    return AgentResponse(
                         content=response,
                         confidence=0.95,
                         requires_confirmation=True,

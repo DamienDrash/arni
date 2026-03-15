@@ -100,12 +100,21 @@ class BaseAgent(ABC):
                 pass
         messages.append({"role": "user", "content": user_message})
 
+        # Validate tenant_id — never fall back to tenant 1 (data-leakage risk)
+        if not tenant_id:
+            logger.error(
+                "swarm.missing_tenant_id",
+                agent=self.name,
+                method="_chat",
+            )
+            return None
+
         # LLM Call via refactored LLMClient (which uses AIGateway)
         try:
             if config:
                 return await self._llm.chat(
                     messages=messages,
-                    tenant_id=tenant_id or 1,
+                    tenant_id=tenant_id,
                     user_id=user_id,
                     agent_name=self.name,
                     provider_id=config.provider_slug,
@@ -119,7 +128,7 @@ class BaseAgent(ABC):
                 # Fallback: let LLMClient handle resolution
                 return await self._llm.chat(
                     messages=messages,
-                    tenant_id=tenant_id or 1,
+                    tenant_id=tenant_id,
                     user_id=user_id,
                     agent_name=self.name,
                 )
@@ -137,13 +146,22 @@ class BaseAgent(ABC):
         if not self._llm:
             return None
 
+        # Validate tenant_id — never fall back to tenant 1 (data-leakage risk)
+        if not tenant_id:
+            logger.error(
+                "swarm.missing_tenant_id",
+                agent=self.name,
+                method="_chat_with_messages",
+            )
+            return None
+
         config = self._resolve_agent_config(tenant_id)
 
         try:
             if config:
                 return await self._llm.chat(
                     messages=messages,
-                    tenant_id=tenant_id or 1,
+                    tenant_id=tenant_id,
                     agent_name=self.name,
                     provider_id=config.provider_slug,
                     provider_url=config.api_base_url,
@@ -155,7 +173,7 @@ class BaseAgent(ABC):
             else:
                 return await self._llm.chat(
                     messages=messages,
-                    tenant_id=tenant_id or 1,
+                    tenant_id=tenant_id,
                     agent_name=self.name,
                     max_tokens=max_tokens,
                 )
@@ -171,11 +189,19 @@ class BaseAgent(ABC):
             from app.core.db import SessionLocal
             from app.ai_config.service import AIConfigService
 
+            if not tenant_id:
+                logger.error(
+                    "swarm.missing_tenant_id",
+                    agent=self.name,
+                    method="_resolve_agent_config",
+                )
+                return None
+
             db = SessionLocal()
             try:
                 svc = AIConfigService(db)
                 config = svc.resolve_llm_config(
-                    tenant_id=tenant_id or 1,
+                    tenant_id=tenant_id,
                     agent_slug=self.name,
                 )
                 if config and config.api_key:

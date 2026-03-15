@@ -127,8 +127,8 @@ async def revenue_overview(user: AuthContext = Depends(get_current_user)) -> dic
                 .all()
             )
             addon_mrr_cents = sum((ad.price_monthly_cents or 0) * (ta.quantity or 1) for ta, ad in active_addons)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("revenue.addon_mrr_fetch_failed", error=str(exc))
 
         # Token purchase revenue
         token_revenue = db.query(
@@ -258,7 +258,6 @@ async def revenue_tenants(user: AuthContext = Depends(get_current_user)) -> list
     db = SessionLocal()
     try:
         now = datetime.now(timezone.utc)
-        tenants = db.query(Tenant).filter(Tenant.is_active.is_(True)).all()
 
         # ── Build a map of Stripe customer → total paid (current month) ──
         customer_revenue = {}  # stripe_customer_id -> cents
@@ -296,23 +295,42 @@ async def revenue_tenants(user: AuthContext = Depends(get_current_user)) -> list
         except Exception as exc:
             logger.warning("revenue.tenants_stripe_failed", error=str(exc))
 
-        result = []
-        for tenant in tenants:
-            sub = db.query(Subscription).filter(Subscription.tenant_id == tenant.id).first()
-            plan = None
-            if sub:
-                plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
+        # Single JOIN query replacing N+1: one query fetches Tenant + Subscription + Plan together
+        tenant_rows = (
+            db.query(Tenant, Subscription, Plan)
+            .outerjoin(Subscription, Subscription.tenant_id == Tenant.id)
+            .outerjoin(Plan, Plan.id == Subscription.plan_id)
+            .filter(Tenant.is_active.is_(True))
+            .all()
+        )
 
-            usage = db.query(UsageRecord).filter(
-                UsageRecord.tenant_id == tenant.id,
-                UsageRecord.period_year == now.year,
-                UsageRecord.period_month == now.month,
-            ).first()
+        # Collect all tenant IDs for batch queries
+        tenant_ids = [t.id for t, _s, _p in tenant_rows]
 
-            addon_count = db.query(func.count(TenantAddon.id)).filter(
-                TenantAddon.tenant_id == tenant.id,
+        # Batch query: usage records for all tenants in one shot
+        usage_rows = db.query(UsageRecord).filter(
+            UsageRecord.tenant_id.in_(tenant_ids),
+            UsageRecord.period_year == now.year,
+            UsageRecord.period_month == now.month,
+        ).all()
+        usage_by_tenant = {u.tenant_id: u for u in usage_rows}
+
+        # Batch query: active addon counts per tenant
+        addon_counts_rows = (
+            db.query(TenantAddon.tenant_id, func.count(TenantAddon.id).label("cnt"))
+            .filter(
+                TenantAddon.tenant_id.in_(tenant_ids),
                 TenantAddon.status == "active",
-            ).scalar() or 0
+            )
+            .group_by(TenantAddon.tenant_id)
+            .all()
+        )
+        addon_count_by_tenant = {row.tenant_id: row.cnt for row in addon_counts_rows}
+
+        result = []
+        for tenant, sub, plan in tenant_rows:
+            usage = usage_by_tenant.get(tenant.id)
+            addon_count = addon_count_by_tenant.get(tenant.id, 0)
 
             stripe_cid = sub.stripe_customer_id if sub else None
             stripe_monthly = customer_revenue.get(stripe_cid, 0) if stripe_cid else 0

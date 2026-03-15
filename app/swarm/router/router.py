@@ -5,6 +5,8 @@ GPT-4o-mini intent classifier → dispatches to correct sub-agent.
 Fallback: keyword-based routing when LLM unavailable.
 """
 
+from typing import Optional
+
 import structlog
 
 from app.gateway.schemas import InboundMessage
@@ -21,6 +23,47 @@ from app.core.feature_gates import FeatureGate
 from fastapi import HTTPException
 
 logger = structlog.get_logger()
+
+# Confidence threshold: below this, use UNKNOWN/fallback
+CONFIDENCE_THRESHOLD = 0.6
+
+# ─── Module-Level Singleton (Issue #23) ─────────────────────────────────────
+# SwarmRouter creates multiple agent instances on every __init__ call.
+# To avoid unnecessary object churn when the same LLMClient is reused,
+# callers should use get_router() instead of SwarmRouter(...) directly.
+
+_router_instance: "Optional[SwarmRouter]" = None
+
+
+def get_router(llm: "LLMClient") -> "SwarmRouter":
+    """Return the shared SwarmRouter singleton for the given LLMClient.
+
+    The singleton is (re-)created only when the LLMClient reference changes,
+    which in practice means once per process lifetime since LLMClient is a
+    module-level singleton in app.gateway.dependencies.
+
+    Note: SwarmRouter is stateless between requests — per-tenant context is
+    injected through InboundMessage.tenant_id, so sharing the instance across
+    requests is safe.
+    """
+    global _router_instance
+    if _router_instance is None or _router_instance._llm is not llm:
+        logger.info("swarm_router.singleton_created")
+        _router_instance = SwarmRouter(llm)
+    return _router_instance
+AFFIRMATIVE_PATTERNS = {
+    "ja",
+    "ja bitte",
+    "bitte",
+    "gerne",
+    "ok",
+    "okay",
+    "mach das",
+    "passt",
+    "einverstanden",
+    "yes",
+}
+
 
 class SwarmRouter:
     """Central router: classifies user intent → dispatches to sub-agent.
