@@ -41,6 +41,11 @@ class WhatsAppClient:
         self.waha_api_key = waha_api_key
         self.session_name = session_name
 
+    @property
+    def app_secret(self) -> str:
+        """Public read-only access to the HMAC secret (used by webhook router)."""
+        return self._app_secret
+
     async def send_text(self, to: str, body: str) -> dict[str, Any]:
         """Send a text message to a WhatsApp user."""
         if self.waha_api_url:

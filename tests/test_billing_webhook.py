@@ -33,6 +33,8 @@ async def _register_tenant(client: AsyncClient, suffix: str) -> tuple[str, int]:
             "email": f"admin-{unique}@billing-test.example",
             "password": "TestPass!1234",
             "full_name": "Billing Admin",
+        "accept_tos": True,
+        "accept_privacy": True,
         },
     )
     assert resp.status_code == 200, f"Register failed: {resp.text}"
@@ -178,6 +180,8 @@ async def test_checkout_session_with_stripe_creates_session() -> None:
                     "email": f"co-admin-{int(time.time() * 1000)}@test.example",
                     "password": "TestPass!1234",
                     "full_name": "Checkout Admin",
+                "accept_tos": True,
+                "accept_privacy": True,
                 })
                 assert reg.status_code == 200
                 token = reg.json()["access_token"]

@@ -118,15 +118,9 @@ class TestWebhookIngress:
 
     @staticmethod
     def _headers_for_payload(payload: dict) -> dict[str, str]:
+        # meta_app_secret is stored as a DB setting (not a Settings field);
+        # signature generation is only needed in production, so tests skip it.
         headers = {"Content-Type": "application/json"}
-        if settings.meta_app_secret and settings.is_production:
-            body = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
-            signature = hmac.new(
-                settings.meta_app_secret.encode("utf-8"),
-                body,
-                hashlib.sha256,
-            ).hexdigest()
-            headers["x-hub-signature-256"] = f"sha256={signature}"
         return headers
 
     @pytest.mark.anyio
@@ -173,14 +167,6 @@ class TestWebhookIngress:
     @pytest.mark.anyio
     async def test_webhook_post_invalid_json(self, client: AsyncClient) -> None:
         headers = {"Content-Type": "application/json"}
-        if settings.meta_app_secret and settings.is_production:
-            bad_body = b"not json"
-            signature = hmac.new(
-                settings.meta_app_secret.encode("utf-8"),
-                bad_body,
-                hashlib.sha256,
-            ).hexdigest()
-            headers["x-hub-signature-256"] = f"sha256={signature}"
         response = await client.post(
             "/webhook/whatsapp/system",
             content="not json",

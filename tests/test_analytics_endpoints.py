@@ -28,6 +28,8 @@ async def _register_tenant(client: AsyncClient, suffix: str) -> tuple[str, int]:
             "email": f"admin-{unique}@analytics-test.example",
             "password": "TestPass!1234",
             "full_name": "Test Admin",
+        "accept_tos": True,
+        "accept_privacy": True,
         },
     )
     assert resp.status_code == 200, f"Register failed: {resp.text}"
