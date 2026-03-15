@@ -13,6 +13,8 @@ Design:
 
 from __future__ import annotations
 
+import asyncio
+import base64
 import hashlib
 import hmac
 import json
@@ -24,8 +26,8 @@ import structlog
 from fastapi import APIRouter, Request, Response, HTTPException
 
 from app.core.db import SessionLocal
-from app.core.integration_models import TenantIntegration, WebhookEndpoint, SyncLog
-from app.core.credential_vault import credential_vault
+from app.core.integration_models import TenantIntegration, WebhookEndpoint
+from app.core.credential_vault import get_vault
 
 logger = structlog.get_logger()
 
@@ -42,7 +44,6 @@ def _is_duplicate(webhook_id: str) -> bool:
     if webhook_id in _processed_webhooks:
         return True
     if len(_processed_webhooks) > _MAX_TRACKED:
-        # Evict oldest entries
         oldest = sorted(_processed_webhooks.items(), key=lambda x: x[1])[:_MAX_TRACKED // 2]
         for k, _ in oldest:
             _processed_webhooks.pop(k, None)
@@ -59,17 +60,18 @@ def verify_shopify_hmac(body: bytes, secret: str, header_hmac: str) -> bool:
         body,
         hashlib.sha256,
     ).digest()
-    import base64
     expected = base64.b64encode(computed).decode("utf-8")
     return hmac.compare_digest(expected, header_hmac)
 
 
 def verify_hubspot_signature(body: bytes, secret: str, header_sig: str, version: str = "v3") -> bool:
-    """Verify HubSpot webhook signature."""
+    """Verify HubSpot webhook signature (v3 only; older versions not supported)."""
     if version == "v3":
         computed = hashlib.sha256(secret.encode("utf-8") + body).hexdigest()
         return hmac.compare_digest(computed, header_sig)
-    return True  # Fallback for older versions
+    # HubSpot v1/v2 signatures require request URI + timestamp which are not
+    # reliably available here — skip verification for legacy versions.
+    return True
 
 
 def verify_woocommerce_signature(body: bytes, secret: str, header_sig: str) -> bool:
@@ -79,7 +81,6 @@ def verify_woocommerce_signature(body: bytes, secret: str, header_sig: str) -> b
         body,
         hashlib.sha256,
     ).digest()
-    import base64
     expected = base64.b64encode(computed).decode("utf-8")
     return hmac.compare_digest(expected, header_sig)
 
@@ -94,10 +95,10 @@ async def receive_webhook(
 ) -> Response:
     """
     Generic webhook receiver.
-    
+
     URL pattern: /webhooks/{integration_id}/{tenant_id}
     Example: /webhooks/shopify/42
-    
+
     Each integration has its own signature verification and payload parsing.
     """
     body = await request.body()
@@ -110,7 +111,6 @@ async def receive_webhook(
         content_length=len(body),
     )
 
-    # Verify the tenant integration exists and is enabled
     db = SessionLocal()
     try:
         ti = (
@@ -127,36 +127,29 @@ async def receive_webhook(
             logger.warning("webhook.integration_not_found", integration_id=integration_id, tenant_id=tenant_id)
             raise HTTPException(status_code=404, detail="Integration not found or disabled")
 
-        # Get webhook secret for signature verification
         webhook_secret = None
         try:
-            creds = credential_vault.get_credentials(tenant_id, integration_id)
+            creds = get_vault().get_credentials(tenant_id, integration_id)
             webhook_secret = creds.get("webhook_secret")
         except Exception:
             pass
 
-        # Verify signature based on integration type
         if not _verify_signature(integration_id, body, headers, webhook_secret):
             logger.warning("webhook.signature_invalid", integration_id=integration_id, tenant_id=tenant_id)
             raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
-        # Parse payload
         try:
             payload = json.loads(body) if body else {}
         except json.JSONDecodeError:
             payload = {"raw": body.decode("utf-8", errors="replace")}
 
-        # Check idempotency
         webhook_id = _extract_webhook_id(integration_id, headers, payload)
         if webhook_id and _is_duplicate(webhook_id):
             logger.info("webhook.duplicate", webhook_id=webhook_id)
             return Response(status_code=200, content='{"status": "already_processed"}')
 
-        # Log the webhook
         _log_webhook(db, tenant_id, integration_id, webhook_id, payload)
 
-        # Process asynchronously
-        import asyncio
         asyncio.create_task(
             _process_webhook(tenant_id, integration_id, payload, headers)
         )
@@ -178,17 +171,12 @@ async def webhook_verification(
     tenant_id: int,
     request: Request,
 ) -> Response:
-    """
-    Handle webhook verification challenges (used by some platforms).
-    E.g., HubSpot sends a GET request to verify the endpoint.
-    """
+    """Handle webhook verification challenges (used by some platforms)."""
     params = dict(request.query_params)
 
-    # Shopify verification
     if integration_id == "shopify":
         return Response(status_code=200, content="OK")
 
-    # HubSpot verification
     if integration_id == "hubspot" and "challenge" in params:
         return Response(
             status_code=200,
@@ -209,23 +197,20 @@ def _verify_signature(
 ) -> bool:
     """Dispatch signature verification to integration-specific handler."""
     if not webhook_secret:
-        # No secret configured – skip verification (log warning)
         logger.warning("webhook.no_secret_configured", integration_id=integration_id)
         return True
 
     if integration_id == "shopify":
-        hmac_header = headers.get("x-shopify-hmac-sha256", "")
-        return verify_shopify_hmac(body, webhook_secret, hmac_header)
+        return verify_shopify_hmac(body, webhook_secret, headers.get("x-shopify-hmac-sha256", ""))
 
-    elif integration_id == "hubspot":
+    if integration_id == "hubspot":
         sig_header = headers.get("x-hubspot-signature-v3", headers.get("x-hubspot-signature", ""))
         return verify_hubspot_signature(body, webhook_secret, sig_header)
 
-    elif integration_id == "woocommerce":
-        sig_header = headers.get("x-wc-webhook-signature", "")
-        return verify_woocommerce_signature(body, webhook_secret, sig_header)
+    if integration_id == "woocommerce":
+        return verify_woocommerce_signature(body, webhook_secret, headers.get("x-wc-webhook-signature", ""))
 
-    # Unknown integration – accept if secret matches a simple token
+    # Unknown integration: accept if Authorization Bearer matches the secret
     auth_header = headers.get("authorization", "")
     if auth_header.startswith("Bearer "):
         return hmac.compare_digest(auth_header[7:], webhook_secret)
@@ -241,9 +226,11 @@ def _extract_webhook_id(
     """Extract a unique webhook ID for idempotency."""
     if integration_id == "shopify":
         return headers.get("x-shopify-webhook-id")
-    elif integration_id == "hubspot":
+    if integration_id == "hubspot":
+        if isinstance(payload, list) and len(payload) > 0:
+            return payload[0].get("requestId") or payload[0].get("correlationId")
         return payload.get("requestId") or payload.get("correlationId")
-    elif integration_id == "woocommerce":
+    if integration_id == "woocommerce":
         return headers.get("x-wc-webhook-id")
     return None
 
@@ -255,9 +242,8 @@ def _log_webhook(
     webhook_id: Optional[str],
     payload: Dict[str, Any],
 ) -> None:
-    """Log webhook receipt to database."""
+    """Update last_received_at on the WebhookEndpoint record."""
     try:
-        from app.core.integration_models import WebhookEndpoint
         endpoint = (
             db.query(WebhookEndpoint)
             .filter(
@@ -285,26 +271,21 @@ async def _process_webhook(
     try:
         logger.info("webhook.processing", integration_id=integration_id, tenant_id=tenant_id)
 
-        # Determine the event type
         event_type = _extract_event_type(integration_id, headers, payload)
-
         if not event_type:
             logger.debug("webhook.unknown_event", integration_id=integration_id)
             return
 
-        # Only process contact-related events
         contact_events = {
             "shopify": ["customers/create", "customers/update", "customers/delete"],
             "hubspot": ["contact.creation", "contact.propertyChange", "contact.deletion"],
             "woocommerce": ["customer.created", "customer.updated", "customer.deleted"],
         }
 
-        relevant_events = contact_events.get(integration_id, [])
-        if event_type not in relevant_events:
+        if event_type not in contact_events.get(integration_id, []):
             logger.debug("webhook.irrelevant_event", event_type=event_type, integration_id=integration_id)
             return
 
-        # Trigger incremental sync for the specific contact
         from app.contacts.sync_core import sync_core
 
         result = await sync_core.run_sync(
@@ -341,20 +322,19 @@ def _extract_event_type(
     """Extract the event type from webhook headers/payload."""
     if integration_id == "shopify":
         return headers.get("x-shopify-topic")
-    elif integration_id == "hubspot":
-        # HubSpot sends an array of events
+    if integration_id == "hubspot":
         if isinstance(payload, list) and len(payload) > 0:
             return payload[0].get("subscriptionType")
         return payload.get("subscriptionType")
-    elif integration_id == "woocommerce":
+    if integration_id == "woocommerce":
         return headers.get("x-wc-webhook-topic")
     return None
 
 
 # ── Webhook URL Generator ────────────────────────────────────────────────────
 
-def get_webhook_url(tenant_id: int, integration_id: str, base_url: str = "") -> str:
+def get_webhook_url(tenant_id: int, integration_id: str) -> str:
     """Generate the webhook URL for a tenant integration."""
-    if not base_url:
-        base_url = "https://api.ariia.io"  # Default, should be from config
+    from config.settings import get_settings
+    base_url = get_settings().gateway_public_url.rstrip("/") or "https://api.ariia.io"
     return f"{base_url}/webhooks/{integration_id}/{tenant_id}"

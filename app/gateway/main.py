@@ -356,6 +356,17 @@ try:
 except Exception as _contacts_err:
     logger.warning("ariia.gateway.contacts_v2_skipped", error=str(_contacts_err))
 
+# --- Contact Sync Webhook Handler ---
+try:
+    from app.contacts.webhook_handler import router as contact_webhook_router
+    app.include_router(contact_webhook_router)
+except Exception as _cwhook_err:
+    logger.warning("ariia.gateway.contact_webhooks_skipped", error=str(_cwhook_err))
+
+# --- Member Feedback ---
+from app.gateway.routers.feedback import router as feedback_router
+app.include_router(feedback_router)
+
 # --- AI Config Management Router (Refactored) ---
 try:
     from app.ai_config.router import admin_router as ai_config_admin_router, tenant_router as ai_config_tenant_router

@@ -9,7 +9,7 @@ for due runs and processes them in batches.
 from __future__ import annotations
 
 import json
-import logging
+import structlog
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.automation_models import AutomationWorkflow, AutomationRun, AutomationRunLog
 from app.campaign_engine.node_executors import get_executor
 
-logger = logging.getLogger("ariia.automation.engine")
+logger = structlog.get_logger()
 
 BATCH_SIZE = 100
 
@@ -53,6 +53,7 @@ class AutomationEngine:
                     "automation.run_execution_failed",
                     run_id=run.id,
                     workflow_id=run.workflow_id,
+                    tenant_id=run.tenant_id,
                     error=str(e),
                 )
                 run.status = "error"
@@ -97,6 +98,7 @@ class AutomationEngine:
                 run_id=run.id,
                 node_id=run.current_node_id,
                 node_type=node_type,
+                tenant_id=run.tenant_id,
                 error=str(e),
             )
 
@@ -111,7 +113,7 @@ class AutomationEngine:
         db.add(log_entry)
 
         # 4. Determine next node
-        if result.get("status") == "error" and node_type not in ("condition",):
+        if isinstance(result, dict) and result.get("status") == "error" and node_type not in ("condition",):
             run.status = "error"
             run.error_message = result.get("error", "Unknown error")
             db.commit()
@@ -124,7 +126,6 @@ class AutomationEngine:
             return
 
         if node_type == "wait":
-            # WaitExecutor already set next_execution_at on the run
             next_node_id = _resolve_next_node(graph, node, result)
             if next_node_id:
                 run.current_node_id = next_node_id
@@ -183,14 +184,12 @@ def _resolve_next_node(graph: dict, current_node: dict, result: dict) -> Optiona
     node_type = current_node.get("type", current_node.get("data", {}).get("nodeType", ""))
 
     if node_type == "condition":
-        branch = result.get("branch", "no")
-        # Look for edges with matching sourceHandle
+        branch = result.get("branch", "no") if isinstance(result, dict) else "no"
         for edge in edges:
             if edge.get("source") == current_id:
                 source_handle = edge.get("sourceHandle", "")
                 if source_handle == branch or source_handle == f"{branch}-handle":
                     return edge.get("target")
-        # Fallback: first matching edge
         for edge in edges:
             if edge.get("source") == current_id:
                 label = (edge.get("label", "") or "").lower()

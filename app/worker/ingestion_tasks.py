@@ -38,7 +38,7 @@ async def ingest_file_task(
     Called by the API after writing the file to staging_path.
     Writes final status (indexed / error) back to .meta.json on the shared volume.
 
-    ARQ will retry up to WorkerSettings.max_tries times on exception.
+    ARQ retries on exception up to the configured max_tries.
     """
     from app.memory_platform.ingestion import get_ingestion_service
 
@@ -64,7 +64,6 @@ async def ingest_file_task(
 
     except Exception as exc:
         logger.error("worker.ingest_file_task.failed", doc_id=doc_id, error=str(exc))
-        # Write error status to .meta.json so the API surfaces it without waiting
         _write_error_meta(doc_id, tenant_id, original_filename, content_type, str(exc))
         raise  # re-raise so ARQ records the failure and triggers retry
 
@@ -91,20 +90,25 @@ async def ingest_text_task(
     from app.memory_platform.ingestion import get_ingestion_service
 
     service = get_ingestion_service()
-    doc = await service.ingest_text(
-        tenant_id=tenant_id,
-        content=content,
-        title=title,
-        tenant_slug=tenant_slug,
-    )
-    logger.info(
-        "worker.ingest_text_task.done",
-        doc_id=doc.document_id,
-        status=doc.status,
-        chunks=doc.chunk_count,
-        tenant=tenant_slug,
-    )
-    return {"status": doc.status, "document_id": doc.document_id}
+    try:
+        doc = await service.ingest_text(
+            tenant_id=tenant_id,
+            content=content,
+            title=title,
+            tenant_slug=tenant_slug,
+        )
+        logger.info(
+            "worker.ingest_text_task.done",
+            doc_id=doc.document_id,
+            status=doc.status,
+            chunks=doc.chunk_count,
+            tenant=tenant_slug,
+        )
+        return {"status": doc.status, "document_id": doc.document_id}
+
+    except Exception as exc:
+        logger.error("worker.ingest_text_task.failed", title=title, tenant=tenant_slug, error=str(exc))
+        raise  # re-raise so ARQ records the failure and triggers retry
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -130,7 +134,7 @@ def _write_error_meta(
             with open(path, encoding="utf-8") as f:
                 existing = json.load(f)
             if existing.get("status") in ("indexed", "error"):
-                return  # already finalized
+                return
         except Exception:
             pass
 
