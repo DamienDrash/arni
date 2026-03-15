@@ -18,7 +18,7 @@ from app.swarm.agents.persona import AgentPersona
 from app.swarm.agents.sales import AgentSales
 from app.swarm.agents.vision import AgentVision
 from app.swarm.base import AgentResponse, BaseAgent, AgentHandoff
-from app.swarm.master.orchestrator import MasterAgent
+from app.swarm.master.orchestrator_v2 import MasterAgentV2
 from app.swarm.llm import LLMClient
 from app.swarm.router.intents import Intent
 from app.prompts.engine import get_engine
@@ -53,7 +53,7 @@ class SwarmRouter:
     def __init__(self, llm: LLMClient) -> None:
         self._llm = llm
         BaseAgent.set_llm(llm)  # Share LLM with all agents
-        self._master = MasterAgent(llm)
+        self._master = MasterAgentV2(llm)
         self._agents: dict[Intent, BaseAgent] = {
             Intent.BOOKING: AgentOps(),
             Intent.SALES: AgentSales(),
