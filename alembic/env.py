@@ -16,6 +16,8 @@ from config.settings import get_settings
 
 # Import all models here so they are registered with Base.metadata
 from app.core import models
+import app.swarm.team_models  # noqa: F401 – registers AgentTeamConfig, AgentTeamStep, AgentToolDefinition
+import app.swarm.run_models   # noqa: F401 – registers AgentTeamRun
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

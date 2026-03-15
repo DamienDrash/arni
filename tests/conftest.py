@@ -15,6 +15,13 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from unittest.mock import AsyncMock
 
+# Ensure swarm and run models are registered with Base metadata BEFORE create_all()
+# (which is called in persistence.py at import time).  Without these imports the
+# agent_team_configs / agent_team_steps / agent_team_runs tables are never created
+# in the test SQLite database.
+import app.swarm.team_models  # noqa: F401 – registers AgentTeamConfig, AgentTeamStep, AgentToolDefinition
+import app.swarm.run_models   # noqa: F401 – registers AgentTeamRun
+
 from app.gateway.main import app
 
 

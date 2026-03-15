@@ -107,6 +107,7 @@ Key tables: `tenants`, `users`, `chat_sessions`, `chat_messages`, `studio_member
 | White-label Branding | Admin API + `frontend/app/settings/branding/` | `tenant_logo_url`, `tenant_primary_color`, `tenant_app_title` |
 | Tenant Onboarding | `app/gateway/auth.py` | On register: auto-seed Starter subscription + prompt defaults |
 | Vision (stub mode) | `app/vision/` | Set `VISION_ENABLE_YOLO=1` for real inference; default is stub |
+| Agent Teams | `app/swarm/` | Per-tenant multi-step agent pipelines; seeded at startup; YAML-versioned to `data/teams/`; run history in `agent_team_runs` |
 | Voice (stub mode) | `app/voice/` | `SpeechToText`, `TextToSpeech`, `VoicePipeline` are stub-mode by default |
 
 ## Engineering Rules (from `docs/specs/CODING_STANDARDS.md`)

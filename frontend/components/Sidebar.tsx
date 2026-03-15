@@ -18,6 +18,7 @@ import {
   ImageIcon,
   LayoutDashboard,
   LogOut,
+  Network,
   ScrollText,
   Settings,
   Users,
@@ -106,6 +107,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
     {
       title: t("sidebar.sections.studio"),
       items: [
+        { name: "Agent Teams", href: "/agent-teams", icon: Network },
         { name: "AI-Modelle", href: "/settings/ai", icon: Bot },
         { name: t("sidebar.billing"), href: "/settings/billing", icon: CreditCard },
         { name: t("sidebar.settings"), href: "/settings", icon: Settings },

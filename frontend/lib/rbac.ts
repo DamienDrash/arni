@@ -7,8 +7,8 @@ type RoleAccess = {
 
 const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
   system_admin: {
-    exact: ["/", "/dashboard", "/features", "/pricing", "/impressum", "/datenschutz", "/agb", "/users", "/tenants", "/system-prompt", "/plans", "/revenue", "/audit", "/campaigns", "/templates", "/automations", "/campaign-analytics", "/planning", "/sync", "/settings", "/settings/account", "/settings/integrations", "/settings/ai", "/settings/general", "/settings/notion", "/infrastructure", "/llm-costs"],
-    prefixes: ["/users/", "/tenants/", "/plans/", "/revenue/", "/audit/", "/campaigns/", "/templates/", "/automations/", "/campaign-analytics/", "/planning/", "/sync/", "/settings/", "/settings/account/", "/settings/integrations/", "/settings/ai/", "/settings/general/", "/settings/notion/", "/infrastructure", "/llm-costs/"],
+    exact: ["/", "/dashboard", "/features", "/pricing", "/impressum", "/datenschutz", "/agb", "/users", "/tenants", "/system-prompt", "/plans", "/revenue", "/audit", "/campaigns", "/templates", "/automations", "/campaign-analytics", "/planning", "/sync", "/agent-teams", "/settings", "/settings/account", "/settings/integrations", "/settings/ai", "/settings/general", "/settings/notion", "/infrastructure", "/llm-costs"],
+    prefixes: ["/users/", "/tenants/", "/plans/", "/revenue/", "/audit/", "/campaigns/", "/templates/", "/automations/", "/campaign-analytics/", "/planning/", "/sync/", "/agent-teams/", "/settings/", "/settings/account/", "/settings/integrations/", "/settings/ai/", "/settings/general/", "/settings/notion/", "/infrastructure", "/llm-costs/"],
   },
   tenant_admin: {
     exact: [
@@ -45,6 +45,7 @@ const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
       "/campaign-analytics",
       "/planning",
       "/sync",
+      "/agent-teams",
     ],
     prefixes: [
       "/live/",
@@ -54,6 +55,7 @@ const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
       "/campaign-analytics/",
       "/planning/",
       "/sync/",
+      "/agent-teams/",
       "/escalations/",
       "/analytics/",
       "/members/",

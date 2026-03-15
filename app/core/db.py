@@ -119,6 +119,12 @@ Base = declarative_base()
 
 def run_migrations():
     """Bootstrap the database schema. In production, use Alembic instead."""
+    # Import all model modules so their tables are registered with Base.metadata
+    try:
+        import app.swarm.team_models  # noqa: F401 — AgentTeamConfig, AgentTeamStep, AgentToolDefinition
+        import app.swarm.run_models   # noqa: F401 — AgentTeamRun
+    except Exception:
+        pass
     Base.metadata.create_all(bind=engine)
     _backfill_columns()
 
@@ -148,6 +154,12 @@ def _backfill_columns() -> None:
 
     # Plans — monthly_image_credits (added for credit system)
     _add_column_if_missing("plans", "monthly_image_credits", "INTEGER DEFAULT 0")
+
+    # Plans — agent_teams_enabled (Enterprise feature)
+    _add_column_if_missing("plans", "agent_teams_enabled", "BOOLEAN DEFAULT FALSE")
+
+    # AgentToolDefinition — tenant_id for tenant-scoped custom tools (NULL = global builtin)
+    _add_column_if_missing("agent_tool_definitions", "tenant_id", "INTEGER")
 
     # ImageProvider — ELO + fal category enrichment (added for model sync)
     _add_column_if_missing("ai_image_providers", "fal_category", "VARCHAR(32)")

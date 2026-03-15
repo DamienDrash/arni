@@ -45,11 +45,11 @@ COPY . .
 # CRITICAL: Fix PYTHONPATH for imports
 ENV PYTHONPATH=/app
 
-# Create non-root user and ensure data directory exists
+# Create non-root user and ensure data directories exist
 RUN useradd -m ariia && \
-    mkdir -p /app/data && \
+    mkdir -p /app/data/teams /app/data/knowledge/members && \
     chown -R ariia:ariia /app && \
-    chmod 755 /app/data
+    chmod 755 /app/data /app/data/teams /app/data/knowledge/members
 USER ariia
 
 # Healthcheck

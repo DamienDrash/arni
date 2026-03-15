@@ -115,8 +115,44 @@ async def lifespan(app: FastAPI):
     except Exception as _credit_err:
         logger.warning("ariia.gateway.credit_seed_skipped", error=str(_credit_err))
 
+    # Seed Agent Teams & Tool Definitions
+    try:
+        from app.swarm.seed_teams import seed_teams as _seed_teams
+        from app.core.db import SessionLocal as _TeamSeedDB
+        _team_db = _TeamSeedDB()
+        try:
+            _seed_teams(_team_db)
+        finally:
+            _team_db.close()
+    except Exception as _at_seed_err:
+        logger.warning("ariia.gateway.agent_teams_seed_skipped", error=str(_at_seed_err))
+
+    # Recover orphaned agent team runs (started but never completed — e.g. prior crash)
+    try:
+        from datetime import timedelta
+        from app.swarm.run_models import AgentTeamRun as _ATRun
+        from app.core.db import SessionLocal as _RunRecoveryDB
+        _rr_db = _RunRecoveryDB()
+        try:
+            _cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
+            _orphaned = _rr_db.query(_ATRun).filter(
+                _ATRun.completed_at == None,
+                _ATRun.started_at < _cutoff,
+            ).all()
+            for _run in _orphaned:
+                _run.completed_at = datetime.now(timezone.utc)
+                _run.success = False
+                _run.error_message = "Run abandoned (server restart or crash)"
+            if _orphaned:
+                _rr_db.commit()
+                logger.info("ariia.gateway.orphaned_runs_recovered", count=len(_orphaned))
+        finally:
+            _rr_db.close()
+    except Exception as _rr_err:
+        logger.warning("ariia.gateway.orphaned_runs_recovery_skipped", error=str(_rr_err))
+
     logger.info("ariia.gateway.startup", version="2.0.0", env=settings.environment)
-    
+
     try:
         await redis_bus.connect()
     except Exception:
@@ -299,6 +335,14 @@ app.include_router(ab_testing_api.router)
 app.include_router(docker_management.router)
 app.include_router(smtp_config.router)
 
+# --- Agent Teams Router (v2) ---
+try:
+    from app.gateway.routers.agent_teams import router as agent_teams_router
+    app.include_router(agent_teams_router, prefix="/v2")
+    logger.info("ariia.gateway.agent_teams_router_registered")
+except Exception as _at_err:
+    logger.warning("ariia.gateway.agent_teams_router_skipped", error=str(_at_err))
+
 # --- Media & Image Provider Routers ---
 try:
     from app.gateway.routers.media import router as media_router
@@ -391,11 +435,28 @@ except Exception as _static_err:
 # --- Health Check ---
 @app.get("/health")
 async def health_check() -> dict[str, Any]:
+    from sqlalchemy import text as _sql_text
+    from app.core.db import SessionLocal as _HealthDB
+
     redis_ok = await redis_bus.health_check()
+
+    db_ok = False
+    try:
+        _hdb = _HealthDB()
+        try:
+            _hdb.execute(_sql_text("SELECT 1"))
+            db_ok = True
+        finally:
+            _hdb.close()
+    except Exception:
+        pass
+
+    status = "ok" if (redis_ok and db_ok) else "degraded"
     return {
-        "status": "ok" if redis_ok else "degraded",
+        "status": status,
         "service": "ariia-gateway",
         "version": "2.0.0",
         "redis": "connected" if redis_ok else "disconnected",
+        "database": "connected" if db_ok else "disconnected",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

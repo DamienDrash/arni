@@ -12,7 +12,7 @@ type RoleCase = {
 const cases: RoleCase[] = [
   {
     role: "system_admin",
-    allowed: ["/", "/users", "/tenants", "/system-prompt", "/plans", "/audit", "/settings", "/settings/general", "/settings/account"],
+    allowed: ["/", "/users", "/tenants", "/system-prompt", "/plans", "/audit", "/settings", "/settings/general", "/settings/account", "/agent-teams"],
     forbidden: ["/live", "/escalations", "/analytics", "/members", "/knowledge", "/member-memory", "/magicline"],
   },
   {
@@ -34,6 +34,7 @@ const cases: RoleCase[] = [
       "/settings/billing",
       "/settings/branding",
       "/settings/account",
+      "/agent-teams",
     ],
     forbidden: ["/tenants", "/plans", "/system-prompt", "/settings/general", "/settings/automation"],
   },
@@ -49,6 +50,7 @@ const cases: RoleCase[] = [
       "/system-prompt",
       "/plans",
       "/audit",
+      "/agent-teams",
       "/settings/general",
       "/settings/integrations",
       "/settings/prompts",

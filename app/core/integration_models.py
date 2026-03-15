@@ -31,7 +31,16 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+import os as _os
+from sqlalchemy import JSON as _JSON
+
+# JSONB is PostgreSQL-specific; fall back to JSON for SQLite (used in tests)
+_IS_TEST = _os.getenv("PYTEST_CURRENT_TEST") is not None or _os.getenv("ENVIRONMENT") == "testing"
+_DB_URL = _os.getenv("DATABASE_URL", "")
+if not _IS_TEST and _DB_URL.startswith("postgresql"):
+    from sqlalchemy.dialects.postgresql import JSONB
+else:
+    JSONB = _JSON  # type: ignore[assignment,misc]
 from sqlalchemy.orm import relationship
 
 from app.core.db import Base

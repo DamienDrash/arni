@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
-    "@xyflow/react": "^12.6.0",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.90.21",
     "@tiptap/extension-typography": "^3.19.0",
@@ -23,6 +22,7 @@
     "@tiptap/starter-kit": "^3.19.0",
     "@types/marked": "^5.0.2",
     "@types/turndown": "^5.0.6",
+    "@xyflow/react": "^12.6.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.34.3",
@@ -47,7 +47,7 @@
     "eslint-config-next": "16.1.6",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "tailwindcss": "^4",
-    "tsx": "^4.20.6",
+    "tsx": "^4.21.0",
     "typescript": "5.9.3"
   }
 }
