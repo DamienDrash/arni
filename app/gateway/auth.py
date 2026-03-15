@@ -508,7 +508,10 @@ async def verify_email(req: VerifyEmailRequest, request: Request) -> dict:
 
         # Check token expiry (30 minutes)
         if user.email_verification_sent_at:
-            elapsed = (datetime.now(timezone.utc) - user.email_verification_sent_at).total_seconds()
+            sent_at = user.email_verification_sent_at
+            if sent_at.tzinfo is None:
+                sent_at = sent_at.replace(tzinfo=timezone.utc)
+            elapsed = (datetime.now(timezone.utc) - sent_at).total_seconds()
             if elapsed > 1800:
                 raise HTTPException(status_code=410, detail="Verification code expired. Please request a new one.")
 
@@ -1836,7 +1839,10 @@ async def mfa_verify_login(
 
         # Check challenge expiry (5 minutes)
         if user.email_verification_sent_at:
-            elapsed = (datetime.now(timezone.utc) - user.email_verification_sent_at).total_seconds()
+            sent_at = user.email_verification_sent_at
+            if sent_at.tzinfo is None:
+                sent_at = sent_at.replace(tzinfo=timezone.utc)
+            elapsed = (datetime.now(timezone.utc) - sent_at).total_seconds()
             if elapsed > 300:
                 user.email_verification_token = None
                 user.email_verification_sent_at = None
