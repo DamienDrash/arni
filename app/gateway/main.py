@@ -270,7 +270,7 @@ from app.core.instrumentation import router as metrics_router
 app.include_router(metrics_router)
 
 # --- New Routers (PR 2, 3, 4) ---
-from app.gateway.routers import, integrations_sync, connector_hub, permissions, platform_ai, plans_admin
+from app.gateway.routers import integrations_sync, connector_hub, permissions, platform_ai, plans_admin
 from app.gateway.routers.contact_sync_api import router as contact_sync_router, webhook_router as contact_sync_webhook_router
 from app.gateway.routers import revenue_analytics, tenant_llm, campaigns
 from app.gateway.routers import docker_management

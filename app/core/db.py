@@ -120,56 +120,6 @@ Base = declarative_base()
 def run_migrations():
     """Bootstrap the database schema. In production, use Alembic instead."""
     Base.metadata.create_all(bind=engine)
-    _backfill_columns()
-
-
-def _backfill_columns() -> None:
-    """Add new columns to existing tables (idempotent). create_all() won't alter existing tables."""
-    from sqlalchemy import inspect, text as _text
-    inspector = inspect(engine)
-    is_pg = SQLALCHEMY_DATABASE_URL.startswith("postgresql")
-
-    def _add_column_if_missing(table: str, col: str, col_def: str) -> None:
-        try:
-            existing = {c["name"] for c in inspector.get_columns(table)}
-        except Exception:
-            return
-        if col in existing:
-            return
-        try:
-            with engine.connect() as conn:
-                if is_pg:
-                    conn.execute(_text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_def}"))
-                else:
-                    conn.execute(_text(f"ALTER TABLE {table} ADD COLUMN {col} {col_def}"))
-                conn.commit()
-        except Exception:
-            pass  # Column may have been added by a concurrent worker
-
-    # Plans — monthly_image_credits (added for credit system)
-    _add_column_if_missing("plans", "monthly_image_credits", "INTEGER DEFAULT 0")
-
-    # ImageProvider — ELO + fal category enrichment (added for model sync)
-    _add_column_if_missing("ai_image_providers", "fal_category", "VARCHAR(32)")
-    _add_column_if_missing("ai_image_providers", "elo_score", "INTEGER")
-    _add_column_if_missing("ai_image_providers", "elo_rank", "INTEGER")
-    _add_column_if_missing("ai_image_providers", "price_per_image_cents", "INTEGER")
-
-    # Backfill fal_category for existing seeded providers (slug-based heuristic)
-    try:
-        with engine.connect() as conn:
-            conn.execute(_text("""
-                UPDATE ai_image_providers
-                SET fal_category = CASE
-                    WHEN slug LIKE '%_edit' OR slug = 'flux_kontext_pro' THEN 'image-to-image'
-                    ELSE 'text-to-image'
-                END
-                WHERE fal_category IS NULL
-                  AND provider_type IN ('fal_ai', 'fal_ai_schnell', 'fal_generic', 'recraft_v3', 'ideogram_v2')
-            """))
-            conn.commit()
-    except Exception:
-        pass
 
 # ─── FastAPI Dependencies ─────────────────────────────────────────────────────────
 
