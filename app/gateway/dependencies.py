@@ -111,7 +111,13 @@ def get_whatsapp_client(tenant_id: int | None = None) -> WhatsAppClient:
     if not waha_url:
         waha_url = "http://ariia-whatsapp-bridge:3000"
     if not waha_key:
-        waha_key = "ariia-waha-secret"
+        # Issue #32: Never fall back to a hardcoded secret — treat WAHA as disabled instead.
+        env_key = os.environ.get("WAHA_API_KEY", "").strip()
+        if env_key:
+            waha_key = env_key
+        else:
+            logger.warning("whatsapp.waha_key_not_configured", tenant_id=tenant_id)
+            waha_key = None
         
     # If Meta token is missing, we prioritize WAHA
     if not token:
