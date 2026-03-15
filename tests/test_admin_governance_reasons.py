@@ -14,7 +14,7 @@ async def client():
 
 
 async def _admin_headers(client: AsyncClient) -> dict[str, str]:
-    login = await client.post("/auth/login", json={"email": "admin@ariia.local", "password": "Password123!"})
+    login = await client.post("/auth/login", json={"email": "admin@ariia.local", "password": "Password123"})
     assert login.status_code == 200
     token = login.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
@@ -57,19 +57,19 @@ async def test_member_memory_save_requires_reason(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_prompt_saves_require_reason(client: AsyncClient) -> None:
     headers = await _admin_headers(client)
-    ops_get = await client.get("/admin/prompts/ops-system", headers=headers)
+    ops_get = await client.get("/admin/prompts/ops/system", headers=headers)
     assert ops_get.status_code == 200
     ops = ops_get.json()
 
     ops_missing = await client.post(
-        "/admin/prompts/ops-system",
+        "/admin/prompts/ops/system",
         json={"content": ops["content"], "base_mtime": ops.get("mtime")},
         headers=headers,
     )
     assert ops_missing.status_code == 422
 
     ops_ok = await client.post(
-        "/admin/prompts/ops-system",
+        "/admin/prompts/ops/system",
         json={
             "content": ops["content"],
             "base_mtime": ops.get("mtime"),

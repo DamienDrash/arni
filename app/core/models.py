@@ -288,6 +288,7 @@ class Plan(Base):
     white_label_enabled = Column(Boolean, nullable=False, default=False)
     sla_guarantee_enabled = Column(Boolean, nullable=False, default=False)
     on_premise_enabled = Column(Boolean, nullable=False, default=False)
+    agent_teams_enabled = Column(Boolean, nullable=False, default=False)
 
     # Overage Pricing (in cents)
     overage_conversation_cents = Column(Integer, default=5)
