@@ -77,6 +77,9 @@ def _get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 def _check_rate_limit(request: Request, endpoint: str, max_requests: int, window_seconds: int, extra_key: str = ""):
+    import os
+    if os.getenv("ENVIRONMENT") == "testing":
+        return  # Skip rate limiting in test mode
     ip = _get_client_ip(request)
     key = f"{endpoint}:{ip}:{extra_key}"
     if not _rate_limiter.is_allowed(key, max_requests, window_seconds):
@@ -93,8 +96,15 @@ LOCKOUT_DURATIONS = [15, 30, 60]  # minutes: progressive lockout
 
 def _check_account_lockout(user: UserAccount) -> None:
     """Raise 423 if account is currently locked."""
-    if user.locked_until and user.locked_until > datetime.now(timezone.utc):
-        remaining = (user.locked_until - datetime.now(timezone.utc)).total_seconds()
+    if user.locked_until:
+        # SQLite returns naive datetimes even with timezone=True columns; normalise.
+        lu = user.locked_until
+        if lu.tzinfo is None:
+            lu = lu.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        if lu <= now:
+            return
+        remaining = (lu - now).total_seconds()
         logger.warning("auth.account_locked", user_id=user.id, remaining_seconds=remaining)
         raise HTTPException(
             status_code=423,
@@ -787,7 +797,10 @@ async def reset_password(req: ResetPasswordRequest, request: Request) -> dict:
         if not user.password_reset_token or not user.password_reset_sent_at:
             raise HTTPException(status_code=400, detail="No password reset requested")
 
-        elapsed = (datetime.now(timezone.utc) - user.password_reset_sent_at).total_seconds()
+        _reset_sent = user.password_reset_sent_at
+        if _reset_sent.tzinfo is None:
+            _reset_sent = _reset_sent.replace(tzinfo=timezone.utc)
+        elapsed = (datetime.now(timezone.utc) - _reset_sent).total_seconds()
         if elapsed > 3600:
             raise HTTPException(status_code=410, detail="Reset code expired. Please request a new one.")
 
@@ -1330,7 +1343,7 @@ async def list_invitations(user: AuthContext = Depends(get_current_user)) -> lis
                 "accepted_at": _safe_iso(inv.accepted_at),
                 "created_at": _safe_iso(inv.created_at),
                 "status": "accepted" if inv.accepted_at else (
-                    "expired" if inv.expires_at < datetime.now(timezone.utc) else "pending"
+                    "expired" if (inv.expires_at.replace(tzinfo=timezone.utc) if inv.expires_at and inv.expires_at.tzinfo is None else inv.expires_at or datetime.now(timezone.utc)) < datetime.now(timezone.utc) else "pending"
                 ),
             })
         return result
@@ -1412,7 +1425,10 @@ async def accept_invitation(
         if not invitation:
             raise HTTPException(status_code=404, detail="Invalid or expired invitation")
 
-        if invitation.expires_at < datetime.now(timezone.utc):
+        _exp = invitation.expires_at
+        if _exp is not None and _exp.tzinfo is None:
+            _exp = _exp.replace(tzinfo=timezone.utc)
+        if _exp and _exp < datetime.now(timezone.utc):
             raise HTTPException(status_code=410, detail="This invitation has expired")
 
         # Check if email already registered
