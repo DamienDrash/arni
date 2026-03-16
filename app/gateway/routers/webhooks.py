@@ -491,10 +491,14 @@ async def process_and_reply(message: InboundMessage) -> None:
                     db=_reply_db,
                 )
                 if handled:
+                    if handled == "optout":
+                        reply_text = "Du wurdest erfolgreich abgemeldet. Du erhältst keine weiteren Kampagnen-Nachrichten auf diesem Kanal."
+                    else:
+                        reply_text = "Danke für deine Bestätigung! Deine Nachricht wird jetzt versendet. ✅"
                     await send_to_user(
                         message.user_id,
                         message.platform,
-                        "Danke für deine Bestätigung! Deine Nachricht wird jetzt versendet. ✅",
+                        reply_text,
                         tenant_id=message.tenant_id,
                     )
                     return
