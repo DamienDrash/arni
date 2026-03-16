@@ -89,6 +89,7 @@ async def process_ingestion_job(
     import app.ingestion.parsers.pdf_parser       # noqa: F401
     import app.ingestion.parsers.docx_parser      # noqa: F401
     import app.ingestion.parsers.csv_parser       # noqa: F401
+    import app.ingestion.parsers.pptx_parser          # noqa: F401
     import app.ingestion.parsers.text_parser      # noqa: F401
     import app.ingestion.parsers.unstructured_parser  # noqa: F401
     from app.ingestion.chunker import SemanticChunker

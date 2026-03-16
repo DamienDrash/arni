@@ -30,31 +30,71 @@ router = APIRouter(tags=["ingestion"])
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
 
 ALLOWED_MIME_TYPES = {
+    # PDF
     "application/pdf",
+    # Word
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/msword",
+    # Excel
     "text/csv",
     "application/csv",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+    # PowerPoint
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.ms-powerpoint",
+    # OpenDocument
+    "application/vnd.oasis.opendocument.text",
+    "application/vnd.oasis.opendocument.spreadsheet",
+    "application/vnd.oasis.opendocument.presentation",
+    # RTF
+    "application/rtf",
+    "text/rtf",
+    # EPUB
+    "application/epub+zip",
+    # Text / Markup
     "text/plain",
     "text/markdown",
     "text/x-markdown",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "text/html",
+    "application/xhtml+xml",
+    "text/xml",
+    "application/xml",
+    # Data
+    "application/json",
 }
 
 # Extension → MIME Fallback (wenn Content-Type nicht gesetzt)
 EXTENSION_MIME_MAP = {
+    # PDF
     ".pdf":  "application/pdf",
+    # Word
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ".doc":  "application/msword",
+    # Excel
     ".csv":  "text/csv",
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".xls":  "application/vnd.ms-excel",
+    # PowerPoint
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".ppt":  "application/vnd.ms-powerpoint",
+    # OpenDocument
+    ".odt":  "application/vnd.oasis.opendocument.text",
+    ".ods":  "application/vnd.oasis.opendocument.spreadsheet",
+    ".odp":  "application/vnd.oasis.opendocument.presentation",
+    # RTF
+    ".rtf":  "application/rtf",
+    # EPUB
+    ".epub": "application/epub+zip",
+    # Text / Markup
     ".txt":  "text/plain",
     ".md":   "text/markdown",
-    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ".html": "text/html",
     ".htm":  "text/html",
+    ".xml":  "application/xml",
+    ".xhtml": "application/xhtml+xml",
+    # Data
+    ".json": "application/json",
 }
 
 
@@ -98,7 +138,8 @@ async def upload_file_for_ingestion(
         raise HTTPException(
             status_code=415,
             detail=f"Nicht unterstütztes Format: {mime_type}. "
-                   f"Erlaubt: PDF, DOCX, CSV, XLSX, TXT, MD, PPTX, HTML",
+                   f"Erlaubt: PDF, DOCX, DOC, CSV, XLSX, XLS, PPTX, PPT, "
+                   f"ODT, ODS, ODP, RTF, EPUB, TXT, MD, HTML, XML, JSON",
         )
 
     # Dateiname sanitizen
