@@ -164,6 +164,10 @@ def _register_builtin_tools() -> None:
     from app.swarm.tools.calendly_tool import CalendlyTool
     from app.swarm.tools.knowledge_search_tool import KnowledgeSearchTool
     from app.swarm.tools.member_memory_tool import MemberMemoryTool
+    from app.swarm.tools.odoo import OdooTool
+    from app.swarm.tools.social_media_composer import SocialMediaComposerTool
+    from app.swarm.tools.social_media_scheduler import SocialMediaSchedulerTool
+    from app.swarm.tools.social_media_publisher import SocialMediaPublisherTool
 
     for cls in [
         MagiclineBookingTool,
@@ -172,6 +176,10 @@ def _register_builtin_tools() -> None:
         CalendlyTool,
         KnowledgeSearchTool,
         MemberMemoryTool,
+        OdooTool,
+        SocialMediaComposerTool,
+        SocialMediaSchedulerTool,
+        SocialMediaPublisherTool,
     ]:
         register_tool(cls)
 
