@@ -152,3 +152,32 @@ class TenantToolRegistry:
                 "config": tool_config,
             }
         return cls(tenant_tool_configs=configs)
+
+
+# ── Auto-register all built-in SkillTool classes ─────────────────────────────
+
+def _register_builtin_tools() -> None:
+    """Import and register all built-in SkillTool classes."""
+    from app.swarm.tools.magicline_booking import MagiclineBookingTool
+    from app.swarm.tools.magicline_member import MagiclineMemberTool
+    from app.swarm.tools.magicline_checkin import MagiclineCheckinTool
+    from app.swarm.tools.calendly_tool import CalendlyTool
+    from app.swarm.tools.knowledge_search_tool import KnowledgeSearchTool
+    from app.swarm.tools.member_memory_tool import MemberMemoryTool
+
+    for cls in [
+        MagiclineBookingTool,
+        MagiclineMemberTool,
+        MagiclineCheckinTool,
+        CalendlyTool,
+        KnowledgeSearchTool,
+        MemberMemoryTool,
+    ]:
+        register_tool(cls)
+
+
+try:
+    _register_builtin_tools()
+except Exception:
+    # Deferred registration — tools will be available when their deps are loaded
+    pass
