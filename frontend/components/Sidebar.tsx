@@ -125,6 +125,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
     {
       title: "AI SWARM",
       items: [
+        { name: "Agent Teams", href: "/agent-teams", icon: Cpu },
         { name: "Agents", href: "/swarm/agents", icon: Bot },
         { name: "Tools", href: "/swarm/tools", icon: Plug },
       ],
