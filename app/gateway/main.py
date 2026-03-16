@@ -419,6 +419,13 @@ try:
 except Exception as _ai_cfg_err:
     logger.warning("ariia.gateway.ai_config_router_skipped", error=str(_ai_cfg_err))
 
+# --- Swarm v3 Admin Router ---
+try:
+    from app.gateway.routers.swarm_admin import router as swarm_admin_router
+    app.include_router(swarm_admin_router)
+except Exception as _swarm_err:
+    logger.warning("ariia.gateway.swarm_admin_router_skipped", error=str(_swarm_err))
+
 # --- ACP Router ---
 from app.acp.server import router as acp_router
 app.include_router(acp_router)
