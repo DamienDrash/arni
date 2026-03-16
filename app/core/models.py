@@ -923,3 +923,19 @@ class TenantToolConfig(Base):
     __table_args__ = (
         UniqueConstraint("tenant_id", "tool_id", name="uq_tenant_tool_config"),
     )
+
+
+class ContactConsent(Base):
+    """DSGVO-compliant consent tracking per contact per channel."""
+    __tablename__ = "contact_consents"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    contact_id = Column(Integer, nullable=False)
+    channel = Column(String(50), nullable=False)
+    consent_given = Column(Boolean, nullable=False, default=True)
+    given_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    consent_source = Column(String(50), nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    optin_token = Column(String(255), nullable=True, unique=True)

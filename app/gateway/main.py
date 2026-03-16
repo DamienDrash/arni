@@ -300,6 +300,7 @@ from app.gateway.routers import automations
 from app.gateway.routers import analytics_tracking
 from app.gateway.routers import analytics_api
 from app.gateway.routers import ab_testing_api
+from app.gateway.routers.campaign_webhooks import router as campaign_webhooks_router
 app.include_router(integrations_sync.router)
 app.include_router(connector_hub.router)
 app.include_router(contact_sync_router)
@@ -318,6 +319,7 @@ app.include_router(analytics_api.router)
 app.include_router(ab_testing_api.router)
 app.include_router(docker_management.router)
 app.include_router(smtp_config.router)
+app.include_router(campaign_webhooks_router)
 
 # --- Media & Image Provider Routers ---
 try:
@@ -407,6 +409,10 @@ except Exception as _mm_err:
 # --- Member Feedback ---
 from app.gateway.routers.feedback import router as feedback_router
 app.include_router(feedback_router)
+
+# --- Contact Consent (DSGVO) ---
+from app.gateway.routers.consent import router as consent_router
+app.include_router(consent_router)
 
 # --- AI Config Management Router (Refactored) ---
 try:
