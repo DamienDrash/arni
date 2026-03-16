@@ -846,3 +846,80 @@ class IngestionJob(Base):
         Index("ix_ingestion_jobs_tenant_status", "tenant_id", "status"),
         Index("ix_ingestion_jobs_tenant_created", "tenant_id", "created_at"),
     )
+
+
+# ─── Swarm v3 Models ────────────────────────────────────────────────────────
+
+class ToolDefinition(Base):
+    """System-level tool catalog. Each row defines a skill/tool available in the swarm."""
+    __tablename__ = "tool_definitions"
+
+    id = Column(String, primary_key=True)  # e.g. "magicline_booking", "knowledge_search"
+    display_name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String, nullable=True)  # "booking", "crm", "knowledge", "media", etc.
+    required_integration = Column(String, nullable=True)  # e.g. "magicline", "calendly", None
+    min_plan_tier = Column(String, nullable=False, default="starter")  # starter | pro | enterprise
+    config_schema = Column(Text, nullable=True)  # JSON Schema for tenant-level config
+    is_system = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class AgentDefinition(Base):
+    """System-level agent catalog. Each row defines an agent type available in the swarm."""
+    __tablename__ = "agent_definitions"
+
+    id = Column(String, primary_key=True)  # e.g. "ops", "sales", "medic"
+    display_name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    system_prompt = Column(Text, nullable=True)  # Default Jinja2 system prompt
+    default_tools = Column(Text, nullable=True)  # JSON list of tool_definition IDs
+    max_turns = Column(Integer, nullable=False, default=5)
+    qa_profile = Column(String, nullable=True)  # QA evaluation profile name
+    min_plan_tier = Column(String, nullable=False, default="starter")
+    is_system = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class TenantAgentConfig(Base):
+    """Per-tenant agent configuration overrides."""
+    __tablename__ = "tenant_agent_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_definitions.id", ondelete="CASCADE"), nullable=False, index=True)
+    is_enabled = Column(Boolean, nullable=False, default=True)
+    system_prompt_override = Column(Text, nullable=True)  # Tenant-specific Jinja2 prompt
+    tool_overrides = Column(Text, nullable=True)  # JSON list of tool IDs (replaces default_tools)
+    extra_config = Column(Text, nullable=True)  # JSON dict for additional settings
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "agent_id", name="uq_tenant_agent_config"),
+    )
+
+
+class TenantToolConfig(Base):
+    """Per-tenant tool configuration (enable/disable + settings)."""
+    __tablename__ = "tenant_tool_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    tool_id = Column(String, ForeignKey("tool_definitions.id", ondelete="CASCADE"), nullable=False, index=True)
+    is_enabled = Column(Boolean, nullable=False, default=True)
+    config = Column(Text, nullable=True)  # JSON dict for tool-specific tenant config (API keys, etc.)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "tool_id", name="uq_tenant_tool_config"),
+    )
