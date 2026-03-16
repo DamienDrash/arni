@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 from sqlalchemy import text
 from sqlalchemy.orm import Session, scoped_session
-from app.core.models import ChatSession, ChatMessage, Setting, Tenant
+from app.core.models import ChatSession, ChatMessage, Setting, Tenant, IngestionJob, IngestionJobStatus
 from app.core.integration_models import TenantIntegration
 from app.core.db import SessionLocal, engine, Base
 from app.gateway.schemas import Platform
@@ -461,6 +461,147 @@ class PersistenceService:
     def is_integration_enabled(self, tenant_id: int, integration_id: str) -> bool:
         """Check whether a specific integration is enabled for a tenant."""
         return integration_id in self.get_enabled_integrations(tenant_id)
+
+    # ─── Ingestion Jobs ────────────────────────────────────────────────────────
+
+    def create_ingestion_job(
+        self,
+        tenant_id: int,
+        filename: str,
+        original_filename: str,
+        mime_type: str,
+        file_size_bytes: int | None = None,
+        s3_key: str | None = None,
+    ) -> IngestionJob:
+        """Create a new ingestion job record with PENDING status."""
+        with self._lock:
+            db = self._session_factory()
+            try:
+                resolved_tid = self._resolve_tenant_id(tenant_id)
+                job = IngestionJob(
+                    tenant_id=resolved_tid,
+                    filename=filename,
+                    original_filename=original_filename,
+                    mime_type=mime_type,
+                    file_size_bytes=file_size_bytes,
+                    s3_key=s3_key,
+                    status=IngestionJobStatus.PENDING,
+                )
+                db.add(job)
+                db.commit()
+                db.refresh(job)
+                return job
+            except Exception:
+                db.rollback()
+                raise
+            finally:
+                self._session_factory.remove()
+
+    def update_job_status(
+        self,
+        job_id: str,
+        status: IngestionJobStatus,
+        error_message: str | None = None,
+        error_category: str | None = None,
+    ) -> IngestionJob | None:
+        """Update the status of an ingestion job. Returns the updated job or None."""
+        from datetime import datetime, timezone as _tz
+        with self._lock:
+            db = self._session_factory()
+            try:
+                job = db.query(IngestionJob).filter(IngestionJob.id == job_id).first()
+                if not job:
+                    return None
+                job.status = status
+                if error_message is not None:
+                    job.error_message = error_message
+                if error_category is not None:
+                    job.error_category = error_category
+                if status == IngestionJobStatus.PROCESSING and job.started_at is None:
+                    job.started_at = datetime.now(_tz.utc)
+                    job.attempt_count = (job.attempt_count or 0) + 1
+                if status in (IngestionJobStatus.COMPLETED, IngestionJobStatus.FAILED, IngestionJobStatus.DEAD_LETTER):
+                    job.completed_at = datetime.now(_tz.utc)
+                db.commit()
+                db.refresh(job)
+                return job
+            except Exception:
+                db.rollback()
+                raise
+            finally:
+                self._session_factory.remove()
+
+    def update_job_progress(
+        self,
+        job_id: str,
+        chunks_total: int,
+        chunks_processed: int,
+    ) -> None:
+        """Update chunk-level progress counters for an ingestion job."""
+        with self._lock:
+            db = self._session_factory()
+            try:
+                job = db.query(IngestionJob).filter(IngestionJob.id == job_id).first()
+                if job:
+                    job.chunks_total = chunks_total
+                    job.chunks_processed = chunks_processed
+                    db.commit()
+            except Exception:
+                db.rollback()
+                raise
+            finally:
+                self._session_factory.remove()
+
+    def get_job_by_id(self, job_id: str, tenant_id: int) -> IngestionJob | None:
+        """Fetch a single ingestion job scoped to a tenant (multi-tenant isolation)."""
+        with self._lock:
+            db = self._session_factory()
+            try:
+                resolved_tid = self._resolve_tenant_id(tenant_id)
+                return (
+                    db.query(IngestionJob)
+                    .filter(IngestionJob.id == job_id, IngestionJob.tenant_id == resolved_tid)
+                    .first()
+                )
+            finally:
+                self._session_factory.remove()
+
+    def list_jobs_by_tenant(
+        self,
+        tenant_id: int,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[IngestionJob]:
+        """List ingestion jobs for a tenant, ordered by created_at descending."""
+        with self._lock:
+            db = self._session_factory()
+            try:
+                resolved_tid = self._resolve_tenant_id(tenant_id)
+                return (
+                    db.query(IngestionJob)
+                    .filter(IngestionJob.tenant_id == resolved_tid)
+                    .order_by(IngestionJob.created_at.desc())
+                    .limit(limit)
+                    .offset(offset)
+                    .all()
+                )
+            finally:
+                self._session_factory.remove()
+
+    def get_dlq_jobs(self, limit: int = 50) -> list[IngestionJob]:
+        """Return dead-letter jobs across all tenants (system_admin only)."""
+        with self._lock:
+            db = self._session_factory()
+            try:
+                return (
+                    db.query(IngestionJob)
+                    .filter(IngestionJob.status == IngestionJobStatus.DEAD_LETTER)
+                    .order_by(IngestionJob.created_at.desc())
+                    .limit(limit)
+                    .all()
+                )
+            finally:
+                self._session_factory.remove()
 
 
 # Singleton Instance

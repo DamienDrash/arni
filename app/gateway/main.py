@@ -390,6 +390,13 @@ try:
 except Exception as _chats_err:
     logger.warning("ariia.gateway.chats_router_skipped", error=str(_chats_err))
 
+# --- Ingestion Router (S1-T4: Upload + SSE Job Status + DLQ) ---
+try:
+    from app.gateway.routers.ingestion import router as ingestion_router
+    app.include_router(ingestion_router, prefix="/admin")
+except Exception as _ingestion_err:
+    logger.warning("ariia.gateway.ingestion_router_skipped", error=str(_ingestion_err))
+
 # --- Member Memory Admin Router ---
 try:
     from app.gateway.routers.member_memory_admin import router as member_memory_router

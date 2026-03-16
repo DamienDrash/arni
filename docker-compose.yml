@@ -119,6 +119,28 @@ services:
     networks:
       - ariia-network
 
+  # arq Ingestion Worker (Sprint 1 Foundation)
+  ariia-ingestion-worker:
+    build: .
+    command: python -m app.worker.main
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - ariia-redis
+      - ariia-postgres
+      - minio
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+    networks:
+      - ariia-network
+
   ariia-telegram-polling:
     build: .
     restart: always
@@ -427,6 +449,26 @@ services:
     profiles:
       - monitoring
 
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:RELEASE.2024-01-18T22-51-08Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-ariia-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-ariia-minio-secret}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ariia-network
+
   # WhatsApp WAHA Bridge (QR Code based)
   ariia-whatsapp-bridge:
     image: devlikeapro/waha-plus:noweb
@@ -455,6 +497,7 @@ volumes:
   postgres_data:
   prometheus_data:
   grafana_data:
+  minio_data:
 
 networks:
   ariia-network:
