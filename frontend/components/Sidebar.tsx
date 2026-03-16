@@ -123,6 +123,13 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
       ],
     },
     {
+      title: "AI SWARM",
+      items: [
+        { name: "Agents", href: "/swarm/agents", icon: Bot },
+        { name: "Tools", href: "/swarm/tools", icon: Plug },
+      ],
+    },
+    {
       title: t("sidebar.sections.system"),
       items: [
         { name: t("sidebar.plans"), href: "/plans", icon: CreditCard },
