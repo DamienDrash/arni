@@ -384,3 +384,13 @@ def ensure_default_tenant_and_admin() -> None:
             db.commit()
     finally:
         db.close()
+
+
+def _warn_legacy_auth_active() -> None:
+    """Emit a visible warning when legacy auth transition mode is active."""
+    import sys
+    print(
+        "WARNING: Legacy auth transition mode is active. "
+        "Disable allow_header_fallback before production deployment.",
+        file=sys.stderr,
+    )

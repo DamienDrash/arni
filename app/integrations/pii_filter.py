@@ -27,3 +27,13 @@ def filter_log_record(logger, method_name, event_dict):
         if isinstance(value, str):
             event_dict[key] = mask_pii(value)
     return event_dict
+
+
+class PIIFilter:
+    """Class-based wrapper for PII masking (backward-compatible alias)."""
+
+    def mask(self, text: str) -> str:
+        return mask_pii(text)
+
+    def __call__(self, text: str) -> str:
+        return mask_pii(text)

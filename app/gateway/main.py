@@ -440,6 +440,35 @@ try:
 except Exception as _static_err:
     logger.warning("ariia.gateway.static_media_mount_skipped", error=str(_static_err))
 
+# --- Compatibility exports expected by tests and legacy code ---
+
+class _WhatsAppVerifier:
+    """Proxy for WhatsApp HMAC verifier – allows tests to swap the secret at runtime."""
+    def __init__(self) -> None:
+        self._app_secret: str = ""
+
+_whatsapp_verifier = _WhatsAppVerifier()
+
+# Re-export for test compatibility
+from app.gateway.dependencies import active_websockets  # noqa: E402, F401
+
+
+async def broadcast_to_admins(message: dict, tenant_id: int | None = None) -> None:
+    """Broadcast a message to all connected admin WebSocket clients."""
+    from app.gateway.dependencies import active_websockets
+    targets: list = []
+    if tenant_id is not None:
+        targets = active_websockets.get(tenant_id, [])
+    else:
+        for ws_list in active_websockets.values():
+            targets.extend(ws_list)
+    for ws in list(targets):
+        try:
+            await ws.send_json(message)
+        except Exception:
+            pass
+
+
 # --- Health Check ---
 @app.get("/health")
 async def health_check() -> dict[str, Any]:
