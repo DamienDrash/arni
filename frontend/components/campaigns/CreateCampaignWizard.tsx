@@ -149,6 +149,8 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
     use_knowledge: true, use_chat_history: false,
     content_subject: "", content_body: "", scheduled_at: "",
     featured_image_url: "",
+    attachment_url: "",
+    attachment_filename: "",
   });
   const [orchSteps, setOrchSteps] = useState<OrchestrationStep[]>([
     { step_order: 1, channel: "email", template_id: null, content_override_json: null, wait_hours: 0, condition_type: "always" },
@@ -399,6 +401,8 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
           content_subject: form.content_subject || undefined, content_body: form.content_body || undefined,
           ai_prompt: form.ai_prompt || undefined, scheduled_at: form.scheduled_at || undefined,
           featured_image_url: form.featured_image_url || undefined,
+          attachment_url: form.attachment_url || undefined,
+          attachment_filename: form.attachment_filename || undefined,
           target_filter_json: form.target_segment_id ? JSON.stringify({ segment_id: form.target_segment_id })
             : form.target_type === "tags" && selectedTags.length > 0 ? JSON.stringify({ tags: selectedTags })
             : form.target_type === "selected" && selectedContactIds.length > 0 ? JSON.stringify({ contact_ids: selectedContactIds })
@@ -1290,6 +1294,34 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                 </div>
               </div>
             )}
+
+            {/* Anhang (optional) */}
+            <div style={{ marginTop: 24 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: T.textDim, marginBottom: 8, display: "block" }}>
+                Anhang (optional)
+              </label>
+              <input
+                type="url"
+                placeholder="https://... (URL zu PDF/Dokument)"
+                value={form.attachment_url}
+                onChange={e => setForm(f => ({ ...f, attachment_url: e.target.value }))}
+                style={{ width: "100%", background: T.surfaceAlt, border: `1px solid ${T.border}`,
+                         borderRadius: 6, padding: "10px 14px", color: T.text, fontSize: 14, boxSizing: "border-box" as const }}
+              />
+              {form.attachment_url && (
+                <input
+                  type="text"
+                  placeholder="Dateiname (z.B. preisliste.pdf)"
+                  value={form.attachment_filename}
+                  onChange={e => setForm(f => ({ ...f, attachment_filename: e.target.value }))}
+                  style={{ width: "100%", marginTop: 8, background: T.surfaceAlt, border: `1px solid ${T.border}`,
+                           borderRadius: 6, padding: "10px 14px", color: T.text, fontSize: 14, boxSizing: "border-box" as const }}
+                />
+              )}
+              <p style={{ fontSize: 11, color: T.textDim, marginTop: 4 }}>
+                URL zu einer öffentlich erreichbaren Datei (PDF, DOCX). Wird als E-Mail-Anhang oder WhatsApp-Dokument gesendet.
+              </p>
+            </div>
 
             {/* Summary */}
             <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 0 }}>
