@@ -11,7 +11,7 @@ from app.gateway.redis_bus import RedisBus
 from app.gateway.schemas import InboundMessage
 from app.voice.pipeline import process_voice_message
 from app.voice.tts import generate_voice_reply
-from app.swarm.router.router import SwarmRouter
+from app.swarm.lead.lead_agent import LeadAgent
 from app.swarm.llm import LLMClient
 from app.integrations.telegram import TelegramBot
 from config.settings import get_settings
@@ -25,7 +25,7 @@ async def voice_processor():
     # 1. Setup Dependencies
     redis_bus = RedisBus(redis_url=settings.redis_url)
     llm_client = LLMClient(openai_api_key=settings.openai_api_key)
-    swarm_router = SwarmRouter(llm=llm_client)
+    lead_agent = LeadAgent(llm=llm_client)
     telegram_bot = TelegramBot(
         bot_token=settings.telegram_bot_token,
         admin_chat_id=settings.telegram_admin_chat_id,
@@ -66,8 +66,10 @@ async def voice_processor():
                 message.metadata["user_language"] = detected_lang
                 logger.info("worker.stt_success", text=transcribed_text, lang=detected_lang)
 
-                # 6. AI Agent Routing
-                result = await swarm_router.route(message)
+                # 6. AI Agent Routing via Swarm v3 LeadAgent
+                from app.gateway.routers.webhooks import _build_tenant_context
+                tenant_context = _build_tenant_context(message)
+                result = await lead_agent.handle(message, tenant_context)
                 logger.info("worker.agent_reply", confidence=result.confidence)
 
                 # 7. TTS (Text-to-Speech)
