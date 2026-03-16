@@ -477,6 +477,32 @@ async def process_and_reply(message: InboundMessage) -> None:
             )
             return
 
+        # 6b. Campaign Reply Opt-in Check
+        try:
+            from app.campaign_engine.reply_handler import handle_campaign_reply
+            from app.core.db import SessionLocal as _ReplyDB
+            _reply_db = _ReplyDB()
+            try:
+                phone = message.user_id  # WhatsApp/SMS user_id is the phone number
+                handled = await handle_campaign_reply(
+                    tenant_id=message.tenant_id or 0,
+                    phone=phone,
+                    message_text=message.content or "",
+                    db=_reply_db,
+                )
+                if handled:
+                    await send_to_user(
+                        message.user_id,
+                        message.platform,
+                        "Danke für deine Bestätigung! Deine Nachricht wird jetzt versendet. ✅",
+                        tenant_id=message.tenant_id,
+                    )
+                    return
+            finally:
+                _reply_db.close()
+        except Exception as _reply_err:
+            logger.warning("webhook.campaign_reply_check_failed", error=str(_reply_err))
+
         # 7. Build TenantContext and route through LeadAgent (Swarm v3)
         tenant_context = _build_tenant_context(message)
 
