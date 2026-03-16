@@ -219,6 +219,8 @@ async def get_permissions(
             "/campaign-analytics": True,
             "/planning": True,
             "/sync": True,
+            "/swarm/agents": True,
+            "/swarm/tools": True,
         }
     else:
         # Standard SaaS logic for Tenants
