@@ -121,6 +121,83 @@ def _verify_twilio_signature(
     expected = base64.b64encode(digest).decode("utf-8")
     return hmac.compare_digest(expected, signature.strip())
 
+def _build_tenant_context(message: InboundMessage):
+    """Build a TenantContext from an InboundMessage for the Swarm v3 LeadAgent.
+
+    Resolves tenant slug, plan, active integrations, and member info
+    from the database and session.
+    """
+    from app.swarm.contracts import TenantContext
+
+    tenant_id = message.tenant_id
+    if not tenant_id:
+        # Cannot build context without a tenant — return a minimal fallback
+        return TenantContext(
+            tenant_id=0,
+            tenant_slug="unknown",
+            plan_slug="starter",
+            active_integrations=frozenset(),
+            settings={},
+        )
+
+    # Resolve tenant slug
+    tenant_slug = persistence.get_tenant_slug(tenant_id) or "unknown"
+
+    # Resolve plan
+    plan_slug = "starter"
+    try:
+        from app.core.models import Subscription, Plan
+        db = SessionLocal()
+        try:
+            sub = (
+                db.query(Subscription)
+                .filter(Subscription.tenant_id == tenant_id, Subscription.status == "active")
+                .first()
+            )
+            if sub:
+                plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
+                if plan:
+                    plan_slug = plan.slug or "starter"
+        finally:
+            db.close()
+    except Exception:
+        pass
+
+    # Active integrations
+    active_integrations = frozenset(persistence.get_enabled_integrations(tenant_id))
+
+    # Session info (member_id, session_id)
+    member_id = None
+    session_id = None
+    try:
+        session = persistence.get_session_by_user_id(message.user_id, tenant_id=tenant_id)
+        if session:
+            member_id = session.member_id
+            session_id = getattr(session, "session_id", None) or str(session.id)
+    except Exception:
+        pass
+
+    # Load commonly needed settings
+    tenant_settings = {}
+    for key in ("studio_name", "persona_name", "sales_prices_text", "custom_system_prompt"):
+        try:
+            val = persistence.get_setting(key, "", tenant_id=tenant_id)
+            if val:
+                tenant_settings[key] = val
+        except Exception:
+            pass
+
+    return TenantContext(
+        tenant_id=tenant_id,
+        tenant_slug=tenant_slug,
+        plan_slug=plan_slug,
+        active_integrations=active_integrations,
+        settings=tenant_settings,
+        member_id=member_id,
+        session_id=session_id,
+    )
+
+
 # --- Schema ---
 class EmailInboundPayload(BaseModel):
     From: str
@@ -383,13 +460,10 @@ async def process_and_reply(message: InboundMessage) -> None:
         except Exception as e:
             logger.warning("webhook.human_mode_check_failed", error=str(e))
 
-        # 6. Swarm Routing (DYN-6: Per-request agent instantiation)
-        from app.swarm.master.orchestrator_v2 import MasterAgentV2
-        from app.swarm.router.router import SwarmRouter
+        # 6. Feature Gate Check (channel availability)
         from app.core.feature_gates import FeatureGate
         from fastapi import HTTPException as _HTTPException
 
-        # Feature gate check (channel availability)
         gate = FeatureGate(message.tenant_id)
         try:
             gate.require_channel(message.platform)
@@ -403,30 +477,44 @@ async def process_and_reply(message: InboundMessage) -> None:
             )
             return
 
-        # Emergency hard-route (bypass orchestrator)
-        content_lower = message.content.lower()
-        emergency_keywords = [
-            "herzinfarkt", "bewusstlos", "notarzt", "unfall",
-            "heart attack", "unconscious", "emergency", "ohnmacht",
-            "112", "notfall",
-        ]
-        if any(kw in content_lower for kw in emergency_keywords):
-            from app.swarm.agents.medic import AgentMedic
-            result = await AgentMedic().handle(message)
-        else:
-            # DYN-6: Create a tenant-specific MasterAgentV2 per request
-            llm = get_llm_client()
-            master = MasterAgentV2(llm, tenant_id=message.tenant_id)
-            result = await master.handle(message)
-        
-        # 7. Reply
+        # 7. Build TenantContext and route through LeadAgent (Swarm v3)
+        tenant_context = _build_tenant_context(message)
+
+        from app.swarm.lead.lead_agent import LeadAgent
+        llm = get_llm_client()
+
+        # Get async Redis client for ConfirmationGate
+        redis_client = None
+        try:
+            redis_client = redis_bus.client
+        except Exception:
+            pass
+
+        lead = LeadAgent(llm=llm, redis_client=redis_client)
+        result = await lead.handle(message, tenant_context)
+
+        # 8. Handle escalation metadata from LeadAgent
+        if result.metadata and result.metadata.get("needs_handoff"):
+            try:
+                hm_bus = RedisBus(settings.redis_url)
+                await hm_bus.connect()
+                try:
+                    tid = message.tenant_id or 0
+                    hm_key = human_mode_key(tid, message.user_id)
+                    await hm_bus.client.setex(hm_key, 86400, "true")
+                finally:
+                    await hm_bus.disconnect()
+            except Exception as e:
+                logger.warning("webhook.escalation_mode_set_failed", error=str(e))
+
+        # 9. Reply
         if result.content:
             await send_to_user(
-                message.user_id, 
-                message.platform, 
-                result.content, 
+                message.user_id,
+                message.platform,
+                result.content,
                 metadata=message.metadata,
-                tenant_id=message.tenant_id
+                tenant_id=message.tenant_id,
             )
             
     except Exception as e:
