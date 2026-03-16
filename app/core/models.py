@@ -900,7 +900,7 @@ class TenantAgentConfig(Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("tenant_id", "agent_id", name="uq_tenant_agent_config"),
+        UniqueConstraint("tenant_id", "agent_id", name="uq_swarm_tenant_agent_config"),
     )
 
 

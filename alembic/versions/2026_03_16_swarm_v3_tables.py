@@ -71,7 +71,7 @@ def upgrade() -> None:
             sa.Column("extra_config", sa.Text(), nullable=True),
             sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),
             sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
-            sa.UniqueConstraint("tenant_id", "agent_id", name="uq_tenant_agent_config"),
+            sa.UniqueConstraint("tenant_id", "agent_id", name="uq_swarm_tenant_agent_config"),
         )
         op.create_index("ix_tenant_agent_configs_tenant_id", "tenant_agent_configs", ["tenant_id"])
         op.create_index("ix_tenant_agent_configs_agent_id", "tenant_agent_configs", ["agent_id"])
