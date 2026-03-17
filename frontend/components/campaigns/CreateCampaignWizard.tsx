@@ -5,6 +5,7 @@ import {
   Calendar, Users, Target, Filter, CheckCircle,
   ArrowRight, ArrowLeft, Eye, Loader2, BookOpen,
   AlertCircle, Layers, Search, X, Image, Info, XCircle,
+  Link2, Copy, ToggleLeft, ToggleRight, FileText, Paperclip, Upload, RefreshCw,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/tokens";
@@ -71,6 +72,13 @@ const TONES = [
   { key: "casual", label: "Locker", desc: "Freundlich und nahbar" },
   { key: "motivational", label: "Motivierend", desc: "Energiegeladen und inspirierend" },
   { key: "urgent", label: "Dringend", desc: "Handlungsorientiert und zeitkritisch" },
+];
+
+const CAMPAIGN_TYPES = [
+  { key: "broadcast", label: "Broadcast", desc: "Einmaliger Versand an alle Empfänger", icon: Send },
+  { key: "drip", label: "Drip-Kampagne", desc: "Automatische Sequenz über Zeit", icon: Calendar },
+  { key: "follow_up", label: "Follow-Up", desc: "Nachfassung nach Aktion", icon: ArrowRight },
+  { key: "newsletter_optin", label: "Newsletter Opt-in", desc: "Öffentliche Anmeldeseite + Bestätigung", icon: FileText },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -141,6 +149,8 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
   const [autoImageUrl, setAutoImageUrl] = useState<string | null>(null);
   const [autoImageError, setAutoImageError] = useState<string | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [docUploading, setDocUploading] = useState(false);
+  const [docUploadError, setDocUploadError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: "", description: "", type: "broadcast", channel: "email",
@@ -151,7 +161,13 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
     featured_image_url: "",
     attachment_url: "",
     attachment_filename: "",
+    subscribe_page_enabled: false,
+    optin_require_reply: false,
+    optin_confirmation_message: "",
   });
+  const [createdCampaignId, setCreatedCampaignId] = useState<number | null>(null);
+  const [subscribeLink, setSubscribeLink] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [orchSteps, setOrchSteps] = useState<OrchestrationStep[]>([
     { step_order: 1, channel: "email", template_id: null, content_override_json: null, wait_hours: 0, condition_type: "always" },
   ]);
@@ -403,6 +419,9 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
           featured_image_url: form.featured_image_url || undefined,
           attachment_url: form.attachment_url || undefined,
           attachment_filename: form.attachment_filename || undefined,
+          subscribe_page_enabled: form.type === "newsletter_optin" ? form.subscribe_page_enabled : undefined,
+          optin_require_reply: form.type === "newsletter_optin" ? form.optin_require_reply : undefined,
+          optin_confirmation_message: form.type === "newsletter_optin" && form.optin_confirmation_message ? form.optin_confirmation_message : undefined,
           target_filter_json: form.target_segment_id ? JSON.stringify({ segment_id: form.target_segment_id })
             : form.target_type === "tags" && selectedTags.length > 0 ? JSON.stringify({ tags: selectedTags })
             : form.target_type === "selected" && selectedContactIds.length > 0 ? JSON.stringify({ contact_ids: selectedContactIds })
@@ -411,6 +430,17 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
       });
       if (!res.ok) { setAiError("Kampagne konnte nicht erstellt werden."); setCreating(false); return; }
       const created = await res.json();
+      setCreatedCampaignId(created.id);
+
+      // Generate subscribe link for newsletter_optin campaigns
+      if (form.type === "newsletter_optin" && form.subscribe_page_enabled && created.id) {
+        try {
+          const tenantId = created.tenant_id ?? 0;
+          const tokenPayload = `${tenantId}:${created.id}:${form.channel}`;
+          const b64 = btoa(tokenPayload).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+          setSubscribeLink(`${window.location.origin}/subscribe/${b64}`);
+        } catch { /* non-blocking */ }
+      }
 
       /* Save A/B test config if enabled */
       if (abEnabled && abVariants.length >= 2) {
@@ -534,6 +564,77 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                 })}
               </div>
             </div>
+
+            {/* Campaign Type */}
+            <div>
+              <label style={{ ...S.label, marginBottom: 12 }}>Kampagnen-Typ</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {CAMPAIGN_TYPES.map((ct) => {
+                  const Icon = ct.icon; const selected = form.type === ct.key;
+                  return (
+                    <button key={ct.key} onClick={() => setForm({ ...form, type: ct.key })} style={S.selectCard(selected)}>
+                      <div style={S.selectCardIcon(selected)}>
+                        <Icon size={18} style={{ color: selected ? T.accentLight : T.textDim }} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: selected ? T.text : T.textMuted }}>{ct.label}</p>
+                        <p style={{ fontSize: 11, color: T.textDim }}>{ct.desc}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Newsletter Opt-in Extra Fields */}
+            {form.type === "newsletter_optin" && (
+              <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Link2 size={16} style={{ color: T.accentLight }} />
+                  <span style={{ fontSize: 13, fontWeight: 800, color: T.text }}>Newsletter Opt-in Einstellungen</span>
+                </div>
+
+                {/* Subscribe page toggle */}
+                <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", padding: "10px 0" }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: T.text, margin: 0 }}>Öffentliche Anmeldeseite aktivieren</p>
+                    <p style={{ fontSize: 11, color: T.textDim, margin: "2px 0 0" }}>Generiert einen teilbaren Link und QR-Code</p>
+                  </div>
+                  <button type="button" onClick={() => setForm(f => ({ ...f, subscribe_page_enabled: !f.subscribe_page_enabled }))} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                    {form.subscribe_page_enabled
+                      ? <ToggleRight size={28} style={{ color: T.accent }} />
+                      : <ToggleLeft size={28} style={{ color: T.textDim }} />}
+                  </button>
+                </label>
+
+                {/* Opt-in via reply toggle */}
+                <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", padding: "10px 0", borderTop: `1px solid ${T.border}` }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: T.text, margin: 0 }}>Opt-in per Antwort (WhatsApp/SMS)</p>
+                    <p style={{ fontSize: 11, color: T.textDim, margin: "2px 0 0" }}>Kontakt antwortet &quot;JA&quot; zur Bestätigung</p>
+                  </div>
+                  <button type="button" onClick={() => setForm(f => ({ ...f, optin_require_reply: !f.optin_require_reply }))} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                    {form.optin_require_reply
+                      ? <ToggleRight size={28} style={{ color: T.accent }} />
+                      : <ToggleLeft size={28} style={{ color: T.textDim }} />}
+                  </button>
+                </label>
+
+                {/* Confirmation message */}
+                <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 12 }}>
+                  <label style={S.label}>Bestätigungsnachricht</label>
+                  <textarea
+                    style={{ ...S.textarea, height: 80 }}
+                    value={form.optin_confirmation_message}
+                    onChange={(e) => setForm({ ...form, optin_confirmation_message: e.target.value })}
+                    placeholder="z.B. Vielen Dank für Ihre Anmeldung! Hier ist Ihre Preisliste als PDF."
+                  />
+                  <p style={{ fontSize: 11, color: T.textDim, marginTop: 4 }}>
+                    Wird nach erfolgreicher Anmeldung gesendet (inkl. Anhang, falls vorhanden).
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1297,29 +1398,87 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
 
             {/* Anhang (optional) */}
             <div style={{ marginTop: 24 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: T.textDim, marginBottom: 8, display: "block" }}>
-                Anhang (optional)
+              <label style={{ ...S.label, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                <Paperclip size={13} /> Anhang (optional)
               </label>
-              <input
-                type="url"
-                placeholder="https://... (URL zu PDF/Dokument)"
-                value={form.attachment_url}
-                onChange={e => setForm(f => ({ ...f, attachment_url: e.target.value }))}
-                style={{ width: "100%", background: T.surfaceAlt, border: `1px solid ${T.border}`,
-                         borderRadius: 6, padding: "10px 14px", color: T.text, fontSize: 14, boxSizing: "border-box" as const }}
-              />
-              {form.attachment_url && (
-                <input
-                  type="text"
-                  placeholder="Dateiname (z.B. preisliste.pdf)"
-                  value={form.attachment_filename}
-                  onChange={e => setForm(f => ({ ...f, attachment_filename: e.target.value }))}
-                  style={{ width: "100%", marginTop: 8, background: T.surfaceAlt, border: `1px solid ${T.border}`,
-                           borderRadius: 6, padding: "10px 14px", color: T.text, fontSize: 14, boxSizing: "border-box" as const }}
-                />
+
+              {/* Uploaded file preview */}
+              {form.attachment_url ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: T.surfaceAlt, border: `1px solid ${T.success || "#22c55e"}`, borderRadius: 8, marginBottom: 8 }}>
+                  <FileText size={18} style={{ color: T.accent, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: T.text, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {form.attachment_filename || form.attachment_url.split("/").pop() || "Dokument"}
+                    </p>
+                    <a href={form.attachment_url} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 11, color: T.accent, textDecoration: "none" }}>
+                      Vorschau ↗
+                    </a>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, attachment_url: "", attachment_filename: "" }))}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", borderRadius: 4 }}
+                    title="Anhang entfernen"
+                  >
+                    <X size={15} style={{ color: T.textDim }} />
+                  </button>
+                </div>
+              ) : (
+                /* Upload button */
+                <label style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  padding: "12px 20px", background: T.surfaceAlt,
+                  border: `2px dashed ${docUploading ? T.accent : T.border}`,
+                  borderRadius: 8, cursor: docUploading ? "wait" : "pointer",
+                  color: T.textDim, fontSize: 13, fontWeight: 500,
+                  transition: "border-color 0.15s",
+                }}>
+                  {docUploading ? (
+                    <><RefreshCw size={15} style={{ animation: "spin 1s linear infinite" }} /> Wird hochgeladen...</>
+                  ) : (
+                    <><Upload size={15} /> PDF, DOCX, XLSX hochladen (max. 25 MB)</>
+                  )}
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.txt"
+                    style={{ display: "none" }}
+                    disabled={docUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setDocUploading(true);
+                      setDocUploadError(null);
+                      try {
+                        const fd = new FormData();
+                        fd.append("file", file);
+                        const res = await apiFetch("/admin/media/upload-document", { method: "POST", body: fd });
+                        if (!res.ok) {
+                          const err = await res.json().catch(() => ({}));
+                          throw new Error(err.detail || `Upload fehlgeschlagen (${res.status})`);
+                        }
+                        const data = await res.json();
+                        setForm(f => ({
+                          ...f,
+                          attachment_url: data.url,
+                          attachment_filename: file.name,
+                        }));
+                      } catch (err: unknown) {
+                        setDocUploadError(err instanceof Error ? err.message : "Upload fehlgeschlagen");
+                      } finally {
+                        setDocUploading(false);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                </label>
+              )}
+
+              {docUploadError && (
+                <p style={{ fontSize: 12, color: "#ef4444", marginTop: 6 }}>⚠ {docUploadError}</p>
               )}
               <p style={{ fontSize: 11, color: T.textDim, marginTop: 4 }}>
-                URL zu einer öffentlich erreichbaren Datei (PDF, DOCX). Wird als E-Mail-Anhang oder WhatsApp-Dokument gesendet.
+                Datei wird auf dem Server gespeichert und als öffentlicher Link geteilt. Kein externer Dienst.
               </p>
             </div>
 
@@ -1460,6 +1619,55 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                 {autoImageStatus === 'error' && autoImageError && (
                   <span style={{ fontSize: 12, color: T.danger }}>{autoImageError}</span>
                 )}
+              </div>
+            )}
+
+            {/* Subscribe Link Generator */}
+            {subscribeLink && (
+              <div style={{ padding: "16px 20px", background: T.accentDim, border: `1px solid rgba(108,92,231,0.3)`, borderRadius: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Link2 size={16} style={{ color: T.accentLight }} />
+                  <span style={{ fontSize: 13, fontWeight: 800, color: T.text }}>Öffentlicher Anmeldelink</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="text"
+                    readOnly
+                    value={subscribeLink}
+                    style={{ ...S.input, flex: 1, fontSize: 12, fontFamily: "monospace", background: T.surface }}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(subscribeLink).then(() => {
+                        setLinkCopied(true);
+                        setTimeout(() => setLinkCopied(false), 2000);
+                      });
+                    }}
+                    style={{ ...S.primaryBtn, padding: "10px 16px", flexShrink: 0 }}
+                  >
+                    <Copy size={14} />
+                    {linkCopied ? "Kopiert!" : "Kopieren"}
+                  </button>
+                </div>
+                {/* QR Code */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(subscribeLink)}&bgcolor=12131A&color=E8E9ED`}
+                    alt="QR Code"
+                    style={{ width: 120, height: 120, borderRadius: 8, border: `1px solid ${T.border}` }}
+                  />
+                  <div>
+                    <p style={{ fontSize: 12, color: T.textMuted, margin: 0 }}>
+                      Teilen Sie diesen Link oder QR-Code, damit sich Interessenten anmelden können.
+                    </p>
+                    <p style={{ fontSize: 11, color: T.textDim, margin: "6px 0 0" }}>
+                      Anmeldungen werden automatisch als Kontakte mit Consent erfasst.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 

@@ -29,6 +29,7 @@ import structlog
 from sqlalchemy import and_
 
 from app.core.db import SessionLocal
+from app.core.advisory_locks import advisory_lock_or_skip
 from app.core.integration_models import TenantIntegration, SyncSchedule
 
 logger = structlog.get_logger()
@@ -118,6 +119,21 @@ class SyncScheduler:
             sync_key = f"{ti.tenant_id}:{ti.integration_id}"
             if sync_key in self._active_syncs:
                 continue
+
+            # Check advisory lock to prevent concurrent execution across workers
+            db = SessionLocal()
+            try:
+                lock_key = f"sync:{ti.tenant_id}:{ti.integration_id}"
+                with advisory_lock_or_skip(db, lock_key) as acquired:
+                    if not acquired:
+                        logger.debug(
+                            "sync.skipped_lock",
+                            tenant_id=ti.tenant_id,
+                            integration_id=ti.integration_id,
+                        )
+                        continue
+            finally:
+                db.close()
 
             self._active_syncs[sync_key] = datetime.now(timezone.utc)
             asyncio.create_task(self._execute_sync(ti, sync_key))

@@ -16,6 +16,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.automation_models import AutomationWorkflow, AutomationRun, AutomationRunLog
+from app.core.advisory_locks import advisory_lock_or_skip
 from app.campaign_engine.node_executors import get_executor
 
 logger = structlog.get_logger()
@@ -45,20 +46,28 @@ class AutomationEngine:
 
         processed = 0
         for run in due_runs:
-            try:
-                await self._execute_node(db, run)
-                processed += 1
-            except Exception as e:
-                logger.error(
-                    "automation.run_execution_failed",
-                    run_id=run.id,
-                    workflow_id=run.workflow_id,
-                    tenant_id=run.tenant_id,
-                    error=str(e),
-                )
-                run.status = "error"
-                run.error_message = str(e)
-                db.commit()
+            with advisory_lock_or_skip(db, f"automation_run:{run.id}") as acquired:
+                if not acquired:
+                    logger.debug(
+                        "automation.run_skipped_lock",
+                        run_id=run.id,
+                        tenant_id=run.tenant_id,
+                    )
+                    continue
+                try:
+                    await self._execute_node(db, run)
+                    processed += 1
+                except Exception as e:
+                    logger.error(
+                        "automation.run_execution_failed",
+                        run_id=run.id,
+                        workflow_id=run.workflow_id,
+                        tenant_id=run.tenant_id,
+                        error=str(e),
+                    )
+                    run.status = "error"
+                    run.error_message = str(e)
+                    db.commit()
 
         return processed
 

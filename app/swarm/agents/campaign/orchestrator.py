@@ -19,6 +19,11 @@ class CampaignGenerationRequest:
     template_id: Optional[int] = None
     use_knowledge: bool = True
     use_chat_history: bool = False
+    generate_image: bool = False
+    image_size: str = "1024x1024"
+    image_quality: str = "standard"
+    image_model_slug: Optional[str] = None
+    created_by: Optional[int] = None
 
 
 @dataclass
@@ -32,6 +37,8 @@ class CampaignGenerationResult:
     qa_suggestions: list[str] = field(default_factory=list)
     pipeline_steps: list[str] = field(default_factory=list)
     error: Optional[str] = None
+    image_asset_id: Optional[int] = None
+    image_url: str = ""
 
 
 class CampaignOrchestrator:
@@ -176,6 +183,20 @@ class CampaignOrchestrator:
             result.qa_issues = qa.issues
             result.qa_suggestions = qa.suggestions
 
+            # Step 7: Optional image generation via MediaOrchestrator
+            if request.generate_image:
+                image_result = await self._run_image_generation(request, db, tenant_slug)
+                if image_result and not image_result.error:
+                    result.image_asset_id = image_result.asset_id
+                    result.image_url = image_result.url
+                    result.pipeline_steps.append("image_generation")
+                elif image_result and image_result.error:
+                    logger.warning(
+                        "campaign_orchestrator.image_generation_failed",
+                        error=image_result.error,
+                        tenant_id=request.tenant_id,
+                    )
+
         except Exception as e:
             logger.error("campaign_orchestrator.failed", error=str(e), tenant_id=request.tenant_id)
             result.error = str(e)
@@ -206,6 +227,29 @@ class CampaignOrchestrator:
         except Exception as e:
             logger.warning("campaign_orchestrator.knowledge_failed", error=str(e))
         return ""
+
+    async def _run_image_generation(self, request: CampaignGenerationRequest, db: Session, tenant_slug: str):
+        """Run image generation via MediaOrchestrator (internal sub-component)."""
+        try:
+            from app.swarm.agents.media.orchestrator import MediaOrchestrator, MediaGenerationRequest
+
+            media_orch = MediaOrchestrator(self._llm)
+            media_req = MediaGenerationRequest(
+                user_prompt=request.prompt,
+                tenant_id=request.tenant_id,
+                campaign_name=request.campaign_name,
+                channel=request.channel,
+                tone=request.tone,
+                task_context="email" if request.channel == "email" else "general",
+                size=request.image_size,
+                quality=request.image_quality,
+                created_by=request.created_by,
+                model_slug=request.image_model_slug,
+            )
+            return await media_orch.run(media_req, db=db, tenant_slug=tenant_slug)
+        except Exception as e:
+            logger.error("campaign_orchestrator.image_generation_error", error=str(e))
+            return None
 
     def _gather_chat_context(self, request: CampaignGenerationRequest, db: Session) -> str:
         try:

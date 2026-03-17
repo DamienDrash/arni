@@ -1,9 +1,9 @@
 """ARIIA Swarm v3 — DynamicAgentLoader with Redis Cache Invalidation.
 
 Loads agent configurations from the database, merges tenant overrides,
-and instantiates GenericExpertAgent instances.  Uses a TTL-based cache
-to avoid repeated DB hits and subscribes to a Redis Pub/Sub channel
-for config change notifications.
+and instantiates GenericExpertAgent instances.  Uses a Redis-backed
+TTL cache to avoid repeated DB hits and subscribes to a Redis Pub/Sub
+channel for config change notifications.
 
 Usage:
     loader = get_agent_loader()
@@ -29,6 +29,20 @@ CACHE_TTL = 60
 # Redis Pub/Sub channel for config updates
 CONFIG_UPDATE_CHANNEL = "swarm:config:updated"
 
+# Redis key prefix for agent definition cache
+AGENT_DEF_CACHE_PREFIX = "agent:def"
+
+
+def _get_redis():
+    """Lazy Redis client for caching."""
+    try:
+        import redis as redis_lib
+        from config.settings import get_settings
+        s = get_settings()
+        return redis_lib.from_url(s.redis_url or "redis://localhost:6379/1", decode_responses=True, socket_timeout=1)
+    except Exception:
+        return None
+
 
 @dataclass
 class CachedAgentDef:
@@ -46,12 +60,29 @@ class CachedAgentDef:
     def is_expired(self) -> bool:
         return (time.time() - self.loaded_at) > CACHE_TTL
 
+    def to_json(self) -> str:
+        return json.dumps({
+            "agent_id": self.agent_id,
+            "display_name": self.display_name,
+            "system_prompt": self.system_prompt,
+            "default_tools_json": self.default_tools_json,
+            "max_turns": self.max_turns,
+            "qa_profile": self.qa_profile,
+        })
+
+    @classmethod
+    def from_json(cls, raw: str) -> CachedAgentDef:
+        d = json.loads(raw)
+        return cls(loaded_at=time.time(), **d)
+
 
 class DynamicAgentLoader:
     """Loads and caches GenericExpertAgent instances from the database.
 
     Cache Strategy:
-    - Agent definitions (AgentDefinition) are cached with a 60s TTL
+    - Agent definitions (AgentDefinition) are cached in Redis with a 60s TTL
+      Key pattern: agent:def:{tenant_id}:{agent_id}
+    - Falls back to in-memory cache if Redis is unavailable
     - Tenant configs (TenantAgentConfig) are NOT cached (per-request)
     - Cache is invalidated via Redis Pub/Sub or manual call
     """
@@ -83,7 +114,7 @@ class DynamicAgentLoader:
             Configured GenericExpertAgent or None if agent not found.
         """
         # 1. Load agent definition (cached)
-        agent_def = self._get_cached_or_load(agent_id)
+        agent_def = self._get_cached_or_load(agent_id, tenant_id=context.tenant_id if context else None)
         if not agent_def:
             logger.warning("agent_loader.not_found", agent_id=agent_id)
             return None
@@ -131,18 +162,40 @@ class DynamicAgentLoader:
             qa_profile=agent_def.qa_profile,
         )
 
-    def invalidate_cache(self, agent_id: str | None = None) -> None:
-        """Invalidate cached agent definitions.
+    def invalidate_cache(self, agent_id: str | None = None, tenant_id: int | None = None) -> None:
+        """Invalidate cached agent definitions in both memory and Redis.
 
         Args:
             agent_id: Specific agent to invalidate, or None for all.
+            tenant_id: Specific tenant to invalidate, or None for all.
         """
         if agent_id:
             self._cache.pop(agent_id, None)
-            logger.info("agent_loader.cache_invalidated", agent_id=agent_id)
         else:
             self._cache.clear()
-            logger.info("agent_loader.cache_cleared")
+
+        # Invalidate Redis cache
+        r = _get_redis()
+        if r:
+            try:
+                if agent_id and tenant_id:
+                    r.delete(f"{AGENT_DEF_CACHE_PREFIX}:{tenant_id}:{agent_id}")
+                else:
+                    # Scan and delete matching keys
+                    pattern = f"{AGENT_DEF_CACHE_PREFIX}:*"
+                    if agent_id:
+                        pattern = f"{AGENT_DEF_CACHE_PREFIX}:*:{agent_id}"
+                    cursor = 0
+                    while True:
+                        cursor, keys = r.scan(cursor, match=pattern, count=100)
+                        if keys:
+                            r.delete(*keys)
+                        if cursor == 0:
+                            break
+            except Exception as e:
+                logger.warning("agent_loader.redis_invalidation_failed", error=str(e))
+
+        logger.info("agent_loader.cache_invalidated", agent_id=agent_id, tenant_id=tenant_id)
 
     def list_agents(self) -> list[dict[str, Any]]:
         """List all available agent definitions from the DB."""
@@ -170,15 +223,36 @@ class DynamicAgentLoader:
 
     # ── Internal Methods ─────────────────────────────────────────────────
 
-    def _get_cached_or_load(self, agent_id: str) -> CachedAgentDef | None:
-        """Get agent def from cache or load from DB."""
+    def _get_cached_or_load(self, agent_id: str, tenant_id: int | None = None) -> CachedAgentDef | None:
+        """Get agent def from memory cache → Redis cache → DB."""
+        # 1. In-memory cache
         cached = self._cache.get(agent_id)
         if cached and not cached.is_expired:
             return cached
 
+        # 2. Redis cache
+        redis_key = f"{AGENT_DEF_CACHE_PREFIX}:{tenant_id or 'global'}:{agent_id}"
+        r = _get_redis()
+        if r:
+            try:
+                raw = r.get(redis_key)
+                if raw:
+                    agent_def = CachedAgentDef.from_json(raw)
+                    self._cache[agent_id] = agent_def
+                    return agent_def
+            except Exception as e:
+                logger.warning("agent_loader.redis_cache_read_failed", error=str(e))
+
+        # 3. Load from DB
         agent_def = self._load_agent_def(agent_id)
         if agent_def:
             self._cache[agent_id] = agent_def
+            # Store in Redis
+            if r:
+                try:
+                    r.setex(redis_key, CACHE_TTL, agent_def.to_json())
+                except Exception as e:
+                    logger.warning("agent_loader.redis_cache_write_failed", error=str(e))
         return agent_def
 
     @staticmethod
@@ -258,8 +332,21 @@ class DynamicAgentLoader:
 
     @staticmethod
     def _build_registry(tenant_id: int):
-        """Build a TenantToolRegistry from DB rows for this tenant."""
+        """Build a TenantToolRegistry from DB rows, with Redis cache (60s TTL)."""
         from app.swarm.tools.registry import TenantToolRegistry
+
+        cache_key = f"tool:registry:{tenant_id}"
+
+        # Try Redis cache first
+        r = _get_redis()
+        if r:
+            try:
+                raw = r.get(cache_key)
+                if raw:
+                    configs = json.loads(raw)
+                    return TenantToolRegistry(tenant_tool_configs=configs)
+            except Exception as e:
+                logger.warning("tool_registry.redis_cache_read_failed", error=str(e))
 
         try:
             from app.core.db import SessionLocal
@@ -272,7 +359,17 @@ class DynamicAgentLoader:
                     .filter(TenantToolConfig.tenant_id == tenant_id)
                     .all()
                 )
-                return TenantToolRegistry.from_db_rows(rows)
+                registry = TenantToolRegistry.from_db_rows(rows)
+
+                # Cache in Redis
+                if r:
+                    try:
+                        configs = registry._tool_configs
+                        r.setex(cache_key, CACHE_TTL, json.dumps(configs))
+                    except Exception as e:
+                        logger.warning("tool_registry.redis_cache_write_failed", error=str(e))
+
+                return registry
             finally:
                 db.close()
         except Exception:
@@ -299,9 +396,10 @@ async def start_config_listener(redis_url: str) -> None:
     """Start a Redis Pub/Sub listener for config change notifications.
 
     Listens on the 'swarm:config:updated' channel and invalidates
-    the agent cache when a message is received.
+    both agent definition cache and tool registry cache.
 
-    Message format: {"agent_id": "ops"} or {"agent_id": null} for all.
+    Message format: {"orchestrator_name": "swarm-orchestrator", "tenant_id": null}
+                 or {"agent_id": "ops"}
     """
     try:
         import aioredis
@@ -318,8 +416,27 @@ async def start_config_listener(redis_url: str) -> None:
             try:
                 data = json.loads(message["data"])
                 agent_id = data.get("agent_id")
+                tenant_id = data.get("tenant_id")
                 loader = get_agent_loader()
-                loader.invalidate_cache(agent_id)
+
+                # Invalidate agent definition cache
+                loader.invalidate_cache(agent_id, tenant_id=tenant_id)
+
+                # Invalidate tool registry cache
+                r = _get_redis()
+                if r:
+                    if tenant_id:
+                        r.delete(f"tool:registry:{tenant_id}")
+                    else:
+                        cursor = 0
+                        while True:
+                            cursor, keys = r.scan(cursor, match="tool:registry:*", count=100)
+                            if keys:
+                                r.delete(*keys)
+                            if cursor == 0:
+                                break
+
+                logger.info("config_listener.caches_invalidated", agent_id=agent_id, tenant_id=tenant_id)
             except Exception as e:
                 logger.warning(
                     "agent_loader.config_listener_error",

@@ -194,7 +194,9 @@ class LeadAgent:
                     agent_id=task.agent_id,
                     reason=verdict.reason,
                 )
-                return AgentResult(
+                from app.swarm.qa.escalation_router import route_escalation
+
+                escalation_result = AgentResult(
                     agent_id=task.agent_id,
                     content=(
                         "Ich leite dich an einen Mitarbeiter weiter, "
@@ -203,6 +205,14 @@ class LeadAgent:
                     confidence=0.3,
                     metadata={"escalation_reason": verdict.reason, "needs_handoff": True},
                 )
+                await route_escalation(
+                    result=escalation_result,
+                    tenant_id=task.tenant_context.tenant_id,
+                    member_id=str(task.tenant_context.member_id) if task.tenant_context.member_id else None,
+                    channel=task.tenant_context.settings.get("channel"),
+                    redis=self._redis,
+                )
+                return escalation_result
 
             if verdict.status == QAStatus.REVISE and attempt < max_attempts - 1:
                 logger.info(

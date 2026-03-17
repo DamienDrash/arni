@@ -16,6 +16,7 @@ Flow:
 from __future__ import annotations
 
 import json
+import time
 import uuid
 import structlog
 from dataclasses import dataclass, field
@@ -27,6 +28,9 @@ logger = structlog.get_logger()
 
 # TTL for pending confirmations in seconds (5 minutes)
 CONFIRMATION_TTL = 300
+
+# Send warning notification at 80% of TTL (i.e. 60 seconds before expiry)
+CONFIRMATION_WARNING_OFFSET = 240
 
 # Patterns that indicate user confirmation (German + English)
 AFFIRMATIVE_PATTERNS: frozenset[str] = frozenset({
@@ -110,6 +114,37 @@ class ConfirmationGate:
         })
 
         await self._redis.setex(key, CONFIRMATION_TTL, payload)
+
+        # Register TTL warning and expiry notification jobs
+        now = time.time()
+        try:
+            # Warning job (at 80% of TTL — 60 seconds before expiry)
+            await self._redis.zadd("orch:pending_notifications", {
+                json.dumps({
+                    "tenant_id": context.tenant_id,
+                    "member_id": member_id,
+                    "channel": "whatsapp",
+                    "message": "\u26a0\ufe0f Deine ausstehende Best\u00e4tigung l\u00e4uft in 60 Sekunden ab. Bitte jetzt antworten.",
+                    "type": "confirmation_warning",
+                }): now + CONFIRMATION_WARNING_OFFSET,
+            })
+
+            # Expiry notification (1 second after TTL)
+            await self._redis.zadd("orch:pending_notifications", {
+                json.dumps({
+                    "tenant_id": context.tenant_id,
+                    "member_id": member_id,
+                    "channel": "whatsapp",
+                    "message": "Best\u00e4tigungsanfrage abgelaufen. Bitte Aktion erneut anfordern.",
+                    "type": "confirmation_expired",
+                }): now + CONFIRMATION_TTL + 1,
+            })
+        except Exception as notif_err:
+            logger.warning(
+                "confirmation_gate.notification_schedule_failed",
+                error=str(notif_err),
+                token=token,
+            )
 
         logger.info(
             "confirmation_gate.stored",

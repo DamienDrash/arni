@@ -27,6 +27,7 @@ class AnalyticsEvent(Base):
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True, index=True)
     recipient_id = Column(Integer, ForeignKey("campaign_recipients.id"), nullable=True, index=True)
     contact_id = Column(Integer, ForeignKey("contacts.id"), nullable=True, index=True)
+    idempotency_key = Column(String(128), nullable=True)
 
     # Event classification
     # sent | delivered | opened | clicked | bounced | unsubscribed | converted
@@ -51,6 +52,10 @@ class AnalyticsEvent(Base):
         Index("ix_ae_campaign_event", "campaign_id", "event_type"),
         Index("ix_ae_tenant_created", "tenant_id", "created_at"),
         Index("ix_ae_recipient_event", "recipient_id", "event_type"),
+        Index(
+            "uq_ae_idempotency", "idempotency_key",
+            unique=True, postgresql_where=Column("idempotency_key").isnot(None),
+        ),
     )
 
 

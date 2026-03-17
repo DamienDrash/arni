@@ -116,6 +116,18 @@ async def lifespan(app: FastAPI):
     except Exception as _credit_err:
         logger.warning("ariia.gateway.credit_seed_skipped", error=str(_credit_err))
 
+    # Seed Orchestrator Definitions
+    try:
+        from app.orchestration.seed import seed_default_orchestrators
+        from app.core.db import SessionLocal as _OrchSeedDB
+        _orch_db = _OrchSeedDB()
+        try:
+            seed_default_orchestrators(_orch_db)
+        finally:
+            _orch_db.close()
+    except Exception as _orch_err:
+        logger.warning("ariia.gateway.orchestrator_seed_skipped", error=str(_orch_err))
+
     logger.info("ariia.gateway.startup", version="2.0.0", env=settings.environment)
     
     try:
@@ -135,13 +147,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("ariia.gateway.magicline_scheduler_skipped", error=str(e))
 
-    # Contact Sync Scheduler (Phase 3)
+    # Contact Sync Scheduler (Phase 3) — DEPRECATED: replaced by IntegrationSyncOrchestrator
+    # Kept as fallback; the orchestrator delegates to sync_scheduler internally.
     try:
         from app.contacts.sync_scheduler import start_sync_scheduler
         start_sync_scheduler()
         logger.info("ariia.gateway.contact_sync_scheduler_started")
     except Exception as e:
         logger.warning("ariia.gateway.contact_sync_scheduler_skipped", error=str(e))
+
+    # IntegrationSyncOrchestrator (unified sync scheduling)
+    try:
+        from app.orchestration.sync_orchestrator import get_integration_sync_orchestrator
+        _sync_orch = get_integration_sync_orchestrator()
+        background_tasks.append(asyncio.create_task(_sync_orch.run_forever(interval_seconds=60)))
+        logger.info("ariia.gateway.sync_orchestrator_started")
+    except Exception as e:
+        logger.warning("ariia.gateway.sync_orchestrator_skipped", error=str(e))
 
     # Data Retention & Maintenance Loop
     try:
@@ -198,6 +220,13 @@ async def lifespan(app: FastAPI):
     except Exception as _rlc_err:
         logger.warning("ariia.gateway.rate_limiter_cleanup_skipped", error=str(_rlc_err))
 
+    # Confirmation Gate TTL Warning Notification Dispatcher
+    try:
+        from app.swarm.lead.notification_dispatcher import poll_pending_notifications
+        background_tasks.append(asyncio.create_task(poll_pending_notifications(redis_bus)))
+    except Exception as _notif_err:
+        logger.warning("ariia.gateway.notification_dispatcher_skipped", error=str(_notif_err))
+
     yield
     
     for task in background_tasks:
@@ -228,7 +257,7 @@ async def maintenance_middleware(request: Request, call_next):
     
     # 1. Whitelist system, auth, admin and health paths
     # Admins must always be able to access the dashboard and settings to fix the system.
-    whitelist = ["/health", "/metrics", "/_next", "/static", "/admin", "/auth", "/proxy/admin", "/proxy/auth", "/webhook"]
+    whitelist = ["/health", "/metrics", "/_next", "/static", "/admin", "/auth", "/proxy/admin", "/proxy/auth", "/webhook", "/public"]
     if any(path.startswith(p) for p in whitelist):
         return await call_next(request)
         
@@ -320,6 +349,11 @@ app.include_router(ab_testing_api.router)
 app.include_router(docker_management.router)
 app.include_router(smtp_config.router)
 app.include_router(campaign_webhooks_router)
+
+# --- Orchestrator Manager Admin API ---
+from app.gateway.routers.orchestrators import router as orchestrators_router, tenant_override_router as orchestrators_tenant_router
+app.include_router(orchestrators_router)
+app.include_router(orchestrators_tenant_router)
 
 # --- Media & Image Provider Routers ---
 try:
@@ -413,6 +447,10 @@ app.include_router(feedback_router)
 # --- Contact Consent (DSGVO) ---
 from app.gateway.routers.consent import router as consent_router
 app.include_router(consent_router)
+
+# --- Public Subscribe (no auth) ---
+from app.gateway.routers.public_subscribe import router as public_subscribe_router
+app.include_router(public_subscribe_router)
 
 # --- AI Config Management Router (Refactored) ---
 try:

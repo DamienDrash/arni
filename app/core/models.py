@@ -552,6 +552,7 @@ class LLMUsageLog(Base):
 class Campaign(Base):
     """Marketing campaign / broadcast / scheduled message."""
     __tablename__ = "campaigns"
+    __tenant_scoped__ = True
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
@@ -616,6 +617,10 @@ class Campaign(Base):
     # Media
     featured_image_url = Column(String(512), nullable=True)
     featured_image_asset_id = Column(Integer, nullable=True)
+
+    # Attachments (e.g. PDF lead magnets)
+    attachment_url = Column(String(512), nullable=True)
+    attachment_filename = Column(String(255), nullable=True)
 
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
@@ -939,3 +944,7 @@ class ContactConsent(Base):
     consent_source = Column(String(50), nullable=True)
     ip_address = Column(String(45), nullable=True)
     optin_token = Column(String(255), nullable=True, unique=True)
+
+
+# Orchestration layer
+from app.orchestration.models import OrchestratorDefinition, OrchestratorVersion, OrchestratorTenantOverride  # noqa: F401,E402

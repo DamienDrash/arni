@@ -1,9 +1,7 @@
 """ARIIA Swarm v3 — QAJudge.
 
-Evaluates AgentResult quality against a QAProfile's criteria.
-Two-phase evaluation:
-  Phase 1: Deterministic rule checks (no LLM)
-  Phase 2: Optional LLM-based quality check (only if profile.run_llm_check)
+Evaluates AgentResult quality against a QAProfile's criteria
+using deterministic rule checks (no LLM).
 """
 
 from __future__ import annotations
@@ -91,9 +89,6 @@ class QAJudge:
     ) -> QAVerdict:
         """Evaluate the result against the profile's criteria.
 
-        Phase 1: Deterministic checks (always runs).
-        Phase 2: LLM check (only if profile.run_llm_check and Phase 1 passed).
-
         Args:
             result: The AgentResult to evaluate.
             task: The original task for context.
@@ -105,7 +100,6 @@ class QAJudge:
         if not profile.criteria:
             return QAVerdict(status=QAStatus.PASS)
 
-        # Phase 1: Deterministic checks
         failed: list[CheckResult] = []
         for criterion in profile.criteria:
             check = self._run_deterministic_check(criterion, result, task)
@@ -132,12 +126,6 @@ class QAJudge:
                 reason="Deterministic QA check failed",
                 failed_criteria=failed_criteria,
             )
-
-        # Phase 2: Optional LLM check
-        if profile.run_llm_check:
-            llm_verdict = self._run_llm_check(result, task, profile)
-            if llm_verdict is not None:
-                return llm_verdict
 
         return QAVerdict(status=QAStatus.PASS)
 
@@ -243,18 +231,3 @@ class QAJudge:
         logger.warning("qa_judge.unknown_criterion", criterion=criterion.value)
         return CheckResult(criterion=criterion, passed=True)
 
-    def _run_llm_check(
-        self,
-        result: AgentResult,
-        task: AgentTask,
-        profile: QAProfile,
-    ) -> QAVerdict | None:
-        """Optional LLM-based quality check.
-
-        Returns QAVerdict if LLM finds issues, None if no issues or LLM unavailable.
-        Currently a stub — will be wired to LLM in a later task.
-        """
-        # TODO: Implement LLM-based quality check in a follow-up task.
-        # This would send the result + task to an LLM with a QA prompt
-        # and parse the response for PASS/REVISE/ESCALATE.
-        return None

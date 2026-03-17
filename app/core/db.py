@@ -121,6 +121,12 @@ def run_migrations():
     """Bootstrap the database schema. In production, use Alembic instead."""
     Base.metadata.create_all(bind=engine)
 
+
+# Register tenant isolation interceptor on the sync session factory
+from app.core.tenant_interceptor import register_tenant_interceptor
+
+register_tenant_interceptor(SessionLocal)
+
 # ─── FastAPI Dependencies ─────────────────────────────────────────────────────────
 
 

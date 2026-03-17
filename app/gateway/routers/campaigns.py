@@ -667,6 +667,122 @@ async def campaign_analytics(
     }
 
 
+@router.get("/{campaign_id}/analytics")
+async def get_campaign_analytics(
+    campaign_id: int,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get detailed analytics for a single campaign."""
+    from app.core.auth import require_role
+    require_role(user, {"system_admin", "tenant_admin"})
+
+    # Fetch campaign with tenant isolation (system_admin can see any tenant)
+    query = db.query(Campaign).filter(Campaign.id == campaign_id)
+    if user.role != "system_admin":
+        query = query.filter(Campaign.tenant_id == user.tenant_id)
+    campaign = query.first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    # --- Summary: count recipients grouped by status ---
+    status_counts = (
+        db.query(CampaignRecipient.status, func.count(CampaignRecipient.id))
+        .filter(
+            CampaignRecipient.campaign_id == campaign_id,
+            CampaignRecipient.tenant_id == campaign.tenant_id,
+        )
+        .group_by(CampaignRecipient.status)
+        .all()
+    )
+    status_map = {s: c for s, c in status_counts}
+    total_recipients = sum(status_map.values())
+    sent = status_map.get("sent", 0) + status_map.get("delivered", 0) + status_map.get("opened", 0) + status_map.get("clicked", 0)
+    summary = {
+        "total_recipients": total_recipients,
+        "sent": sent,
+        "delivered": status_map.get("delivered", 0) + status_map.get("opened", 0) + status_map.get("clicked", 0),
+        "opened": status_map.get("opened", 0) + status_map.get("clicked", 0),
+        "clicked": status_map.get("clicked", 0),
+        "bounced": status_map.get("bounced", 0),
+        "unsubscribed": status_map.get("unsubscribed", 0),
+    }
+
+    # --- Variants: per-variant stats ---
+    variants_data = []
+    variants = db.query(CampaignVariant).filter(
+        CampaignVariant.campaign_id == campaign_id
+    ).all()
+    for v in variants:
+        v_recipients = db.query(CampaignRecipient).filter(
+            CampaignRecipient.campaign_id == campaign_id,
+            CampaignRecipient.tenant_id == campaign.tenant_id,
+            CampaignRecipient.variant_name == v.variant_name,
+        )
+        v_total = v_recipients.count()
+        v_sent = v_recipients.filter(
+            CampaignRecipient.status.in_(["sent", "delivered", "opened", "clicked"])
+        ).count()
+        v_opened = v_recipients.filter(
+            CampaignRecipient.opened_at.isnot(None)
+        ).count()
+        v_clicked = v_recipients.filter(
+            CampaignRecipient.clicked_at.isnot(None)
+        ).count()
+        variants_data.append({
+            "variant_name": v.variant_name,
+            "recipients": v_total,
+            "sent": v_sent,
+            "open_rate": round(v_opened / v_sent * 100, 1) if v_sent > 0 else 0,
+            "click_rate": round(v_clicked / v_sent * 100, 1) if v_sent > 0 else 0,
+            "is_winner": v.is_winner,
+        })
+
+    # --- Timeline: recipients grouped by DATE(sent_at) last 30 days ---
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    timeline_rows = (
+        db.query(
+            func.date(CampaignRecipient.sent_at).label("date"),
+            func.count(CampaignRecipient.id).label("sent"),
+            func.count(CampaignRecipient.opened_at).label("opened"),
+            func.count(CampaignRecipient.clicked_at).label("clicked"),
+        )
+        .filter(
+            CampaignRecipient.campaign_id == campaign_id,
+            CampaignRecipient.tenant_id == campaign.tenant_id,
+            CampaignRecipient.sent_at >= thirty_days_ago,
+            CampaignRecipient.sent_at.isnot(None),
+        )
+        .group_by(func.date(CampaignRecipient.sent_at))
+        .order_by(func.date(CampaignRecipient.sent_at))
+        .all()
+    )
+    timeline = [
+        {
+            "date": str(row.date),
+            "sent": row.sent,
+            "opened": row.opened,
+            "clicked": row.clicked,
+        }
+        for row in timeline_rows
+    ]
+
+    return {
+        "campaign": {
+            "id": campaign.id,
+            "name": campaign.name,
+            "status": campaign.status,
+            "channel": campaign.channel,
+            "scheduled_at": campaign.scheduled_at.isoformat() if campaign.scheduled_at else None,
+            "sent_at": campaign.sent_at.isoformat() if campaign.sent_at else None,
+            "created_at": campaign.created_at.isoformat() if campaign.created_at else None,
+        },
+        "summary": summary,
+        "variants": variants_data,
+        "timeline": timeline,
+    }
+
+
 @router.get("/{campaign_id}")
 async def get_campaign(
     campaign_id: int,

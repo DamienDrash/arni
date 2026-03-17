@@ -36,6 +36,7 @@ class MediaGenerationResult:
     error: Optional[str] = None
 
 
+# Internal sub-component — not a managed orchestrator. Use via CampaignOrchestrator.
 class MediaOrchestrator:
     def __init__(self, llm):
         from app.swarm.agents.media.prompt_agent import ImagePromptAgent
