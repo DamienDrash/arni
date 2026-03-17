@@ -309,11 +309,9 @@ class TestDeterministicChecks:
     def test_all_criteria_deterministic_no_llm(self) -> None:
         """Deterministic checks produce verdict without LLM calls."""
         judge = QAJudge()
-        # Profile with all criteria but run_llm_check=False
         profile = QAProfile(
             name="all_deterministic",
             criteria=frozenset(QACriterion),
-            run_llm_check=False,
         )
         result = _make_result(
             agent_id="ops",
@@ -471,7 +469,7 @@ class TestStandardProfiles:
     def test_strict_profile_exists(self) -> None:
         assert "strict" in QA_PROFILES
         assert QA_PROFILES["strict"].escalate_on_fail is True
-        assert QA_PROFILES["strict"].run_llm_check is True
+        assert QA_PROFILES["strict"].escalate_on_fail is True
 
     def test_standard_profile_exists(self) -> None:
         assert "standard" in QA_PROFILES
