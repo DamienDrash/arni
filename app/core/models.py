@@ -946,5 +946,22 @@ class ContactConsent(Base):
     optin_token = Column(String(255), nullable=True, unique=True)
 
 
+class AgentTeam(Base):
+    """A named group of agents that work together under a shared orchestrator."""
+    __tablename__ = "agent_teams"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4()))
+    name = Column(String(64), nullable=False, unique=True, index=True)  # slug
+    display_name = Column(String(128), nullable=False)
+    description = Column(Text, nullable=True)
+    agent_ids = Column(JSON, nullable=False, default=list)   # list of AgentDefinition IDs
+    orchestrator_name = Column(String(64), nullable=True)    # optional OrchestratorDefinition.name
+    state = Column(String(16), nullable=False, default="ACTIVE")  # ACTIVE | PAUSED | DISABLED
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+
 # Orchestration layer
 from app.orchestration.models import OrchestratorDefinition, OrchestratorVersion, OrchestratorTenantOverride  # noqa: F401,E402

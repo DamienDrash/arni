@@ -355,6 +355,10 @@ from app.gateway.routers.orchestrators import router as orchestrators_router, te
 app.include_router(orchestrators_router)
 app.include_router(orchestrators_tenant_router)
 
+# --- Agent Teams Admin API ---
+from app.gateway.routers.agent_teams import router as agent_teams_router
+app.include_router(agent_teams_router)
+
 # --- Media & Image Provider Routers ---
 try:
     from app.gateway.routers.media import router as media_router
