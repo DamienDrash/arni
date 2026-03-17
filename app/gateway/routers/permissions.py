@@ -221,6 +221,8 @@ async def get_permissions(
             "/sync": True,
             "/swarm/agents": True,
             "/swarm/tools": True,
+            "/swarm/orchestrators": True,
+            "/agent-teams": True,
         }
     else:
         # Standard SaaS logic for Tenants

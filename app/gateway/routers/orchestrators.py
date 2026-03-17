@@ -30,6 +30,14 @@ class RollbackBody(BaseModel):
 class TenantOverrideBody(BaseModel):
     config_override: dict[str, Any]
 
+class CreateOrchestratorBody(BaseModel):
+    name: str
+    display_name: str
+    category: str = "SWARM"
+    scope: str = "SYSTEM"
+    config: dict[str, Any] = {}
+    guardrails: dict[str, Any] | None = None
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -58,6 +66,58 @@ def _version_summary(v) -> dict:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────
+
+@router.post("")
+def create_orchestrator(
+    body: CreateOrchestratorBody,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_role(user, {"system_admin"})
+    from fastapi import HTTPException
+    existing = db.query(OrchestratorDefinition).filter(OrchestratorDefinition.name == body.name).first()
+    if existing:
+        raise HTTPException(409, f"Orchestrator '{body.name}' already exists")
+    valid_categories = {"SWARM", "CAMPAIGN", "AUTOMATION", "SYNC"}
+    if body.category not in valid_categories:
+        raise HTTPException(422, f"category must be one of {valid_categories}")
+    valid_scopes = {"SYSTEM", "TENANT"}
+    if body.scope not in valid_scopes:
+        raise HTTPException(422, f"scope must be one of {valid_scopes}")
+    now = datetime.now(timezone.utc)
+    orch = OrchestratorDefinition(
+        name=body.name,
+        display_name=body.display_name,
+        category=body.category,
+        scope=body.scope,
+        state="ACTIVE",
+        config_current=body.config,
+        guardrails=body.guardrails,
+        config_version=1,
+        created_at=now,
+        updated_at=now,
+        updated_by=user.user_id,
+    )
+    db.add(orch)
+    db.commit()
+    db.refresh(orch)
+    return {**_orch_summary(orch), "status": "created"}
+
+
+@router.delete("/{name}")
+def delete_orchestrator(
+    name: str,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_role(user, {"system_admin"})
+    from fastapi import HTTPException
+    mgr = get_orchestrator_manager(db)
+    orch = mgr._get_or_404(name)
+    db.delete(orch)
+    db.commit()
+    return {"status": "deleted", "name": name}
+
 
 @router.get("")
 def list_orchestrators(
