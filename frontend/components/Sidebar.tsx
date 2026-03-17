@@ -32,6 +32,7 @@ import {
   Layers,
   CalendarDays,
   Plug,
+  GitBranch,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
@@ -125,6 +126,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
     {
       title: "AI SWARM",
       items: [
+        { name: "Orchestratoren", href: "/swarm/orchestrators", icon: GitBranch },
         { name: "Agent Teams", href: "/agent-teams", icon: Cpu },
         { name: "Agents", href: "/swarm/agents", icon: Bot },
         { name: "Tools", href: "/swarm/tools", icon: Plug },
