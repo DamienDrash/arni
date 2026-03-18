@@ -14,16 +14,16 @@ Architecture Decision:
 from __future__ import annotations
 
 import json
-import logging
+import structlog
 from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.core.contact_models import Contact, ContactActivity, ContactSegment
+from app.core.contact_models import ContactActivity
 from app.core.automation_models import AutomationWorkflow, AutomationRun
 
-logger = logging.getLogger("ariia.automation.listener")
+logger = structlog.get_logger()
 
 # Activity types that can trigger automations
 RELEVANT_ACTIVITY_TYPES = [
@@ -53,7 +53,6 @@ class ContactChangeListener:
     """Listens for contact changes and triggers matching automation workflows."""
 
     def __init__(self):
-        self._last_processed_at: datetime = datetime.now(timezone.utc)
         self._last_processed_id: int = 0
 
     async def poll(self, db: Session) -> int:
@@ -82,11 +81,11 @@ class ContactChangeListener:
                 logger.error(
                     "listener.activity_processing_failed",
                     activity_id=activity.id,
+                    tenant_id=activity.tenant_id,
                     error=str(e),
                 )
             finally:
                 self._last_processed_id = activity.id
-                self._last_processed_at = activity.created_at
 
         return triggered
 
@@ -125,7 +124,6 @@ class ContactChangeListener:
         metadata = _parse_json(activity.metadata_json)
 
         if not config:
-            # No specific config = matches all activities of this trigger type
             return True
 
         trigger_type = workflow.trigger_type
@@ -133,13 +131,10 @@ class ContactChangeListener:
         if trigger_type in ("segment_entry", "segment_exit"):
             target_segment_id = config.get("segment_id")
             if target_segment_id is not None:
-                activity_segment_id = metadata.get("segment_id")
-                return str(target_segment_id) == str(activity_segment_id)
-            # Match by segment name
+                return str(target_segment_id) == str(metadata.get("segment_id"))
             target_segment_name = config.get("segment_name", "")
             if target_segment_name:
-                activity_segment_name = metadata.get("segment_name", "")
-                return target_segment_name.lower() == activity_segment_name.lower()
+                return target_segment_name.lower() == metadata.get("segment_name", "").lower()
 
         elif trigger_type == "tag_added":
             target_tag = config.get("tag_name", "")
@@ -156,13 +151,11 @@ class ContactChangeListener:
             target_to = config.get("lifecycle_to", "")
             actual_from = metadata.get("from", metadata.get("old_stage", ""))
             actual_to = metadata.get("to", metadata.get("new_stage", ""))
-
             from_match = (not target_from) or (target_from.lower() == actual_from.lower())
             to_match = (not target_to) or (target_to.lower() == actual_to.lower())
             return from_match and to_match
 
         elif trigger_type == "contact_created":
-            # Always matches for contact_created
             return True
 
         return True
@@ -214,6 +207,7 @@ class ContactChangeListener:
             logger.warning(
                 "listener.max_concurrent_runs_reached",
                 workflow_id=workflow.id,
+                tenant_id=workflow.tenant_id,
                 active_count=active_count,
                 max_allowed=workflow.max_concurrent_runs,
             )
@@ -224,10 +218,7 @@ class ContactChangeListener:
         first_node_id = _find_first_action_node(graph)
 
         if not first_node_id:
-            logger.warning(
-                "listener.no_action_node_found",
-                workflow_id=workflow.id,
-            )
+            logger.warning("listener.no_action_node_found", workflow_id=workflow.id)
             return False
 
         run = AutomationRun(
@@ -246,6 +237,7 @@ class ContactChangeListener:
             run_id=run.id,
             workflow_id=workflow.id,
             contact_id=contact_id,
+            tenant_id=workflow.tenant_id,
             first_node=first_node_id,
         )
         return True
@@ -272,7 +264,6 @@ def _find_first_action_node(graph: dict) -> Optional[str]:
     nodes = graph.get("nodes", [])
     edges = graph.get("edges", [])
 
-    # Find trigger node
     trigger_id = None
     for node in nodes:
         node_type = node.get("type", node.get("data", {}).get("nodeType", ""))
@@ -281,10 +272,8 @@ def _find_first_action_node(graph: dict) -> Optional[str]:
             break
 
     if not trigger_id:
-        # No trigger node found; use the first node
         return nodes[0].get("id") if nodes else None
 
-    # Follow edge from trigger to first action
     for edge in edges:
         if edge.get("source") == trigger_id:
             return edge.get("target")

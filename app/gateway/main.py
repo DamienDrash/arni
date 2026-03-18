@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.gateway.dependencies import redis_bus
-from app.gateway.routers import webhooks, voice, websocket
+from app.gateway.routers import webhooks, websocket
 from app.gateway.routers.billing import router as billing_router
 
 # V2 Billing Router (Refactored)
@@ -42,12 +42,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 
 
 def _enforce_startup_guards() -> None:
-    if not settings.is_production:
-        return
-    weak_auth_secret = settings.auth_secret in {"", "change-me-long-random-secret", "changeme", "password123"}
-    weak_acp_secret = settings.acp_secret in {"", "ariia-acp-secret-changeme", "changeme", "password123"}
-    if weak_auth_secret or weak_acp_secret:
-        raise RuntimeError("Refusing startup in production due to weak/default secrets.")
+    weak_auth = settings.auth_secret in {"", "change-me-long-random-secret", "changeme", "password123"}
+    weak_acp = settings.acp_secret in {"", "ariia-acp-secret-changeme", "changeme", "password123"}
+    if weak_auth or weak_acp:
+        if settings.is_production:
+            raise RuntimeError("Refusing startup: weak secrets detected")
+        else:
+            logger.warning("startup.weak_secrets_detected", msg="Change secrets before production deployment")
 
 
 @asynccontextmanager
@@ -115,6 +116,18 @@ async def lifespan(app: FastAPI):
     except Exception as _credit_err:
         logger.warning("ariia.gateway.credit_seed_skipped", error=str(_credit_err))
 
+    # Seed Orchestrator Definitions
+    try:
+        from app.orchestration.seed import seed_default_orchestrators
+        from app.core.db import SessionLocal as _OrchSeedDB
+        _orch_db = _OrchSeedDB()
+        try:
+            seed_default_orchestrators(_orch_db)
+        finally:
+            _orch_db.close()
+    except Exception as _orch_err:
+        logger.warning("ariia.gateway.orchestrator_seed_skipped", error=str(_orch_err))
+
     logger.info("ariia.gateway.startup", version="2.0.0", env=settings.environment)
     
     try:
@@ -134,13 +147,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("ariia.gateway.magicline_scheduler_skipped", error=str(e))
 
-    # Contact Sync Scheduler (Phase 3)
+    # Contact Sync Scheduler (Phase 3) — DEPRECATED: replaced by IntegrationSyncOrchestrator
+    # Kept as fallback; the orchestrator delegates to sync_scheduler internally.
     try:
         from app.contacts.sync_scheduler import start_sync_scheduler
         start_sync_scheduler()
         logger.info("ariia.gateway.contact_sync_scheduler_started")
     except Exception as e:
         logger.warning("ariia.gateway.contact_sync_scheduler_skipped", error=str(e))
+
+    # IntegrationSyncOrchestrator (unified sync scheduling)
+    try:
+        from app.orchestration.sync_orchestrator import get_integration_sync_orchestrator
+        _sync_orch = get_integration_sync_orchestrator()
+        background_tasks.append(asyncio.create_task(_sync_orch.run_forever(interval_seconds=60)))
+        logger.info("ariia.gateway.sync_orchestrator_started")
+    except Exception as e:
+        logger.warning("ariia.gateway.sync_orchestrator_skipped", error=str(e))
 
     # Data Retention & Maintenance Loop
     try:
@@ -161,9 +184,9 @@ async def lifespan(app: FastAPI):
                     await sync_addons_from_stripe(db)
                 finally:
                     db.close()
-            except Exception:
-                pass
-            await asyncio.sleep(900)  # Every 15 minutes
+            except Exception as e:
+                logger.error("billing_sync_loop.failed", error=str(e), exc_info=True)
+            await asyncio.sleep(900)  # Retry nach 15 min auch bei Fehler
     background_tasks.append(asyncio.create_task(billing_sync_loop()))
 
     # Image Model Sync (weekly — keeps AA leaderboard rankings + fal catalog fresh)
@@ -190,10 +213,28 @@ async def lifespan(app: FastAPI):
             await asyncio.sleep(7 * 24 * 3600)  # Weekly
     background_tasks.append(asyncio.create_task(image_model_sync_loop()))
 
+    # Rate Limiter Cleanup Task
+    try:
+        from app.core.security import start_rate_limiter_cleanup
+        background_tasks.append(asyncio.create_task(start_rate_limiter_cleanup()))
+    except Exception as _rlc_err:
+        logger.warning("ariia.gateway.rate_limiter_cleanup_skipped", error=str(_rlc_err))
+
+    # Confirmation Gate TTL Warning Notification Dispatcher
+    try:
+        from app.swarm.lead.notification_dispatcher import poll_pending_notifications
+        background_tasks.append(asyncio.create_task(poll_pending_notifications(redis_bus)))
+    except Exception as _notif_err:
+        logger.warning("ariia.gateway.notification_dispatcher_skipped", error=str(_notif_err))
+
     yield
     
     for task in background_tasks:
         task.cancel()
+        try:
+            await asyncio.wait_for(asyncio.shield(task), timeout=5.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            pass
     await redis_bus.disconnect()
     logger.info("ariia.gateway.shutdown")
 
@@ -216,7 +257,7 @@ async def maintenance_middleware(request: Request, call_next):
     
     # 1. Whitelist system, auth, admin and health paths
     # Admins must always be able to access the dashboard and settings to fix the system.
-    whitelist = ["/health", "/metrics", "/_next", "/static", "/admin", "/auth", "/proxy/admin", "/proxy/auth", "/webhook"]
+    whitelist = ["/health", "/metrics", "/_next", "/static", "/admin", "/auth", "/proxy/admin", "/proxy/auth", "/webhook", "/public"]
     if any(path.startswith(p) for p in whitelist):
         return await call_next(request)
         
@@ -239,17 +280,24 @@ setup_instrumentation(app)
 # Configure CORS
 origins = [o.strip() for o in settings.cors_allowed_origins.split(",") if o.strip()]
 
+# Validate: wildcard origins + allow_credentials=True is a browser security violation
+if "*" in origins:
+    logger.warning(
+        "ariia.gateway.cors_wildcard_with_credentials",
+        msg="Using '*' in CORS origins with allow_credentials=True is insecure and rejected by browsers. "
+            "Set CORS_ALLOWED_ORIGINS to explicit origins before production deployment.",
+    )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "X-Requested-With"],
 )
 
 # --- Routers ---
 app.include_router(webhooks.router)
-app.include_router(voice.router)
 app.include_router(websocket.router)
 from app.gateway.routers import members_crud as _mc
 app.include_router(_mc.router)
@@ -270,7 +318,7 @@ from app.core.instrumentation import router as metrics_router
 app.include_router(metrics_router)
 
 # --- New Routers (PR 2, 3, 4) ---
-from app.gateway.routers import members_crud, integrations_sync, connector_hub, permissions, platform_ai, plans_admin
+from app.gateway.routers import integrations_sync, connector_hub, permissions, platform_ai, plans_admin
 from app.gateway.routers.contact_sync_api import router as contact_sync_router, webhook_router as contact_sync_webhook_router
 from app.gateway.routers import revenue_analytics, tenant_llm, campaigns
 from app.gateway.routers import docker_management
@@ -280,6 +328,7 @@ from app.gateway.routers import automations
 from app.gateway.routers import analytics_tracking
 from app.gateway.routers import analytics_api
 from app.gateway.routers import ab_testing_api
+from app.gateway.routers.campaign_webhooks import router as campaign_webhooks_router
 app.include_router(integrations_sync.router)
 app.include_router(connector_hub.router)
 app.include_router(contact_sync_router)
@@ -298,6 +347,20 @@ app.include_router(analytics_api.router)
 app.include_router(ab_testing_api.router)
 app.include_router(docker_management.router)
 app.include_router(smtp_config.router)
+app.include_router(campaign_webhooks_router)
+
+# --- Orchestrator Manager Admin API ---
+from app.gateway.routers.orchestrators import router as orchestrators_router, tenant_override_router as orchestrators_tenant_router
+app.include_router(orchestrators_router)
+app.include_router(orchestrators_tenant_router)
+
+# --- Agent Teams Admin API ---
+from app.gateway.routers.agent_teams import router as agent_teams_router
+app.include_router(agent_teams_router)
+
+# --- Campaign Offers Admin API ---
+from app.gateway.routers.campaign_offers import router as campaign_offers_router
+app.include_router(campaign_offers_router)
 
 # --- Media & Image Provider Routers ---
 try:
@@ -356,6 +419,46 @@ try:
 except Exception as _contacts_err:
     logger.warning("ariia.gateway.contacts_v2_skipped", error=str(_contacts_err))
 
+# --- Contact Sync Webhook Handler ---
+try:
+    from app.contacts.webhook_handler import router as contact_webhook_router
+    app.include_router(contact_webhook_router)
+except Exception as _cwhook_err:
+    logger.warning("ariia.gateway.contact_webhooks_skipped", error=str(_cwhook_err))
+
+# --- Chat Admin Router ---
+try:
+    from app.gateway.routers.chats import router as chats_router
+    app.include_router(chats_router)
+except Exception as _chats_err:
+    logger.warning("ariia.gateway.chats_router_skipped", error=str(_chats_err))
+
+# --- Ingestion Router (S1-T4: Upload + SSE Job Status + DLQ) ---
+try:
+    from app.gateway.routers.ingestion import router as ingestion_router
+    app.include_router(ingestion_router, prefix="/admin")
+except Exception as _ingestion_err:
+    logger.warning("ariia.gateway.ingestion_router_skipped", error=str(_ingestion_err))
+
+# --- Member Memory Admin Router ---
+try:
+    from app.gateway.routers.member_memory_admin import router as member_memory_router
+    app.include_router(member_memory_router)
+except Exception as _mm_err:
+    logger.warning("ariia.gateway.member_memory_router_skipped", error=str(_mm_err))
+
+# --- Member Feedback ---
+from app.gateway.routers.feedback import router as feedback_router
+app.include_router(feedback_router)
+
+# --- Contact Consent (DSGVO) ---
+from app.gateway.routers.consent import router as consent_router
+app.include_router(consent_router)
+
+# --- Public Subscribe (no auth) ---
+from app.gateway.routers.public_subscribe import router as public_subscribe_router
+app.include_router(public_subscribe_router)
+
 # --- AI Config Management Router (Refactored) ---
 try:
     from app.ai_config.router import admin_router as ai_config_admin_router, tenant_router as ai_config_tenant_router
@@ -366,6 +469,13 @@ try:
     app.include_router(ai_obs_tenant_router)
 except Exception as _ai_cfg_err:
     logger.warning("ariia.gateway.ai_config_router_skipped", error=str(_ai_cfg_err))
+
+# --- Swarm v3 Admin Router ---
+try:
+    from app.gateway.routers.swarm_admin import router as swarm_admin_router
+    app.include_router(swarm_admin_router)
+except Exception as _swarm_err:
+    logger.warning("ariia.gateway.swarm_admin_router_skipped", error=str(_swarm_err))
 
 # --- ACP Router ---
 from app.acp.server import router as acp_router
@@ -387,6 +497,35 @@ try:
     app.mount("/media/tenants", StaticFiles(directory=_media_root), name="media_tenants")
 except Exception as _static_err:
     logger.warning("ariia.gateway.static_media_mount_skipped", error=str(_static_err))
+
+# --- Compatibility exports expected by tests and legacy code ---
+
+class _WhatsAppVerifier:
+    """Proxy for WhatsApp HMAC verifier – allows tests to swap the secret at runtime."""
+    def __init__(self) -> None:
+        self._app_secret: str = ""
+
+_whatsapp_verifier = _WhatsAppVerifier()
+
+# Re-export for test compatibility
+from app.gateway.dependencies import active_websockets  # noqa: E402, F401
+
+
+async def broadcast_to_admins(message: dict, tenant_id: int | None = None) -> None:
+    """Broadcast a message to all connected admin WebSocket clients."""
+    from app.gateway.dependencies import active_websockets
+    targets: list = []
+    if tenant_id is not None:
+        targets = active_websockets.get(tenant_id, [])
+    else:
+        for ws_list in active_websockets.values():
+            targets.extend(ws_list)
+    for ws in list(targets):
+        try:
+            await ws.send_json(message)
+        except Exception:
+            pass
+
 
 # --- Health Check ---
 @app.get("/health")

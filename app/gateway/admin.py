@@ -1143,7 +1143,7 @@ from app.gateway.persistence import persistence # Import from source, not main
 
 @router.get("/stats")
 async def get_dashboard_stats(user: AuthContext = Depends(get_current_user)) -> dict[str, Any]:
-    """Get real-time stats from DB and Redis."""
+    """Get real-time global stats from DB and Redis. tenant_admin or system_admin."""
     _require_tenant_admin_or_system(user)
     # 1. DB Stats
     db_stats = persistence.get_stats(tenant_id=user.tenant_id)

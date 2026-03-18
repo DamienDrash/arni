@@ -142,7 +142,8 @@ async def track_webhook(channel: str, request: Request):
     """
     try:
         body = await request.json()
-    except Exception:
+    except Exception as exc:
+        logger.warning("tracking.webhook_invalid_json", channel=channel, error=str(exc))
         body = {}
 
     logger.info("tracking.webhook_received", channel=channel, payload_keys=list(body.keys()))
@@ -244,26 +245,30 @@ async def unsubscribe_page(recipient_id: int, request: Request):
     """
     from sqlalchemy.orm import Session
     from app.core.db import SessionLocal
-    from app.core.models import CampaignRecipient, Campaign
+    from app.core.models import CampaignRecipient, Campaign, Tenant
     from app.core.contact_models import Contact
     from fastapi.responses import HTMLResponse
 
     db: Session = SessionLocal()
     try:
-        recipient = db.query(CampaignRecipient).filter(
-            CampaignRecipient.id == recipient_id
-        ).first()
+        # Single JOIN query replacing 4 separate queries (recipient + contact + campaign + tenant)
+        row = (
+            db.query(CampaignRecipient, Contact, Campaign, Tenant)
+            .outerjoin(Contact, Contact.id == CampaignRecipient.contact_id)
+            .outerjoin(Campaign, Campaign.id == CampaignRecipient.campaign_id)
+            .outerjoin(Tenant, Tenant.id == Campaign.tenant_id)
+            .filter(CampaignRecipient.id == recipient_id)
+            .first()
+        )
 
-        if not recipient:
+        if not row:
             return HTMLResponse(_unsubscribe_html(
                 title="Link ungültig",
                 message="Dieser Abmeldelink ist nicht mehr gültig.",
                 success=False,
             ), status_code=404)
 
-        # Get contact and campaign info
-        contact = db.query(Contact).filter(Contact.id == recipient.contact_id).first()
-        campaign = db.query(Campaign).filter(Campaign.id == recipient.campaign_id).first()
+        recipient, contact, campaign, tenant = row
 
         contact_name = ""
         tenant_name = ""
@@ -272,10 +277,8 @@ async def unsubscribe_page(recipient_id: int, request: Request):
             contact.consent_email = False
             logger.info("unsubscribe.contact_opted_out", contact_id=contact.id)
 
-        if campaign:
-            from app.core.models import Tenant
-            tenant = db.query(Tenant).filter(Tenant.id == campaign.tenant_id).first()
-            tenant_name = tenant.name if tenant else ""
+        if tenant:
+            tenant_name = tenant.name or ""
 
         # Mark recipient as unsubscribed
         recipient.status = "unsubscribed"

@@ -22,8 +22,10 @@ async def _register_tenant(client: AsyncClient, suffix: str) -> tuple[str, int]:
             "tenant_name": f"Test Tenant {unique}",
             "tenant_slug": f"test-tenant-{unique}",
             "email": f"admin-{unique}@test.example",
-            "password": "password123",
+            "password": "Password123",
             "full_name": "Test Admin",
+        "accept_tos": True,
+        "accept_privacy": True,
         },
     )
     assert resp.status_code == 200, f"Register failed: {resp.text}"
@@ -73,7 +75,7 @@ async def test_tenant_user_cannot_write_tenant_preferences(client: AsyncClient) 
     """A tenant_user must be blocked from writing tenant preferences (needs tenant_admin)."""
     admin_login = await client.post(
         "/auth/login",
-        json={"email": "admin@ariia.local", "password": "password123"},
+        json={"email": "admin@ariia.local", "password": "Password123"},
     )
     assert admin_login.status_code == 200
     admin_token = admin_login.json()["access_token"]
@@ -86,7 +88,7 @@ async def test_tenant_user_cannot_write_tenant_preferences(client: AsyncClient) 
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "email": f"prefs-user-{unique}@test.example",
-            "password": "password123",
+            "password": "Password123",
             "role": "tenant_user",
             "tenant_id": tid_a,
         },
@@ -95,7 +97,7 @@ async def test_tenant_user_cannot_write_tenant_preferences(client: AsyncClient) 
 
     user_login = await client.post(
         "/auth/login",
-        json={"email": f"prefs-user-{unique}@test.example", "password": "password123"},
+        json={"email": f"prefs-user-{unique}@test.example", "password": "Password123"},
     )
     assert user_login.status_code == 200
     user_token = user_login.json()["access_token"]
@@ -180,7 +182,7 @@ async def test_tenant_user_cannot_access_admin_endpoints(client: AsyncClient) ->
     """A tenant_user must not be able to access admin-only endpoints."""
     admin_login = await client.post(
         "/auth/login",
-        json={"email": "admin@ariia.local", "password": "password123"},
+        json={"email": "admin@ariia.local", "password": "Password123"},
     )
     assert admin_login.status_code == 200
     admin_token = admin_login.json()["access_token"]
@@ -194,7 +196,7 @@ async def test_tenant_user_cannot_access_admin_endpoints(client: AsyncClient) ->
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "email": f"user-rbac-{unique}@test.example",
-            "password": "password123",
+            "password": "Password123",
             "role": "tenant_user",
             "tenant_id": tid_a,
         },
@@ -205,7 +207,7 @@ async def test_tenant_user_cannot_access_admin_endpoints(client: AsyncClient) ->
         "/auth/login",
         json={
             "email": f"user-rbac-{unique}@test.example",
-            "password": "password123",
+            "password": "Password123",
         },
     )
     assert user_login.status_code == 200

@@ -383,22 +383,31 @@ def _process_csv_import(csv_content: str, tenant_id: int):
 @router.get("/export/csv/")
 def export_csv(user: AuthContext = Depends(get_current_user)):
     """Export all members as CSV."""
+    EXPORT_LIMIT = 10000
     db = SessionLocal()
     try:
-        members = db.query(StudioMember).filter(StudioMember.tenant_id == user.tenant_id).all()
-        
+        members = (
+            db.query(StudioMember)
+            .filter(StudioMember.tenant_id == user.tenant_id)
+            .limit(EXPORT_LIMIT + 1)
+            .all()
+        )
+        truncated = len(members) > EXPORT_LIMIT
+        if truncated:
+            members = members[:EXPORT_LIMIT]
+
         output = io.StringIO()
         writer = csv.writer(output)
-        
+
         # Header
         headers = ["id", "first_name", "last_name", "email", "phone_number", "source", "tags"]
         # Add custom columns?
         cols = db.query(MemberCustomColumn).filter(MemberCustomColumn.tenant_id == user.tenant_id).all()
         for c in cols:
             headers.append(c.slug)
-            
+
         writer.writerow(headers)
-        
+
         for m in members:
             row = [m.id, m.first_name, m.last_name, m.email, m.phone_number, m.source, m.tags]
             # Custom fields
@@ -406,12 +415,15 @@ def export_csv(user: AuthContext = Depends(get_current_user)):
             for c in cols:
                 row.append(custom.get(c.slug, ""))
             writer.writerow(row)
-            
+
         output.seek(0)
+        response_headers = {"Content-Disposition": "attachment; filename=members_export.csv"}
+        if truncated:
+            response_headers["X-Export-Truncated"] = "true"
         return StreamingResponse(
             iter([output.getvalue()]),
             media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=members_export.csv"}
+            headers=response_headers,
         )
     finally:
         db.close()

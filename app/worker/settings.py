@@ -1,71 +1,57 @@
-"""ARQ Worker settings — Redis connection, concurrency, timeouts, retry policy.
+"""ARIIA v2.0 – arq Worker Settings.
 
-Designed for on-prem (Docker Compose) and cloud (AWS ElastiCache / GCP Memorystore).
-To migrate: just change REDIS_URL in .env — no code changes needed.
+Configures Redis connection and worker behaviour for the async task queue.
+Priority queues are mapped to subscription plan tiers so enterprise tenants
+receive faster processing.
 """
 from __future__ import annotations
 
 import urllib.parse
 
-from arq.connections import RedisSettings as ArqRedisSettings
+from arq.connections import RedisSettings
+
+from config.settings import get_settings
 
 
-def get_arq_redis_settings() -> ArqRedisSettings:
-    """Parse REDIS_URL env var into ARQ RedisSettings.
-
-    ARQ uses redis-py async client internally. This converts the URL-style
-    connection string (same as used by the Redis bus) into host/port/db params.
-    """
-    import os
-    url = os.environ.get("REDIS_URL", "redis://ariia-redis:6379/0")
-    parsed = urllib.parse.urlparse(url)
-    return ArqRedisSettings(
-        host=parsed.hostname or "ariia-redis",
+def get_worker_redis_settings() -> RedisSettings:
+    """Parse REDIS_URL from application settings and return arq RedisSettings."""
+    settings = get_settings()
+    parsed = urllib.parse.urlparse(settings.redis_url)
+    return RedisSettings(
+        host=parsed.hostname or "localhost",
         port=parsed.port or 6379,
-        database=int((parsed.path or "/0").lstrip("/") or 0),
-        password=parsed.password or None,
+        database=int(parsed.path.lstrip("/") or "0"),
+        password=parsed.password,
     )
 
 
-# ── ARQ Queue Name ─────────────────────────────────────────────────────────────
-# Namespaced to avoid collision with RedisBus keys (ariia:inbound, ariia:outbound, ...)
-INGESTION_QUEUE = "ariia:ingestion_queue"
-
-
 class WorkerSettings:
-    """ARQ WorkerSettings for the ARIIA ingestion worker.
+    """arq WorkerSettings for the ARIIA ingestion worker process.
 
-    Concurrency cap: 2 simultaneous jobs.
-    Rationale: pdfplumber + ChromaDB embedding each use ~200-400MB RAM.
-    2 concurrent jobs = ~800MB peak — safe on 4GB+ hosts.
-    Scale by running more worker containers, not raising max_jobs.
+    ``functions`` is populated by ``ingestion_tasks.py`` at import time so
+    that this module can be imported without triggering a circular dependency.
     """
 
-    # Import task functions after module is available
-    functions: list = []  # populated by scripts/ingestion_worker.py
-
-    redis_settings = get_arq_redis_settings()
-
-    # Queue name — must match enqueue_job calls in the API
-    queue_name = INGESTION_QUEUE
-
-    # Concurrency: 2 simultaneous heavy jobs max (PDF parsing + embedding)
-    max_jobs = 2
-
-    # Hard job timeout: 10 minutes.
-    # The PDF parser itself has a 5-min asyncio.wait_for; this is the outer wall.
-    job_timeout = 600  # seconds
-
-    # Retry policy: 3 attempts, 30s between retries
+    functions: list = []  # populated in ingestion_tasks.py
+    redis_settings = get_worker_redis_settings()
+    max_jobs = 20
+    job_timeout = 600       # 10 minutes max per job
+    keep_result = 3600      # keep results for 1 hour
+    retry_jobs = True
     max_tries = 3
-    retry_delay = 30.0  # seconds
 
-    # How fast the worker polls Redis for new jobs (sub-second for responsive UX)
-    poll_delay = 0.5  # seconds
+    queue_read_limit = 10
 
-    # Keep job results in Redis for 24h (secondary debug source; .meta.json is primary)
-    keep_result = 86_400  # seconds
-    keep_result_forever = False
+    # Priority-Queue mapping (plan slug → Redis queue name)
+    QUEUE_MAP: dict[str, str] = {
+        "enterprise": "ariia:ingest:priority_high",
+        "pro": "ariia:ingest:priority_normal",
+        "business": "ariia:ingest:priority_normal",
+        "starter": "ariia:ingest:priority_low",
+        "trial": "ariia:ingest:priority_low",
+    }
 
-    # Health check logging interval
-    health_check_interval = 60  # seconds
+    @staticmethod
+    def get_queue_for_plan(plan_slug: str) -> str:
+        """Return the Redis queue name for the given plan slug."""
+        return WorkerSettings.QUEUE_MAP.get(plan_slug, "ariia:ingest:priority_low")

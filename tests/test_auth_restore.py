@@ -24,8 +24,10 @@ async def test_register_login_and_admin_guard(client: AsyncClient) -> None:
             "tenant_name": f"Restore Tenant {unique}",
             "tenant_slug": f"restore-tenant-{unique}",
             "email": email,
-            "password": "password123",
+            "password": "Password123",
             "full_name": "Restore Admin",
+        "accept_tos": True,
+        "accept_privacy": True,
         },
     )
     assert reg.status_code == 200
@@ -60,7 +62,7 @@ async def test_register_login_and_admin_guard(client: AsyncClient) -> None:
 async def test_system_admin_user_creation_enforces_tenant_rules(client: AsyncClient) -> None:
     admin_login = await client.post(
         "/auth/login",
-        json={"email": "admin@ariia.local", "password": "password123"},
+        json={"email": "admin@ariia.local", "password": "Password123"},
     )
     assert admin_login.status_code == 200
     admin_token = admin_login.json()["access_token"]
@@ -72,8 +74,10 @@ async def test_system_admin_user_creation_enforces_tenant_rules(client: AsyncCli
             "tenant_name": f"Rule Tenant {unique}",
             "tenant_slug": f"rule-tenant-{unique}",
             "email": f"rule-admin-{unique}@example.com",
-            "password": "password123",
+            "password": "Password123",
             "full_name": "Rule Admin",
+        "accept_tos": True,
+        "accept_privacy": True,
         },
     )
     assert reg.status_code == 200
@@ -85,7 +89,7 @@ async def test_system_admin_user_creation_enforces_tenant_rules(client: AsyncCli
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "email": f"user-no-tenant-{unique}@example.com",
-            "password": "password123",
+            "password": "Password123",
             "role": "tenant_user",
         },
     )
@@ -97,7 +101,7 @@ async def test_system_admin_user_creation_enforces_tenant_rules(client: AsyncCli
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "email": f"wrong-system-{unique}@example.com",
-            "password": "password123",
+            "password": "Password123",
             "role": "system_admin",
             "tenant_id": tenant_id,
         },
@@ -111,7 +115,7 @@ async def test_system_admin_user_creation_enforces_tenant_rules(client: AsyncCli
         headers={"Authorization": f"Bearer {tenant_token}"},
         json={
             "email": f"forbidden-system-{unique}@example.com",
-            "password": "password123",
+            "password": "Password123",
             "role": "system_admin",
         },
     )
@@ -133,8 +137,10 @@ async def test_reserved_tenant_slug_is_rejected(client: AsyncClient) -> None:
             "tenant_name": "System",
             "tenant_slug": "system",
             "email": f"reserved-{int(time.time()*1000)}@example.com",
-            "password": "password123",
+            "password": "Password123",
             "full_name": "Reserved Slug",
+        "accept_tos": True,
+        "accept_privacy": True,
         },
     )
     assert resp.status_code == 422
@@ -144,7 +150,7 @@ async def test_reserved_tenant_slug_is_rejected(client: AsyncClient) -> None:
 async def test_system_admin_can_impersonate_tenant_user_and_exit(client: AsyncClient) -> None:
     admin_login = await client.post(
         "/auth/login",
-        json={"email": "admin@ariia.local", "password": "password123"},
+        json={"email": "admin@ariia.local", "password": "Password123"},
     )
     assert admin_login.status_code == 200
     admin_token = admin_login.json()["access_token"]
@@ -156,8 +162,10 @@ async def test_system_admin_can_impersonate_tenant_user_and_exit(client: AsyncCl
             "tenant_name": f"Ghost Tenant {unique}",
             "tenant_slug": f"ghost-tenant-{unique}",
             "email": f"ghost-admin-{unique}@example.com",
-            "password": "password123",
+            "password": "Password123",
             "full_name": "Ghost Admin",
+        "accept_tos": True,
+        "accept_privacy": True,
         },
     )
     assert reg.status_code == 200
@@ -168,7 +176,7 @@ async def test_system_admin_can_impersonate_tenant_user_and_exit(client: AsyncCl
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "email": f"ghost-user-{unique}@example.com",
-            "password": "password123",
+            "password": "Password123",
             "role": "tenant_user",
             "tenant_id": tenant_id,
         },
@@ -212,7 +220,7 @@ async def test_user_deactivation_revokes_session(client: AsyncClient) -> None:
     # 1. System-Admin-Token holen
     admin_login = await client.post(
         "/auth/login",
-        json={"email": "admin@ariia.local", "password": "password123"},
+        json={"email": "admin@ariia.local", "password": "Password123"},
     )
     assert admin_login.status_code == 200
     admin_token = admin_login.json()["access_token"]
@@ -225,8 +233,10 @@ async def test_user_deactivation_revokes_session(client: AsyncClient) -> None:
             "tenant_name": f"Revoke Tenant {unique}",
             "tenant_slug": f"revoke-{unique}",
             "email": f"revoke-admin-{unique}@example.com",
-            "password": "password123",
+            "password": "Password123",
             "full_name": "Revoke Admin",
+        "accept_tos": True,
+        "accept_privacy": True,
         },
     )
     assert reg.status_code == 200
@@ -237,7 +247,7 @@ async def test_user_deactivation_revokes_session(client: AsyncClient) -> None:
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "email": f"victim-{unique}@example.com",
-            "password": "password123",
+            "password": "Password123",
             "role": "tenant_user",
             "tenant_id": tenant_id,
         },
@@ -248,7 +258,7 @@ async def test_user_deactivation_revokes_session(client: AsyncClient) -> None:
     # 3. User einloggen → Token sichern
     login = await client.post(
         "/auth/login",
-        json={"email": f"victim-{unique}@example.com", "password": "password123"},
+        json={"email": f"victim-{unique}@example.com", "password": "Password123"},
     )
     assert login.status_code == 200
     victim_token = login.json()["access_token"]

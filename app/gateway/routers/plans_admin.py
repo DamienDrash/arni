@@ -796,7 +796,8 @@ async def list_features_v1(user: AuthContext = Depends(get_current_user)):
             }
             for f in features
         ]
-    except Exception:
+    except Exception as e:
+        logger.warning("plans_admin.list_features_failed", error=str(e))
         return []
     finally:
         db.close()

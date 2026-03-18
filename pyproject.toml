@@ -41,6 +41,15 @@ dependencies = [
     "docker>=7.0.0",
     "apscheduler>=3.10.0,<4.0",  # Advanced job scheduling
     "pdfplumber>=0.11.0",      # PDF parsing
+    "python-docx>=1.1.0",      # DOCX parsing
+    "python-pptx>=0.6.23",     # PPTX parsing
+    "striprtf>=0.0.26",        # RTF parsing
+    "odfpy>=1.4.1",            # ODT/ODS/ODP parsing (OpenDocument)
+    "pandas>=2.2.0",           # CSV/XLSX parsing
+    "openpyxl>=3.1.0",         # XLSX support for pandas
+    "tiktoken>=0.7.0",         # Token counting for semantic chunker
+    "arq>=0.25.0",             # Async Redis Queue (background workers)
+    "minio>=7.2.0",            # MinIO / S3 object storage client
 ]
 
 [project.optional-dependencies]

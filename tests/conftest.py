@@ -10,6 +10,8 @@ os.environ["ENVIRONMENT"] = "testing"
 if "DATABASE_URL" in os.environ:
     del os.environ["DATABASE_URL"]
 os.environ["REDIS_URL"] = "redis://localhost:6379/0"
+# Set a known admin password for tests (matches admin@ariia.local login in test files)
+os.environ.setdefault("SYSTEM_ADMIN_PASSWORD", "Password123")
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -32,10 +34,32 @@ def mock_redis_bus():
 
 @pytest.fixture(autouse=True)
 def seed_system_tenant():
-    """Ensure system tenant exists for tests."""
-    from app.core.auth import ensure_default_tenant_and_admin
+    """Ensure system tenant and admin exist with the correct test password.
+
+    Also resets the admin lockout state before each test so that failed login
+    attempts from one test do not poison subsequent tests.
+    """
+    import os
+    from app.core.auth import ensure_default_tenant_and_admin, hash_password
+    from app.core.db import SessionLocal
+    from app.gateway.auth import UserAccount
     try:
         ensure_default_tenant_and_admin()
+    except Exception:
+        pass
+    # Ensure admin has the test password and no lockout
+    try:
+        db = SessionLocal()
+        admin = db.query(UserAccount).filter(UserAccount.email == "admin@ariia.local").first()
+        if admin:
+            admin_password = os.getenv("SYSTEM_ADMIN_PASSWORD", "")
+            if admin_password:
+                admin.password_hash = hash_password(admin_password)
+            admin.failed_login_attempts = 0
+            admin.locked_until = None
+            admin.is_active = True
+            db.commit()
+        db.close()
     except Exception:
         pass
 

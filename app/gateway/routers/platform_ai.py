@@ -93,8 +93,8 @@ async def _fetch_models_internal(provider_id: str, api_key: str, base_url: Optio
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("platform_ai.fetch_models_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("platform_ai.fetch_models_failed", error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="Interner Serverfehler")
 
 def _extract_error(resp):
     try:

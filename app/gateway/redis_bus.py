@@ -25,8 +25,6 @@ class RedisBus:
     CHANNEL_INBOUND = "ariia:inbound"
     CHANNEL_OUTBOUND = "ariia:outbound"
     CHANNEL_EVENTS = "ariia:events"
-    CHANNEL_VOICE_QUEUE = "ariia:voice_queue"
-
     @staticmethod
     def get_tenant_channel(channel: str, tenant_id: int) -> str:
         """Namespace a channel name by tenant ID for isolation."""

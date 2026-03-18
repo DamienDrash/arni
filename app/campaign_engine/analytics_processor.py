@@ -8,10 +8,13 @@ statistics on campaigns and recipients.
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import time
 from datetime import datetime, timezone
 
 import structlog
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.analytics_models import AnalyticsEvent
@@ -19,6 +22,24 @@ from app.core.models import Campaign, CampaignRecipient
 from app.core.contact_models import ContactActivity
 
 logger = structlog.get_logger()
+
+
+def _build_idempotency_key(
+    campaign_id: int | None,
+    recipient_id: int | None,
+    event_type: str,
+    provider_event_id: str | None = None,
+) -> str:
+    """Build a deterministic idempotency key for deduplication.
+
+    If a provider_event_id is available, use it for exact dedup.
+    Otherwise, bucket by 5-minute windows to prevent rapid duplicates.
+    """
+    if provider_event_id:
+        return f"{campaign_id}:{recipient_id}:{event_type}:{provider_event_id}"
+    bucket = int(time.time()) // 300
+    raw = f"{campaign_id}:{recipient_id}:{event_type}:{bucket}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:64]
 
 
 class AnalyticsProcessor:
@@ -59,7 +80,13 @@ class AnalyticsProcessor:
             channel = raw_event.get("channel", "email")
             tenant_id = raw_event.get("tenant_id")
 
-        # 1. Persist to analytics_events
+        # 1. Persist to analytics_events (with idempotency dedup)
+        idem_key = _build_idempotency_key(
+            campaign_id=campaign.id if campaign else None,
+            recipient_id=recipient_id,
+            event_type=event_type,
+            provider_event_id=raw_event.get("provider_event_id"),
+        )
         analytics_event = AnalyticsEvent(
             tenant_id=tenant_id,
             campaign_id=campaign.id if campaign else None,
@@ -71,6 +98,7 @@ class AnalyticsProcessor:
             user_agent=raw_event.get("user_agent"),
             ip_address=raw_event.get("ip_address"),
             metadata_json=json.dumps(raw_event.get("metadata")) if raw_event.get("metadata") else None,
+            idempotency_key=idem_key,
         )
         db.add(analytics_event)
 
@@ -94,6 +122,15 @@ class AnalyticsProcessor:
                 event_type=event_type,
                 recipient_id=recipient_id,
                 campaign_id=campaign.id if campaign else None,
+            )
+            return True
+        except IntegrityError:
+            # Duplicate idempotency_key — silently skip
+            db.rollback()
+            logger.debug(
+                "analytics.duplicate_event_skipped",
+                idempotency_key=idem_key,
+                event_type=event_type,
             )
             return True
         except Exception as e:
@@ -185,12 +222,12 @@ class AnalyticsProcessor:
         }.get(activity_type, f"Kampagnen-Event: {event_type}")
 
         title_map = {
-            "campaign_opened": f"Kampagne geöffnet",
-            "campaign_clicked": f"Link geklickt",
-            "campaign_converted": f"Conversion",
-            "campaign_unsubscribed": f"Abmeldung",
+            "campaign_opened": "Kampagne geöffnet",
+            "campaign_clicked": "Link geklickt",
+            "campaign_converted": "Conversion",
+            "campaign_unsubscribed": "Abmeldung",
         }
-        title = title_map.get(activity_type, f"Kampagnen-Event")
+        title = title_map.get(activity_type, "Kampagnen-Event")
 
         activity = ContactActivity(
             contact_id=contact_id,

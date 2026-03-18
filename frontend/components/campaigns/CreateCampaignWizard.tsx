@@ -5,6 +5,7 @@ import {
   Calendar, Users, Target, Filter, CheckCircle,
   ArrowRight, ArrowLeft, Eye, Loader2, BookOpen,
   AlertCircle, Layers, Search, X, Image, Info, XCircle,
+  Link2, Copy, FileText, Paperclip, Upload, RefreshCw,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/tokens";
@@ -71,6 +72,12 @@ const TONES = [
   { key: "casual", label: "Locker", desc: "Freundlich und nahbar" },
   { key: "motivational", label: "Motivierend", desc: "Energiegeladen und inspirierend" },
   { key: "urgent", label: "Dringend", desc: "Handlungsorientiert und zeitkritisch" },
+];
+
+const CAMPAIGN_TYPES = [
+  { key: "broadcast", label: "Broadcast", desc: "Einmaliger Versand an alle Empfänger", icon: Send },
+  { key: "drip", label: "Drip-Kampagne", desc: "Automatische Sequenz über Zeit", icon: Calendar },
+  { key: "follow_up", label: "Follow-Up", desc: "Nachfassung nach Aktion", icon: ArrowRight },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -141,6 +148,8 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
   const [autoImageUrl, setAutoImageUrl] = useState<string | null>(null);
   const [autoImageError, setAutoImageError] = useState<string | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [docUploading, setDocUploading] = useState(false);
+  const [docUploadError, setDocUploadError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: "", description: "", type: "broadcast", channel: "email",
@@ -149,7 +158,10 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
     use_knowledge: true, use_chat_history: false,
     content_subject: "", content_body: "", scheduled_at: "",
     featured_image_url: "",
+    attachment_url: "",
+    attachment_filename: "",
   });
+  const [createdCampaignId, setCreatedCampaignId] = useState<number | null>(null);
   const [orchSteps, setOrchSteps] = useState<OrchestrationStep[]>([
     { step_order: 1, channel: "email", template_id: null, content_override_json: null, wait_hours: 0, condition_type: "always" },
   ]);
@@ -399,6 +411,8 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
           content_subject: form.content_subject || undefined, content_body: form.content_body || undefined,
           ai_prompt: form.ai_prompt || undefined, scheduled_at: form.scheduled_at || undefined,
           featured_image_url: form.featured_image_url || undefined,
+          attachment_url: form.attachment_url || undefined,
+          attachment_filename: form.attachment_filename || undefined,
           target_filter_json: form.target_segment_id ? JSON.stringify({ segment_id: form.target_segment_id })
             : form.target_type === "tags" && selectedTags.length > 0 ? JSON.stringify({ tags: selectedTags })
             : form.target_type === "selected" && selectedContactIds.length > 0 ? JSON.stringify({ contact_ids: selectedContactIds })
@@ -407,6 +421,8 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
       });
       if (!res.ok) { setAiError("Kampagne konnte nicht erstellt werden."); setCreating(false); return; }
       const created = await res.json();
+      setCreatedCampaignId(created.id);
+
 
       /* Save A/B test config if enabled */
       if (abEnabled && abVariants.length >= 2) {
@@ -530,6 +546,28 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                 })}
               </div>
             </div>
+
+            {/* Campaign Type */}
+            <div>
+              <label style={{ ...S.label, marginBottom: 12 }}>Kampagnen-Typ</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {CAMPAIGN_TYPES.map((ct) => {
+                  const Icon = ct.icon; const selected = form.type === ct.key;
+                  return (
+                    <button key={ct.key} onClick={() => setForm({ ...form, type: ct.key })} style={S.selectCard(selected)}>
+                      <div style={S.selectCardIcon(selected)}>
+                        <Icon size={18} style={{ color: selected ? T.accentLight : T.textDim }} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: selected ? T.text : T.textMuted }}>{ct.label}</p>
+                        <p style={{ fontSize: 11, color: T.textDim }}>{ct.desc}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
           </div>
         )}
 
@@ -1291,6 +1329,92 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
               </div>
             )}
 
+            {/* Anhang (optional) */}
+            <div style={{ marginTop: 24 }}>
+              <label style={{ ...S.label, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                <Paperclip size={13} /> Anhang (optional)
+              </label>
+
+              {/* Uploaded file preview */}
+              {form.attachment_url ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: T.surfaceAlt, border: `1px solid ${T.success || "#22c55e"}`, borderRadius: 8, marginBottom: 8 }}>
+                  <FileText size={18} style={{ color: T.accent, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: T.text, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {form.attachment_filename || form.attachment_url.split("/").pop() || "Dokument"}
+                    </p>
+                    <a href={form.attachment_url} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 11, color: T.accent, textDecoration: "none" }}>
+                      Vorschau ↗
+                    </a>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, attachment_url: "", attachment_filename: "" }))}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", borderRadius: 4 }}
+                    title="Anhang entfernen"
+                  >
+                    <X size={15} style={{ color: T.textDim }} />
+                  </button>
+                </div>
+              ) : (
+                /* Upload button */
+                <label style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  padding: "12px 20px", background: T.surfaceAlt,
+                  border: `2px dashed ${docUploading ? T.accent : T.border}`,
+                  borderRadius: 8, cursor: docUploading ? "wait" : "pointer",
+                  color: T.textDim, fontSize: 13, fontWeight: 500,
+                  transition: "border-color 0.15s",
+                }}>
+                  {docUploading ? (
+                    <><RefreshCw size={15} style={{ animation: "spin 1s linear infinite" }} /> Wird hochgeladen...</>
+                  ) : (
+                    <><Upload size={15} /> PDF, DOCX, XLSX hochladen (max. 25 MB)</>
+                  )}
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.txt"
+                    style={{ display: "none" }}
+                    disabled={docUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setDocUploading(true);
+                      setDocUploadError(null);
+                      try {
+                        const fd = new FormData();
+                        fd.append("file", file);
+                        const res = await apiFetch("/admin/media/upload-document", { method: "POST", body: fd });
+                        if (!res.ok) {
+                          const err = await res.json().catch(() => ({}));
+                          throw new Error(err.detail || `Upload fehlgeschlagen (${res.status})`);
+                        }
+                        const data = await res.json();
+                        setForm(f => ({
+                          ...f,
+                          attachment_url: data.url,
+                          attachment_filename: file.name,
+                        }));
+                      } catch (err: unknown) {
+                        setDocUploadError(err instanceof Error ? err.message : "Upload fehlgeschlagen");
+                      } finally {
+                        setDocUploading(false);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                </label>
+              )}
+
+              {docUploadError && (
+                <p style={{ fontSize: 12, color: "#ef4444", marginTop: 6 }}>⚠ {docUploadError}</p>
+              )}
+              <p style={{ fontSize: 11, color: T.textDim, marginTop: 4 }}>
+                Datei wird auf dem Server gespeichert und als öffentlicher Link geteilt. Kein externer Dienst.
+              </p>
+            </div>
+
             {/* Summary */}
             <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 0 }}>
               <h4 style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 12 }}>Zusammenfassung</h4>
@@ -1430,6 +1554,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                 )}
               </div>
             )}
+
 
             {previewUrl && (
               <button onClick={() => setShowPreviewModal(true)} style={{ ...S.secondaryBtn, color: T.accentLight }}>

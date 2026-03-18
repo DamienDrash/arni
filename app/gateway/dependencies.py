@@ -9,8 +9,6 @@ import structlog
 from app.gateway.redis_bus import RedisBus
 from app.gateway.persistence import persistence
 from app.swarm.llm import LLMClient
-# DYN-5: SwarmRouter is no longer a singleton – instantiated per request
-# from app.swarm.router.router import SwarmRouter
 from app.integrations.telegram import TelegramBot
 from app.integrations.whatsapp import WhatsAppClient
 from config.settings import get_settings
@@ -24,10 +22,6 @@ redis_bus = RedisBus(redis_url=settings.redis_url)
 # Swarm Components
 # LLMClient remains a shared singleton (stateless, thread-safe).
 llm_client = LLMClient(openai_api_key=settings.openai_api_key)
-
-# DYN-5: SwarmRouter is no longer a global singleton.
-# It is now created per-request in process_and_reply with tenant-specific config.
-# swarm_router = SwarmRouter(llm=llm_client)  # REMOVED
 
 # Active WebSockets (Ghost Mode)
 # Dict of tenant_id -> list of WebSocket objects
@@ -111,7 +105,13 @@ def get_whatsapp_client(tenant_id: int | None = None) -> WhatsAppClient:
     if not waha_url:
         waha_url = "http://ariia-whatsapp-bridge:3000"
     if not waha_key:
-        waha_key = "ariia-waha-secret"
+        # Issue #32: Never fall back to a hardcoded secret — treat WAHA as disabled instead.
+        env_key = os.environ.get("WAHA_API_KEY", "").strip()
+        if env_key:
+            waha_key = env_key
+        else:
+            logger.warning("whatsapp.waha_key_not_configured", tenant_id=tenant_id)
+            waha_key = None
         
     # If Meta token is missing, we prioritize WAHA
     if not token:

@@ -82,7 +82,10 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - ariia-network
+      ariia-network:
+        aliases:
+          - ariia-redis
+          - staging-ariia-redis
     profiles:
       - infra
 
@@ -116,6 +119,28 @@ services:
       disable: true
     volumes:
       - ariia_data:/app/data
+    networks:
+      - ariia-network
+
+  # arq Ingestion Worker (Sprint 1 Foundation)
+  ariia-ingestion-worker:
+    build: .
+    command: python -m app.worker.main
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - ariia-redis
+      - ariia-postgres
+      - minio
+    restart: unless-stopped
+    deploy:
+      replicas: 2
     networks:
       - ariia-network
 
@@ -186,11 +211,11 @@ services:
     networks:
       - ariia-network
 
-  # 7b. Sending Worker (async message dispatch)
+  # 7b. Sending Worker (arq campaign worker)
   ariia-sending-worker:
     build: .
     restart: always
-    command: python scripts/sending_worker.py
+    command: python -m app.worker.main --worker campaign
     environment:
       - PYTHONPATH=/app
       - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
@@ -215,11 +240,11 @@ services:
     networks:
       - ariia-network
 
-  # 7c. Automation Engine Worker
+  # 7c. Automation Engine Worker (arq automation worker)
   ariia-automation-engine:
     build: .
     restart: always
-    command: python scripts/automation_engine_worker.py
+    command: python -m app.worker.main --worker automation
     environment:
       - PYTHONPATH=/app
       - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
@@ -255,11 +280,11 @@ services:
     networks:
       - ariia-network
 
-  # 7d. Analytics Processing Worker
+  # 7d. Analytics Processing Worker (arq analytics worker)
   ariia-analytics-worker:
     build: .
     restart: always
-    command: python scripts/analytics_processing_worker.py
+    command: python -m app.worker.main --worker analytics
     environment:
       - PYTHONPATH=/app
       - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
@@ -427,6 +452,26 @@ services:
     profiles:
       - monitoring
 
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:RELEASE.2024-01-18T22-51-08Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-ariia-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-ariia-minio-secret}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ariia-network
+
   # WhatsApp WAHA Bridge (QR Code based)
   ariia-whatsapp-bridge:
     image: devlikeapro/waha-plus:noweb
@@ -455,6 +500,7 @@ volumes:
   postgres_data:
   prometheus_data:
   grafana_data:
+  minio_data:
 
 networks:
   ariia-network:

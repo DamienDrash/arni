@@ -108,6 +108,130 @@ async def upload_media(
     }
 
 
+@router.post("/upload-document", status_code=201)
+async def upload_document(
+    file: UploadFile = File(...),
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload a document file for campaign attachments.
+
+    Supported: PDF, DOCX, DOC, XLSX, XLS, PPTX, PPT, TXT. Max 25MB.
+    Returns a public URL that can be used as campaign attachment_url.
+    The file is stored on the local media volume and served via the
+    existing /media/tenants/ static files endpoint — no external service.
+    """
+    from app.media.storage import (
+        ALLOWED_DOCUMENT_EXTENSIONS,
+        MAX_DOCUMENT_SIZE,
+        save_document_bytes,
+        get_document_public_url,
+    )
+    from app.core.models import Tenant
+    from pathlib import Path
+
+    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    data = await file.read()
+    size = len(data)
+    ext = Path(file.filename or "").suffix.lower()
+
+    if ext not in ALLOWED_DOCUMENT_EXTENSIONS:
+        allowed = ", ".join(sorted(ALLOWED_DOCUMENT_EXTENSIONS))
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {ext}. Allowed: {allowed}",
+        )
+    if size > MAX_DOCUMENT_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large: {size / 1024 / 1024:.1f} MB (max 25 MB)",
+        )
+
+    try:
+        filename, saved_size, mime_type = await save_document_bytes(
+            data, tenant.slug, file.filename or "document"
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    url = get_document_public_url(tenant.slug, filename)
+    logger.info(
+        "media.document_upload_complete",
+        tenant_id=user.tenant_id,
+        filename=filename,
+        original=file.filename,
+        size=saved_size,
+    )
+
+    return {
+        "url": url,
+        "filename": filename,
+        "original_filename": file.filename,
+        "mime_type": mime_type,
+        "file_size": saved_size,
+    }
+
+
+@router.get("/documents")
+async def list_documents(
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List all uploaded documents for the current tenant."""
+    from app.media.storage import get_document_path, get_document_public_url, _get_media_root
+    from app.core.models import Tenant
+    import os
+
+    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    doc_dir = _get_media_root() / tenant.slug / "documents"
+    if not doc_dir.exists():
+        return {"documents": []}
+
+    documents = []
+    for entry in sorted(doc_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+        if entry.is_file() and not entry.name.startswith("."):
+            documents.append({
+                "filename": entry.name,
+                "original_filename": entry.name,
+                "url": get_document_public_url(tenant.slug, entry.name),
+                "file_size": entry.stat().st_size,
+                "uploaded_at": entry.stat().st_mtime,
+            })
+
+    return {"documents": documents}
+
+
+@router.delete("/documents/{filename}")
+async def delete_document(
+    filename: str,
+    user: AuthContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete an uploaded document."""
+    from app.media.storage import delete_document as _delete, _validate_tenant_slug
+    from app.core.models import Tenant
+
+    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    # Security: reject filenames with path traversal
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    deleted = _delete(tenant.slug, filename)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return {"status": "deleted", "filename": filename}
+
+
 def _build_model_response(provider, meta: dict, credit_cost: int) -> dict:
     """Merge DB provider row with static enrichment metadata.
 
@@ -332,42 +456,38 @@ async def ai_generate_image(
             detail=f"Nicht genügend Credits. Jetzt aufladen. (Benötigt: {credit_cost}, Verfügbar: {current_balance})",
         )
 
-    # If campaign context provided, route through MediaOrchestrator
+    # If campaign context provided, route through CampaignOrchestrator (image_generation stage)
     if body.campaign_name or body.task_context != "general" or body.channel != "email":
-        from app.swarm.agents.media.orchestrator import MediaOrchestrator, MediaGenerationRequest
+        from app.swarm.agents.campaign.orchestrator import CampaignOrchestrator, CampaignGenerationRequest
         from app.swarm.llm import LLMClient
         from config.settings import get_settings
         settings = get_settings()
         llm = LLMClient(openai_api_key=settings.openai_api_key)
-        orch = MediaOrchestrator(llm)
-        req = MediaGenerationRequest(
-            user_prompt=body.prompt,
-            tenant_id=user.tenant_id,
+        orch = CampaignOrchestrator(llm)
+        req = CampaignGenerationRequest(
             campaign_name=body.campaign_name or "",
             channel=body.channel or "email",
             tone=body.tone or "professional",
-            task_context=body.task_context or "general",
-            size=body.size,
-            quality=body.quality,
+            prompt=body.prompt,
+            tenant_id=user.tenant_id,
+            generate_image=True,
+            image_size=body.size,
+            image_quality=body.quality,
+            image_model_slug=body.model_slug,
             created_by=user.user_id,
-            model_slug=body.model_slug,
         )
-        result = await orch.run(req, db=db, tenant_slug=tenant.slug)
+        result = await orch.run(req, db=db)
         if result.error:
             raise HTTPException(status_code=502, detail=result.error)
         # Deduct credits after successful generation
-        deduct_credits(db, user.tenant_id, credit_cost, "generation", str(result.asset_id) if result.asset_id else None)
+        deduct_credits(db, user.tenant_id, credit_cost, "generation", str(result.image_asset_id) if result.image_asset_id else None)
         return {
-            "id": result.asset_id,
-            "url": result.url,
+            "id": result.image_asset_id,
+            "url": result.image_url,
             "source": "ai_generated",
             "qa_passed": result.qa_passed,
-            "qa_score": result.qa_score,
             "qa_issues": result.qa_issues,
-            "qa_suggestions": result.qa_suggestions,
             "pipeline_steps": result.pipeline_steps,
-            "retries": result.retries,
-            "revised_prompt": result.revised_prompt,
             "created_at": None,
         }
 
@@ -689,7 +809,8 @@ async def ai_edit_image(
     img_svc = ImageConfigService(db)
     try:
         config = img_svc.resolve_provider_by_slug(user.tenant_id, body.edit_model_slug)
-    except Exception:
+    except Exception as e:
+        logger.warning("media.resolve_provider_by_slug_failed", error=str(e))
         config = img_svc.resolve_image_provider(user.tenant_id)
 
     # Run img2img edit

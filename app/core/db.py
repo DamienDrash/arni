@@ -11,12 +11,53 @@ import contextvars
 import os
 from typing import AsyncGenerator, Generator
 
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import create_engine, event, text, Column, Integer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import Session, declarative_base, sessionmaker, Query
 
 # Tenant context for Row Level Security (RLS) or logging
 tenant_context = contextvars.ContextVar("tenant_context", default=None)
+
+class TenantScopedMixin:
+    """Mixin to add tenant_id to models and mark them as tenant-scoped."""
+    __tenant_scoped__ = True
+    tenant_id = Column(Integer, index=True, nullable=True)
+
+class TenantQuery(Query):
+    """Custom Query class that automatically filters by tenant_id."""
+
+    def _where_tenant(self):
+        # We check if we have already applied the tenant filter to avoid recursion.
+        # However, _where_tenant returns a new Query object, so we must be careful.
+        # Instead of overriding methods and calling them again, we can just return
+        # the filtered query and ensure we don't call the same overridden method.
+        
+        tid = tenant_context.get()
+        if tid is not None:
+            for desc in self.column_descriptions:
+                entity = desc.get("entity")
+                if entity and getattr(entity, "__tenant_scoped__", False):
+                    # Check if the filter is already applied by looking at the statement
+                    # This is complex in SQLAlchemy, a simpler way is to use a flag on the query.
+                    if getattr(self, "_tenant_filtered", False):
+                        return self
+                    
+                    filtered_query = self.filter(entity.tenant_id == tid)
+                    filtered_query._tenant_filtered = True
+                    return filtered_query
+        return self
+
+    def __iter__(self):
+        return super(TenantQuery, self._where_tenant()).__iter__()
+
+    def all(self):
+        return super(TenantQuery, self._where_tenant()).all()
+
+    def first(self):
+        return super(TenantQuery, self._where_tenant()).first()
+
+    def count(self):
+        return super(TenantQuery, self._where_tenant()).count()
 
 # Mandatory PostgreSQL Connection
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
@@ -48,7 +89,12 @@ else:
     engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 
 # Sync SessionLocal
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(
+    autocommit=False, 
+    autoflush=False, 
+    bind=engine,
+    query_cls=TenantQuery
+)
 
 
 # ─── Async Engine (for request handling) ─────────────────────────────────────────
@@ -106,7 +152,7 @@ def set_tenant_id_context(dbapi_connection, connection_record, connection_proxy)
     cursor = dbapi_connection.cursor()
     try:
         if tid is not None:
-            cursor.execute(f"SET LOCAL app.current_tenant_id = '{tid}';")
+            cursor.execute("SET LOCAL app.current_tenant_id = %s", (str(tid),))
         else:
             cursor.execute("RESET app.current_tenant_id;")
     except Exception:
@@ -114,62 +160,37 @@ def set_tenant_id_context(dbapi_connection, connection_record, connection_proxy)
     finally:
         cursor.close()
 
+from sqlalchemy.types import TypeDecorator, JSON as sa_JSON
+try:
+    from sqlalchemy.dialects.postgresql import JSONB as sa_JSONB
+except ImportError:
+    sa_JSONB = sa_JSON
+
+# Flexible JSON type for cross-db compatibility (JSONB on Postgres, JSON on SQLite)
+FlexibleJSON = sa_JSONB if engine.name == "postgresql" else sa_JSON
+
 # Base class for models
 Base = declarative_base()
 
 def run_migrations():
-    """Bootstrap the database schema. In production, use Alembic instead."""
+    """Bootstrap the database schema and run pending Alembic migrations."""
     Base.metadata.create_all(bind=engine)
-    _backfill_columns()
-
-
-def _backfill_columns() -> None:
-    """Add new columns to existing tables (idempotent). create_all() won't alter existing tables."""
-    from sqlalchemy import inspect, text as _text
-    inspector = inspect(engine)
-    is_pg = SQLALCHEMY_DATABASE_URL.startswith("postgresql")
-
-    def _add_column_if_missing(table: str, col: str, col_def: str) -> None:
-        try:
-            existing = {c["name"] for c in inspector.get_columns(table)}
-        except Exception:
-            return
-        if col in existing:
-            return
-        try:
-            with engine.connect() as conn:
-                if is_pg:
-                    conn.execute(_text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_def}"))
-                else:
-                    conn.execute(_text(f"ALTER TABLE {table} ADD COLUMN {col} {col_def}"))
-                conn.commit()
-        except Exception:
-            pass  # Column may have been added by a concurrent worker
-
-    # Plans — monthly_image_credits (added for credit system)
-    _add_column_if_missing("plans", "monthly_image_credits", "INTEGER DEFAULT 0")
-
-    # ImageProvider — ELO + fal category enrichment (added for model sync)
-    _add_column_if_missing("ai_image_providers", "fal_category", "VARCHAR(32)")
-    _add_column_if_missing("ai_image_providers", "elo_score", "INTEGER")
-    _add_column_if_missing("ai_image_providers", "elo_rank", "INTEGER")
-    _add_column_if_missing("ai_image_providers", "price_per_image_cents", "INTEGER")
-
-    # Backfill fal_category for existing seeded providers (slug-based heuristic)
     try:
-        with engine.connect() as conn:
-            conn.execute(_text("""
-                UPDATE ai_image_providers
-                SET fal_category = CASE
-                    WHEN slug LIKE '%_edit' OR slug = 'flux_kontext_pro' THEN 'image-to-image'
-                    ELSE 'text-to-image'
-                END
-                WHERE fal_category IS NULL
-                  AND provider_type IN ('fal_ai', 'fal_ai_schnell', 'fal_generic', 'recraft_v3', 'ideogram_v2')
-            """))
-            conn.commit()
-    except Exception:
-        pass
+        from alembic.config import Config
+        from alembic import command
+        import os
+        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "..", "..", "alembic.ini"))
+        alembic_cfg.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
+        command.upgrade(alembic_cfg, "2026_03_18_merge_heads")
+    except Exception as _alembic_err:
+        import structlog
+        structlog.get_logger().warning("db.alembic_upgrade_failed", error=str(_alembic_err))
+
+
+# Register tenant isolation interceptor on the sync session factory
+from app.core.tenant_interceptor import register_tenant_interceptor
+
+register_tenant_interceptor(SessionLocal)
 
 # ─── FastAPI Dependencies ─────────────────────────────────────────────────────────
 
@@ -192,7 +213,7 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     async with factory() as session:
         tid = tenant_context.get()
         if tid is not None:
-            await session.execute(text(f"SET LOCAL app.current_tenant_id = '{tid}'"))
+            await session.execute(text("SET LOCAL app.current_tenant_id = :tid"), {"tid": str(tid)})
         try:
             yield session
         finally:

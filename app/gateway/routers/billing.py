@@ -708,8 +708,8 @@ async def change_plan(
                 for sched in schedules.get("data", []):
                     if sched.get("subscription") == sub.stripe_subscription_id and sched.get("status") in ("not_started", "active"):
                         stripe.SubscriptionSchedule.release(sched["id"])
-            except Exception:
-                pass  # No existing schedule, that's fine
+            except Exception as e:
+                logger.warning("billing.subscription_schedule_release_failed", error=str(e))
 
             # Create a subscription schedule that changes the plan at period end
             schedule = stripe.SubscriptionSchedule.create(

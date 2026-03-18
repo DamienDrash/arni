@@ -10,6 +10,7 @@ from uuid import uuid4
 import structlog
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.core.auth import decode_access_token, _resolve_context_from_payload
 from app.gateway.dependencies import (
     redis_bus,
     active_websockets,
@@ -23,13 +24,29 @@ logger = structlog.get_logger()
 router = APIRouter(tags=["admin"])
 
 @router.websocket("/ws/control")
-async def websocket_control(ws: WebSocket, tid: int | None = None) -> None:
+async def websocket_control(ws: WebSocket) -> None:
     """WebSocket endpoint for Admin Dashboard & Ghost Mode."""
+    # Issue #3: Auth guard — must validate token before accepting the connection
+    token = ws.query_params.get("token")
+    if not token:
+        await ws.close(code=4001, reason="Unauthorized")
+        return
+
+    try:
+        payload = decode_access_token(token)
+        auth_ctx = _resolve_context_from_payload(payload)
+    except Exception:
+        await ws.close(code=4001, reason="Unauthorized")
+        return
+
+    if auth_ctx.role not in ("system_admin", "tenant_admin"):
+        await ws.close(code=4001, reason="Unauthorized")
+        return
+
     await ws.accept()
-    
-    # Register in tenant-specific list
-    # Use 1 (system) as default if no tid provided
-    resolved_tid = tid if tid is not None else 1
+
+    # Derive resolved_tid from the validated auth context — never trust client-supplied value
+    resolved_tid = auth_ctx.tenant_id
     if resolved_tid not in active_websockets:
         active_websockets[resolved_tid] = []
     active_websockets[resolved_tid].append(ws)

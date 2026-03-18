@@ -333,7 +333,10 @@ export default function UsersPage() {
         </div>
         <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
           <input style={inputStyle} placeholder={t("users.email")} value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input style={inputStyle} placeholder={t("users.password")} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <div>
+            <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} placeholder={t("users.password")} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <p style={{ fontSize: 11, color: T.textDim, marginTop: 4, marginBottom: 0 }}>Min. 8 Zeichen, Groß- &amp; Kleinbuchstabe, Ziffer erforderlich.</p>
+          </div>
           <input style={inputStyle} placeholder={t("users.name")} value={fullName} onChange={(e) => setFullName(e.target.value)} />
           <select style={inputStyle} value={role} onChange={(e) => setRole(e.target.value as UserRow["role"])}>
             <option value="tenant_user">tenant_user</option>

@@ -106,6 +106,8 @@ async def get_tenant_image_provider(
     user: AuthContext = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if not user.tenant_id:
+        return {"override": None}
     from app.ai_config.image_service import ImageConfigService
     svc = ImageConfigService(db)
     override = svc.get_tenant_override(user.tenant_id)

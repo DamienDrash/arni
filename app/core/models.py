@@ -1,16 +1,18 @@
+import enum as _enum_module
+import uuid as _uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Date, UniqueConstraint, ForeignKey, Float
-from app.core.db import Base
+from sqlalchemy import BigInteger, Column, Enum as SQLEnum, Index, Integer, String, DateTime, Text, Boolean, Date, UniqueConstraint, ForeignKey, Float, JSON
+import sqlalchemy as sa
+from app.core.db import Base, TenantScopedMixin
 
-class ChatSession(Base):
+class ChatSession(Base, TenantScopedMixin):
     __tablename__ = "chat_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     platform = Column(String)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    last_message_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
+    last_message_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     is_active = Column(Boolean, default=True)
 
     # Enhanced User Identification (Sprint 13)
@@ -20,51 +22,47 @@ class ChatSession(Base):
     member_id = Column(String, nullable=True)  # Link to external Member DB (Sprint 13)
 
 
-class ChatMessage(Base):
+class ChatMessage(Base, TenantScopedMixin):
     __tablename__ = "chat_messages"
 
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String, index=True)  # Linking to user_id for simplicity across platforms
-    tenant_id = Column(Integer, index=True, nullable=False)
     role = Column(String)  # "user" or "assistant"
     content = Column(Text)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    timestamp = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     metadata_json = Column(Text, nullable=True)  # JSON string for extra data
 
 
-class Setting(Base):
+class Setting(Base, TenantScopedMixin):
     __tablename__ = "settings"
 
-    tenant_id = Column(Integer, primary_key=True, index=True, nullable=False)
     key = Column(String, primary_key=True, index=True)
     value = Column(String)
     description = Column(String, nullable=True)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
-class TenantConfig(Base):
+class TenantConfig(Base, TenantScopedMixin):
     __tablename__ = "tenant_configs"
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     key = Column(String, index=True, nullable=False)
     value = Column(Text, nullable=True)
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc)
     )
 
-class MemberFeedback(Base):
+class MemberFeedback(Base, TenantScopedMixin):
     """Stores user satisfaction feedback after a chat session."""
     __tablename__ = "member_feedback"
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     session_id = Column(String, index=True, nullable=False)
     rating = Column(Integer, nullable=False)  # e.g. 1-5 or 1-10
     comment = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -77,16 +75,16 @@ class Tenant(Base):
     slug = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
     # DSGVO consent
-    tos_accepted_at = Column(DateTime, nullable=True)
-    privacy_accepted_at = Column(DateTime, nullable=True)
+    tos_accepted_at = Column(DateTime(timezone=True),nullable=True)
+    privacy_accepted_at = Column(DateTime(timezone=True),nullable=True)
 
     # Session configuration (per-tenant)
     session_idle_timeout_minutes = Column(Integer, default=30, nullable=False)
@@ -96,23 +94,22 @@ class Tenant(Base):
     mfa_required = Column(Boolean, default=False, nullable=False)
 
     # Onboarding
-    onboarding_completed_at = Column(DateTime, nullable=True)
+    onboarding_completed_at = Column(DateTime(timezone=True),nullable=True)
 
 
-class UserAccount(Base):
+class UserAccount(Base, TenantScopedMixin):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String, nullable=True)
     role = Column(String, default="tenant_user", nullable=False)  # system_admin|tenant_admin|tenant_user
     password_hash = Column(String, nullable=True)  # nullable for SSO/passwordless users
     language = Column(String, default="en", nullable=False)  # de|en|bg
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -130,17 +127,17 @@ class UserAccount(Base):
 
     # Account lockout
     failed_login_attempts = Column(Integer, default=0, nullable=False)
-    locked_until = Column(DateTime, nullable=True)
-    last_failed_login_at = Column(DateTime, nullable=True)
+    locked_until = Column(DateTime(timezone=True),nullable=True)
+    last_failed_login_at = Column(DateTime(timezone=True),nullable=True)
 
     # MFA
     mfa_enabled = Column(Boolean, default=False, nullable=False)
     mfa_secret_encrypted = Column(String, nullable=True)
     mfa_backup_codes_hash = Column(Text, nullable=True)
-    mfa_enabled_at = Column(DateTime, nullable=True)
+    mfa_enabled_at = Column(DateTime(timezone=True),nullable=True)
 
     # Tracking
-    last_login_at = Column(DateTime, nullable=True)
+    last_login_at = Column(DateTime(timezone=True),nullable=True)
 
 
 class AuditLog(Base):
@@ -155,14 +152,13 @@ class AuditLog(Base):
     target_type = Column(String, nullable=True)
     target_id = Column(String, nullable=True)
     details_json = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), index=True)
 
 
-class StudioMember(Base):
+class StudioMember(Base, TenantScopedMixin):
     __tablename__ = "studio_members"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     customer_id = Column(Integer, index=True, nullable=False)
     member_number = Column(String, index=True, nullable=True)
     first_name = Column(String, nullable=False)
@@ -174,7 +170,7 @@ class StudioMember(Base):
     # --- Bulk sync fields (from /v1/customers, zero extra API calls) ---
     gender = Column(String, nullable=True)               # "MALE" / "FEMALE" / "DIVERSE"
     preferred_language = Column(String, nullable=True)   # "de", "en", …
-    member_since = Column(DateTime, nullable=True)       # createdDateTime
+    member_since = Column(DateTime(timezone=True),nullable=True)       # createdDateTime
     is_paused = Column(Boolean, nullable=True, default=False)
     pause_info = Column(Text, nullable=True)             # JSON: {"is_currently_paused": bool, "pause_until": "YYYY-MM-DD"|null, ...}
     contract_info = Column(Text, nullable=True)          # JSON: {"plan_name": "Premium", "status": "ACTIVE", "end_date": ...}
@@ -183,7 +179,7 @@ class StudioMember(Base):
     # --- Lazy enrichment (per-member API, cached with TTL) ---
     checkin_stats = Column(Text, nullable=True)    # JSON: {total_30d, total_90d, avg_per_week, last_visit, days_since, status}
     recent_bookings = Column(Text, nullable=True)  # JSON: [{type, title, start, status}, …]
-    enriched_at = Column(DateTime, nullable=True)
+    enriched_at = Column(DateTime(timezone=True),nullable=True)
 
     # --- Multi-Source Extensions (PR 2) ---
     source = Column(String, default="manual", nullable=False)  # manual, magicline, shopify, etc.
@@ -192,20 +188,19 @@ class StudioMember(Base):
     custom_fields = Column(Text, nullable=True)                # JSON dict: {"Schuhgröße": "42"}
     notes = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
-class MemberCustomColumn(Base):
+class MemberCustomColumn(Base, TenantScopedMixin):
     """Dynamic custom columns for member table (PR 2)."""
     __tablename__ = "member_custom_columns"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     name = Column(String, nullable=False)        # Display name "Schuhgröße"
     slug = Column(String, nullable=False)        # "schuhgroesse"
     field_type = Column(String, nullable=False)  # text, number, date, boolean
@@ -218,12 +213,11 @@ class MemberCustomColumn(Base):
     )
 
 
-class MemberImportLog(Base):
+class MemberImportLog(Base, TenantScopedMixin):
     """Log of bulk import/sync operations (PR 2)."""
     __tablename__ = "member_import_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     source = Column(String, nullable=False)      # csv, shopify, magicline
     status = Column(String, nullable=False)      # running, completed, failed
     total_rows = Column(Integer, default=0)
@@ -232,7 +226,7 @@ class MemberImportLog(Base):
     skipped = Column(Integer, default=0)
     errors = Column(Integer, default=0)
     error_log = Column(Text, nullable=True)      # JSON details
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 # ─── Billing Models (S4.1) ───────────────────────────────────────────────────
@@ -288,6 +282,7 @@ class Plan(Base):
     white_label_enabled = Column(Boolean, nullable=False, default=False)
     sla_guarantee_enabled = Column(Boolean, nullable=False, default=False)
     on_premise_enabled = Column(Boolean, nullable=False, default=False)
+    agent_teams_enabled = Column(Boolean, nullable=False, default=False)
 
     # Overage Pricing (in cents)
     overage_conversation_cents = Column(Integer, default=5)
@@ -310,9 +305,9 @@ class Plan(Base):
 
     is_active = Column(Boolean, nullable=False, default=True)
     is_public = Column(Boolean, nullable=False, default=True)  # Show on public pricing page
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -336,25 +331,24 @@ class AddonDefinition(Base):
     image_preview_quota_grant = Column(Integer, nullable=True, default=0)  # Extra preview images/month
     is_active = Column(Boolean, nullable=False, default=True)
     display_order = Column(Integer, nullable=False, default=0)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
-class TenantAddon(Base):
+class TenantAddon(Base, TenantScopedMixin):
     """Active add-ons for a tenant (e.g., extra channel, white-label)."""
     __tablename__ = "tenant_addons"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     addon_slug = Column(String, nullable=False)  # "voice_pipeline", "churn_prediction"
     stripe_subscription_item_id = Column(String, nullable=True)
     quantity = Column(Integer, default=1)
     status = Column(String, default="active")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 class Subscription(Base):
@@ -372,29 +366,28 @@ class Subscription(Base):
     stripe_subscription_id = Column(String, nullable=True, unique=True)
     stripe_customer_id = Column(String, nullable=True)
 
-    current_period_start = Column(DateTime, nullable=True)
-    current_period_end = Column(DateTime, nullable=True)
-    trial_ends_at = Column(DateTime, nullable=True)
-    canceled_at = Column(DateTime, nullable=True)
+    current_period_start = Column(DateTime(timezone=True),nullable=True)
+    current_period_end = Column(DateTime(timezone=True),nullable=True)
+    trial_ends_at = Column(DateTime(timezone=True),nullable=True)
+    canceled_at = Column(DateTime(timezone=True),nullable=True)
     cancel_at_period_end = Column(Boolean, default=False, nullable=False)
     pending_plan_id = Column(Integer, nullable=True)
     billing_interval = Column(String, default="month", nullable=True)
 
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
-class UsageRecord(Base):
+class UsageRecord(Base, TenantScopedMixin):
     """Monthly usage counters per tenant for plan enforcement and billing."""
 
     __tablename__ = "usage_records"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     period_year = Column(Integer, nullable=False)
     period_month = Column(Integer, nullable=False)  # 1–12
 
@@ -414,37 +407,35 @@ class UsageRecord(Base):
     )
 
 
-class TenantLLMConfig(Base):
+class TenantLLMConfig(Base, TenantScopedMixin):
     """Per-tenant LLM provider/model selection."""
     __tablename__ = "tenant_llm_configs"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     provider_id = Column(String, nullable=False)     # e.g. "openai", "anthropic"
     provider_name = Column(String, nullable=False)    # e.g. "OpenAI"
     model_id = Column(String, nullable=False)         # e.g. "gpt-4o"
     is_default = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
-class TokenPurchase(Base):
+class TokenPurchase(Base, TenantScopedMixin):
     """Token top-up purchases by tenants."""
     __tablename__ = "token_purchases"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     tokens_amount = Column(Integer, nullable=False)
     price_cents = Column(Integer, nullable=False)
     stripe_payment_intent_id = Column(String, nullable=True)
     stripe_checkout_session_id = Column(String, nullable=True)
     status = Column(String, nullable=False, default="pending")  # pending | completed | failed
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 
@@ -467,10 +458,10 @@ class ImageCreditPack(Base):
     stripe_price_yearly_id = Column(String(100), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     display_order = Column(Integer, default=0)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
-class ImageCreditBalance(Base):
+class ImageCreditBalance(Base, TenantScopedMixin):
     """Running credit balance per tenant."""
     __tablename__ = "image_credit_balances"
 
@@ -479,28 +470,26 @@ class ImageCreditBalance(Base):
     balance = Column(Integer, default=0, nullable=False)
     last_grant_year = Column(Integer, nullable=True)
     last_grant_month = Column(Integer, nullable=True)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
-class ImageCreditTransaction(Base):
+class ImageCreditTransaction(Base, TenantScopedMixin):
     """Immutable ledger of all credit movements."""
     __tablename__ = "image_credit_transactions"
 
     id = Column(Integer, primary_key=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     delta = Column(Integer, nullable=False)       # positive = credit, negative = debit
     reason = Column(String(50), nullable=False)   # plan_grant | topup | generation | edit | refund
     reference_id = Column(String(200), nullable=True)
     balance_after = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), index=True)
 
 
-class ImageCreditPurchase(Base):
+class ImageCreditPurchase(Base, TenantScopedMixin):
     """Stripe-backed credit pack purchases."""
     __tablename__ = "image_credit_purchases"
 
     id = Column(Integer, primary_key=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     pack_slug = Column(String(50), nullable=False)
     billing_interval = Column(String(20), nullable=False)  # once | monthly | yearly
     credits_granted = Column(Integer, nullable=False)
@@ -508,8 +497,8 @@ class ImageCreditPurchase(Base):
     stripe_session_id = Column(String(200), nullable=True)
     stripe_subscription_id = Column(String(200), nullable=True)
     status = Column(String(20), default="pending", nullable=False)  # pending | active | canceled | completed
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 class LLMModelCost(Base):
@@ -522,14 +511,13 @@ class LLMModelCost(Base):
     input_cost_per_million = Column(Integer, nullable=False, default=0)   # Cost in USD-cents per 1M input tokens
     output_cost_per_million = Column(Integer, nullable=False, default=0)  # Cost in USD-cents per 1M output tokens
     is_active = Column(Boolean, nullable=False, default=True)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
-class LLMUsageLog(Base):
+class LLMUsageLog(Base, TenantScopedMixin):
     """Per-request LLM usage log with cost attribution per tenant."""
     __tablename__ = "llm_usage_log"
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     user_id = Column(String, nullable=True)                         # WhatsApp/Telegram user or admin email
     agent_name = Column(String, nullable=True)                      # e.g. "persona", "sales", "medic"
     provider_id = Column(String, nullable=False)
@@ -543,15 +531,14 @@ class LLMUsageLog(Base):
     latency_ms = Column(Integer, nullable=True)
     success = Column(Boolean, nullable=False, default=True)
     error_message = Column(String, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), index=True)
 
 
-class Campaign(Base):
+class Campaign(Base, TenantScopedMixin):
     """Marketing campaign / broadcast / scheduled message."""
     __tablename__ = "campaigns"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
 
@@ -580,11 +567,11 @@ class Campaign(Base):
 
     # Preview / Approval
     preview_token = Column(String, nullable=True, unique=True, index=True)
-    preview_expires_at = Column(DateTime, nullable=True)
+    preview_expires_at = Column(DateTime(timezone=True),nullable=True)
 
     # Scheduling
-    scheduled_at = Column(DateTime, nullable=True)
-    sent_at = Column(DateTime, nullable=True)
+    scheduled_at = Column(DateTime(timezone=True),nullable=True)
+    sent_at = Column(DateTime(timezone=True),nullable=True)
 
     # Stats
     stats_total = Column(Integer, nullable=False, default=0)
@@ -614,21 +601,24 @@ class Campaign(Base):
     featured_image_url = Column(String(512), nullable=True)
     featured_image_asset_id = Column(Integer, nullable=True)
 
+    # Attachments (e.g. PDF lead magnets)
+    attachment_url = Column(String(512), nullable=True)
+    attachment_filename = Column(String(255), nullable=True)
+
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
-class CampaignTemplate(Base):
+class CampaignTemplate(Base, TenantScopedMixin):
     """Reusable message/email templates for campaigns."""
     __tablename__ = "campaign_templates"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
 
@@ -650,9 +640,9 @@ class CampaignTemplate(Base):
 
     is_default = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -675,20 +665,19 @@ class CampaignVariant(Base):
 
     # A/B Winner Tracking
     is_winner = Column(Boolean, nullable=False, default=False)
-    winner_selected_at = Column(DateTime, nullable=True)
+    winner_selected_at = Column(DateTime(timezone=True),nullable=True)
     winner_metric = Column(String(30), nullable=True)       # open_rate | click_rate
     confidence_level = Column(Float, nullable=True)          # 0.0–1.0
 
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
-class CampaignRecipient(Base):
+class CampaignRecipient(Base, TenantScopedMixin):
     """Individual recipient tracking for campaigns."""
     __tablename__ = "campaign_recipients"
 
     id = Column(Integer, primary_key=True, index=True)
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True, index=True)
     member_id = Column(Integer, ForeignKey("studio_members.id"), nullable=True, index=True)
     contact_id = Column(Integer, nullable=True, index=True)  # v2 contacts reference
     channel = Column(String, nullable=True)  # email | whatsapp | sms | telegram
@@ -696,24 +685,24 @@ class CampaignRecipient(Base):
 
     # Status: pending | sent | delivered | opened | clicked | failed | bounced | unsubscribed
     status = Column(String, nullable=False, default="pending")
-    sent_at = Column(DateTime, nullable=True)
-    delivered_at = Column(DateTime, nullable=True)
-    opened_at = Column(DateTime, nullable=True)
-    clicked_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime(timezone=True),nullable=True)
+    delivered_at = Column(DateTime(timezone=True),nullable=True)
+    opened_at = Column(DateTime(timezone=True),nullable=True)
+    clicked_at = Column(DateTime(timezone=True),nullable=True)
     error_message = Column(Text, nullable=True)
 
     # Phase 3: Orchestration & Analytics extensions
     current_step = Column(Integer, nullable=True, default=1)  # Current orchestration step
-    converted_at = Column(DateTime, nullable=True)             # Conversion timestamp
+    converted_at = Column(DateTime(timezone=True),nullable=True)             # Conversion timestamp
     conversion_value = Column(Float, nullable=True)            # Conversion value in EUR
+    offer_slug = Column(String(64), nullable=True)             # ?offer= URL param from subscribe page
 
 
-class MemberSegment(Base):
+class MemberSegment(Base, TenantScopedMixin):
     """Reusable member segments for targeting."""
     __tablename__ = "member_segments"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
 
@@ -723,20 +712,19 @@ class MemberSegment(Base):
 
     member_count = Column(Integer, nullable=False, default=0)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
-class ScheduledFollowUp(Base):
+class ScheduledFollowUp(Base, TenantScopedMixin):
     """Chat-based scheduled follow-ups for individual members."""
     __tablename__ = "scheduled_follow_ups"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     member_id = Column(Integer, ForeignKey("studio_members.id"), nullable=True, index=True)
 
     # Context
@@ -745,19 +733,19 @@ class ScheduledFollowUp(Base):
     ai_context_json = Column(Text, nullable=True)  # Relevant chat context for the follow-up
 
     # Scheduling
-    follow_up_at = Column(DateTime, nullable=False)
+    follow_up_at = Column(DateTime(timezone=True),nullable=False)
     message_template = Column(Text, nullable=True)
     channel = Column(String, nullable=False, default="whatsapp")
 
     # Status: pending | sent | cancelled | failed
     status = Column(String, nullable=False, default="pending")
-    sent_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime(timezone=True),nullable=True)
     error_message = Column(Text, nullable=True)
 
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -765,18 +753,17 @@ class ScheduledFollowUp(Base):
 
 # ─── Auth Refactoring: New Tables ───────────────────────────────────────────
 
-class PendingInvitation(Base):
+class PendingInvitation(Base, TenantScopedMixin):
     __tablename__ = "pending_invitations"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     email = Column(String, nullable=False)
     role = Column(String, default="tenant_user", nullable=False)
     token = Column(String, unique=True, nullable=False, index=True)
     invited_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    expires_at = Column(DateTime, nullable=False)
-    accepted_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = Column(DateTime(timezone=True),nullable=False)
+    accepted_at = Column(DateTime(timezone=True),nullable=True)
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 class RefreshToken(Base):
@@ -789,8 +776,8 @@ class RefreshToken(Base):
     device_info = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     is_revoked = Column(Boolean, default=False, nullable=False)
-    expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = Column(DateTime(timezone=True),nullable=False)
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
 class UserSession(Base):
@@ -803,5 +790,177 @@ class UserSession(Base):
     device_name = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
-    last_active_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_active_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
+
+
+# ── Ingestion Pipeline (Sprint 1) ──────────────────────────────────────────────
+
+class IngestionJobStatus(str, _enum_module.Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    DEAD_LETTER = "dead_letter"
+
+
+class IngestionJob(Base, TenantScopedMixin):
+    __tablename__ = "ingestion_jobs"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(_uuid.uuid4()))
+    filename = Column(String(500), nullable=False)
+    original_filename = Column(String(500), nullable=False)
+    mime_type = Column(String(100), nullable=False)
+    file_size_bytes = Column(BigInteger, nullable=True)
+    s3_key = Column(String(1000), nullable=True)
+    status = Column(SQLEnum(IngestionJobStatus), nullable=False, default=IngestionJobStatus.PENDING, index=True)
+    attempt_count = Column(Integer, nullable=False, default=0)
+    max_attempts = Column(Integer, nullable=False, default=3)
+    error_message = Column(Text, nullable=True)
+    error_category = Column(String(100), nullable=True)
+    chunks_total = Column(Integer, nullable=True)
+    chunks_processed = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_ingestion_jobs_tenant_status", "tenant_id", "status"),
+        Index("ix_ingestion_jobs_tenant_created", "tenant_id", "created_at"),
+    )
+
+
+# ─── Swarm v3 Models ────────────────────────────────────────────────────────
+
+class ToolDefinition(Base):
+    """System-level tool catalog. Each row defines a skill/tool available in the swarm."""
+    __tablename__ = "tool_definitions"
+
+    id = Column(String, primary_key=True)  # e.g. "magicline_booking", "knowledge_search"
+    display_name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String, nullable=True)  # "booking", "crm", "knowledge", "media", etc.
+    required_integration = Column(String, nullable=True)  # e.g. "magicline", "calendly", None
+    min_plan_tier = Column(String, nullable=False, default="starter")  # starter | pro | enterprise
+    config_schema = Column(Text, nullable=True)  # JSON Schema for tenant-level config
+    is_system = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class AgentDefinition(Base):
+    """System-level agent catalog. Each row defines an agent type available in the swarm."""
+    __tablename__ = "agent_definitions"
+
+    id = Column(String, primary_key=True)  # e.g. "ops", "sales", "medic"
+    display_name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    system_prompt = Column(Text, nullable=True)  # Default Jinja2 system prompt
+    default_tools = Column(Text, nullable=True)  # JSON list of tool_definition IDs
+    max_turns = Column(Integer, nullable=False, default=5)
+    qa_profile = Column(String, nullable=True)  # QA evaluation profile name
+    min_plan_tier = Column(String, nullable=False, default="starter")
+    is_system = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class TenantAgentConfig(Base, TenantScopedMixin):
+    """Per-tenant agent configuration overrides."""
+    __tablename__ = "tenant_agent_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    agent_id = Column(String, ForeignKey("agent_definitions.id", ondelete="CASCADE"), nullable=False, index=True)
+    is_enabled = Column(Boolean, nullable=False, default=True)
+    system_prompt_override = Column(Text, nullable=True)  # Tenant-specific Jinja2 prompt
+    tool_overrides = Column(Text, nullable=True)  # JSON list of tool IDs (replaces default_tools)
+    extra_config = Column(Text, nullable=True)  # JSON dict for additional settings
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "agent_id", name="uq_swarm_tenant_agent_config"),
+    )
+
+
+class TenantToolConfig(Base, TenantScopedMixin):
+    """Per-tenant tool configuration (enable/disable + settings)."""
+    __tablename__ = "tenant_tool_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tool_id = Column(String, ForeignKey("tool_definitions.id", ondelete="CASCADE"), nullable=False, index=True)
+    is_enabled = Column(Boolean, nullable=False, default=True)
+    config = Column(Text, nullable=True)  # JSON dict for tool-specific tenant config (API keys, etc.)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "tool_id", name="uq_tenant_tool_config"),
+    )
+
+
+class ContactConsent(Base):
+    """DSGVO-compliant consent tracking per contact per channel."""
+    __tablename__ = "contact_consents"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    contact_id = Column(Integer, nullable=False)
+    channel = Column(String(50), nullable=False)
+    consent_given = Column(Boolean, nullable=False, default=True)
+    given_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    consent_source = Column(String(50), nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    optin_token = Column(String(255), nullable=True, unique=True)
+
+
+class CampaignOffer(Base):
+    """Tenant-defined opt-in offers — each maps a URL slug to a confirmation message + optional attachment."""
+    __tablename__ = "campaign_offers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    slug = Column(String(64), nullable=False)          # URL param value, e.g. "preisliste"
+    name = Column(String(128), nullable=False)          # Admin label, e.g. "Preisliste Download"
+    confirmation_message = Column(Text, nullable=False) # Sent after confirmed optin
+    attachment_url = Column(String(512), nullable=True)
+    attachment_filename = Column(String(256), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (UniqueConstraint("tenant_id", "slug", name="uq_campaign_offer_slug"),)
+
+
+class AgentTeam(Base, TenantScopedMixin):
+    """A named group of agents that work together under a shared orchestrator."""
+    __tablename__ = "agent_teams"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4()))
+    name = Column(String(64), nullable=False, index=True)  # slug
+    display_name = Column(String(128), nullable=False)
+    description = Column(Text, nullable=True)
+    agent_ids = Column(JSON, nullable=False, default=list)   # list of AgentDefinition IDs
+    orchestrator_name = Column(String(64), nullable=True)    # optional OrchestratorDefinition.name
+    status = Column(String(16), nullable=False, default="ACTIVE")  # ACTIVE | PAUSED | DISABLED
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("name", "tenant_id", name="uq_agent_team_name_tenant"),
+    )
+
+
+# Orchestration layer
+from app.orchestration.models import OrchestratorDefinition, OrchestratorVersion, OrchestratorTenantOverride  # noqa: F401,E402

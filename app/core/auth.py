@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+import structlog
 from fastapi import Cookie, Header, HTTPException
 
 from app.core.db import SessionLocal, Base, engine
@@ -17,6 +18,28 @@ from config.settings import get_settings
 
 
 ALLOWED_ROLES = {"system_admin", "tenant_admin", "tenant_user"}
+
+logger = structlog.get_logger()
+
+# Issue #28: Module-level lazy singleton for the token blacklist Redis connection.
+# Avoids creating a new connection on every request.
+_blacklist_redis_client = None
+
+
+def _get_blacklist_redis():
+    """Return the module-level Redis singleton for the token blacklist.
+
+    Lazily initialised on first call so that tests and imports don't require Redis.
+    """
+    global _blacklist_redis_client
+    if _blacklist_redis_client is None:
+        import redis as _redis
+        _blacklist_redis_client = _redis.from_url(
+            get_settings().redis_url,
+            decode_responses=True,
+            socket_timeout=1,
+        )
+    return _blacklist_redis_client
 
 
 @dataclass
@@ -182,10 +205,8 @@ def _check_token_blacklist(payload: dict) -> None:
     if not jti or tenant_id is None:
         return
     try:
-        import redis as _redis
-        from config.settings import get_settings as _gs
         from app.core.redis_keys import jti_blacklist_key, user_blacklisted_key
-        r = _redis.from_url(_gs().redis_url, decode_responses=True, socket_timeout=1)
+        r = _get_blacklist_redis()
         if r.exists(jti_blacklist_key(tenant_id, jti)):
             raise HTTPException(status_code=401, detail="Token has been revoked")
         if user_id and r.exists(user_blacklisted_key(tenant_id, user_id)):
@@ -312,14 +333,25 @@ def invalidate_user_sessions(user_id: int, tenant_id: int, ttl_seconds: int = 43
     Because tokens are stateless, we cannot enumerate them. Instead we set a Redis key
     that get_current_user() checks on every request. TTL matches max token TTL (12h default).
     """
+    # Issue #19: Fail-secure — Redis errors are fatal here. A failed invalidation means
+    # a revoked user could retain access, which is a security violation.
     try:
-        import redis as _redis
-        from config.settings import get_settings as _gs
         from app.core.redis_keys import user_blacklisted_key
-        r = _redis.from_url(_gs().redis_url, decode_responses=True, socket_timeout=2)
+        r = _get_blacklist_redis()
         r.setex(user_blacklisted_key(tenant_id, user_id), ttl_seconds, "1")
-    except Exception:
-        pass  # Non-fatal — token will expire naturally after TTL
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "auth.session_invalidation_failed",
+            user_id=user_id,
+            tenant_id=tenant_id,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Session invalidation failed — please try again",
+        ) from exc
 
 
 def ensure_default_tenant_and_admin() -> None:
@@ -352,3 +384,13 @@ def ensure_default_tenant_and_admin() -> None:
             db.commit()
     finally:
         db.close()
+
+
+def _warn_legacy_auth_active() -> None:
+    """Emit a visible warning when legacy auth transition mode is active."""
+    import sys
+    print(
+        "WARNING: Legacy auth transition mode is active. "
+        "Disable allow_header_fallback before production deployment.",
+        file=sys.stderr,
+    )

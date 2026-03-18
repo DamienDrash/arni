@@ -41,6 +41,11 @@ class WhatsAppClient:
         self.waha_api_key = waha_api_key
         self.session_name = session_name
 
+    @property
+    def app_secret(self) -> str:
+        """Public read-only access to the HMAC secret (used by webhook router)."""
+        return self._app_secret
+
     async def send_text(self, to: str, body: str) -> dict[str, Any]:
         """Send a text message to a WhatsApp user."""
         if self.waha_api_url:
@@ -88,6 +93,34 @@ class WhatsAppClient:
                 logger.error("whatsapp.waha_send_failed", status=response.status_code, body=response.text)
                 raise RuntimeError(error_detail)
             return response.json()
+
+    async def send_document(
+        self,
+        to: str,
+        document_url: str,
+        filename: str = "document.pdf",
+        caption: str = "",
+    ) -> dict[str, Any]:
+        """Send a document/PDF via WhatsApp Cloud API.
+
+        The document_url must be a publicly accessible URL.
+        """
+        if self.waha_api_url:
+            return await self._send_waha(to, f"[Document: {filename}] {document_url}")
+
+        payload: dict[str, Any] = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to,
+            "type": "document",
+            "document": {
+                "link": document_url,
+                "filename": filename,
+            },
+        }
+        if caption:
+            payload["document"]["caption"] = caption[:1024]  # WA limit
+        return await self._send(payload)
 
     async def send_template(
         self,
@@ -159,6 +192,12 @@ class WhatsAppClient:
             # Ideal: Bridge supports templates, or we render text here
             tmpl_name = payload.get("template", {}).get("name", "unknown")
             text = f"[TEMPLATE: {tmpl_name}] Please reply to continue."
+        elif msg_type == "document":
+            doc = payload.get("document", {})
+            link = doc.get("link", "")
+            fname = doc.get("filename", "document")
+            caption = doc.get("caption", "")
+            text = f"[Document: {fname}] {caption} {link}".strip()
         elif msg_type == "interactive":
              text = "[INTERACTIVE MENU] (Not supported in Bridge v1)"
 

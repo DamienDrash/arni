@@ -12,7 +12,7 @@ import structlog
 from app.core.db import SessionLocal
 from app.core.models import ChatMessage, AuditLog
 from app.gateway.persistence import persistence
-from app.memory.librarian import Librarian
+from app.memory.librarian_v2 import LibrarianWorker
 
 logger = structlog.get_logger()
 
@@ -23,7 +23,7 @@ async def run_data_retention_cleanup() -> dict:
     
     try:
         # 1. Archive old sessions via Librarian (Titan Upgrade)
-        librarian = Librarian()
+        librarian = LibrarianWorker()
         await librarian.run_archival_cycle()
         
         # 2. Load retention settings from system tenant

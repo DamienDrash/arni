@@ -50,6 +50,7 @@ _STARTER_DEFAULTS: dict[str, object] = {
     "white_label_enabled": False,
     "sla_guarantee_enabled": False,
     "on_premise_enabled": False,
+    "agent_teams_enabled": False,
     "ai_image_generations_per_month": 0,
     "ai_image_previews_per_month": 0,
     "brand_style_enabled": False,
@@ -88,7 +89,15 @@ class FeatureGate:
             finally:
                 db.close()
         except Exception as exc:
-            logger.warning("feature_gate.plan_load_failed", tenant_id=self._tenant_id, error=str(exc))
+            logger.error(
+                "feature_gate.plan_load_failed_critical",
+                tenant_id=self._tenant_id,
+                error=str(exc),
+            )
+            # Distinguish: real DB failure vs. tenant has no plan.
+            # In both cases fall back to Starter defaults so the tenant is not hard-blocked,
+            # but emit an alert-level log so monitoring picks it up.
+            logger.warning("feature_gate.falling_back_to_starter", tenant_id=self._tenant_id)
         return dict(_STARTER_DEFAULTS)
 
     def _load_active_addons(self) -> set[str]:
@@ -537,6 +546,7 @@ def seed_plans() -> None:
                 "white_label_enabled": False,
                 "sla_guarantee_enabled": False,
                 "on_premise_enabled": False,
+                "agent_teams_enabled": False,
                 "allowed_llm_providers_json": '["groq"]',
                 "token_price_per_1k_cents": 0,
                 "ai_image_generations_per_month": 5,
@@ -581,6 +591,7 @@ def seed_plans() -> None:
                 "white_label_enabled": False,
                 "sla_guarantee_enabled": False,
                 "on_premise_enabled": False,
+                "agent_teams_enabled": False,
                 "allowed_llm_providers_json": '["groq"]',
                 "token_price_per_1k_cents": 15,
                 "ai_image_generations_per_month": 0,
@@ -626,6 +637,7 @@ def seed_plans() -> None:
                 "white_label_enabled": False,
                 "sla_guarantee_enabled": False,
                 "on_premise_enabled": False,
+                "agent_teams_enabled": False,
                 "allowed_llm_providers_json": '["groq", "mistral", "openai"]',
                 "token_price_per_1k_cents": 10,
                 "ai_image_generations_per_month": 25,
@@ -671,6 +683,7 @@ def seed_plans() -> None:
                 "white_label_enabled": False,
                 "sla_guarantee_enabled": False,
                 "on_premise_enabled": False,
+                "agent_teams_enabled": False,
                 "allowed_llm_providers_json": '["groq", "mistral", "openai", "anthropic", "gemini"]',
                 "token_price_per_1k_cents": 7,
                 "ai_image_generations_per_month": 200,
@@ -715,6 +728,7 @@ def seed_plans() -> None:
                 "white_label_enabled": True,
                 "sla_guarantee_enabled": True,
                 "on_premise_enabled": True,
+                "agent_teams_enabled": True,
                 "allowed_llm_providers_json": '["groq", "mistral", "openai", "anthropic", "gemini"]',
                 "token_price_per_1k_cents": 5,
                 "ai_image_generations_per_month": -1,

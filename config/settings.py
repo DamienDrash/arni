@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     auth_secret: str = "change-me-long-random-secret"
     auth_token_ttl_hours: int = 12
     oidc_enabled: bool = False
+    campaign_webhook_secret: str | None = None  # HMAC secret for campaign delivery webhooks
 
     # --- WhatsApp Bridge (Global Service Config) ---
     bridge_mode: str = "production"

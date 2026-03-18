@@ -11,6 +11,7 @@ Security Principles:
 - All violations are logged for audit
 """
 
+import asyncio
 import hashlib
 import hmac
 import re
@@ -276,6 +277,34 @@ def get_rate_limiter() -> RateLimiter:
     return _rate_limiter
 
 
+# Issue #27: Per-IP token buckets for /admin/ endpoints (60 req/min = 1 req/s refill).
+_admin_ip_buckets: dict[str, "TokenBucket"] = defaultdict(
+    lambda: TokenBucket(capacity=60, refill_rate=1.0)
+)
+
+
+async def _rate_limiter_cleanup_loop() -> None:
+    """Background task: clean up stale token buckets every 5 minutes."""
+    while True:
+        await asyncio.sleep(300)
+        try:
+            limiter = get_rate_limiter()
+            removed = limiter.cleanup_stale_buckets()
+            if removed:
+                logger.info("security.rate_limiter.cleanup", removed=removed)
+        except Exception as exc:
+            logger.warning("security.rate_limiter.cleanup_error", error=str(exc))
+
+
+async def start_rate_limiter_cleanup() -> None:
+    """Rate-limiter cleanup coroutine for use as an asyncio background task.
+
+    Call via asyncio.create_task(start_rate_limiter_cleanup()) from the
+    application lifespan (startup event). Issue #27.
+    """
+    await _rate_limiter_cleanup_loop()
+
+
 class SecurityMiddleware(BaseHTTPMiddleware):
     """Gateway security middleware that enforces rate limiting on all requests.
 
@@ -295,6 +324,25 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         # Skip for non-webhook internal API calls (they use JWT auth)
         if not request.url.path.startswith(("/webhook", "/api/v1/webhook")):
+            client_ip = request.client.host if request.client else "unknown"
+
+            # Issue #18: Rate-limit /admin/ paths — 60 req/min per IP
+            if request.url.path.startswith("/admin/"):
+                if not _admin_ip_buckets[client_ip].consume():
+                    retry_after = _admin_ip_buckets[client_ip].retry_after
+                    logger.warning(
+                        "security.rate_limit.admin_rejected",
+                        ip=client_ip,
+                        path=request.url.path,
+                        retry_after=retry_after,
+                    )
+                    return Response(
+                        content=f'{{"detail":"Rate limit exceeded (admin)","retry_after":{retry_after:.1f}}}',
+                        status_code=429,
+                        media_type="application/json",
+                        headers={"Retry-After": str(int(retry_after) + 1)},
+                    )
+
             return await call_next(request)
 
         limiter = get_rate_limiter()

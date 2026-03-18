@@ -31,10 +31,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
-from app.core.db import Base
+from app.core.db import Base, FlexibleJSON
 
 
 # ─── Enums ───────────────────────────────────────────────────────────────────
@@ -96,7 +95,7 @@ class IntegrationDefinition(Base):
         nullable=False,
         default=AuthType.API_KEY.value,
     )
-    config_schema = Column(JSONB, nullable=True)  # JSON Schema for setup fields
+    config_schema = Column(FlexibleJSON, nullable=True)  # JSON Schema for setup fields
     adapter_class = Column(String(255), nullable=True)  # e.g., "app.integrations.adapters.magicline_adapter.MagiclineAdapter"
     skill_file = Column(String(255), nullable=True)  # e.g., "skills/crm/magicline.SKILL.md"
     is_public = Column(Boolean, default=True, nullable=False)
@@ -142,8 +141,8 @@ class CapabilityDefinition(Base):
     id = Column(String(64), primary_key=True)  # e.g., "crm.customer.search"
     name = Column(String(100), nullable=False)  # Human-readable
     description = Column(Text, nullable=True)
-    input_schema = Column(JSONB, nullable=True)  # JSON Schema for LLM tool calling params
-    output_schema = Column(JSONB, nullable=True)  # JSON Schema for return data
+    input_schema = Column(FlexibleJSON, nullable=True)  # JSON Schema for LLM tool calling params
+    output_schema = Column(FlexibleJSON, nullable=True)  # JSON Schema for return data
     is_destructive = Column(Boolean, default=False, nullable=False)
     category = Column(String(32), nullable=True)  # Group: "crm", "booking", etc.
 
@@ -238,7 +237,7 @@ class TenantIntegration(Base):
         default=IntegrationStatus.PENDING_SETUP.value,
     )
     config_encrypted = Column(Text, nullable=True)  # Encrypted JSON with credentials
-    config_meta = Column(JSONB, nullable=True)  # Non-sensitive config metadata
+    config_meta = Column(FlexibleJSON, nullable=True)  # Non-sensitive config metadata
     enabled = Column(Boolean, default=True, nullable=False)
     last_health_check = Column(DateTime, nullable=True)
     last_error = Column(Text, nullable=True)
@@ -348,8 +347,8 @@ class SyncLog(Base):
     records_unchanged = Column(Integer, nullable=False, default=0)
     records_failed = Column(Integer, nullable=False, default=0)
     error_message = Column(Text, nullable=True)
-    error_details = Column(JSONB, nullable=True)
-    metadata_json = Column(JSONB, nullable=True)
+    error_details = Column(FlexibleJSON, nullable=True)
+    metadata_json = Column(FlexibleJSON, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
@@ -446,7 +445,7 @@ class WebhookEndpoint(Base):
     endpoint_path = Column(String(255), nullable=False, unique=True)
     secret_token = Column(String(255), nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
-    events_filter = Column(JSONB, nullable=True)
+    events_filter = Column(FlexibleJSON, nullable=True)
     last_received_at = Column(DateTime, nullable=True)
     total_received = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

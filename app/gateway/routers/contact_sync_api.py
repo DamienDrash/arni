@@ -170,7 +170,7 @@ def save_integration(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error("contact_sync_api.save_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Fehler beim Speichern: {str(e)}")
+        raise HTTPException(status_code=500, detail="Interner Serverfehler")
 
 
 @router.put("/integrations/{integration_id}/toggle")
@@ -221,8 +221,8 @@ def delete_integration(
         result = core.delete_integration(user.tenant_id, integration_id)
         return result
     except Exception as e:
-        logger.error("contact_sync_api.delete_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("contact_sync_api.delete_failed", error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="Interner Serverfehler")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -456,7 +456,8 @@ async def receive_webhook(
     # Parse payload
     try:
         payload = await request.json()
-    except Exception:
+    except Exception as e:
+        logger.warning("contact_sync_api.webhook_parse_failed", error=str(e))
         payload = {}
 
     # Collect headers
