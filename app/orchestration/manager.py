@@ -70,9 +70,9 @@ class OrchestratorManager:
             "DISABLED": set(),
         }
         orch = self._get_or_404(name)
-        if new_state not in valid_transitions.get(orch.state, set()):
-            raise HTTPException(422, f"Invalid transition {orch.state} \u2192 {new_state}")
-        orch.state = new_state
+        if new_state not in valid_transitions.get(orch.status, set()):
+            raise HTTPException(422, f"Invalid transition {orch.status} \u2192 {new_state}")
+        orch.status = new_state
         orch.updated_at = datetime.now(timezone.utc)
         orch.updated_by = changed_by
         self._db.commit()

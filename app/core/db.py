@@ -11,12 +11,53 @@ import contextvars
 import os
 from typing import AsyncGenerator, Generator
 
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import create_engine, event, text, Column, Integer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import Session, declarative_base, sessionmaker, Query
 
 # Tenant context for Row Level Security (RLS) or logging
 tenant_context = contextvars.ContextVar("tenant_context", default=None)
+
+class TenantScopedMixin:
+    """Mixin to add tenant_id to models and mark them as tenant-scoped."""
+    __tenant_scoped__ = True
+    tenant_id = Column(Integer, index=True, nullable=True)
+
+class TenantQuery(Query):
+    """Custom Query class that automatically filters by tenant_id."""
+
+    def _where_tenant(self):
+        # We check if we have already applied the tenant filter to avoid recursion.
+        # However, _where_tenant returns a new Query object, so we must be careful.
+        # Instead of overriding methods and calling them again, we can just return
+        # the filtered query and ensure we don't call the same overridden method.
+        
+        tid = tenant_context.get()
+        if tid is not None:
+            for desc in self.column_descriptions:
+                entity = desc.get("entity")
+                if entity and getattr(entity, "__tenant_scoped__", False):
+                    # Check if the filter is already applied by looking at the statement
+                    # This is complex in SQLAlchemy, a simpler way is to use a flag on the query.
+                    if getattr(self, "_tenant_filtered", False):
+                        return self
+                    
+                    filtered_query = self.filter(entity.tenant_id == tid)
+                    filtered_query._tenant_filtered = True
+                    return filtered_query
+        return self
+
+    def __iter__(self):
+        return super(TenantQuery, self._where_tenant()).__iter__()
+
+    def all(self):
+        return super(TenantQuery, self._where_tenant()).all()
+
+    def first(self):
+        return super(TenantQuery, self._where_tenant()).first()
+
+    def count(self):
+        return super(TenantQuery, self._where_tenant()).count()
 
 # Mandatory PostgreSQL Connection
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
@@ -48,7 +89,12 @@ else:
     engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 
 # Sync SessionLocal
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(
+    autocommit=False, 
+    autoflush=False, 
+    bind=engine,
+    query_cls=TenantQuery
+)
 
 
 # ─── Async Engine (for request handling) ─────────────────────────────────────────
@@ -114,12 +160,31 @@ def set_tenant_id_context(dbapi_connection, connection_record, connection_proxy)
     finally:
         cursor.close()
 
+from sqlalchemy.types import TypeDecorator, JSON as sa_JSON
+try:
+    from sqlalchemy.dialects.postgresql import JSONB as sa_JSONB
+except ImportError:
+    sa_JSONB = sa_JSON
+
+# Flexible JSON type for cross-db compatibility (JSONB on Postgres, JSON on SQLite)
+FlexibleJSON = sa_JSONB if engine.name == "postgresql" else sa_JSON
+
 # Base class for models
 Base = declarative_base()
 
 def run_migrations():
-    """Bootstrap the database schema. In production, use Alembic instead."""
+    """Bootstrap the database schema and run pending Alembic migrations."""
     Base.metadata.create_all(bind=engine)
+    try:
+        from alembic.config import Config
+        from alembic import command
+        import os
+        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "..", "..", "alembic.ini"))
+        alembic_cfg.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
+        command.upgrade(alembic_cfg, "head")
+    except Exception as _alembic_err:
+        import structlog
+        structlog.get_logger().warning("db.alembic_upgrade_failed", error=str(_alembic_err))
 
 
 # Register tenant isolation interceptor on the sync session factory

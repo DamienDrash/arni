@@ -48,7 +48,7 @@ def _orch_summary(orch) -> dict:
         "display_name": orch.display_name,
         "category": orch.category,
         "scope": orch.scope,
-        "state": orch.state,
+        "state": orch.status,
         "config_version": orch.config_version,
         "updated_at": orch.updated_at.isoformat() if orch.updated_at else None,
     }
