@@ -81,7 +81,7 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
 
     if (!authReady) return null;
 
-    const publicPaths = ["/", "/features", "/pricing", "/login", "/register", "/legal", "/impressum", "/datenschutz", "/agb", "/forgot-password", "/reset-password", "/verify-email", "/accept-invitation", "/mfa-verify"];
+    const publicPaths = ["/", "/features", "/pricing", "/login", "/register", "/legal", "/impressum", "/datenschutz", "/agb", "/forgot-password", "/reset-password", "/verify-email", "/accept-invitation", "/mfa-verify", "/subscribe", "/unsubscribe"];
     const isPublic = publicPaths.some(p => (pathname || "/").startsWith(p) && (p !== "/" || (pathname || "/") === "/"));
 
     if (isPublic) {
