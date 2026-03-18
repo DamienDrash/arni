@@ -181,7 +181,7 @@ def run_migrations():
         import os
         alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "..", "..", "alembic.ini"))
         alembic_cfg.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
-        command.upgrade(alembic_cfg, "head")
+        command.upgrade(alembic_cfg, "2026_03_18_merge_heads")
     except Exception as _alembic_err:
         import structlog
         structlog.get_logger().warning("db.alembic_upgrade_failed", error=str(_alembic_err))
