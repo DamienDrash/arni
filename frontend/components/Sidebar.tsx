@@ -33,6 +33,7 @@ import {
   CalendarDays,
   Plug,
   GitBranch,
+  Gift,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
@@ -89,6 +90,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
       title: "KAMPAGNEN",
       items: [
         { name: "Kampagnen", href: "/campaigns", icon: Megaphone },
+        { name: "Opt-in Angebote", href: "/campaigns/offers", icon: Gift },
         { name: "Vorlagen", href: "/templates", icon: Layers },
         { name: "Media-Bibliothek", href: "/media", icon: ImageIcon },
         { name: "Automations", href: "/automations", icon: Zap, feature: "automation" },
@@ -127,7 +129,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
       title: "AI SWARM",
       items: [
         { name: "Orchestratoren", href: "/swarm/orchestrators", icon: GitBranch },
-        { name: "Agent Teams", href: "/agent-teams", icon: Cpu },
+        { name: "Agent Teams", href: "/swarm/agent-teams", icon: Cpu },
         { name: "Agents", href: "/swarm/agents", icon: Bot },
         { name: "Tools", href: "/swarm/tools", icon: Plug },
       ],

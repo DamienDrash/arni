@@ -38,6 +38,53 @@ def _resolve_contact_id(db: Session, tenant_id: int, phone: str) -> int | None:
         return None
 
 
+async def _send_offer_confirmation(
+    db: Session,
+    tenant_id: int,
+    contact_id: int,
+    channel: str,
+    offer_slug: str,
+) -> bool:
+    """Send the offer-specific confirmation message. Returns True if sent."""
+    try:
+        from app.core.models import CampaignOffer
+        offer = db.query(CampaignOffer).filter(
+            CampaignOffer.tenant_id == tenant_id,
+            CampaignOffer.slug == offer_slug,
+            CampaignOffer.is_active.is_(True),
+        ).first()
+        if not offer:
+            return False
+
+        # Build message text
+        message = offer.confirmation_message
+        if offer.attachment_url:
+            message = f"{message}\n\n{offer.attachment_url}"
+
+        # Resolve phone for dispatch
+        from app.core.contact_models import Contact
+        contact = db.query(Contact).filter(Contact.id == contact_id).first()
+        if not contact:
+            return False
+
+        phone = contact.phone
+        if channel in ("whatsapp", "sms") and phone:
+            from app.integrations.whatsapp import WhatsAppClient
+            try:
+                client = WhatsAppClient()
+                await client.send_text(phone, message)
+                logger.info("offer_confirmation.sent", tenant_id=tenant_id, offer_slug=offer_slug, channel=channel)
+                return True
+            except Exception as e:
+                logger.warning("offer_confirmation.dispatch_failed", error=str(e))
+                return False
+
+        return False
+    except Exception as e:
+        logger.warning("offer_confirmation.error", error=str(e))
+        return False
+
+
 async def handle_campaign_reply(
     tenant_id: int,
     phone: str,
@@ -116,15 +163,26 @@ async def handle_campaign_reply(
             channel=channel,
         )
 
-        # Enqueue the actual send
-        from app.campaign_engine.send_queue import enqueue_send_job
-        enqueue_send_job(
-            campaign_id=pending.campaign_id,
-            recipient_id=pending.id,
-            contact_id=contact_id,
-            tenant_id=tenant_id,
-            channel=channel,
-        )
+        # Deliver offer-specific confirmation or enqueue default campaign send
+        offer_sent = False
+        if pending.offer_slug:
+            offer_sent = await _send_offer_confirmation(
+                db=db,
+                tenant_id=tenant_id,
+                contact_id=contact_id,
+                channel=channel,
+                offer_slug=pending.offer_slug,
+            )
+
+        if not offer_sent:
+            from app.campaign_engine.send_queue import enqueue_send_job
+            enqueue_send_job(
+                campaign_id=pending.campaign_id,
+                recipient_id=pending.id,
+                contact_id=contact_id,
+                tenant_id=tenant_id,
+                channel=channel,
+            )
 
         return "optin"
 

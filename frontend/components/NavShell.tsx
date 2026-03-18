@@ -52,6 +52,7 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
         "/settings/account": { title: t("settings.account.title"), subtitle: t("settings.account.subtitle") },
         "/settings/general": { title: t("settings.general.title"), subtitle: t("settings.general.subtitle") },
         "/settings/ai": { title: t("settings.aiEngine"), subtitle: "" },
+        "/swarm/agent-teams": { title: "Swarm Agent Teams", subtitle: "" },
         "/login": { title: t("common.login"), subtitle: "" },
     }), [t, language]); // Dependency on language is CRITICAL
 
@@ -64,7 +65,7 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null);
 
     useEffect(() => {
-        const publicPaths = ["/", "/features", "/pricing", "/login", "/register", "/legal", "/impressum", "/datenschutz", "/agb", "/forgot-password", "/reset-password", "/verify-email", "/accept-invitation", "/mfa-verify"];
+        const publicPaths = ["/", "/features", "/pricing", "/login", "/register", "/legal", "/impressum", "/datenschutz", "/agb", "/forgot-password", "/reset-password", "/verify-email", "/accept-invitation", "/mfa-verify", "/subscribe", "/unsubscribe"];
         const isPublic = publicPaths.some(p => (pathname || "/").startsWith(p) && (p !== "/" || (pathname || "/") === "/"));
 
         const cached = getStoredUser();

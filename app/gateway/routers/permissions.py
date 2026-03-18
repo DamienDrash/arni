@@ -222,7 +222,8 @@ async def get_permissions(
             "/swarm/agents": True,
             "/swarm/tools": True,
             "/swarm/orchestrators": True,
-            "/agent-teams": True,
+            "/swarm/agent-teams": True,
+            "/campaigns/offers": True,
         }
     else:
         # Standard SaaS logic for Tenants
@@ -313,6 +314,7 @@ async def get_permissions(
             "/revenue": False,
             "/settings/ai": True,
             "/campaigns": True,
+            "/campaigns/offers": True,
             "/templates": True,
             "/media": True,
             "/automations": features_data.get("automation", False),

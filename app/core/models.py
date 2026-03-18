@@ -1,15 +1,15 @@
 import enum as _enum_module
 import uuid as _uuid
 from datetime import datetime, timezone
-from sqlalchemy import BigInteger, Column, Enum as SQLEnum, Index, Integer, String, DateTime, Text, Boolean, Date, UniqueConstraint, ForeignKey, Float
-from app.core.db import Base
+from sqlalchemy import BigInteger, Column, Enum as SQLEnum, Index, Integer, String, DateTime, Text, Boolean, Date, UniqueConstraint, ForeignKey, Float, JSON
+import sqlalchemy as sa
+from app.core.db import Base, TenantScopedMixin
 
-class ChatSession(Base):
+class ChatSession(Base, TenantScopedMixin):
     __tablename__ = "chat_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     platform = Column(String)
     created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     last_message_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
@@ -22,32 +22,29 @@ class ChatSession(Base):
     member_id = Column(String, nullable=True)  # Link to external Member DB (Sprint 13)
 
 
-class ChatMessage(Base):
+class ChatMessage(Base, TenantScopedMixin):
     __tablename__ = "chat_messages"
 
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String, index=True)  # Linking to user_id for simplicity across platforms
-    tenant_id = Column(Integer, index=True, nullable=False)
     role = Column(String)  # "user" or "assistant"
     content = Column(Text)
     timestamp = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
     metadata_json = Column(Text, nullable=True)  # JSON string for extra data
 
 
-class Setting(Base):
+class Setting(Base, TenantScopedMixin):
     __tablename__ = "settings"
 
-    tenant_id = Column(Integer, primary_key=True, index=True, nullable=False)
     key = Column(String, primary_key=True, index=True)
     value = Column(String)
     description = Column(String, nullable=True)
     updated_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
-class TenantConfig(Base):
+class TenantConfig(Base, TenantScopedMixin):
     __tablename__ = "tenant_configs"
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     key = Column(String, index=True, nullable=False)
     value = Column(Text, nullable=True)
     updated_at = Column(
@@ -56,11 +53,10 @@ class TenantConfig(Base):
         onupdate=lambda: datetime.now(timezone.utc)
     )
 
-class MemberFeedback(Base):
+class MemberFeedback(Base, TenantScopedMixin):
     """Stores user satisfaction feedback after a chat session."""
     __tablename__ = "member_feedback"
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     session_id = Column(String, index=True, nullable=False)
     rating = Column(Integer, nullable=False)  # e.g. 1-5 or 1-10
     comment = Column(Text, nullable=True)
@@ -101,11 +97,10 @@ class Tenant(Base):
     onboarding_completed_at = Column(DateTime(timezone=True),nullable=True)
 
 
-class UserAccount(Base):
+class UserAccount(Base, TenantScopedMixin):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String, nullable=True)
     role = Column(String, default="tenant_user", nullable=False)  # system_admin|tenant_admin|tenant_user
@@ -160,11 +155,10 @@ class AuditLog(Base):
     created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), index=True)
 
 
-class StudioMember(Base):
+class StudioMember(Base, TenantScopedMixin):
     __tablename__ = "studio_members"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     customer_id = Column(Integer, index=True, nullable=False)
     member_number = Column(String, index=True, nullable=True)
     first_name = Column(String, nullable=False)
@@ -202,12 +196,11 @@ class StudioMember(Base):
     )
 
 
-class MemberCustomColumn(Base):
+class MemberCustomColumn(Base, TenantScopedMixin):
     """Dynamic custom columns for member table (PR 2)."""
     __tablename__ = "member_custom_columns"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     name = Column(String, nullable=False)        # Display name "Schuhgröße"
     slug = Column(String, nullable=False)        # "schuhgroesse"
     field_type = Column(String, nullable=False)  # text, number, date, boolean
@@ -220,12 +213,11 @@ class MemberCustomColumn(Base):
     )
 
 
-class MemberImportLog(Base):
+class MemberImportLog(Base, TenantScopedMixin):
     """Log of bulk import/sync operations (PR 2)."""
     __tablename__ = "member_import_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, index=True, nullable=False)
     source = Column(String, nullable=False)      # csv, shopify, magicline
     status = Column(String, nullable=False)      # running, completed, failed
     total_rows = Column(Integer, default=0)
@@ -347,12 +339,11 @@ class AddonDefinition(Base):
     )
 
 
-class TenantAddon(Base):
+class TenantAddon(Base, TenantScopedMixin):
     """Active add-ons for a tenant (e.g., extra channel, white-label)."""
     __tablename__ = "tenant_addons"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     addon_slug = Column(String, nullable=False)  # "voice_pipeline", "churn_prediction"
     stripe_subscription_item_id = Column(String, nullable=True)
     quantity = Column(Integer, default=1)
@@ -391,13 +382,12 @@ class Subscription(Base):
     )
 
 
-class UsageRecord(Base):
+class UsageRecord(Base, TenantScopedMixin):
     """Monthly usage counters per tenant for plan enforcement and billing."""
 
     __tablename__ = "usage_records"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     period_year = Column(Integer, nullable=False)
     period_month = Column(Integer, nullable=False)  # 1–12
 
@@ -417,12 +407,11 @@ class UsageRecord(Base):
     )
 
 
-class TenantLLMConfig(Base):
+class TenantLLMConfig(Base, TenantScopedMixin):
     """Per-tenant LLM provider/model selection."""
     __tablename__ = "tenant_llm_configs"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     provider_id = Column(String, nullable=False)     # e.g. "openai", "anthropic"
     provider_name = Column(String, nullable=False)    # e.g. "OpenAI"
     model_id = Column(String, nullable=False)         # e.g. "gpt-4o"
@@ -436,12 +425,11 @@ class TenantLLMConfig(Base):
     )
 
 
-class TokenPurchase(Base):
+class TokenPurchase(Base, TenantScopedMixin):
     """Token top-up purchases by tenants."""
     __tablename__ = "token_purchases"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     tokens_amount = Column(Integer, nullable=False)
     price_cents = Column(Integer, nullable=False)
     stripe_payment_intent_id = Column(String, nullable=True)
@@ -473,7 +461,7 @@ class ImageCreditPack(Base):
     created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
-class ImageCreditBalance(Base):
+class ImageCreditBalance(Base, TenantScopedMixin):
     """Running credit balance per tenant."""
     __tablename__ = "image_credit_balances"
 
@@ -485,12 +473,11 @@ class ImageCreditBalance(Base):
     updated_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
-class ImageCreditTransaction(Base):
+class ImageCreditTransaction(Base, TenantScopedMixin):
     """Immutable ledger of all credit movements."""
     __tablename__ = "image_credit_transactions"
 
     id = Column(Integer, primary_key=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     delta = Column(Integer, nullable=False)       # positive = credit, negative = debit
     reason = Column(String(50), nullable=False)   # plan_grant | topup | generation | edit | refund
     reference_id = Column(String(200), nullable=True)
@@ -498,12 +485,11 @@ class ImageCreditTransaction(Base):
     created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), index=True)
 
 
-class ImageCreditPurchase(Base):
+class ImageCreditPurchase(Base, TenantScopedMixin):
     """Stripe-backed credit pack purchases."""
     __tablename__ = "image_credit_purchases"
 
     id = Column(Integer, primary_key=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     pack_slug = Column(String(50), nullable=False)
     billing_interval = Column(String(20), nullable=False)  # once | monthly | yearly
     credits_granted = Column(Integer, nullable=False)
@@ -528,11 +514,10 @@ class LLMModelCost(Base):
     updated_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
-class LLMUsageLog(Base):
+class LLMUsageLog(Base, TenantScopedMixin):
     """Per-request LLM usage log with cost attribution per tenant."""
     __tablename__ = "llm_usage_log"
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     user_id = Column(String, nullable=True)                         # WhatsApp/Telegram user or admin email
     agent_name = Column(String, nullable=True)                      # e.g. "persona", "sales", "medic"
     provider_id = Column(String, nullable=False)
@@ -549,13 +534,11 @@ class LLMUsageLog(Base):
     created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc), index=True)
 
 
-class Campaign(Base):
+class Campaign(Base, TenantScopedMixin):
     """Marketing campaign / broadcast / scheduled message."""
     __tablename__ = "campaigns"
-    __tenant_scoped__ = True
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
 
@@ -631,12 +614,11 @@ class Campaign(Base):
     )
 
 
-class CampaignTemplate(Base):
+class CampaignTemplate(Base, TenantScopedMixin):
     """Reusable message/email templates for campaigns."""
     __tablename__ = "campaign_templates"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
 
@@ -690,13 +672,12 @@ class CampaignVariant(Base):
     created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
 
 
-class CampaignRecipient(Base):
+class CampaignRecipient(Base, TenantScopedMixin):
     """Individual recipient tracking for campaigns."""
     __tablename__ = "campaign_recipients"
 
     id = Column(Integer, primary_key=True, index=True)
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True, index=True)
     member_id = Column(Integer, ForeignKey("studio_members.id"), nullable=True, index=True)
     contact_id = Column(Integer, nullable=True, index=True)  # v2 contacts reference
     channel = Column(String, nullable=True)  # email | whatsapp | sms | telegram
@@ -714,14 +695,14 @@ class CampaignRecipient(Base):
     current_step = Column(Integer, nullable=True, default=1)  # Current orchestration step
     converted_at = Column(DateTime(timezone=True),nullable=True)             # Conversion timestamp
     conversion_value = Column(Float, nullable=True)            # Conversion value in EUR
+    offer_slug = Column(String(64), nullable=True)             # ?offer= URL param from subscribe page
 
 
-class MemberSegment(Base):
+class MemberSegment(Base, TenantScopedMixin):
     """Reusable member segments for targeting."""
     __tablename__ = "member_segments"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
 
@@ -739,12 +720,11 @@ class MemberSegment(Base):
     )
 
 
-class ScheduledFollowUp(Base):
+class ScheduledFollowUp(Base, TenantScopedMixin):
     """Chat-based scheduled follow-ups for individual members."""
     __tablename__ = "scheduled_follow_ups"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     member_id = Column(Integer, ForeignKey("studio_members.id"), nullable=True, index=True)
 
     # Context
@@ -773,11 +753,10 @@ class ScheduledFollowUp(Base):
 
 # ─── Auth Refactoring: New Tables ───────────────────────────────────────────
 
-class PendingInvitation(Base):
+class PendingInvitation(Base, TenantScopedMixin):
     __tablename__ = "pending_invitations"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     email = Column(String, nullable=False)
     role = Column(String, default="tenant_user", nullable=False)
     token = Column(String, unique=True, nullable=False, index=True)
@@ -825,11 +804,10 @@ class IngestionJobStatus(str, _enum_module.Enum):
     DEAD_LETTER = "dead_letter"
 
 
-class IngestionJob(Base):
+class IngestionJob(Base, TenantScopedMixin):
     __tablename__ = "ingestion_jobs"
 
     id = Column(String(36), primary_key=True, default=lambda: str(_uuid.uuid4()))
-    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     filename = Column(String(500), nullable=False)
     original_filename = Column(String(500), nullable=False)
     mime_type = Column(String(100), nullable=False)
@@ -886,12 +864,11 @@ class AgentDefinition(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
-class TenantAgentConfig(Base):
+class TenantAgentConfig(Base, TenantScopedMixin):
     """Per-tenant agent configuration overrides."""
     __tablename__ = "tenant_agent_configs"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     agent_id = Column(String, ForeignKey("agent_definitions.id", ondelete="CASCADE"), nullable=False, index=True)
     is_enabled = Column(Boolean, nullable=False, default=True)
     system_prompt_override = Column(Text, nullable=True)  # Tenant-specific Jinja2 prompt
@@ -909,12 +886,11 @@ class TenantAgentConfig(Base):
     )
 
 
-class TenantToolConfig(Base):
+class TenantToolConfig(Base, TenantScopedMixin):
     """Per-tenant tool configuration (enable/disable + settings)."""
     __tablename__ = "tenant_tool_configs"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     tool_id = Column(String, ForeignKey("tool_definitions.id", ondelete="CASCADE"), nullable=False, index=True)
     is_enabled = Column(Boolean, nullable=False, default=True)
     config = Column(Text, nullable=True)  # JSON dict for tool-specific tenant config (API keys, etc.)
@@ -946,21 +922,44 @@ class ContactConsent(Base):
     optin_token = Column(String(255), nullable=True, unique=True)
 
 
-class AgentTeam(Base):
+class CampaignOffer(Base):
+    """Tenant-defined opt-in offers — each maps a URL slug to a confirmation message + optional attachment."""
+    __tablename__ = "campaign_offers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    slug = Column(String(64), nullable=False)          # URL param value, e.g. "preisliste"
+    name = Column(String(128), nullable=False)          # Admin label, e.g. "Preisliste Download"
+    confirmation_message = Column(Text, nullable=False) # Sent after confirmed optin
+    attachment_url = Column(String(512), nullable=True)
+    attachment_filename = Column(String(256), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (UniqueConstraint("tenant_id", "slug", name="uq_campaign_offer_slug"),)
+
+
+class AgentTeam(Base, TenantScopedMixin):
     """A named group of agents that work together under a shared orchestrator."""
     __tablename__ = "agent_teams"
 
     id = Column(String(36), primary_key=True, default=lambda: str(__import__("uuid").uuid4()))
-    name = Column(String(64), nullable=False, unique=True, index=True)  # slug
+    name = Column(String(64), nullable=False, index=True)  # slug
     display_name = Column(String(128), nullable=False)
     description = Column(Text, nullable=True)
     agent_ids = Column(JSON, nullable=False, default=list)   # list of AgentDefinition IDs
     orchestrator_name = Column(String(64), nullable=True)    # optional OrchestratorDefinition.name
-    state = Column(String(16), nullable=False, default="ACTIVE")  # ACTIVE | PAUSED | DISABLED
+    status = Column(String(16), nullable=False, default="ACTIVE")  # ACTIVE | PAUSED | DISABLED
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("name", "tenant_id", name="uq_agent_team_name_tenant"),
+    )
 
 
 # Orchestration layer

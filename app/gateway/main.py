@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.gateway.dependencies import redis_bus
-from app.gateway.routers import webhooks, voice, websocket
+from app.gateway.routers import webhooks, websocket
 from app.gateway.routers.billing import router as billing_router
 
 # V2 Billing Router (Refactored)
@@ -298,7 +298,6 @@ app.add_middleware(
 
 # --- Routers ---
 app.include_router(webhooks.router)
-app.include_router(voice.router)
 app.include_router(websocket.router)
 from app.gateway.routers import members_crud as _mc
 app.include_router(_mc.router)
@@ -358,6 +357,10 @@ app.include_router(orchestrators_tenant_router)
 # --- Agent Teams Admin API ---
 from app.gateway.routers.agent_teams import router as agent_teams_router
 app.include_router(agent_teams_router)
+
+# --- Campaign Offers Admin API ---
+from app.gateway.routers.campaign_offers import router as campaign_offers_router
+app.include_router(campaign_offers_router)
 
 # --- Media & Image Provider Routers ---
 try:
