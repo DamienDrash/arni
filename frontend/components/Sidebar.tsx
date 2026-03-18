@@ -58,7 +58,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
   const router = useRouter();
   const { t } = useI18n();
   const [handoffCount, setHandoffCount] = useState(0);
-  const { role, canPage, plan, feature, isTrial, trialDaysRemaining, isTrialExpired } = usePermissions();
+  const { role, canPage, plan, feature, isTrial, trialDaysRemaining, isTrialExpired, loading: permissionsLoading } = usePermissions();
   
   const tenantSections = [
     {
@@ -168,6 +168,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
   }, [isSystemAdmin]);
 
   const allSections = useMemo(() => {
+    if (permissionsLoading) return [];
     const baseSections = isSystemAdmin ? systemSections : tenantSections;
     return baseSections.map((section) => ({
       ...section,
@@ -179,7 +180,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
           badge: item.href === "/escalations" && handoffCount > 0 ? String(handoffCount) : undefined,
         })),
     })).filter((section) => section.items.length > 0);
-  }, [handoffCount, role, isSystemAdmin, canPage, t]);
+  }, [handoffCount, role, isSystemAdmin, canPage, t, permissionsLoading]);
 
   const renderItem = (item: NavItem) => {
     const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
@@ -244,7 +245,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
                     { label: t("sidebar.settings"), href: "/settings" },
                   ]),
             ]
-              .filter((q) => isPathAllowedForRole(role, q.href))
+              .filter((q) => !permissionsLoading && isPathAllowedForRole(role, q.href))
               .filter((q) => canPage(q.href))
               .map((q) => (
               <Link
