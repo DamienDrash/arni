@@ -12,6 +12,20 @@ ALLOWED_MIME_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp"}
 ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
+# Document upload support
+ALLOWED_DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt", ".txt"}
+ALLOWED_DOCUMENT_MIME_TYPES = {
+    ".pdf": "application/pdf",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".doc": "application/msword",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".xls": "application/vnd.ms-excel",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".ppt": "application/vnd.ms-powerpoint",
+    ".txt": "text/plain",
+}
+MAX_DOCUMENT_SIZE = 25 * 1024 * 1024  # 25MB
+
 
 def _validate_tenant_slug(tenant_slug: str) -> None:
     """Raise ValueError if tenant_slug contains path traversal characters."""
@@ -42,6 +56,71 @@ def get_public_url(tenant_slug: str, filename: str) -> str:
     settings = get_settings()
     base = settings.media_public_base_url or settings.gateway_public_url or ""
     return f"{base}/media/tenants/{tenant_slug}/images/{filename}"
+
+
+def get_document_path(tenant_slug: str, filename: str) -> Path:
+    _validate_tenant_slug(tenant_slug)
+    return _get_media_root() / tenant_slug / "documents" / filename
+
+
+def get_document_public_url(tenant_slug: str, filename: str) -> str:
+    from config.settings import get_settings
+    settings = get_settings()
+    base = settings.media_public_base_url or settings.gateway_public_url or ""
+    return f"{base}/media/tenants/{tenant_slug}/documents/{filename}"
+
+
+async def save_document_bytes(
+    data: bytes,
+    tenant_slug: str,
+    original_filename: str,
+) -> tuple[str, int, str]:
+    """Save a document upload. Returns (uuid_filename, size_bytes, mime_type).
+
+    Supports: PDF, DOCX, DOC, XLSX, XLS, PPTX, PPT, TXT. Max 25 MB.
+    Files are stored at data/media/tenants/{slug}/documents/ and served
+    via the existing StaticFiles mount at /media/tenants/{slug}/documents/.
+    """
+    _validate_tenant_slug(tenant_slug)
+
+    size = len(data)
+    if size > MAX_DOCUMENT_SIZE:
+        raise ValueError(f"File too large: {size} bytes (max {MAX_DOCUMENT_SIZE})")
+
+    ext = Path(original_filename).suffix.lower()
+    if ext not in ALLOWED_DOCUMENT_EXTENSIONS:
+        raise ValueError(
+            f"Unsupported document type: {ext}. "
+            f"Allowed: {', '.join(sorted(ALLOWED_DOCUMENT_EXTENSIONS))}"
+        )
+
+    mime_type = ALLOWED_DOCUMENT_MIME_TYPES.get(ext, "application/octet-stream")
+    uuid_name = f"{uuid.uuid4()}{ext}"
+    dest = get_document_path(tenant_slug, uuid_name)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(data)
+
+    logger.info(
+        "media.document_saved",
+        filename=uuid_name,
+        original=original_filename,
+        size=size,
+        tenant_slug=tenant_slug,
+    )
+    return uuid_name, size, mime_type
+
+
+def delete_document(tenant_slug: str, filename: str) -> bool:
+    """Delete a document file from disk."""
+    try:
+        _validate_tenant_slug(tenant_slug)
+        path = get_document_path(tenant_slug, filename)
+        if path.exists():
+            path.unlink()
+            return True
+    except Exception as e:
+        logger.warning("media.document_delete_failed", error=str(e))
+    return False
 
 
 async def save_upload_bytes(data: bytes, tenant_slug: str, original_filename: str) -> tuple[str, int, str]:

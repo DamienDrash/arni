@@ -1,5 +1,6 @@
 """Admin API for Campaign Offers — opt-in lead magnets with URL-param routing."""
 from __future__ import annotations
+import base64
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -12,6 +13,11 @@ from app.core.db import get_db
 from app.core.models import CampaignOffer
 
 router = APIRouter(prefix="/admin/campaign-offers", tags=["campaign-offers"])
+
+
+def _make_subscribe_token(tenant_id: int, campaign_id: int, channel: str) -> str:
+    raw = f"{tenant_id}:{campaign_id}:{channel}"
+    return base64.urlsafe_b64encode(raw.encode()).rstrip(b"=").decode()
 
 
 class OfferBody(BaseModel):
@@ -106,3 +112,26 @@ def delete_offer(offer_id: int, user: AuthContext = Depends(get_current_user), d
         raise HTTPException(404, "Angebot nicht gefunden")
     db.delete(offer)
     db.commit()
+
+
+@router.get("/subscribe-token")
+def get_subscribe_token(
+    channel: str = "whatsapp",
+    campaign_id: int = 0,
+    user: AuthContext = Depends(get_current_user),
+):
+    """Generate a subscribe token for the current tenant.
+
+    Returns the base64url token and the subscribe URL path.
+    The frontend can combine this with the public domain to build copyable links.
+    """
+    valid_channels = {"whatsapp", "email", "sms", "telegram"}
+    if channel not in valid_channels:
+        raise HTTPException(422, f"channel must be one of {valid_channels}")
+    token = _make_subscribe_token(user.tenant_id, campaign_id, channel)
+    return {
+        "token": token,
+        "channel": channel,
+        "campaign_id": campaign_id,
+        "subscribe_path": f"/subscribe/{token}",
+    }

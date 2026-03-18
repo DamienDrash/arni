@@ -117,6 +117,19 @@ class TestStore:
         data = json.loads(raw)
         assert data["confirmation_action"] == {"action": "delete", "id": 99}
 
+    @pytest.mark.anyio
+    async def test_store_with_ttl_override(self, gate, redis_client) -> None:
+        """store() uses the provided ttl_override."""
+        ctx = _make_context()
+        result = _make_result()
+        custom_ttl = 120
+        token = await gate.store(result, ctx, ttl_override=custom_ttl)
+
+        key = f"t{ctx.tenant_id}:confirm:{ctx.member_id}:{token}"
+        ttl = await redis_client.ttl(key)
+        assert ttl > 0
+        assert ttl <= custom_ttl
+
 
 # ── Check Tests ──────────────────────────────────────────────────────────────
 

@@ -24,6 +24,7 @@ from app.swarm.contracts import (
     AgentTask,
     TenantContext,
 )
+from app.orchestration.runtime import DynamicConfigManager
 
 logger = structlog.get_logger()
 
@@ -44,6 +45,7 @@ class LeadAgent:
         """
         self._llm = llm
         self._redis = redis_client
+        self._config_manager = DynamicConfigManager()
 
     async def handle(
         self,
@@ -53,11 +55,12 @@ class LeadAgent:
         """Process a user message through the full swarm pipeline.
 
         Steps:
+        0. Load dynamic tenant configuration (AgentTeam + Orchestrator)
         1. Check ConfirmationGate for pending confirmations
-        2. Classify intent via IntentClassifier
+        2. Classify intent via IntentClassifier (dynamic agent list)
         3. Load agent via DynamicAgentLoader
-        4. Create AgentTask and execute with QA
-        5. If result requires confirmation, store in gate
+        4. Create AgentTask and execute with QA (dynamic QA settings)
+        5. If result requires confirmation, store in gate (dynamic TTL)
 
         Args:
             message: Normalized inbound message.
@@ -72,6 +75,11 @@ class LeadAgent:
             tenant_id=context.tenant_id,
             member_id=context.member_id,
         )
+
+        # Step 0: Load dynamic configuration
+        config = self._config_manager.get_tenant_config(context.tenant_id)
+        agent_team = config.get("agent_team") or {}
+        orch_config = config.get("orchestrator", {}).get("config") or {}
 
         # Step 1: Check for pending confirmation
         if self._redis:
@@ -89,9 +97,11 @@ class LeadAgent:
         # Step 2: Classify intent
         from app.swarm.lead.intent_classifier import classify
 
+        available_agents = self._get_available_agents(agent_team.get("agent_ids", []))
         intent = await classify(
             message=message.content,
             context=context,
+            available_agents=available_agents,
             history=self._build_history(message),
             llm=self._llm,
         )
@@ -132,18 +142,35 @@ class LeadAgent:
         )
 
         # Step 5: Execute with QA
+        # Use orchestrator config overrides if present
+        max_revision_rounds = orch_config.get("max_revision_rounds")
+        
         from app.swarm.qa.profiles import QA_PROFILES, AGENT_QA_PROFILES
         qa_profile_name = AGENT_QA_PROFILES.get(intent.agent_id, "standard")
         qa_profile = QA_PROFILES.get(qa_profile_name, QA_PROFILES["standard"])
 
-        result = await self._execute_with_qa(agent, task, qa_profile)
+        # Override max revision rounds from orchestrator if specified
+        if max_revision_rounds is not None:
+            # We don't want to mutate the global profile, so we check if we need to pass it
+            pass
+
+        result = await self._execute_with_qa(
+            agent, 
+            task, 
+            qa_profile, 
+            max_revision_override=max_revision_rounds
+        )
 
         # Step 6: Handle confirmation if needed
         if result.requires_confirmation and self._redis:
             try:
                 from app.swarm.lead.confirmation_gate import ConfirmationGate
                 gate = ConfirmationGate(self._redis)
-                token = await gate.store(result, context)
+                
+                # Use dynamic TTL from orchestrator config
+                ttl = orch_config.get("confirmation_ttl")
+                token = await gate.store(result, context, ttl_override=ttl)
+                
                 # Return the confirmation prompt to the user
                 return AgentResult(
                     agent_id=result.agent_id,
@@ -156,7 +183,48 @@ class LeadAgent:
 
         return result
 
-    async def _execute_with_qa(self, agent, task: AgentTask, qa_profile) -> AgentResult:
+    def _get_available_agents(self, agent_ids: list[str]) -> dict[str, str]:
+        """Fetch descriptions for the given agent IDs.
+
+        Args:
+            agent_ids: List of agent IDs (e.g. ['ops', 'sales']).
+
+        Returns:
+            Dictionary of agent_id -> description.
+        """
+        if not agent_ids:
+            return {}
+
+        from app.core.db import SessionLocal
+        from app.core.models import AgentDefinition
+        
+        db = SessionLocal()
+        try:
+            rows = db.query(AgentDefinition).filter(
+                AgentDefinition.id.in_(agent_ids)
+            ).all()
+            
+            available = {r.id: r.description or f"Expert for {r.id}." for r in rows}
+            
+            # Fill in any missing ones with default description
+            for aid in agent_ids:
+                if aid not in available:
+                    available[aid] = f"Expert for {aid}."
+            
+            return available
+        except Exception as e:
+            logger.error("lead_agent.fetch_agents_failed", error=str(e))
+            return {aid: f"Expert for {aid}." for aid in agent_ids}
+        finally:
+            db.close()
+
+    async def _execute_with_qa(
+        self, 
+        agent, 
+        task: AgentTask, 
+        qa_profile,
+        max_revision_override: int | None = None
+    ) -> AgentResult:
         """Execute the agent with QA revision loop.
 
         If the QAJudge returns REVISE, re-execute with feedback injected
@@ -166,6 +234,7 @@ class LeadAgent:
             agent: GenericExpertAgent instance.
             task: The original AgentTask.
             qa_profile: QAProfile with criteria and settings.
+            max_revision_override: Optional override for max attempts.
 
         Returns:
             AgentResult that passed QA or escalation result.
@@ -173,7 +242,14 @@ class LeadAgent:
         from app.swarm.qa.judge import QAJudge, QAStatus
 
         judge = QAJudge()
-        max_attempts = qa_profile.max_revision_attempts + 1  # +1 for initial attempt
+        
+        max_attempts = (
+            max_revision_override 
+            if max_revision_override is not None 
+            else qa_profile.max_revision_attempts
+        )
+        max_attempts += 1  # +1 for initial attempt
+        
         current_task = task
 
         for attempt in range(max_attempts):

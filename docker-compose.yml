@@ -82,7 +82,10 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - ariia-network
+      ariia-network:
+        aliases:
+          - ariia-redis
+          - staging-ariia-redis
     profiles:
       - infra
 
@@ -208,11 +211,11 @@ services:
     networks:
       - ariia-network
 
-  # 7b. Sending Worker (async message dispatch)
+  # 7b. Sending Worker (arq campaign worker)
   ariia-sending-worker:
     build: .
     restart: always
-    command: python scripts/sending_worker.py
+    command: python -m app.worker.main --worker campaign
     environment:
       - PYTHONPATH=/app
       - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
@@ -237,11 +240,11 @@ services:
     networks:
       - ariia-network
 
-  # 7c. Automation Engine Worker
+  # 7c. Automation Engine Worker (arq automation worker)
   ariia-automation-engine:
     build: .
     restart: always
-    command: python scripts/automation_engine_worker.py
+    command: python -m app.worker.main --worker automation
     environment:
       - PYTHONPATH=/app
       - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}
@@ -277,11 +280,11 @@ services:
     networks:
       - ariia-network
 
-  # 7d. Analytics Processing Worker
+  # 7d. Analytics Processing Worker (arq analytics worker)
   ariia-analytics-worker:
     build: .
     restart: always
-    command: python scripts/analytics_processing_worker.py
+    command: python -m app.worker.main --worker analytics
     environment:
       - PYTHONPATH=/app
       - REDIS_URL=redis://ariia-redis:6379/${REDIS_DB:-0}

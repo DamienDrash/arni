@@ -4,7 +4,6 @@
 Loads from .env file or environment variables.
 """
 
-from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -41,6 +40,7 @@ class Settings(BaseSettings):
     auth_secret: str = "change-me-long-random-secret"
     auth_token_ttl_hours: int = 12
     oidc_enabled: bool = False
+    campaign_webhook_secret: str | None = None  # HMAC secret for campaign delivery webhooks
 
     # --- WhatsApp Bridge (Global Service Config) ---
     bridge_mode: str = "production"
@@ -56,12 +56,6 @@ class Settings(BaseSettings):
     # --- System Admin (Bootstrap) ---
     system_admin_email: str = "admin@ariia.io"
     system_admin_password: str = "Admin!Password2026"
-
-    # --- MinIO Object Storage ---
-    minio_endpoint: str = Field(default="localhost:9000", validation_alias=AliasChoices("MINIO_ENDPOINT", "minio_endpoint"))
-    minio_access_key: str = Field(default="ariia-minio", validation_alias=AliasChoices("MINIO_ACCESS_KEY", "minio_access_key"))
-    minio_secret_key: str = Field(default="ariia-minio-secret", validation_alias=AliasChoices("MINIO_SECRET_KEY", "minio_secret_key"))
-    minio_secure: bool = Field(default=False, validation_alias=AliasChoices("MINIO_SECURE", "minio_secure"))
 
     @property
     def is_production(self) -> bool:

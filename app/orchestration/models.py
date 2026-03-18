@@ -3,18 +3,17 @@ import uuid
 from sqlalchemy import Column, String, Integer, Boolean, Text, ForeignKey, UniqueConstraint
 from sqlalchemy import JSON
 from sqlalchemy.orm import relationship
-from app.core.db import Base
 import sqlalchemy as sa
+from app.core.db import Base, TenantScopedMixin
 
-
-class OrchestratorDefinition(Base):
+class OrchestratorDefinition(Base, TenantScopedMixin):
     __tablename__ = "orchestrator_definitions"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(64), nullable=False, unique=True, index=True)
     display_name = Column(String(128), nullable=False)
     category = Column(String(16), nullable=False)  # SWARM/CAMPAIGN/AUTOMATION/SYNC
     scope = Column(String(16), nullable=False)      # SYSTEM/TENANT
-    state = Column(String(16), nullable=False, default="ACTIVE")
+    status = Column(String(16), nullable=False, default="ACTIVE") # ACTIVE | PAUSED | DISABLED
     config_schema = Column(JSON, nullable=True)
     config_current = Column(JSON, nullable=True)
     guardrails = Column(JSON, nullable=True)

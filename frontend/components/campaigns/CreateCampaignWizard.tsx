@@ -5,7 +5,7 @@ import {
   Calendar, Users, Target, Filter, CheckCircle,
   ArrowRight, ArrowLeft, Eye, Loader2, BookOpen,
   AlertCircle, Layers, Search, X, Image, Info, XCircle,
-  Link2, Copy, ToggleLeft, ToggleRight, FileText, Paperclip, Upload, RefreshCw,
+  Link2, Copy, FileText, Paperclip, Upload, RefreshCw,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/tokens";
@@ -78,7 +78,6 @@ const CAMPAIGN_TYPES = [
   { key: "broadcast", label: "Broadcast", desc: "Einmaliger Versand an alle Empfänger", icon: Send },
   { key: "drip", label: "Drip-Kampagne", desc: "Automatische Sequenz über Zeit", icon: Calendar },
   { key: "follow_up", label: "Follow-Up", desc: "Nachfassung nach Aktion", icon: ArrowRight },
-  { key: "newsletter_optin", label: "Newsletter Opt-in", desc: "Öffentliche Anmeldeseite + Bestätigung", icon: FileText },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -161,13 +160,8 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
     featured_image_url: "",
     attachment_url: "",
     attachment_filename: "",
-    subscribe_page_enabled: false,
-    optin_require_reply: false,
-    optin_confirmation_message: "",
   });
   const [createdCampaignId, setCreatedCampaignId] = useState<number | null>(null);
-  const [subscribeLink, setSubscribeLink] = useState<string | null>(null);
-  const [linkCopied, setLinkCopied] = useState(false);
   const [orchSteps, setOrchSteps] = useState<OrchestrationStep[]>([
     { step_order: 1, channel: "email", template_id: null, content_override_json: null, wait_hours: 0, condition_type: "always" },
   ]);
@@ -419,9 +413,6 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
           featured_image_url: form.featured_image_url || undefined,
           attachment_url: form.attachment_url || undefined,
           attachment_filename: form.attachment_filename || undefined,
-          subscribe_page_enabled: form.type === "newsletter_optin" ? form.subscribe_page_enabled : undefined,
-          optin_require_reply: form.type === "newsletter_optin" ? form.optin_require_reply : undefined,
-          optin_confirmation_message: form.type === "newsletter_optin" && form.optin_confirmation_message ? form.optin_confirmation_message : undefined,
           target_filter_json: form.target_segment_id ? JSON.stringify({ segment_id: form.target_segment_id })
             : form.target_type === "tags" && selectedTags.length > 0 ? JSON.stringify({ tags: selectedTags })
             : form.target_type === "selected" && selectedContactIds.length > 0 ? JSON.stringify({ contact_ids: selectedContactIds })
@@ -432,15 +423,6 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
       const created = await res.json();
       setCreatedCampaignId(created.id);
 
-      // Generate subscribe link for newsletter_optin campaigns
-      if (form.type === "newsletter_optin" && form.subscribe_page_enabled && created.id) {
-        try {
-          const tenantId = created.tenant_id ?? 0;
-          const tokenPayload = `${tenantId}:${created.id}:${form.channel}`;
-          const b64 = btoa(tokenPayload).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-          setSubscribeLink(`${window.location.origin}/subscribe/${b64}`);
-        } catch { /* non-blocking */ }
-      }
 
       /* Save A/B test config if enabled */
       if (abEnabled && abVariants.length >= 2) {
@@ -586,55 +568,6 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
               </div>
             </div>
 
-            {/* Newsletter Opt-in Extra Fields */}
-            {form.type === "newsletter_optin" && (
-              <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Link2 size={16} style={{ color: T.accentLight }} />
-                  <span style={{ fontSize: 13, fontWeight: 800, color: T.text }}>Newsletter Opt-in Einstellungen</span>
-                </div>
-
-                {/* Subscribe page toggle */}
-                <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", padding: "10px 0" }}>
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: T.text, margin: 0 }}>Öffentliche Anmeldeseite aktivieren</p>
-                    <p style={{ fontSize: 11, color: T.textDim, margin: "2px 0 0" }}>Generiert einen teilbaren Link und QR-Code</p>
-                  </div>
-                  <button type="button" onClick={() => setForm(f => ({ ...f, subscribe_page_enabled: !f.subscribe_page_enabled }))} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                    {form.subscribe_page_enabled
-                      ? <ToggleRight size={28} style={{ color: T.accent }} />
-                      : <ToggleLeft size={28} style={{ color: T.textDim }} />}
-                  </button>
-                </label>
-
-                {/* Opt-in via reply toggle */}
-                <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", padding: "10px 0", borderTop: `1px solid ${T.border}` }}>
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: T.text, margin: 0 }}>Opt-in per Antwort (WhatsApp/SMS)</p>
-                    <p style={{ fontSize: 11, color: T.textDim, margin: "2px 0 0" }}>Kontakt antwortet &quot;JA&quot; zur Bestätigung</p>
-                  </div>
-                  <button type="button" onClick={() => setForm(f => ({ ...f, optin_require_reply: !f.optin_require_reply }))} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                    {form.optin_require_reply
-                      ? <ToggleRight size={28} style={{ color: T.accent }} />
-                      : <ToggleLeft size={28} style={{ color: T.textDim }} />}
-                  </button>
-                </label>
-
-                {/* Confirmation message */}
-                <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 12 }}>
-                  <label style={S.label}>Bestätigungsnachricht</label>
-                  <textarea
-                    style={{ ...S.textarea, height: 80 }}
-                    value={form.optin_confirmation_message}
-                    onChange={(e) => setForm({ ...form, optin_confirmation_message: e.target.value })}
-                    placeholder="z.B. Vielen Dank für Ihre Anmeldung! Hier ist Ihre Preisliste als PDF."
-                  />
-                  <p style={{ fontSize: 11, color: T.textDim, marginTop: 4 }}>
-                    Wird nach erfolgreicher Anmeldung gesendet (inkl. Anhang, falls vorhanden).
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -1622,54 +1555,6 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
               </div>
             )}
 
-            {/* Subscribe Link Generator */}
-            {subscribeLink && (
-              <div style={{ padding: "16px 20px", background: T.accentDim, border: `1px solid rgba(108,92,231,0.3)`, borderRadius: 12, display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Link2 size={16} style={{ color: T.accentLight }} />
-                  <span style={{ fontSize: 13, fontWeight: 800, color: T.text }}>Öffentlicher Anmeldelink</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="text"
-                    readOnly
-                    value={subscribeLink}
-                    style={{ ...S.input, flex: 1, fontSize: 12, fontFamily: "monospace", background: T.surface }}
-                    onFocus={(e) => e.target.select()}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(subscribeLink).then(() => {
-                        setLinkCopied(true);
-                        setTimeout(() => setLinkCopied(false), 2000);
-                      });
-                    }}
-                    style={{ ...S.primaryBtn, padding: "10px 16px", flexShrink: 0 }}
-                  >
-                    <Copy size={14} />
-                    {linkCopied ? "Kopiert!" : "Kopieren"}
-                  </button>
-                </div>
-                {/* QR Code */}
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(subscribeLink)}&bgcolor=12131A&color=E8E9ED`}
-                    alt="QR Code"
-                    style={{ width: 120, height: 120, borderRadius: 8, border: `1px solid ${T.border}` }}
-                  />
-                  <div>
-                    <p style={{ fontSize: 12, color: T.textMuted, margin: 0 }}>
-                      Teilen Sie diesen Link oder QR-Code, damit sich Interessenten anmelden können.
-                    </p>
-                    <p style={{ fontSize: 11, color: T.textDim, margin: "6px 0 0" }}>
-                      Anmeldungen werden automatisch als Kontakte mit Consent erfasst.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {previewUrl && (
               <button onClick={() => setShowPreviewModal(true)} style={{ ...S.secondaryBtn, color: T.accentLight }}>

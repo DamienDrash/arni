@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Gift, Plus, Trash2, Edit3, RefreshCw, Copy, Check, ExternalLink } from "lucide-react";
+import { Gift, Plus, Trash2, Edit3, RefreshCw, Copy, Check, ExternalLink, Link2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { T } from "@/lib/tokens";
 
@@ -148,25 +148,26 @@ function OfferModal({
   );
 }
 
-// ── Slug copy button ──────────────────────────────────────────────────────
+// ── Copy button ───────────────────────────────────────────────────────────
 
-function SlugCopy({ slug }: { slug: string }) {
+function CopyBtn({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
-  const param = `?offer=${slug}`;
   const copy = () => {
-    void navigator.clipboard.writeText(param);
+    void navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <button onClick={copy} title="URL-Parameter kopieren" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontFamily: "monospace", padding: "3px 8px", borderRadius: 6, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: copied ? T.success : T.textDim, cursor: "pointer" }}>
-      {copied ? <Check size={11} /> : <Copy size={11} />}
-      {param}
+    <button onClick={copy} title={`${label} kopieren`} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontFamily: "monospace", padding: "3px 8px", borderRadius: 6, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: copied ? T.success : T.textDim, cursor: "pointer", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      {copied ? <Check size={11} style={{ flexShrink: 0 }} /> : <Copy size={11} style={{ flexShrink: 0 }} />}
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{text}</span>
     </button>
   );
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────
+
+type SubscribeToken = { token: string; subscribe_path: string };
 
 export default function CampaignOffersPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -176,6 +177,8 @@ export default function CampaignOffersPage() {
   const [editing, setEditing] = useState<Offer | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [toast, setToast] = useState("");
+  const [subscribeToken, setSubscribeToken] = useState<SubscribeToken | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState("whatsapp");
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
@@ -190,7 +193,16 @@ export default function CampaignOffersPage() {
     finally { setLoading(false); }
   }, []);
 
+  const loadToken = useCallback(async (channel: string) => {
+    try {
+      const res = await apiFetch(`/admin/campaign-offers/subscribe-token?channel=${channel}`);
+      if (!res.ok) return;
+      setSubscribeToken(await res.json() as SubscribeToken);
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void loadToken(selectedChannel); }, [loadToken, selectedChannel]);
 
   const deleteOffer = async (id: number) => {
     const res = await apiFetch(`/admin/campaign-offers/${id}`, { method: "DELETE" });
@@ -223,6 +235,46 @@ export default function CampaignOffersPage() {
             <Plus size={14} /> Neu
           </button>
         </div>
+      </div>
+
+      {/* Subscribe Link Generator */}
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "18px 20px", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <Link2 size={15} color={T.accent} />
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: T.text }}>Anmeldelinks für dein Tenant</p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <p style={{ margin: 0, fontSize: 12, color: T.textDim }}>Kanal:</p>
+          {["whatsapp", "email", "sms", "telegram"].map(ch => (
+            <button
+              key={ch}
+              onClick={() => setSelectedChannel(ch)}
+              style={{ padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${selectedChannel === ch ? T.accent : T.border}`, background: selectedChannel === ch ? T.accentDim : T.surfaceAlt, color: selectedChannel === ch ? T.accent : T.textDim }}
+            >
+              {ch}
+            </button>
+          ))}
+        </div>
+        {subscribeToken && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div>
+              <p style={{ margin: "0 0 4px", fontSize: 11, color: T.textDim, fontWeight: 600 }}>Basis-Anmeldelink (ohne Angebot)</p>
+              <CopyBtn
+                text={`${typeof window !== "undefined" ? window.location.origin : ""}${subscribeToken.subscribe_path}`}
+                label="Basis-Link"
+              />
+            </div>
+            {offers.filter(o => o.is_active).map(o => (
+              <div key={o.id}>
+                <p style={{ margin: "0 0 4px", fontSize: 11, color: T.textDim, fontWeight: 600 }}>Angebot: {o.name}</p>
+                <CopyBtn
+                  text={`${typeof window !== "undefined" ? window.location.origin : ""}${subscribeToken.subscribe_path}?offer=${o.slug}`}
+                  label={o.name}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* How it works banner */}
@@ -266,7 +318,7 @@ export default function CampaignOffersPage() {
                       <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: `${T.danger}22`, color: T.danger }}>INAKTIV</span>
                     )}
                   </div>
-                  <SlugCopy slug={o.slug} />
+                  <CopyBtn text={`?offer=${o.slug}`} label="URL-Parameter" />
                   <p style={{ margin: "10px 0 0", fontSize: 12, color: T.textDim, lineHeight: 1.6 }}>
                     {o.confirmation_message.length > 120 ? o.confirmation_message.slice(0, 120) + "…" : o.confirmation_message}
                   </p>

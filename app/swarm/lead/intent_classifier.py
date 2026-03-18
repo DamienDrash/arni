@@ -16,20 +16,6 @@ from app.swarm.contracts import TenantContext, IntentResult
 
 logger = structlog.get_logger()
 
-# ---------------------------------------------------------------------------
-# Agent manifest: agent_id → description (used for LLM system prompt)
-# ---------------------------------------------------------------------------
-AGENT_MANIFEST: dict[str, str] = {
-    "ops": "Handles bookings, scheduling, cancellations, reschedules, class schedules, and appointment management.",
-    "sales": "Retention flows, churn prevention, upselling, membership status, and member engagement.",
-    "medic": "Health advice, injury questions, exercise safety. ALWAYS includes legal disclaimer. Emergency keywords (notfall, unfall, 112) bypass classification.",
-    "vision": "Image analysis for exercise form checking and equipment identification.",
-    "persona": "Free-form conversation, studio personality, general questions, and small talk.",
-    "knowledge": "Answers factual questions from the knowledge base: opening hours, pricing, FAQs, studio info.",
-    "campaign": "Marketing campaign creation, design briefs, copywriting, and campaign QA.",
-    "media": "Social media content generation, analysis, post scheduling, and publishing.",
-}
-
 # Agents that require specific integrations to be active
 AGENT_INTEGRATION_REQUIREMENTS: dict[str, set[str]] = {
     "ops": {"magicline"},
@@ -63,19 +49,6 @@ Rules:
 """
 
 
-def _filter_by_integrations(
-    active_integrations: frozenset[str],
-) -> dict[str, str]:
-    """Return only agents whose integration requirements are met."""
-    available: dict[str, str] = {}
-    for agent_id, description in AGENT_MANIFEST.items():
-        required = AGENT_INTEGRATION_REQUIREMENTS.get(agent_id, set())
-        if required and not required.issubset(active_integrations):
-            continue
-        available[agent_id] = description
-    return available
-
-
 def _check_emergency(message: str) -> bool:
     """Check if the message contains emergency keywords."""
     words = set(message.lower().split())
@@ -93,6 +66,7 @@ def _build_system_prompt(available_agents: dict[str, str]) -> str:
 async def classify(
     message: str,
     context: TenantContext,
+    available_agents: dict[str, str],
     history: tuple[dict[str, str], ...] = (),
     llm: Any = None,
 ) -> IntentResult:
@@ -101,6 +75,7 @@ async def classify(
     Args:
         message: The user's message text.
         context: Tenant context with active integrations and plan info.
+        available_agents: Dictionary of agent_id -> description.
         history: Recent conversation history (role/content dicts).
         llm: LLMClient instance. If None, falls back to persona.
 
@@ -112,9 +87,8 @@ async def classify(
         logger.info("intent.emergency_bypass", message=message[:50])
         return IntentResult(agent_id="medic", confidence=1.0, extracted={"emergency": True})
 
-    # Filter agents by tenant integrations
-    available = _filter_by_integrations(context.active_integrations)
-    if not available:
+    if not available_agents:
+        logger.warning("intent.no_agents_available", tenant_id=context.tenant_id)
         return IntentResult(agent_id="persona", confidence=0.5)
 
     if not llm:
@@ -122,7 +96,7 @@ async def classify(
         return IntentResult(agent_id="persona", confidence=0.5)
 
     # Build messages for the LLM
-    system_prompt = _build_system_prompt(available)
+    system_prompt = _build_system_prompt(available_agents)
     messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
 
     # Include recent history for context
@@ -155,8 +129,8 @@ async def classify(
         extracted = result.get("extracted", {})
 
         # Validate agent_id is in available agents
-        if agent_id not in available:
-            logger.warning("intent.invalid_agent", agent_id=agent_id, available=list(available))
+        if agent_id not in available_agents:
+            logger.warning("intent.invalid_agent", agent_id=agent_id, available=list(available_agents))
             agent_id = "persona"
             confidence = 0.3
 

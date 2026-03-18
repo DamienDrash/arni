@@ -16,8 +16,18 @@ from app.swarm.contracts import (
     TenantContext,
 )
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
+TEST_AGENTS = {
+    "ops": "Handles bookings, scheduling, cancellations, reschedules, class schedules, and appointment management.",
+    "sales": "Retention flows, churn prevention, upselling, membership status, and member engagement.",
+    "medic": "Health advice, injury questions, exercise safety. ALWAYS includes legal disclaimer. Emergency keywords (notfall, unfall, 112) bypass classification.",
+    "vision": "Image analysis for exercise form checking and equipment identification.",
+    "persona": "Free-form conversation, studio personality, general questions, and small talk.",
+    "knowledge": "Answers factual questions from the knowledge base: opening hours, pricing, FAQs, studio info.",
+    "campaign": "Marketing campaign creation, design briefs, copywriting, and campaign QA.",
+    "media": "Social media content generation, analysis, post scheduling, and publishing.",
+}
 
 
 def _make_context(
@@ -76,7 +86,7 @@ class TestIntentClassifierRouting:
 
         llm = _mock_llm_response("ops", 0.95, {"date": "2026-03-20"})
         ctx = _make_context(integrations=frozenset({"magicline"}))
-        result = await classify("Ich möchte einen Termin buchen", ctx, llm=llm)
+        result = await classify("Ich möchte einen Termin buchen", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "ops"
         assert result.confidence == 0.95
@@ -87,7 +97,7 @@ class TestIntentClassifierRouting:
 
         llm = _mock_llm_response("sales", 0.88)
         ctx = _make_context(integrations=frozenset({"magicline"}))
-        result = await classify("Mein Vertrag läuft bald aus", ctx, llm=llm)
+        result = await classify("Mein Vertrag läuft bald aus", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "sales"
         assert result.confidence == 0.88
@@ -98,7 +108,7 @@ class TestIntentClassifierRouting:
 
         llm = _mock_llm_response("medic", 0.92)
         ctx = _make_context()
-        result = await classify("Mein Knie tut weh beim Training", ctx, llm=llm)
+        result = await classify("Mein Knie tut weh beim Training", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "medic"
         assert result.confidence == 0.92
@@ -109,7 +119,7 @@ class TestIntentClassifierRouting:
 
         llm = _mock_llm_response("vision", 0.85)
         ctx = _make_context()
-        result = await classify("Kannst du meine Übungsform prüfen?", ctx, llm=llm)
+        result = await classify("Kannst du meine Übungsform prüfen?", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "vision"
 
@@ -119,7 +129,7 @@ class TestIntentClassifierRouting:
 
         llm = _mock_llm_response("persona", 0.7)
         ctx = _make_context()
-        result = await classify("Wie geht es dir?", ctx, llm=llm)
+        result = await classify("Wie geht es dir?", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "persona"
 
@@ -129,7 +139,7 @@ class TestIntentClassifierRouting:
 
         llm = _mock_llm_response("knowledge", 0.91)
         ctx = _make_context()
-        result = await classify("Was sind eure Öffnungszeiten?", ctx, llm=llm)
+        result = await classify("Was sind eure Öffnungszeiten?", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "knowledge"
 
@@ -139,7 +149,7 @@ class TestIntentClassifierRouting:
 
         llm = _mock_llm_response("campaign", 0.82)
         ctx = _make_context()
-        result = await classify("Erstelle eine Marketingkampagne", ctx, llm=llm)
+        result = await classify("Erstelle eine Marketingkampagne", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "campaign"
 
@@ -149,7 +159,7 @@ class TestIntentClassifierRouting:
 
         llm = _mock_llm_response("media", 0.79)
         ctx = _make_context()
-        result = await classify("Erstelle einen Instagram Post", ctx, llm=llm)
+        result = await classify("Erstelle einen Instagram Post", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "media"
 
@@ -163,7 +173,7 @@ class TestIntentClassifierEmergency:
 
         ctx = _make_context()
         # Note: _check_emergency splits on whitespace, so keyword must be a clean word
-        result = await classify("Hilfe notfall bitte", ctx)
+        result = await classify("Hilfe notfall bitte", ctx, available_agents=TEST_AGENTS)
 
         assert result.agent_id == "medic"
         assert result.confidence == 1.0
@@ -174,7 +184,7 @@ class TestIntentClassifierEmergency:
         from app.swarm.lead.intent_classifier import classify
 
         ctx = _make_context()
-        result = await classify("Ruf 112 an bitte", ctx)
+        result = await classify("Ruf 112 an bitte", ctx, available_agents=TEST_AGENTS)
 
         assert result.agent_id == "medic"
         assert result.confidence == 1.0
@@ -184,7 +194,7 @@ class TestIntentClassifierEmergency:
         from app.swarm.lead.intent_classifier import classify
 
         ctx = _make_context()
-        result = await classify("Es gab einen Unfall im Studio", ctx)
+        result = await classify("Es gab einen Unfall im Studio", ctx, available_agents=TEST_AGENTS)
 
         assert result.agent_id == "medic"
         assert result.confidence == 1.0
@@ -194,7 +204,7 @@ class TestIntentClassifierEmergency:
         from app.swarm.lead.intent_classifier import classify
 
         ctx = _make_context()
-        result = await classify("There has been an emergency", ctx)
+        result = await classify("There has been an emergency", ctx, available_agents=TEST_AGENTS)
 
         assert result.agent_id == "medic"
         assert result.confidence == 1.0
@@ -206,7 +216,7 @@ class TestIntentClassifierEmergency:
 
         llm = AsyncMock()
         ctx = _make_context()
-        result = await classify("Notfall hier!", ctx, llm=llm)
+        result = await classify("Notfall hier!", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "medic"
         llm.chat.assert_not_called()
@@ -221,7 +231,7 @@ class TestIntentClassifierFallback:
 
         llm = _mock_llm_response("ops", 0.3)
         ctx = _make_context(integrations=frozenset({"magicline"}))
-        result = await classify("hmm", ctx, llm=llm)
+        result = await classify("Buche einen Termin", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "persona"
 
@@ -230,7 +240,7 @@ class TestIntentClassifierFallback:
         from app.swarm.lead.intent_classifier import classify
 
         ctx = _make_context()
-        result = await classify("Buche einen Termin", ctx, llm=None)
+        result = await classify("Buche einen Termin", ctx, available_agents=TEST_AGENTS, llm=None)
 
         assert result.agent_id == "persona"
         assert result.confidence == 0.5
@@ -242,7 +252,7 @@ class TestIntentClassifierFallback:
         llm = AsyncMock()
         llm.chat = AsyncMock(return_value="This is not JSON at all")
         ctx = _make_context()
-        result = await classify("test", ctx, llm=llm)
+        result = await classify("test", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "persona"
         assert result.confidence == 0.3
@@ -254,7 +264,7 @@ class TestIntentClassifierFallback:
         llm = AsyncMock()
         llm.chat = AsyncMock(side_effect=RuntimeError("API down"))
         ctx = _make_context()
-        result = await classify("test", ctx, llm=llm)
+        result = await classify("test", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "persona"
         assert result.confidence == 0.3
@@ -265,7 +275,7 @@ class TestIntentClassifierFallback:
 
         llm = _mock_llm_response("nonexistent_agent", 0.9)
         ctx = _make_context()
-        result = await classify("test", ctx, llm=llm)
+        result = await classify("test", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "persona"
 
@@ -276,7 +286,7 @@ class TestIntentClassifierFallback:
         llm = AsyncMock()
         llm.chat = AsyncMock(return_value="")
         ctx = _make_context()
-        result = await classify("test", ctx, llm=llm)
+        result = await classify("test", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         assert result.agent_id == "persona"
 
@@ -294,7 +304,7 @@ class TestIntentClassifierIntegrationFilter:
         llm = AsyncMock()
         llm.chat = AsyncMock(return_value='{"agent_id": "ops", "confidence": 0.9, "extracted": {}}')
         ctx = _make_context(integrations=frozenset())
-        result = await classify("Buche einen Termin", ctx, llm=llm)
+        result = await classify("Buche einen Termin", ctx, available_agents=TEST_AGENTS, llm=llm)
 
         # ops requires magicline — should fall back to persona
         assert result.agent_id == "persona"
@@ -333,7 +343,7 @@ class TestIntentClassifierHistory:
             {"role": "user", "content": "Hallo"},
             {"role": "assistant", "content": "Hi! Wie kann ich helfen?"},
         )
-        await classify("Was kostet das?", ctx, history=history, llm=llm)
+        await classify("Was kostet das?", ctx, available_agents=TEST_AGENTS, history=history, llm=llm)
 
         # Verify the LLM was called with messages including history
         call_args = llm.chat.call_args
@@ -355,7 +365,7 @@ class TestIntentClassifierHistory:
             {"role": "user", "content": f"message {i}"}
             for i in range(10)
         )
-        await classify("latest", ctx, history=history, llm=llm)
+        await classify("latest", ctx, available_agents=TEST_AGENTS, history=history, llm=llm)
 
         call_args = llm.chat.call_args
         messages = call_args.kwargs.get("messages") or call_args[1].get("messages", [])
@@ -368,6 +378,8 @@ class TestIntentClassifierHistory:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@patch("app.swarm.lead.lead_agent.DynamicConfigManager")
+@patch("app.swarm.lead.lead_agent.LeadAgent._get_available_agents", return_value=TEST_AGENTS)
 class TestLeadAgentDelegation:
     """Test that LeadAgent delegates to the correct expert agent."""
 
@@ -379,8 +391,14 @@ class TestLeadAgentDelegation:
         "standard": MagicMock(criteria=frozenset(), max_revision_attempts=0),
     })
     @patch("app.swarm.qa.profiles.AGENT_QA_PROFILES", {"ops": "standard"})
-    async def test_delegates_to_expert(self, mock_loader_fn, mock_classify, mock_history):
+    async def test_delegates_to_expert(self, mock_loader_fn, mock_classify, mock_history, mock_get_agents, mock_config_mgr):
         from app.swarm.lead.lead_agent import LeadAgent
+
+        # Setup: config manager returns dummy config
+        mock_config_mgr.return_value.get_tenant_config.return_value = {
+            "agent_team": {"agent_ids": ["ops", "sales"]},
+            "orchestrator": {"config": {"max_revision_rounds": 2}}
+        }
 
         # Setup: classifier returns ops
         mock_classify.return_value = IntentResult(
@@ -412,8 +430,14 @@ class TestLeadAgentDelegation:
     @patch("app.swarm.lead.lead_agent.LeadAgent._build_history", return_value=())
     @patch("app.swarm.lead.intent_classifier.classify")
     @patch("app.swarm.registry.dynamic_loader.get_agent_loader")
-    async def test_fallback_when_agent_not_found(self, mock_loader_fn, mock_classify, mock_history):
+    async def test_fallback_when_agent_not_found(self, mock_loader_fn, mock_classify, mock_history, mock_get_agents, mock_config_mgr):
         from app.swarm.lead.lead_agent import LeadAgent
+
+        # Setup: config manager returns dummy config
+        mock_config_mgr.return_value.get_tenant_config.return_value = {
+            "agent_team": {"agent_ids": ["ops", "sales"]},
+            "orchestrator": {"config": {"max_revision_rounds": 2}}
+        }
 
         mock_classify.return_value = IntentResult(agent_id="ops", confidence=0.9)
 
@@ -433,14 +457,22 @@ class TestLeadAgentDelegation:
         assert "später" in result.content or "leid" in result.content
 
 
+@patch("app.swarm.lead.lead_agent.DynamicConfigManager")
+@patch("app.swarm.lead.lead_agent.LeadAgent._get_available_agents", return_value=TEST_AGENTS)
 class TestLeadAgentConfirmationGate:
     """Test confirmation gate interception in LeadAgent."""
 
     @pytest.mark.asyncio
     @patch("app.swarm.lead.lead_agent.LeadAgent._build_history", return_value=())
-    async def test_confirmation_gate_intercept(self, mock_history):
+    async def test_confirmation_gate_intercept(self, mock_history, mock_get_agents, mock_config_mgr):
         from app.swarm.lead.lead_agent import LeadAgent
         from app.swarm.lead.confirmation_gate import PendingConfirmation
+
+        # Setup: config manager returns dummy config
+        mock_config_mgr.return_value.get_tenant_config.return_value = {
+            "agent_team": {"agent_ids": ["ops", "sales"]},
+            "orchestrator": {"config": {"confirmation_ttl": 600}}
+        }
 
         # Setup: Redis client returns pending confirmation
         mock_redis = AsyncMock()

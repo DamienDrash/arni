@@ -77,18 +77,21 @@ class ConfirmationGate:
         """Build the scan pattern to find pending confirmations."""
         return f"t{tenant_id}:confirm:{member_id}:*"
 
-    async def store(self, result: AgentResult, context: TenantContext) -> str:
+    async def store(self, result: AgentResult, context: TenantContext, ttl_override: int | None = None) -> str:
         """Store a pending confirmation in Redis.
 
         Args:
             result: AgentResult with requires_confirmation=True.
             context: TenantContext for key scoping.
+            ttl_override: Optional TTL in seconds to override default.
 
         Returns:
             Confirmation token (UUID).
         """
         token = uuid.uuid4().hex[:12]
         member_id = context.member_id or "unknown"
+        
+        ttl = ttl_override if ttl_override is not None else CONFIRMATION_TTL
 
         pending = PendingConfirmation(
             token=token,
@@ -113,20 +116,24 @@ class ConfirmationGate:
             "metadata": pending.metadata,
         })
 
-        await self._redis.setex(key, CONFIRMATION_TTL, payload)
+        await self._redis.setex(key, ttl, payload)
 
         # Register TTL warning and expiry notification jobs
         now = time.time()
         try:
-            # Warning job (at 80% of TTL — 60 seconds before expiry)
+            # Warning job (at 80% of TTL or 60 seconds before expiry if TTL > 60)
+            warning_offset = int(ttl * 0.8)
+            if ttl - warning_offset < 10: # If warning is too close to expiry
+                 warning_offset = max(0, ttl - 30)
+
             await self._redis.zadd("orch:pending_notifications", {
                 json.dumps({
                     "tenant_id": context.tenant_id,
                     "member_id": member_id,
                     "channel": "whatsapp",
-                    "message": "\u26a0\ufe0f Deine ausstehende Best\u00e4tigung l\u00e4uft in 60 Sekunden ab. Bitte jetzt antworten.",
+                    "message": "\u26a0\ufe0f Deine ausstehende Best\u00e4tigung l\u00e4uft in Kürze ab. Bitte jetzt antworten.",
                     "type": "confirmation_warning",
-                }): now + CONFIRMATION_WARNING_OFFSET,
+                }): now + warning_offset,
             })
 
             # Expiry notification (1 second after TTL)
@@ -137,7 +144,7 @@ class ConfirmationGate:
                     "channel": "whatsapp",
                     "message": "Best\u00e4tigungsanfrage abgelaufen. Bitte Aktion erneut anfordern.",
                     "type": "confirmation_expired",
-                }): now + CONFIRMATION_TTL + 1,
+                }): now + ttl + 1,
             })
         except Exception as notif_err:
             logger.warning(
@@ -152,6 +159,7 @@ class ConfirmationGate:
             agent_id=result.agent_id,
             tenant_id=context.tenant_id,
             member_id=member_id,
+            ttl=ttl,
         )
 
         return token
