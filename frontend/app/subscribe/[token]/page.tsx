@@ -115,17 +115,24 @@ export default function SubscribePage() {
   if (success) return (
     <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-      <div style={{ textAlign: "center", maxWidth: 420 }}>
+      <div style={{ textAlign: "center", maxWidth: 440 }}>
         <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(0,214,143,0.12)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
           <CheckCircle size={36} style={{ color: C.success }} />
         </div>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>
-          Erfolgreich angemeldet!
+          Fast geschafft!
         </h1>
-        <p style={{ fontSize: 14, color: C.textMuted, lineHeight: 1.6 }}>
-          {info?.offer_name
-            ? `Vielen Dank, ${firstName}! Dein ${info.offer_name} wird dir in Kürze zugesendet.`
-            : `Vielen Dank, ${firstName}! Sie erhalten in Kürze eine Bestätigung${info?.tenant_name ? ` von ${info.tenant_name}` : ""}.`}
+        <p style={{ fontSize: 15, color: C.textMuted, lineHeight: 1.7, margin: "0 0 12px" }}>
+          Wir haben dir eine <strong style={{ color: C.text }}>Bestätigungs-E-Mail</strong> gesendet.
+        </p>
+        <p style={{ fontSize: 13, color: C.textDim, lineHeight: 1.6 }}>
+          Bitte klicke auf den Link in der E-Mail, um deine Anmeldung abzuschließen.
+          {info?.offer_name && (
+            <><br /><br />Danach erhältst du: <strong style={{ color: C.accentLight }}>{info.offer_name}</strong></>
+          )}
+        </p>
+        <p style={{ fontSize: 11, color: C.textDim, marginTop: 20 }}>
+          Kein E-Mail erhalten? Prüfe deinen Spam-Ordner.
         </p>
       </div>
     </div>
