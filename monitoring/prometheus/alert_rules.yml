@@ -1,0 +1,11 @@
+groups:
+  - name: ariia_alerts
+    rules:
+      - alert: ContainerDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ $labels.instance }} is down"
+          description: "Container has been down for more than 1 minute."

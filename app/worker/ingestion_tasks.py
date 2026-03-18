@@ -350,16 +350,12 @@ async def process_ingestion_job(
 class WorkerSettings:
     """arq WorkerSettings — includes both legacy and Sprint 2/3 pipeline tasks."""
 
-    @staticmethod
-    def _get_redis_settings():
-        try:
-            from app.worker.settings import get_worker_redis_settings
-            return get_worker_redis_settings()
-        except Exception:
-            from arq.connections import RedisSettings
-            return RedisSettings()
-
-    redis_settings = property(lambda self: WorkerSettings._get_redis_settings())
+    try:
+        from app.worker.settings import get_worker_redis_settings as _grs
+        redis_settings = _grs()
+    except Exception:
+        from arq.connections import RedisSettings
+        redis_settings = RedisSettings()
     functions = [process_ingestion_job]
     max_jobs = 20
     job_timeout = 600
