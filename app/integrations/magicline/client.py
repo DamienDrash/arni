@@ -94,7 +94,7 @@ class MagiclineClient:
                       slice_size: int = 100, offset: str | None = None) -> dict:
         """GET /v1/customers  (CUSTOMER_READ)
 
-        customer_status: MEMBER | PROSPECT  (default MEMBER)
+        customer_status: MEMBER | PROSPECT | FORMER_MEMBER  (default MEMBER)
         Magicline enforces minimum sliceSize=50.
         """
         params: dict[str, Any] = {"sliceSize": max(int(slice_size), 50)}

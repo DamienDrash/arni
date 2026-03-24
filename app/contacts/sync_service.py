@@ -36,6 +36,7 @@ from app.core.contact_models import (
     ContactTagAssociation,
 )
 from app.core.db import SessionLocal
+from app.integrations.magicline.contact_fields import set_magicline_custom_field_values
 
 logger = structlog.get_logger()
 
@@ -259,8 +260,9 @@ class ContactSyncService:
 
         # 2. If not found, try cross-source dedup by email
         if not contact and nc.email:
-            contact = existing_by_email.get(nc.email.lower())
-            if contact:
+            email_match = existing_by_email.get(nc.email.lower())
+            if email_match and email_match.source != source:
+                contact = email_match
                 # Found by email – link to this source
                 contact.source_id = nc.source_id
                 if not contact.external_ids:
@@ -275,8 +277,9 @@ class ContactSyncService:
 
         # 3. If not found, try cross-source dedup by phone
         if not contact and nc.phone:
-            contact = existing_by_phone.get(nc.phone)
-            if contact:
+            phone_match = existing_by_phone.get(nc.phone)
+            if phone_match and phone_match.source != source:
+                contact = phone_match
                 if not contact.external_ids:
                     contact.external_ids = json.dumps({source: nc.source_id})
                 else:
@@ -331,6 +334,9 @@ class ContactSyncService:
             if nc.tags:
                 self._sync_tags(db, contact, tenant_id, nc.tags)
 
+            if source == "magicline" and nc.custom_fields:
+                set_magicline_custom_field_values(db, tenant_id, contact.id, nc.custom_fields)
+
         else:
             # ── Create new contact ───────────────────────────────────────
             contact = Contact(
@@ -367,6 +373,9 @@ class ContactSyncService:
             # Add tags
             if nc.tags:
                 self._sync_tags(db, contact, tenant_id, nc.tags)
+
+            if source == "magicline" and nc.custom_fields:
+                set_magicline_custom_field_values(db, tenant_id, contact.id, nc.custom_fields)
 
             # Add initial note
             if nc.notes:
@@ -413,23 +422,49 @@ class ContactSyncService:
             (i.identifier_type, i.identifier_value) for i in existing_identifiers
         }
 
-        if nc.email and ("email", nc.email) not in existing_values:
-            db.add(ContactIdentifier(
-                contact_id=contact.id,
-                tenant_id=tenant_id,
-                identifier_type="email",
-                identifier_value=nc.email,
-                is_primary=True,
-            ))
+        self._add_identifier_if_available(db, contact.id, tenant_id, "email", nc.email, existing_values)
+        self._add_identifier_if_available(db, contact.id, tenant_id, "phone", nc.phone, existing_values)
 
-        if nc.phone and ("phone", nc.phone) not in existing_values:
-            db.add(ContactIdentifier(
-                contact_id=contact.id,
-                tenant_id=tenant_id,
-                identifier_type="phone",
-                identifier_value=nc.phone,
-                is_primary=True,
-            ))
+    def _add_identifier_if_available(
+        self,
+        db: Session,
+        contact_id: int,
+        tenant_id: int,
+        identifier_type: str,
+        identifier_value: str | None,
+        existing_values: set[tuple[str, str]],
+    ) -> None:
+        if not identifier_value or (identifier_type, identifier_value) in existing_values:
+            return
+
+        tenant_match = (
+            db.query(ContactIdentifier)
+            .filter(
+                ContactIdentifier.tenant_id == tenant_id,
+                ContactIdentifier.identifier_type == identifier_type,
+                ContactIdentifier.identifier_value == identifier_value,
+            )
+            .first()
+        )
+        if tenant_match:
+            if tenant_match.contact_id != contact_id:
+                logger.warning(
+                    "contact_sync.identifier_conflict",
+                    tenant_id=tenant_id,
+                    contact_id=contact_id,
+                    existing_contact_id=tenant_match.contact_id,
+                    identifier_type=identifier_type,
+                    identifier_value=identifier_value,
+                )
+            return
+
+        db.add(ContactIdentifier(
+            contact_id=contact_id,
+            tenant_id=tenant_id,
+            identifier_type=identifier_type,
+            identifier_value=identifier_value,
+            is_primary=True,
+        ))
 
     def _sync_tags(
         self, db: Session, contact: Contact, tenant_id: int, tag_names: List[str]

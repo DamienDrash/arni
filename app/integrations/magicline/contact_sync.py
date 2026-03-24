@@ -134,38 +134,58 @@ def _resolve_additional_info(
     return result
 
 
-def _build_contract_info(client: MagiclineClient, customer_id: int) -> dict[str, Any] | None:
-    """Fetch active contracts for a member and return structured info."""
-    try:
-        contracts = client.customer_contracts(customer_id, status="ACTIVE")
+def _build_contract_info(
+    client: MagiclineClient,
+    customer_id: int,
+    customer_status: str | None = None,
+) -> dict[str, Any] | None:
+    """Fetch the most relevant contract snapshot for a customer."""
+    candidate_statuses: list[str] = ["ACTIVE"]
+    if customer_status == "FORMER_MEMBER":
+        candidate_statuses.append("INACTIVE")
+
+    for requested_status in candidate_statuses:
+        try:
+            contracts = client.customer_contracts(customer_id, status=requested_status)
+        except Exception:
+            continue
         if not contracts:
-            return None
+            continue
         c = contracts[0]
         return {
             "plan_name": c.get("rateName") or c.get("name") or "Unbekannt",
-            "status": "ACTIVE",
+            "status": c.get("status") or requested_status,
             "start_date": c.get("startDate"),
             "end_date": c.get("endDate"),
             "is_canceled": bool(c.get("cancellationDate")),
         }
-    except Exception:
-        return None
+
+    return None
 
 
 def _determine_lifecycle(raw: dict[str, Any], contract_info: dict | None) -> str:
     """Determine lifecycle stage from Magicline data."""
-    # If they have an active contract, they're a customer
-    if contract_info and contract_info.get("status") == "ACTIVE":
-        if contract_info.get("is_canceled"):
-            return "churned"
-        return "customer"
-    # Magicline status MEMBER implies customer
     status = raw.get("customerStatus") or raw.get("status")
     if status == "MEMBER":
         return "customer"
-    if status == "LEAD":
+    if status == "PROSPECT":
         return "lead"
+    if status == "FORMER_MEMBER":
+        return "churned"
+    if contract_info and contract_info.get("status") == "ACTIVE":
+        return "customer"
     return "subscriber"
+
+
+def _fetch_customers_for_status(
+    client: MagiclineClient,
+    customer_status: str,
+) -> list[dict[str, Any]]:
+    return MagiclineClient.iter_pages(
+        client.customer_list,
+        customer_status=customer_status,
+        slice_size=200,
+    )
 
 
 # ─── Main Sync Function ─────────────────────────────────────────────────────
@@ -198,13 +218,23 @@ def sync_contacts_from_magicline(tenant_id: int) -> dict[str, Any]:
     except Exception as e:
         logger.warning("magicline.contact_sync.field_defs_failed", error=str(e))
 
-    # Fetch all MEMBER-status customers from Magicline
+    # Fetch all supported customer statuses from Magicline
     try:
-        rows = MagiclineClient.iter_pages(
-            client.customer_list,
-            customer_status="MEMBER",
-            slice_size=200,
-        )
+        rows_by_id: dict[int, dict[str, Any]] = {}
+        fetched_counts: dict[str, int] = {}
+        for customer_status in ("MEMBER", "PROSPECT", "FORMER_MEMBER"):
+            status_rows = _fetch_customers_for_status(client, customer_status)
+            fetched_counts[customer_status] = len(status_rows)
+            for row in status_rows:
+                customer_id = row.get("id")
+                try:
+                    customer_id_int = int(customer_id)
+                except (TypeError, ValueError):
+                    continue
+                normalized_row = dict(row)
+                normalized_row["status"] = normalized_row.get("status") or customer_status
+                rows_by_id[customer_id_int] = normalized_row
+        rows = list(rows_by_id.values())
     except Exception as e:
         msg = str(e)
         if "403" in msg or "permission" in msg.lower():
@@ -242,16 +272,20 @@ def sync_contacts_from_magicline(tenant_id: int) -> dict[str, Any]:
         )
 
         # Build structured metadata
-        contract_info = _build_contract_info(client, customer_id)
+        magicline_status = str(raw.get("status") or raw.get("customerStatus") or "").strip().upper() or None
+        contract_info = _build_contract_info(client, customer_id, magicline_status)
         pause_info = _build_pause_info(raw)
         additional_info = _resolve_additional_info(raw, field_defs)
         member_number = str(raw.get("customerNumber") or "").strip() or None
 
         # Build custom fields from Magicline-specific data
         custom_fields: Dict[str, Any] = {}
+        if magicline_status:
+            custom_fields["magicline_status"] = magicline_status
         if contract_info:
             custom_fields["vertrag"] = contract_info.get("plan_name", "")
             custom_fields["vertrag_status"] = contract_info.get("status", "")
+            custom_fields["vertrag_gekuendigt"] = contract_info.get("is_canceled", False)
             if contract_info.get("start_date"):
                 custom_fields["vertrag_start"] = contract_info["start_date"]
             if contract_info.get("end_date"):
@@ -273,6 +307,8 @@ def sync_contacts_from_magicline(tenant_id: int) -> dict[str, Any]:
         # Build tags from Magicline data
         tags: List[str] = ["magicline"]
         lifecycle = _determine_lifecycle(raw, contract_info)
+        if magicline_status:
+            tags.append(f"magicline:{magicline_status.lower()}")
         if pause_info and pause_info.get("is_currently_paused"):
             tags.append("pausiert")
         if contract_info and contract_info.get("is_canceled"):
@@ -298,6 +334,7 @@ def sync_contacts_from_magicline(tenant_id: int) -> dict[str, Any]:
         "magicline.contact_sync.normalized",
         tenant_id=tenant_id,
         fetched=len(rows),
+        fetched_by_status=fetched_counts,
         normalized=len(normalized_contacts),
     )
 
@@ -307,7 +344,7 @@ def sync_contacts_from_magicline(tenant_id: int) -> dict[str, Any]:
         source="magicline",
         contacts=normalized_contacts,
         full_sync=True,
-        delete_missing=False,  # Soft-delete not needed for Magicline
+        delete_missing=True,
         performed_by_name="Magicline Sync",
     )
 

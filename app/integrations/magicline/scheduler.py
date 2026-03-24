@@ -1,51 +1,17 @@
 from __future__ import annotations
 
 import asyncio
-import threading
 from datetime import datetime, timezone
 
 import structlog
 
 from app.core.db import SessionLocal
-from app.core.models import StudioMember, Tenant
+from app.core.models import Tenant
 from app.gateway.persistence import persistence
-from app.integrations.magicline.member_enrichment import enrich_member
-from app.integrations.magicline.members_sync import sync_members_from_magicline
+from app.integrations.magicline.contact_enrichment import enrich_contacts_for_tenant
+from app.integrations.magicline.contact_sync import sync_contacts_from_magicline
 
 logger = structlog.get_logger()
-
-
-def _enrich_tenant_members(tenant_id: int) -> None:
-    """Background enrichment: fetch check-in stats + bookings for all tenant members."""
-    db = SessionLocal()
-    try:
-        ids = [
-            row.customer_id
-            for row in db.query(StudioMember).filter(StudioMember.tenant_id == tenant_id).all()
-        ]
-    finally:
-        db.close()
-
-    if not ids:
-        return
-        
-    import redis as _redis
-    from config.settings import get_settings
-    
-    try:
-        r = _redis.from_url(get_settings().redis_url, decode_responses=True)
-        queue_key = f"tenant:{tenant_id}:enrich_queue"
-        chunk_size = 500
-        for i in range(0, len(ids), chunk_size):
-            r.sadd(queue_key, *ids[i:i+chunk_size])
-            
-        logger.info(
-            "magicline.scheduler.enrich_queued",
-            tenant_id=tenant_id,
-            enqueued=len(ids),
-        )
-    except Exception as e:
-        logger.error("magicline.scheduler.enrich_enqueue_failed", tenant_id=tenant_id, error=str(e))
 
 
 def _field_match(expr: str, value: int) -> bool:
@@ -95,7 +61,7 @@ async def magicline_sync_scheduler_loop() -> None:
                 ).strip().lower() in {"1", "true", "yes", "on"}
                 if not enabled:
                     continue
-                cron = persistence.get_setting("magicline_auto_sync_cron", "0 */6 * * *", tenant_id=tenant_id) or "0 */6 * * *"
+                cron = persistence.get_setting("magicline_auto_sync_cron", "0 * * * *", tenant_id=tenant_id) or "0 * * * *"
                 last_sync_at = (persistence.get_setting("magicline_last_sync_at", "", tenant_id=tenant_id) or "").strip()
                 never_synced = not last_sync_at
                 # Run immediately if never synced; otherwise only on cron schedule
@@ -107,18 +73,12 @@ async def magicline_sync_scheduler_loop() -> None:
                 last_tick_by_tenant[tenant_id] = tick_key
                 started_at = datetime.now(timezone.utc).isoformat()
                 try:
-                    result = await asyncio.to_thread(sync_members_from_magicline, tenant_id)
+                    result = await asyncio.to_thread(sync_contacts_from_magicline, tenant_id)
                     persistence.upsert_setting("magicline_last_sync_at", started_at, tenant_id=tenant_id)
                     persistence.upsert_setting("magicline_last_sync_status", "ok", tenant_id=tenant_id)
                     persistence.upsert_setting("magicline_last_sync_error", "", tenant_id=tenant_id)
                     logger.info("magicline.scheduler.synced", tenant_id=tenant_id, result=result)
-                    # Kick off enrichment in background — non-blocking, respects 6h TTL cache
-                    threading.Thread(
-                        target=_enrich_tenant_members,
-                        args=(tenant_id,),
-                        daemon=True,
-                        name=f"enrich-t{tenant_id}",
-                    ).start()
+                    asyncio.create_task(enrich_contacts_for_tenant(tenant_id))
                     logger.info("magicline.scheduler.enrich_started", tenant_id=tenant_id)
                 except Exception as e:
                     detail = f"{e.__class__.__name__}: {e}"
@@ -129,4 +89,3 @@ async def magicline_sync_scheduler_loop() -> None:
         except Exception as e:
             logger.error("magicline.scheduler.loop_failed", error=str(e))
         await asyncio.sleep(60)
-

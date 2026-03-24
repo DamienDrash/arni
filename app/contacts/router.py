@@ -64,7 +64,7 @@ from __future__ import annotations
 import csv
 import io
 import json
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -104,6 +104,7 @@ from app.contacts.schemas import (
     SegmentCreate,
     SegmentFilterGroup,
     SegmentListResponse,
+    SegmentPreviewRequest,
     SegmentPreviewResponse,
     SegmentResponse,
     SegmentUpdate,
@@ -137,19 +138,37 @@ def list_contacts(
     search: Optional[str] = Query(None, description="Freitextsuche"),
     lifecycle_stage: Optional[str] = Query(None, description="Lifecycle-Phase"),
     source: Optional[str] = Query(None, description="Quelle"),
-    tags: Optional[str] = Query(None, description="Tags (kommagetrennt)"),
+    tags: Optional[List[str]] = Query(None, description="Tags"),
     has_email: Optional[bool] = Query(None, description="Hat E-Mail"),
     has_phone: Optional[bool] = Query(None, description="Hat Telefon"),
     company: Optional[str] = Query(None, description="Firma"),
     gender: Optional[str] = Query(None, description="Geschlecht"),
+    score_min: Optional[int] = Query(None, description="Minimaler Score"),
+    score_max: Optional[int] = Query(None, description="Maximaler Score"),
+    created_after: Optional[str] = Query(None, description="Erstellt ab (YYYY-MM-DD)"),
+    created_before: Optional[str] = Query(None, description="Erstellt bis (YYYY-MM-DD)"),
     sort_by: str = Query("created_at", description="Sortierfeld"),
     sort_order: str = Query("desc", description="Sortierrichtung"),
     page: int = Query(1, ge=1, description="Seite"),
-    page_size: int = Query(50, ge=1, le=500, description="Einträge pro Seite"),
+    page_size: int = Query(50, ge=1, le=2000, description="Einträge pro Seite"),
     user: AuthContext = Depends(get_current_user),
 ):
     """List contacts with filtering, search, and pagination."""
-    tag_list = [t.strip() for t in tags.split(",")] if tags else None
+    tag_list: Optional[List[str]] = None
+    if tags:
+        expanded_tags: List[str] = []
+        for tag in tags:
+            expanded_tags.extend([item.strip() for item in str(tag).split(",") if item.strip()])
+        tag_list = expanded_tags or None
+    created_after_dt = None
+    created_before_dt = None
+    try:
+        if created_after:
+            created_after_dt = datetime.combine(datetime.fromisoformat(created_after).date(), time.min, tzinfo=timezone.utc)
+        if created_before:
+            created_before_dt = datetime.combine(datetime.fromisoformat(created_before).date(), time.max, tzinfo=timezone.utc)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Ungültiges Datumsformat: {exc}") from exc
 
     return contact_service.list_contacts(
         tenant_id=user.tenant_id,
@@ -161,6 +180,10 @@ def list_contacts(
         has_phone=has_phone,
         company=company,
         gender=gender,
+        score_min=score_min,
+        score_max=score_max,
+        created_after=created_after_dt,
+        created_before=created_before_dt,
         sort_by=sort_by,
         sort_order=sort_order,
         page=page,
@@ -428,15 +451,14 @@ def evaluate_segment(
 @router.post("/segments/preview", response_model=SegmentPreviewResponse)
 @router.post("/segments/preview/", response_model=SegmentPreviewResponse)
 def preview_segment(
-    filter_groups: List[SegmentFilterGroup],
-    group_connector: str = Query("and"),
+    data: SegmentPreviewRequest,
     user: AuthContext = Depends(get_current_user),
 ):
     """Preview segment evaluation without saving (count + sample)."""
     return contact_service.preview_segment(
         tenant_id=user.tenant_id,
-        filter_groups=filter_groups,
-        group_connector=group_connector,
+        filter_groups=data.filter_groups,
+        group_connector=data.group_connector,
     )
 
 

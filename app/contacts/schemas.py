@@ -486,6 +486,8 @@ class SegmentFilterRule(BaseModel):
             "starts_with", "ends_with", "greater_than", "less_than",
             "greater_equal", "less_equal", "between",
             "is_set", "is_not_set", "in_list", "not_in_list",
+            "in", "not_in", "before", "after", "last_days",
+            "is_true", "is_false", "is_empty", "is_not_empty",
         ]
         if v not in allowed:
             raise ValueError(f"Operator muss einer der folgenden Werte sein: {', '.join(allowed)}")
@@ -554,6 +556,19 @@ class SegmentPreviewResponse(BaseModel):
     """Preview of segment evaluation (count only, no full data)."""
     contact_count: int
     sample_contacts: List[ContactResponse] = []
+
+
+class SegmentPreviewRequest(BaseModel):
+    """Request body for segment preview."""
+    filter_groups: List[SegmentFilterGroup]
+    group_connector: str = "and"
+
+    @field_validator("group_connector")
+    @classmethod
+    def validate_group_connector(cls, v: str) -> str:
+        if v not in ("and", "or"):
+            raise ValueError("group_connector muss 'and' oder 'or' sein")
+        return v
 
 
 # ─── Lifecycle Schemas (Phase 3) ─────────────────────────────────────────────

@@ -44,13 +44,12 @@ type ContactStats = {
 };
 
 type NoteItem = { id: number; contact_id: number; content: string; is_pinned: boolean; created_by_id?: number; created_at: string; updated_at: string };
-type ActivityItem = { id: number; contact_id: number; activity_type: string; description: string; metadata?: any; created_at: string };
+type ActivityItem = { id: number; contact_id: number; activity_type: string; title?: string; description?: string; metadata?: any; created_at: string };
 type DuplicateGroup = { match_type: string; match_value: string; confidence: number; contacts: Contact[] };
 type Segment = { id: number; name: string; description?: string; filter_json?: any; filter_groups?: any[]; group_connector?: string; is_dynamic: boolean; contact_count: number; created_at: string };
-type CustomFieldDef = { id: number; tenant_id: number; field_name: string; field_type: string; field_label: string; is_required: boolean; field_options?: any; display_order: number; created_at: string };
 
 // ── Segment Builder Types ──
-type SegmentRule = { field: string; operator: string; value: string };
+type SegmentRule = { field: string; operator: string; value: string; value2?: string };
 type SegmentRuleGroup = { connector: "AND" | "OR"; rules: SegmentRule[] };
 
 // ── Import V2 Types ──
@@ -77,7 +76,21 @@ const SOURCE_LABELS: Record<string, string> = {
   website: "Website", referral: "Empfehlung", social: "Social Media",
 };
 
-const SEGMENT_FIELDS = [
+type SegmentField = { value: string; label: string; type: "text" | "number" | "select" | "date" | "boolean"; options?: string[] };
+
+type CustomFieldDef = {
+  id: number;
+  field_name: string;
+  field_slug: string;
+  field_type: string;
+  is_required: boolean;
+  is_visible: boolean;
+  options?: string[] | null;
+  display_order: number;
+  description?: string | null;
+};
+
+const BASE_SEGMENT_FIELDS: SegmentField[] = [
   { value: "lifecycle_stage", label: "Lifecycle-Phase", type: "select", options: Object.keys(LIFECYCLE_STAGES) },
   { value: "source", label: "Quelle", type: "select", options: Object.keys(SOURCE_LABELS) },
   { value: "company", label: "Firma", type: "text" },
@@ -86,7 +99,7 @@ const SEGMENT_FIELDS = [
   { value: "phone", label: "Telefon", type: "text" },
   { value: "gender", label: "Geschlecht", type: "select", options: ["male", "female", "diverse"] },
   { value: "preferred_language", label: "Sprache", type: "select", options: ["de", "en", "fr", "es"] },
-  { value: "tags", label: "Tags", type: "text" },
+  { value: "tag", label: "Tags", type: "text" },
   { value: "created_at", label: "Erstellt am", type: "date" },
   { value: "consent_email", label: "E-Mail-Einwilligung", type: "boolean" },
   { value: "consent_sms", label: "SMS-Einwilligung", type: "boolean" },
@@ -105,7 +118,7 @@ const OPERATORS: Record<string, { label: string; value: string }[]> = {
   ],
   select: [
     { label: "ist", value: "equals" }, { label: "ist nicht", value: "not_equals" },
-    { label: "ist einer von", value: "in" },
+    { label: "ist einer von", value: "in_list" },
   ],
   date: [
     { label: "vor", value: "before" }, { label: "nach", value: "after" },
@@ -208,6 +221,13 @@ const ACTIVITY_ICONS: Record<string, any> = {
 };
 
 const getActivityIcon = (type: string) => ACTIVITY_ICONS[type] || ACTIVITY_ICONS.default;
+const fmtDaytime = (value?: string | null) => ({ morning: "Morgens", afternoon: "Nachmittags", evening: "Abends" }[value || ""] || (value || "–"));
+const fmtChurnRisk = (value?: string | null) => ({ low: "Niedrig", medium: "Mittel", high: "Hoch" }[value || ""] || (value || "–"));
+const normalizeCustomFieldMap = (items: Array<{ field_slug: string; value?: string | null }> | Record<string, any> | null | undefined) => {
+  if (!items) return {};
+  if (Array.isArray(items)) return Object.fromEntries(items.map((item) => [item.field_slug, item.value]));
+  return items;
+};
 
 
 // ── Main Component ───────────────────────────────────────────────────────────
@@ -224,6 +244,7 @@ export default function ContactsPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchInputValue, setSearchInputValue] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
 
@@ -232,6 +253,7 @@ export default function ContactsPage() {
   const [filterLifecycle, setFilterLifecycle] = useState("");
   const [filterSource, setFilterSource] = useState("");
   const [filterTags, setFilterTags] = useState<string[]>([]);
+  const [tagFilterValue, setTagFilterValue] = useState("");
   const [filterCompany, setFilterCompany] = useState("");
   const [filterScoreMin, setFilterScoreMin] = useState("");
   const [filterScoreMax, setFilterScoreMax] = useState("");
@@ -357,18 +379,37 @@ export default function ContactsPage() {
 
   // ── Active filter count ───────────────────────────────────────────────
   const activeFilterCount = [filterLifecycle, filterSource, filterCompany, filterScoreMin, filterScoreMax, filterHasEmail, filterHasPhone, filterDateFrom, filterDateTo].filter(Boolean).length + filterTags.length;
+  const sortedTags = useMemo(
+    () => [...allTags].sort((a, b) => a.name.localeCompare(b.name, "de", { sensitivity: "base" })),
+    [allTags],
+  );
+  const segmentFields = useMemo<SegmentField[]>(() => {
+    const dynamicFields = customFields.map((field) => ({
+      value: `custom:${field.field_slug}`,
+      label: field.field_name,
+      type: (["text", "number", "select", "date", "boolean"].includes(field.field_type) ? field.field_type : "text") as SegmentField["type"],
+      options: field.options || undefined,
+    }));
+    return [...BASE_SEGMENT_FIELDS, ...dynamicFields];
+  }, [customFields]);
 
   // ── Data Fetching ──────────────────────────────────────────────────────
 
   const fetchContacts = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE), sort_by: sortBy, sort_dir: sortDir });
+      const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE), sort_by: sortBy, sort_order: sortDir });
       if (searchQuery) params.set("search", searchQuery);
       if (filterLifecycle) params.set("lifecycle_stage", filterLifecycle);
       if (filterSource) params.set("source", filterSource);
       if (filterCompany) params.set("company", filterCompany);
       if (filterTags.length > 0) filterTags.forEach(t => params.append("tags", t));
+      if (filterHasEmail) params.set("has_email", filterHasEmail === "yes" ? "true" : "false");
+      if (filterHasPhone) params.set("has_phone", filterHasPhone === "yes" ? "true" : "false");
+      if (filterScoreMin) params.set("score_min", filterScoreMin);
+      if (filterScoreMax) params.set("score_max", filterScoreMax);
+      if (filterDateFrom) params.set("created_after", filterDateFrom);
+      if (filterDateTo) params.set("created_before", filterDateTo);
       const res = await apiFetch(`/api/v2/contacts?${params}`);
       if (res.ok) {
         const data: ContactListResponse = await res.json();
@@ -377,7 +418,7 @@ export default function ContactsPage() {
         setTotalPages(data.total_pages);
       }
     } catch { /* best effort */ } finally { setLoading(false); }
-  }, [page, searchQuery, sortBy, sortDir, filterLifecycle, filterSource, filterCompany, filterTags]);
+  }, [page, searchQuery, sortBy, sortDir, filterLifecycle, filterSource, filterCompany, filterTags, filterHasEmail, filterHasPhone, filterScoreMin, filterScoreMax, filterDateFrom, filterDateTo]);
 
   const fetchStats = async () => {
     try { const res = await apiFetch("/api/v2/contacts/stats"); if (res.ok) setStats(await res.json()); } catch {}
@@ -439,6 +480,7 @@ export default function ContactsPage() {
   };
 
   const handleSearchChange = (val: string) => {
+    setSearchInputValue(val);
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => { setSearchQuery(val); setPage(1); }, 350);
   };
@@ -449,12 +491,25 @@ export default function ContactsPage() {
     setSelectedContact(contact);
     setDetailTab("overview");
     setInlineEditing(false);
+    try {
+      const res = await apiFetch(`/api/v2/contacts/${contact.id}`);
+      if (res.ok) {
+        const fresh = await res.json();
+        setSelectedContact(fresh);
+      }
+    } catch {}
     // Fetch notes
     try { const res = await apiFetch(`/api/v2/contacts/${contact.id}/notes`); if (res.ok) { const data = await res.json(); setDetailNotes(data.items || data); } } catch {}
     // Fetch activities
     try { const res = await apiFetch(`/api/v2/contacts/${contact.id}/activities`); if (res.ok) { const data = await res.json(); setDetailActivities(data.items || data); } } catch {}
     // Fetch custom field values
-    try { const res = await apiFetch(`/api/v2/contacts/${contact.id}/custom-fields`); if (res.ok) { const data = await res.json(); setContactCustomValues(Array.isArray(data) ? {} : (typeof data === 'object' && data !== null ? data : {})); } } catch {}
+    try {
+      const res = await apiFetch(`/api/v2/contacts/${contact.id}/custom-fields`);
+      if (res.ok) {
+        const data = await res.json();
+        setContactCustomValues(normalizeCustomFieldMap(data));
+      }
+    } catch {}
   };
 
   // ── Inline Edit ────────────────────────────────────────────────────────
@@ -653,7 +708,7 @@ export default function ContactsPage() {
   const handleAddActivity = async (type: string, description: string) => {
     if (!selectedContact) return;
     try {
-      const res = await apiFetch(`/api/v2/contacts/${selectedContact.id}/activities`, { method: "POST", body: JSON.stringify({ activity_type: type, description }) });
+      const res = await apiFetch(`/api/v2/contacts/${selectedContact.id}/activities`, { method: "POST", body: JSON.stringify({ activity_type: type, title: description, description }) });
       if (res.ok) { const data = await apiFetch(`/api/v2/contacts/${selectedContact.id}/activities`); if (data.ok) { const d = await data.json(); setDetailActivities(d.items || d); } }
     } catch {}
   };
@@ -706,6 +761,14 @@ export default function ContactsPage() {
     if (filterSource) filterJson.source = filterSource;
     if (filterTags.length > 0) filterJson.tags = filterTags;
     if (filterCompany) filterJson.company = filterCompany;
+    if (filterScoreMin) filterJson.score_min = Number(filterScoreMin);
+    if (filterScoreMax) filterJson.score_max = Number(filterScoreMax);
+    if (filterHasEmail === "yes") filterJson.has_email = true;
+    if (filterHasEmail === "no") filterJson.has_email = false;
+    if (filterHasPhone === "yes") filterJson.has_phone = true;
+    if (filterHasPhone === "no") filterJson.has_phone = false;
+    if (filterDateFrom) filterJson.created_after = filterDateFrom;
+    if (filterDateTo) filterJson.created_before = filterDateTo;
     try {
       const res = await apiFetch("/api/v2/contacts/segments", {
         method: "POST", body: JSON.stringify({ name: newSegmentName, description: newSegmentDesc || undefined, filter_json: Object.keys(filterJson).length > 0 ? filterJson : undefined, is_dynamic: true }),
@@ -749,13 +812,29 @@ export default function ContactsPage() {
     setSegBuilderGroups(prev => prev.map((g, i) => i === groupIdx ? { ...g, connector: g.connector === "AND" ? "OR" : "AND" } : g));
   };
 
+  const buildSegmentPayload = () => ({
+    filter_groups: segBuilderGroups.map((group) => ({
+      connector: group.connector.toLowerCase(),
+      rules: group.rules.map((rule) => ({
+        field: rule.field,
+        operator: rule.operator,
+        value: rule.value || undefined,
+        value2: rule.value2 || undefined,
+      })),
+    })),
+    group_connector: segBuilderConnector.toLowerCase(),
+  });
+
   const previewSegment = async () => {
     setSegBuilderLoading(true);
     try {
       const res = await apiFetch("/api/v2/contacts/segments/preview", {
-        method: "POST", body: JSON.stringify({ filter_groups: segBuilderGroups, group_connector: segBuilderConnector }),
+        method: "POST", body: JSON.stringify(buildSegmentPayload()),
       });
-      if (res.ok) { const data = await res.json(); setSegBuilderPreview(data); }
+      if (res.ok) {
+        const data = await res.json();
+        setSegBuilderPreview({ count: data.contact_count || 0, contacts: data.sample_contacts || [] });
+      }
     } catch {} finally { setSegBuilderLoading(false); }
   };
 
@@ -765,7 +844,7 @@ export default function ContactsPage() {
       const res = await apiFetch("/api/v2/contacts/segments", {
         method: "POST", body: JSON.stringify({
           name: segBuilderName, description: segBuilderDesc || undefined,
-          filter_groups: segBuilderGroups, group_connector: segBuilderConnector, is_dynamic: true,
+          ...buildSegmentPayload(), is_dynamic: true,
         }),
       });
       if (res.ok) {
@@ -841,8 +920,8 @@ export default function ContactsPage() {
   const handleCreateCustomField = async () => {
     if (!newCfName.trim() || !newCfLabel.trim()) return;
     try {
-      const body: any = { field_name: newCfName, field_label: newCfLabel, field_type: newCfType, is_required: newCfRequired };
-      if (newCfType === "select" && newCfOptions) body.field_options = { choices: newCfOptions.split(",").map(o => o.trim()).filter(Boolean) };
+      const body: any = { field_name: newCfLabel, field_slug: newCfName, field_type: newCfType, is_required: newCfRequired };
+      if (newCfType === "select" && newCfOptions) body.options = newCfOptions.split(",").map(o => o.trim()).filter(Boolean);
       const res = await apiFetch("/api/v2/contacts/custom-fields", { method: "POST", body: JSON.stringify(body) });
       if (res.ok) { setNewCfName(""); setNewCfLabel(""); setNewCfType("text"); setNewCfRequired(false); setNewCfOptions(""); fetchCustomFields(); }
     } catch {}
@@ -876,9 +955,9 @@ export default function ContactsPage() {
   // ── Reset Filters ─────────────────────────────────────────────────────
 
   const resetFilters = () => {
-    setFilterLifecycle(""); setFilterSource(""); setFilterTags([]); setFilterCompany("");
+    setFilterLifecycle(""); setFilterSource(""); setFilterTags([]); setTagFilterValue(""); setFilterCompany("");
     setFilterScoreMin(""); setFilterScoreMax(""); setFilterHasEmail(""); setFilterHasPhone("");
-    setFilterDateFrom(""); setFilterDateTo(""); setSearchQuery(""); setPage(1);
+    setFilterDateFrom(""); setFilterDateTo(""); setSearchQuery(""); setSearchInputValue(""); setPage(1);
   };
 
   const resetForm = () => {
@@ -1010,9 +1089,28 @@ export default function ContactsPage() {
                           setActiveSegment(seg);
                           if (seg.filter_json) {
                             if (seg.filter_json.lifecycle_stage) setFilterLifecycle(seg.filter_json.lifecycle_stage);
+                            else setFilterLifecycle("");
                             if (seg.filter_json.source) setFilterSource(seg.filter_json.source);
+                            else setFilterSource("");
                             if (seg.filter_json.tags) setFilterTags(seg.filter_json.tags);
+                            else setFilterTags([]);
+                            setTagFilterValue("");
                             if (seg.filter_json.company) setFilterCompany(seg.filter_json.company);
+                            else setFilterCompany("");
+                            if (seg.filter_json.score_min !== undefined) setFilterScoreMin(String(seg.filter_json.score_min));
+                            else setFilterScoreMin("");
+                            if (seg.filter_json.score_max !== undefined) setFilterScoreMax(String(seg.filter_json.score_max));
+                            else setFilterScoreMax("");
+                            if (seg.filter_json.has_email === true) setFilterHasEmail("yes");
+                            else if (seg.filter_json.has_email === false) setFilterHasEmail("no");
+                            else setFilterHasEmail("");
+                            if (seg.filter_json.has_phone === true) setFilterHasPhone("yes");
+                            else if (seg.filter_json.has_phone === false) setFilterHasPhone("no");
+                            else setFilterHasPhone("");
+                            if (seg.filter_json.created_after) setFilterDateFrom(String(seg.filter_json.created_after).slice(0, 10));
+                            else setFilterDateFrom("");
+                            if (seg.filter_json.created_before) setFilterDateTo(String(seg.filter_json.created_before).slice(0, 10));
+                            else setFilterDateTo("");
                           }
                           setPage(1);
                         }
@@ -1064,7 +1162,7 @@ export default function ContactsPage() {
         <div style={S.toolbar}>
           <div style={S.searchWrap}>
             <Search size={15} style={S.searchIcon} />
-            <input style={S.searchInput} placeholder="Kontakte durchsuchen (Name, E-Mail, Telefon, Firma)..." onChange={(e) => handleSearchChange(e.target.value)} />
+            <input style={S.searchInput} value={searchInputValue} placeholder="Kontakte durchsuchen (Name, E-Mail, Telefon, Firma)..." onChange={(e) => handleSearchChange(e.target.value)} />
           </div>
           <button style={{ ...S.filterBtn, ...(showFilters || activeFilterCount > 0 ? { borderColor: T.accent, color: T.accent } : {}) }} onClick={() => setShowFilters(!showFilters)}>
             <ListFilter size={14} /> Filter {activeFilterCount > 0 && <Badge variant="accent">{activeFilterCount}</Badge>} {showFilters ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -1113,9 +1211,20 @@ export default function ContactsPage() {
                 </div>
                 <div>
                   <label style={S.formLabel}>Tags</label>
-                  <select style={S.formSelect} onChange={(e) => { if (e.target.value && !filterTags.includes(e.target.value)) { setFilterTags(prev => [...prev, e.target.value]); setPage(1); } e.target.value = ""; }}>
+                  <select
+                    style={S.formSelect}
+                    value={tagFilterValue}
+                    onChange={(e) => {
+                      const selectedTag = e.target.value;
+                      setTagFilterValue("");
+                      if (selectedTag && !filterTags.includes(selectedTag)) {
+                        setFilterTags(prev => [...prev, selectedTag]);
+                        setPage(1);
+                      }
+                    }}
+                  >
                     <option value="">Tag wählen...</option>
-                    {allTags.map(t => (<option key={t.id} value={t.name}>{t.name}</option>))}
+                    {sortedTags.map(t => (<option key={t.id} value={t.name}>{t.name}</option>))}
                   </select>
                   {filterTags.length > 0 && (
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
@@ -1138,6 +1247,12 @@ export default function ContactsPage() {
                 <div>
                   <label style={S.formLabel}>E-Mail vorhanden</label>
                   <select style={S.formSelect} value={filterHasEmail} onChange={(e) => { setFilterHasEmail(e.target.value); setPage(1); }}>
+                    <option value="">Egal</option><option value="yes">Ja</option><option value="no">Nein</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={S.formLabel}>Telefon vorhanden</label>
+                  <select style={S.formSelect} value={filterHasPhone} onChange={(e) => { setFilterHasPhone(e.target.value); setPage(1); }}>
                     <option value="">Egal</option><option value="yes">Ja</option><option value="no">Nein</option>
                   </select>
                 </div>
@@ -1381,6 +1496,64 @@ export default function ContactsPage() {
                         ))}
                       </div>
 
+                      <div style={{ marginBottom: 20 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: "uppercase", marginBottom: 8 }}>Mitgliedschaft</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                          {[
+                            { icon: CircleDot, label: "Magicline Status", value: selectedContact.custom_fields?.magicline_status },
+                            { icon: FileText, label: "Vertrag", value: selectedContact.custom_fields?.vertrag },
+                            { icon: Shield, label: "Status", value: selectedContact.custom_fields?.vertrag_status },
+                            { icon: Calendar, label: "Vertragsstart", value: selectedContact.custom_fields?.vertrag_start ? fmtDate(selectedContact.custom_fields.vertrag_start) : null },
+                            { icon: Calendar, label: "Vertragsende", value: selectedContact.custom_fields?.vertrag_ende ? fmtDate(selectedContact.custom_fields.vertrag_ende) : null },
+                            { icon: Clock, label: "Pausiert", value: selectedContact.custom_fields?.pausiert === "true" ? "Ja" : selectedContact.custom_fields?.pausiert === "false" ? "Nein" : null },
+                            { icon: CalendarDays, label: "Pause bis", value: selectedContact.custom_fields?.pause_bis ? fmtDate(selectedContact.custom_fields.pause_bis) : null },
+                          ].map((item, i) => (
+                            <div key={i} style={{ padding: "10px 12px", borderRadius: 8, background: T.surfaceAlt }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                                <item.icon size={12} style={{ color: T.textDim }} />
+                                <span style={{ fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase" }}>{item.label}</span>
+                              </div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: item.value ? T.text : T.textDim }}>{item.value || "–"}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {selectedContact.custom_fields?.pause_grund && (
+                          <div style={{ marginTop: 8, padding: "10px 12px", borderRadius: 8, background: T.surfaceAlt, fontSize: 13, color: T.text }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Pausegrund</span>
+                            {selectedContact.custom_fields.pause_grund}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ marginBottom: 20 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: "uppercase", marginBottom: 8 }}>Trainingsprofil</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                          {[
+                            { icon: Activity, label: "Letzter Besuch", value: selectedContact.custom_fields?.letzter_besuch ? fmtDate(selectedContact.custom_fields.letzter_besuch) : null },
+                            { icon: Calendar, label: "Nächster Termin", value: selectedContact.custom_fields?.naechster_termin ? fmtDateTime(selectedContact.custom_fields.naechster_termin) : null },
+                            { icon: BarChart3, label: "Besuche 30 Tage", value: selectedContact.custom_fields?.besuche_30d },
+                            { icon: BarChart3, label: "Besuche 90 Tage", value: selectedContact.custom_fields?.besuche_90d },
+                            { icon: CalendarDays, label: "Wochentage", value: selectedContact.custom_fields?.bevorzugte_trainingstage },
+                            { icon: Clock, label: "Tageszeit", value: fmtDaytime(selectedContact.custom_fields?.bevorzugte_tageszeit) },
+                            { icon: ListChecks, label: "Sessions", value: selectedContact.custom_fields?.bevorzugte_sessions },
+                            { icon: AlertTriangle, label: "Churn Risiko", value: fmtChurnRisk(selectedContact.custom_fields?.churn_risk) },
+                          ].map((item, i) => (
+                            <div key={i} style={{ padding: "10px 12px", borderRadius: 8, background: T.surfaceAlt }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                                <item.icon size={12} style={{ color: T.textDim }} />
+                                <span style={{ fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase" }}>{item.label}</span>
+                              </div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: item.value ? T.text : T.textDim }}>{item.value || "–"}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {selectedContact.custom_fields?.churn_score && (
+                          <div style={{ marginTop: 8, fontSize: 12, color: T.textDim }}>
+                            Churn Score: <span style={{ color: T.text, fontWeight: 700 }}>{selectedContact.custom_fields.churn_score}</span>
+                          </div>
+                        )}
+                      </div>
+
                       {/* DSGVO */}
                       <div style={{ marginBottom: 20 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: "uppercase", marginBottom: 8 }}>DSGVO-Einwilligungen</div>
@@ -1447,12 +1620,23 @@ export default function ContactsPage() {
                       <div style={{ position: "absolute", left: 8, top: 0, bottom: 0, width: 2, background: T.border }} />
                       {detailActivities.map(act => {
                         const Icon = getActivityIcon(act.activity_type);
+                        const checkinStats = act.metadata?.checkin_stats;
                         return (
                           <div key={act.id} style={{ position: "relative", marginBottom: 16, paddingLeft: 16 }}>
                             <div style={{ position: "absolute", left: -20, top: 4, width: 20, height: 20, borderRadius: 10, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center" }}>
                               <Icon size={10} style={{ color: T.accent }} />
                             </div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>{act.description}</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>{act.description || act.title || "Aktivität"}</div>
+                            {checkinStats && (
+                              <div style={{ marginTop: 6, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                                <div style={{ fontSize: 11, color: T.textDim }}>30T: {checkinStats.total_30d ?? "–"}</div>
+                                <div style={{ fontSize: 11, color: T.textDim }}>90T: {checkinStats.total_90d ?? "–"}</div>
+                                <div style={{ fontSize: 11, color: T.textDim }}>Wochentage: {checkinStats.preferred_training_days || "–"}</div>
+                                <div style={{ fontSize: 11, color: T.textDim }}>Tageszeit: {fmtDaytime(checkinStats.preferred_training_time)}</div>
+                                <div style={{ fontSize: 11, color: T.textDim }}>Sessions: {checkinStats.preferred_training_sessions || "–"}</div>
+                                <div style={{ fontSize: 11, color: T.textDim }}>Churn: {fmtChurnRisk(act.metadata?.churn_prediction?.risk)}</div>
+                              </div>
+                            )}
                             <div style={{ fontSize: 11, color: T.textDim, marginTop: 2 }}>{fmtDateTime(act.created_at)}</div>
                           </div>
                         );
@@ -1576,9 +1760,9 @@ export default function ContactsPage() {
                     <div>
                       {customFields.map(cf => (
                         <div key={cf.id} style={S.formGroup}>
-                          <label style={S.formLabel}>{cf.field_label} {cf.is_required && <span style={{ color: T.danger }}>*</span>}</label>
+                          <label style={S.formLabel}>{cf.field_name} {cf.is_required && <span style={{ color: T.danger }}>*</span>}</label>
                           <div style={{ fontSize: 13, color: T.text, padding: "8px 12px", borderRadius: 8, background: T.surfaceAlt }}>
-                            {contactCustomValues[cf.field_name] || <span style={{ color: T.textDim }}>–</span>}
+                            {contactCustomValues[cf.field_slug] || <span style={{ color: T.textDim }}>–</span>}
                           </div>
                         </div>
                       ))}
@@ -1744,23 +1928,30 @@ export default function ContactsPage() {
               </div>
 
               {group.rules.map((rule, ri) => {
-                const fieldDef = SEGMENT_FIELDS.find(f => f.value === rule.field);
+                const fieldDef = segmentFields.find(f => f.value === rule.field);
                 const fieldType = fieldDef?.type || "text";
                 const ops = OPERATORS[fieldType] || OPERATORS.text;
                 return (
                   <div key={ri} style={S.ruleRow}>
-                    <select style={{ ...S.formSelect, flex: 2, padding: "6px 8px", fontSize: 12 }} value={rule.field} onChange={(e) => updateRule(gi, ri, { field: e.target.value, operator: "equals", value: "" })}>
-                      {SEGMENT_FIELDS.map(f => (<option key={f.value} value={f.value}>{f.label}</option>))}
+                    <select style={{ ...S.formSelect, flex: 2, padding: "6px 8px", fontSize: 12 }} value={rule.field} onChange={(e) => updateRule(gi, ri, { field: e.target.value, operator: "equals", value: "", value2: "" })}>
+                      {segmentFields.map(f => (<option key={f.value} value={f.value}>{f.label}</option>))}
                     </select>
                     <select style={{ ...S.formSelect, flex: 1.5, padding: "6px 8px", fontSize: 12 }} value={rule.operator} onChange={(e) => updateRule(gi, ri, { operator: e.target.value })}>
                       {ops.map(op => (<option key={op.value} value={op.value}>{op.label}</option>))}
                     </select>
                     {!["is_empty", "is_not_empty", "is_true", "is_false"].includes(rule.operator) && (
-                      fieldDef?.options ? (
+                      fieldDef?.options && rule.operator !== "last_days" ? (
                         <select style={{ ...S.formSelect, flex: 2, padding: "6px 8px", fontSize: 12 }} value={rule.value} onChange={(e) => updateRule(gi, ri, { value: e.target.value })}>
                           <option value="">Wählen...</option>
                           {fieldDef.options.map((opt: string) => (<option key={opt} value={opt}>{LIFECYCLE_STAGES[opt]?.label || SOURCE_LABELS[opt] || opt}</option>))}
                         </select>
+                      ) : rule.operator === "between" ? (
+                        <div style={{ display: "flex", gap: 6, flex: 2 }}>
+                          <input style={{ ...S.formInput, padding: "6px 8px", fontSize: 12 }} value={rule.value} onChange={(e) => updateRule(gi, ri, { value: e.target.value })} placeholder="Von" type={fieldType === "number" ? "number" : fieldType === "date" ? "date" : "text"} />
+                          <input style={{ ...S.formInput, padding: "6px 8px", fontSize: 12 }} value={rule.value2 || ""} onChange={(e) => updateRule(gi, ri, { value2: e.target.value })} placeholder="Bis" type={fieldType === "number" ? "number" : fieldType === "date" ? "date" : "text"} />
+                        </div>
+                      ) : rule.operator === "last_days" ? (
+                        <input style={{ ...S.formInput, flex: 2, padding: "6px 8px", fontSize: 12 }} value={rule.value} onChange={(e) => updateRule(gi, ri, { value: e.target.value })} placeholder="Tage" type="number" />
                       ) : (
                         <input style={{ ...S.formInput, flex: 2, padding: "6px 8px", fontSize: 12 }} value={rule.value} onChange={(e) => updateRule(gi, ri, { value: e.target.value })} placeholder="Wert..." type={fieldType === "number" ? "number" : fieldType === "date" ? "date" : "text"} />
                       )
@@ -2134,8 +2325,8 @@ export default function ContactsPage() {
                   <div key={cf.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: T.surfaceAlt, marginBottom: 8, border: `1px solid ${T.border}` }}>
                     <TypeIcon size={16} style={{ color: T.accent }} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{cf.field_label}</div>
-                      <div style={{ fontSize: 11, color: T.textDim }}>{cf.field_name} • {CUSTOM_FIELD_TYPES.find(t => t.value === cf.field_type)?.label || cf.field_type} {cf.is_required && "• Pflichtfeld"}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{cf.field_name}</div>
+                      <div style={{ fontSize: 11, color: T.textDim }}>{cf.field_slug} • {CUSTOM_FIELD_TYPES.find(t => t.value === cf.field_type)?.label || cf.field_type} {cf.is_required && "• Pflichtfeld"}</div>
                     </div>
                     <button style={{ background: "none", border: "none", cursor: "pointer", color: T.danger, padding: 6 }} onClick={() => handleDeleteCustomField(cf.id)}>
                       <Trash2 size={14} />

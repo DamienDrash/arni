@@ -1,7 +1,7 @@
 """Lazy per-member enrichment: check-in stats + recent bookings.
 
 Fetches data from Magicline for a single member and caches it in the local DB.
-TTL: 6 hours (configurable via ENRICHMENT_TTL_HOURS).
+TTL: 1 hour (configurable via ENRICHMENT_TTL_HOURS).
 
 recent_bookings is stored as a dict:
   {
@@ -23,7 +23,7 @@ from app.integrations.magicline import get_client
 
 logger = structlog.get_logger()
 
-ENRICHMENT_TTL_HOURS = 6
+ENRICHMENT_TTL_HOURS = 1
 CHECKIN_SLICE_SIZE = 50  # API max is ~50
 
 

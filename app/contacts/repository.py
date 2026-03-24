@@ -16,11 +16,11 @@ from __future__ import annotations
 
 import json
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
-from sqlalchemy import and_, func, or_, case, text
+from sqlalchemy import Float, and_, case, cast, func, or_, text
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.contact_models import (
@@ -130,18 +130,20 @@ class ContactRepository:
 
         # ── Tag filter ────────────────────────────────────────────────────
         if tags:
-            tag_ids_subq = (
-                db.query(ContactTag.id)
-                .filter(ContactTag.tenant_id == tenant_id, ContactTag.name.in_(tags))
-                .subquery()
-            )
-            contact_ids_with_tags = (
-                db.query(ContactTagAssociation.contact_id)
-                .filter(ContactTagAssociation.tag_id.in_(tag_ids_subq.select()))
-                .distinct()
-                .subquery()
-            )
-            q = q.filter(Contact.id.in_(contact_ids_with_tags.select()))
+            normalized_tags = [tag.strip() for tag in tags if str(tag).strip()]
+            if normalized_tags:
+                contact_ids_with_all_tags = (
+                    db.query(ContactTagAssociation.contact_id)
+                    .join(ContactTag, ContactTag.id == ContactTagAssociation.tag_id)
+                    .filter(
+                        ContactTag.tenant_id == tenant_id,
+                        ContactTag.name.in_(normalized_tags),
+                    )
+                    .group_by(ContactTagAssociation.contact_id)
+                    .having(func.count(func.distinct(ContactTag.name)) == len(set(normalized_tags)))
+                    .subquery()
+                )
+                q = q.filter(Contact.id.in_(contact_ids_with_all_tags.select()))
 
         # ── Count ─────────────────────────────────────────────────────────
         total = q.count()
@@ -984,12 +986,12 @@ class ContactRepository:
     def _build_rule_condition(self, db: Session, tenant_id: int, rule: Dict):
         """Build a SQLAlchemy condition from a single segment rule."""
         field = rule.get("field", "")
-        operator = rule.get("operator", "equals")
+        operator = self._normalize_rule_operator(rule.get("operator", "equals"))
         value = rule.get("value")
         value2 = rule.get("value2")
 
         # Tag-based rules
-        if field == "tag":
+        if field in ("tag", "tags"):
             tag_ids = db.query(ContactTag.id).filter(
                 ContactTag.tenant_id == tenant_id,
                 ContactTag.name == value,
@@ -1012,15 +1014,51 @@ class ContactRepository:
             ).first()
             if not defn:
                 return None
+            value_col = ContactCustomFieldValue.value
+            if defn.field_type == "number":
+                value_col = cast(ContactCustomFieldValue.value, Float)
             cfv_subq = db.query(ContactCustomFieldValue.contact_id).filter(
                 ContactCustomFieldValue.field_definition_id == defn.id,
             )
+            if operator == "is_true":
+                operator = "equals"
+                value = "true"
+            elif operator == "is_false":
+                operator = "equals"
+                value = "false"
+            if operator == "before":
+                operator = "less_than"
+            elif operator == "after":
+                operator = "greater_than"
+            if operator == "last_days":
+                cutoff = (datetime.now(timezone.utc) - timedelta(days=int(value or 0))).date().isoformat()
+                operator = "greater_equal"
+                value = cutoff
             if operator == "equals":
-                cfv_subq = cfv_subq.filter(ContactCustomFieldValue.value == str(value))
+                cfv_subq = cfv_subq.filter(value_col == (float(value) if defn.field_type == "number" and value not in (None, "") else str(value)))
             elif operator == "not_equals":
-                cfv_subq = cfv_subq.filter(ContactCustomFieldValue.value != str(value))
+                cfv_subq = cfv_subq.filter(value_col != (float(value) if defn.field_type == "number" and value not in (None, "") else str(value)))
             elif operator == "contains":
                 cfv_subq = cfv_subq.filter(ContactCustomFieldValue.value.ilike(f"%{value}%"))
+            elif operator == "greater_than":
+                cfv_subq = cfv_subq.filter(value_col > (float(value) if defn.field_type == "number" else str(value)))
+            elif operator == "less_than":
+                cfv_subq = cfv_subq.filter(value_col < (float(value) if defn.field_type == "number" else str(value)))
+            elif operator == "greater_equal":
+                cfv_subq = cfv_subq.filter(value_col >= (float(value) if defn.field_type == "number" else str(value)))
+            elif operator == "less_equal":
+                cfv_subq = cfv_subq.filter(value_col <= (float(value) if defn.field_type == "number" else str(value)))
+            elif operator == "between":
+                cfv_subq = cfv_subq.filter(
+                    value_col >= (float(value) if defn.field_type == "number" else str(value)),
+                    value_col <= (float(value2) if defn.field_type == "number" else str(value2)),
+                )
+            elif operator == "in_list":
+                values = value if isinstance(value, list) else [value]
+                cfv_subq = cfv_subq.filter(value_col.in_([float(item) if defn.field_type == "number" else str(item) for item in values]))
+            elif operator == "not_in_list":
+                values = value if isinstance(value, list) else [value]
+                cfv_subq = cfv_subq.filter(~value_col.in_([float(item) if defn.field_type == "number" else str(item) for item in values]))
             elif operator == "is_set":
                 pass  # just check existence
             elif operator == "is_not_set":
@@ -1031,6 +1069,17 @@ class ContactRepository:
         col = getattr(Contact, field, None)
         if col is None:
             return None
+
+        if operator == "is_true":
+            return col.is_(True)
+        elif operator == "is_false":
+            return col.is_(False)
+        elif operator == "before":
+            operator = "less_than"
+        elif operator == "after":
+            operator = "greater_than"
+        elif operator == "last_days":
+            return col >= (datetime.now(timezone.utc) - timedelta(days=int(value or 0)))
 
         if operator == "equals":
             return col == value
@@ -1065,6 +1114,16 @@ class ContactRepository:
             vals = value if isinstance(value, list) else [value]
             return ~col.in_(vals)
         return None
+
+    @staticmethod
+    def _normalize_rule_operator(operator: str) -> str:
+        aliases = {
+            "in": "in_list",
+            "not_in": "not_in_list",
+            "is_empty": "is_not_set",
+            "is_not_empty": "is_set",
+        }
+        return aliases.get(operator, operator)
 
     # ── Custom Fields ─────────────────────────────────────────────────────
 

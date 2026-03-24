@@ -11,7 +11,7 @@ Design:
   - `enrich_contacts_for_tenant(tenant_id)` is the main entry point
   - Throttled batch: 1 API call per contact, 50ms delay between calls
   - Idempotent: safe to run multiple times (skips contacts enriched < TTL hours ago)
-  - TTL: 6 hours per contact (same as member_enrichment.py)
+  - TTL: 1 hour per contact (same as member_enrichment.py)
   - Hooked into SyncCore.run_sync() so it runs after every successful Magicline sync
 """
 
@@ -37,6 +37,7 @@ from app.integrations.magicline.member_enrichment import (
     _extract_items,
     _fetch_recent_bookings,
 )
+from app.integrations.magicline.contact_fields import set_magicline_custom_field_values
 
 logger = structlog.get_logger()
 
@@ -283,6 +284,24 @@ async def enrich_contacts_for_tenant(tenant_id: int, force: bool = False) -> dic
 
             churn = result["churn"]
             checkin_stats = result["checkin_stats"]
+
+            enrichment_fields = {
+                "letzter_besuch": checkin_stats.get("last_visit"),
+                "besuche_30d": checkin_stats.get("total_30d"),
+                "besuche_90d": checkin_stats.get("total_90d"),
+                "bevorzugte_trainingstage": checkin_stats.get("preferred_training_days"),
+                "bevorzugte_tageszeit": checkin_stats.get("preferred_training_time"),
+                "bevorzugte_sessions": checkin_stats.get("preferred_training_sessions"),
+                "naechster_termin": (checkin_stats.get("next_appointment") or {}).get("start"),
+                "churn_risk": churn.get("risk"),
+                "churn_score": churn.get("score"),
+            }
+            set_magicline_custom_field_values(
+                db2,
+                tenant_id=tenant_id,
+                contact_id=contact.id,
+                values=enrichment_fields,
+            )
 
             # Update score (engagement = inverted churn risk)
             contact_db.score = _churn_score_to_engagement(churn["score"])
