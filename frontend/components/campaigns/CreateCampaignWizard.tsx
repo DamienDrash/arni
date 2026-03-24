@@ -172,6 +172,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [allContacts, setAllContacts] = useState<ContactItem[]>([]);
   const [selectedContactIds, setSelectedContactIds] = useState<number[]>([]);
+  const [selectedContactsData, setSelectedContactsData] = useState<Record<number, ContactItem>>({});
   const [contactSearch, setContactSearch] = useState("");
   const [contactsLoading, setContactsLoading] = useState(false);
   const [tagsLoading, setTagsLoading] = useState(false);
@@ -229,14 +230,33 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
 
   /* ─── Load Contacts when "selected" target selected ─────────────────── */
   useEffect(() => {
-    if (form.target_type === "selected" && allContacts.length === 0) {
+    if (form.target_type !== "selected") return;
+
+    const timeout = setTimeout(() => {
       setContactsLoading(true);
-      apiFetch("/api/v2/contacts?limit=200")
-        .then(async (res) => { if (res.ok) { const data = await res.json(); setAllContacts(data.items || data || []); } })
+      const query = contactSearch.trim() ? `&search=${encodeURIComponent(contactSearch.trim())}` : "";
+      
+      // Filter by channel capability
+      let channelFilter = "";
+      if (form.channel === "email") {
+        channelFilter = "&has_email=true";
+      } else if (["whatsapp", "sms", "telegram"].includes(form.channel)) {
+        channelFilter = "&has_phone=true";
+      }
+
+      apiFetch(`/api/v2/contacts?page_size=2000${channelFilter}${query}`)
+        .then(async (res) => { 
+          if (res.ok) { 
+            const data = await res.json(); 
+            setAllContacts(data.items || data || []); 
+          } 
+        })
         .catch(() => {})
         .finally(() => setContactsLoading(false));
-    }
-  }, [form.target_type]);
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [form.target_type, contactSearch, form.channel]);
 
   /* ─── Media Library Picker ───────────────────────────────────────────── */
 
@@ -776,7 +796,7 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                 {selectedContactIds.length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                     {selectedContactIds.map((cid) => {
-                      const c = allContacts.find(ct => ct.id === cid);
+                      const c = selectedContactsData[cid] || allContacts.find(ct => ct.id === cid);
                       return c ? (
                         <span key={cid} style={{
                           display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8,
@@ -802,44 +822,38 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
                   </div>
                 ) : (
                   <div style={{ maxHeight: 280, overflowY: "auto", border: `1px solid ${T.border}`, borderRadius: 12, background: T.surfaceAlt }}>
-                    {allContacts
-                      .filter((c) => {
-                        if (!contactSearch.trim()) return true;
-                        const q = contactSearch.toLowerCase();
-                        return (
-                          (c.first_name || "").toLowerCase().includes(q) ||
-                          (c.last_name || "").toLowerCase().includes(q) ||
-                          (c.email || "").toLowerCase().includes(q) ||
-                          (c.company || "").toLowerCase().includes(q)
-                        );
-                      })
-                      .map((c) => {
-                        const isSelected = selectedContactIds.includes(c.id);
-                        return (
-                          <button key={c.id} onClick={() => {
-                            setSelectedContactIds(isSelected ? selectedContactIds.filter(id => id !== c.id) : [...selectedContactIds, c.id]);
-                          }} style={{
-                            display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", width: "100%",
-                            borderBottom: `1px solid ${T.border}`, background: isSelected ? T.accentDim : "transparent",
-                            cursor: "pointer", textAlign: "left", transition: "all .12s", border: "none",
+                    {allContacts.map((c) => {
+                      const isSelected = selectedContactIds.includes(c.id);
+                      return (
+                        <button key={c.id} onClick={() => {
+                          if (isSelected) {
+                            setSelectedContactIds(selectedContactIds.filter(id => id !== c.id));
+                          } else {
+                            setSelectedContactIds([...selectedContactIds, c.id]);
+                            setSelectedContactsData(prev => ({ ...prev, [c.id]: c }));
+                          }
+                        }} style={{
+                          display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", width: "100%",
+                          borderBottom: `1px solid ${T.border}`, background: isSelected ? T.accentDim : "transparent",
+                          cursor: "pointer", textAlign: "left", transition: "all .12s", border: "none",
+                        }}>
+                          <div style={{
+                            width: 20, height: 20, borderRadius: 4, border: `2px solid ${isSelected ? T.accent : T.border}`,
+                            background: isSelected ? T.accent : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                           }}>
-                            <div style={{
-                              width: 20, height: 20, borderRadius: 4, border: `2px solid ${isSelected ? T.accent : T.border}`,
-                              background: isSelected ? T.accent : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                            }}>
-                              {isSelected && <CheckCircle size={12} style={{ color: "#fff" }} />}
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <p style={{ fontSize: 13, fontWeight: 600, color: T.text, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {c.first_name} {c.last_name}
-                              </p>
-                              <p style={{ fontSize: 11, color: T.textDim, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {c.email}{c.company ? ` · ${c.company}` : ""}
-                              </p>
-                            </div>
-                          </button>
-                        );
-                      })}
+                            {isSelected && <CheckCircle size={12} style={{ color: "#fff" }} />}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: T.text, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {c.first_name} {c.last_name}
+                            </p>
+                            <p style={{ fontSize: 11, color: T.textDim, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {c.email}{c.company ? ` · ${c.company}` : ""}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
                     {allContacts.length === 0 && !contactsLoading && (
                       <p style={{ fontSize: 13, color: T.textDim, padding: "16px", textAlign: "center" }}>Keine Kontakte vorhanden.</p>
                     )}
