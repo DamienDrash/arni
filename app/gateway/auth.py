@@ -902,6 +902,16 @@ async def me(user: AuthContext = Depends(get_current_user)) -> dict:
         if getattr(user, "impersonator_user_id", None):
             result["impersonating"] = True
             result["impersonator_user_id"] = user.impersonator_user_id
+            result["impersonation"] = {
+                "active": True,
+                "impersonator_user_id": user.impersonator_user_id,
+                "impersonator_email": getattr(user, "impersonator_email", None),
+                "impersonator_role": getattr(user, "impersonator_role", None),
+                "impersonator_tenant_id": getattr(user, "impersonator_tenant_id", None),
+                "impersonator_tenant_slug": getattr(user, "impersonator_tenant_slug", None),
+                "reason": getattr(user, "impersonation_reason", None),
+                "started_at": getattr(user, "impersonation_started_at", None),
+            }
         return result
     finally:
         db.close()
@@ -1581,13 +1591,13 @@ async def start_impersonation(
             tenant_id=tenant.id,
             tenant_slug=tenant.slug,
             role=target.role,
-            extra_claims={
-                "imp": True,
-                "imp_by": user.user_id,
-                "imp_email": user.email,
-                "imp_reason": req.reason,
+            ttl_seconds=IMPERSONATION_TTL_SECONDS,
+            impersonation={
+                "active": True,
+                "actor_user_id": user.user_id,
+                "reason": req.reason,
+                "started_at": datetime.now(timezone.utc).isoformat(),
             },
-            ttl_override_seconds=IMPERSONATION_TTL_SECONDS,
         )
         _set_auth_cookies(response, token)
         _write_audit(

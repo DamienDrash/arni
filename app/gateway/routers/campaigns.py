@@ -125,17 +125,82 @@ async def list_campaigns(
     db: Session = Depends(get_db),
 ):
     """List all campaigns for the tenant."""
-    q = db.query(Campaign).filter(Campaign.tenant_id == user.tenant_id)
+    q = db.query(
+        Campaign.id,
+        Campaign.name,
+        Campaign.description,
+        Campaign.type,
+        Campaign.status,
+        Campaign.channel,
+        Campaign.target_type,
+        Campaign.target_filter_json,
+        Campaign.template_id,
+        Campaign.content_subject,
+        Campaign.content_body,
+        Campaign.content_html,
+        Campaign.ai_prompt,
+        Campaign.ai_generated_content,
+        Campaign.preview_token,
+        Campaign.scheduled_at,
+        Campaign.sent_at,
+        Campaign.is_ab_test,
+        Campaign.featured_image_url,
+        Campaign.stats_total,
+        Campaign.stats_sent,
+        Campaign.stats_delivered,
+        Campaign.stats_opened,
+        Campaign.stats_clicked,
+        Campaign.stats_failed,
+        Campaign.created_at,
+        Campaign.updated_at,
+    ).filter(Campaign.tenant_id == user.tenant_id)
     if status:
         q = q.filter(Campaign.status == status)
     if type:
         q = q.filter(Campaign.type == type)
 
-    total = q.count()
+    count_q = db.query(func.count(Campaign.id)).filter(Campaign.tenant_id == user.tenant_id)
+    if status:
+        count_q = count_q.filter(Campaign.status == status)
+    if type:
+        count_q = count_q.filter(Campaign.type == type)
+
+    total = count_q.scalar() or 0
     campaigns = q.order_by(desc(Campaign.created_at)).offset((page - 1) * limit).limit(limit).all()
 
     return {
-        "items": [_campaign_to_dict(c) for c in campaigns],
+        "items": [
+            {
+                "id": c.id,
+                "name": c.name,
+                "description": c.description,
+                "type": c.type,
+                "status": c.status,
+                "channel": c.channel,
+                "target_type": c.target_type,
+                "target_filter_json": c.target_filter_json,
+                "template_id": c.template_id,
+                "content_subject": c.content_subject,
+                "content_body": c.content_body,
+                "content_html": c.content_html,
+                "ai_prompt": c.ai_prompt,
+                "ai_generated_content": c.ai_generated_content,
+                "preview_token": c.preview_token,
+                "scheduled_at": c.scheduled_at.isoformat() if c.scheduled_at else None,
+                "sent_at": c.sent_at.isoformat() if c.sent_at else None,
+                "is_ab_test": c.is_ab_test,
+                "featured_image_url": c.featured_image_url,
+                "stats_total": c.stats_total,
+                "stats_sent": c.stats_sent,
+                "stats_delivered": c.stats_delivered,
+                "stats_opened": c.stats_opened,
+                "stats_clicked": c.stats_clicked,
+                "stats_failed": c.stats_failed,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+            }
+            for c in campaigns
+        ],
         "total": total,
         "page": page,
         "pages": (total + limit - 1) // limit,
@@ -1494,10 +1559,15 @@ async def get_queue_stats(
         
         # Count only active sends in DB for accurate send queue length
         from app.core.models import CampaignRecipient
-        send_queue_len = db.query(CampaignRecipient).filter(
-            CampaignRecipient.tenant_id == user.tenant_id,
-            CampaignRecipient.status == "queued"
-        ).count()
+        send_queue_len = (
+            db.query(func.count(CampaignRecipient.id))
+            .filter(
+                CampaignRecipient.tenant_id == user.tenant_id,
+                CampaignRecipient.status == "queued",
+            )
+            .scalar()
+            or 0
+        )
 
     except Exception as e:
         logger.warning("campaigns.queue_stats_failed", error=str(e))

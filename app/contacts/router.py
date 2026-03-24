@@ -121,6 +121,7 @@ from app.core.contact_models import Contact, ContactImportLog
 logger = structlog.get_logger()
 
 router = APIRouter(prefix="/v2/contacts", tags=["contacts-v2"])
+admin_router = APIRouter(prefix="/v2/admin/contacts", tags=["contacts-v2-admin"])
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -374,6 +375,13 @@ def delete_tag(
 @router.get("/segments/", response_model=SegmentListResponse)
 def list_segments(user: AuthContext = Depends(get_current_user)):
     """List all contact segments."""
+    return contact_service.list_segments(user.tenant_id)
+
+
+@admin_router.get("/segments", response_model=SegmentListResponse)
+@admin_router.get("/segments/", response_model=SegmentListResponse)
+def list_segments_admin_alias(user: AuthContext = Depends(get_current_user)):
+    """Compatibility alias for admin-prefixed contact segment listing."""
     return contact_service.list_segments(user.tenant_id)
 
 

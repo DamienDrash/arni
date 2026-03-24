@@ -414,8 +414,10 @@ except Exception as _gm_err:
 
 # --- Contacts v2 Router (Refactoring) ---
 try:
+    from app.contacts.router import admin_router as contacts_v2_admin_router
     from app.contacts.router import router as contacts_v2_router
     app.include_router(contacts_v2_router)
+    app.include_router(contacts_v2_admin_router)
 except Exception as _contacts_err:
     logger.warning("ariia.gateway.contacts_v2_skipped", error=str(_contacts_err))
 
