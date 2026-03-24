@@ -81,3 +81,7 @@ whatsapp_qr.png
 ariia-website.zip
 *.zip
 test_ariia.db
+
+# Local agent tooling
+.agents/
+skills-lock.json
