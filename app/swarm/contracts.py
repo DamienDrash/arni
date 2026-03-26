@@ -21,6 +21,8 @@ class TenantContext:
     settings: dict[str, Any]
     member_id: str | None = None
     session_id: str | None = None
+    user_name: str = ""
+    phone_number: str = ""
 
 
 @dataclass(frozen=True)

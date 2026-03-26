@@ -60,10 +60,24 @@ def _looks_like_email(value: str) -> bool:
 def _safe_date(value: str | None) -> date | None:
     if not value:
         return None
+    value = value.strip().rstrip(".")
+    # ISO format: 2026-04-06
     try:
         return date.fromisoformat(value)
     except ValueError:
-        return None
+        pass
+    # German formats: 06.04.2026 or 06.04.26
+    import re as _re
+    m = _re.match(r"^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$", value)
+    if m:
+        day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if year < 100:
+            year += 2000
+        try:
+            return date(year, month, day)
+        except ValueError:
+            pass
+    return None
 
 
 def _safe_datetime(value: str | None) -> datetime | None:
@@ -98,6 +112,26 @@ def _resolve_member_context(user_identifier: str, tenant_id: int | None = None) 
     if user_identifier.isdigit():
         # Could be CRM customer number/member id from external systems
         member_id_candidates.append(user_identifier)
+
+    # 0) Phone-based lookup via local studio_members DB — fastest and most reliable
+    #    since Magicline has no phone search endpoint.
+    #    Runs for all identifiers (phone numbers are also all-digits and would
+    #    otherwise be tried as CRM customer numbers — which always fails).
+    try:
+        from app.gateway.member_matching import match_member_by_phone
+        phone_match = match_member_by_phone(user_identifier, tenant_id=tenant_id)
+        if phone_match and phone_match.customer_id:
+            # Also surface the email so downstream email path has a candidate
+            if phone_match.email:
+                email_candidates.append(phone_match.email)
+            return MemberContext(
+                customer_id=int(phone_match.customer_id),
+                first_name=str(phone_match.first_name or ""),
+                last_name=str(phone_match.last_name or ""),
+                source="phone_db",
+            ), None
+    except Exception as e:
+        logger.warning("magicline.resolve.phone_db_failed", error=str(e))
 
     # 1) Most reliable path: CRM member/customer number
     for member_id in dict.fromkeys(member_id_candidates):
@@ -265,7 +299,13 @@ def _pick_latest_slot(slots: list[dict], target_date: date, now_dt: datetime | N
             continue
         if now_dt and start <= now_dt:
             continue
-        free = slot.get("availableSlots", slot.get("freeCapacity"))
+        max_p = slot.get("maxParticipants") or 0
+        booked = slot.get("bookedParticipants", 0) or 0
+        waiting = slot.get("waitingListParticipants", 0) or 0
+        if max_p:
+            free = max(0, max_p - booked - waiting)
+        else:
+            free = slot.get("availableSlots", slot.get("freeCapacity"))
         if free is not None:
             try:
                 if int(free) <= 0:
@@ -279,8 +319,30 @@ def _pick_latest_slot(slots: list[dict], target_date: date, now_dt: datetime | N
     return candidates[-1][1]
 
 
-def get_class_schedule(date_str: str, tenant_id: int | None = None) -> str:
-    """Fetch class schedule for a specific date (YYYY-MM-DD)."""
+def _title_match(query: str, title: str) -> bool:
+    """Match a user query against a title, handling German compound words.
+
+    Handles cases like query="Krafttraining" vs title="KRAFT TRAINING":
+    1. Direct substring:  "kraft" in "kraft training"
+    2. No-space normalize: "krafttraining" == "krafttraining" (strips spaces from both)
+    3. Word parts:        any word from query appears in title
+    """
+    q = query.lower().strip()
+    t = title.lower().strip()
+    if not q or not t:
+        return False
+    # 1. Direct substring
+    if q in t:
+        return True
+    # 2. Normalize spaces (handles "Krafttraining" ↔ "KRAFT TRAINING")
+    if q.replace(" ", "") in t.replace(" ", ""):
+        return True
+    # 3. Any query word appears in title
+    return any(w in t for w in q.split() if len(w) > 2)
+
+
+def get_class_schedule(date_str: str, query: str | None = None, tenant_id: int | None = None) -> str:
+    """Fetch class schedule for a specific date (YYYY-MM-DD), optionally filtered by class name."""
     client = get_client(tenant_id=tenant_id)
     if not client:
         return "Error: Magicline Integration nicht konfiguriert."
@@ -293,25 +355,65 @@ def get_class_schedule(date_str: str, tenant_id: int | None = None) -> str:
         slots_payload = client.class_list_all_slots(days_ahead=1, slot_window_start_date=target_date.isoformat())
         slots = _extract_items(slots_payload)
         slots.sort(key=lambda x: _safe_datetime(x.get("startDateTime")) or datetime.max)
-        if not slots:
-            return f"Keine Kurse für {target_date.isoformat()} gefunden."
 
-        output = [f"Kursplan & Trainer für {target_date.isoformat()}:"]
+        # Apply name filter if provided — fall back to all slots if no match
+        filtered_slots = slots
+        filter_note = ""
+        if query:
+            matched = [
+                s for s in slots
+                if _title_match(query, (
+                    (s.get("classInformation") or {}).get("title", "")
+                    or (s.get("classDetails") or {}).get("name", "")
+                    or s.get("className", "") or s.get("title", "")
+                ))
+            ]
+            if matched:
+                filtered_slots = matched
+            else:
+                # No match — return all so LLM can identify the closest option
+                filter_note = f"\n[Hinweis: Kein Kurs namens '{query}' gefunden — vollständiger Kursplan wird angezeigt]"
+
+        if not filtered_slots:
+            return f"Keine Kurse am {target_date.isoformat()} gefunden."
+
+        output = [f"Kursplan & Trainer für {target_date.isoformat()}:{filter_note}"]
         for slot in slots:
             start_dt = _safe_datetime(slot.get("startDateTime"))
             time_label = start_dt.strftime("%H:%M") if start_dt else "??:??"
+
+            # Magicline API returns classInformation.title as course name
             title = (
-                (slot.get("classDetails") or {}).get("name")
-                if isinstance(slot.get("classDetails"), dict)
-                else None
-            ) or slot.get("className") or slot.get("title") or "Kurs"
-            instructor = slot.get("instructor")
-            trainer_name = "Ein Trainer"
-            if isinstance(instructor, dict):
-                trainer_name = f"{instructor.get('firstName', '')} {instructor.get('lastName', '')}".strip() or "Ein Trainer"
-            
-            free = slot.get("availableSlots", slot.get("freeCapacity", "?"))
-            output.append(f"- {time_label} Uhr: {title} | Trainer: {trainer_name} | Frei: {free}")
+                (slot.get("classInformation") or {}).get("title")
+                or (slot.get("classDetails") or {}).get("name")
+                or slot.get("className") or slot.get("title") or "Kurs"
+            )
+
+            # Magicline returns instructors as a list
+            instructors = slot.get("instructors") or []
+            if instructors and isinstance(instructors[0], dict):
+                first = instructors[0]
+                trainer_name = f"{first.get('firstName', '')} {first.get('lastName', '')}".strip() or "–"
+            elif isinstance(slot.get("instructor"), dict):
+                ins = slot["instructor"]
+                trainer_name = f"{ins.get('firstName', '')} {ins.get('lastName', '')}".strip() or "–"
+            else:
+                trainer_name = "–"
+
+            # Compute free spots from capacity fields
+            max_p = slot.get("maxParticipants") or 0
+            booked = slot.get("bookedParticipants", 0) or 0
+            waiting = slot.get("waitingListParticipants", 0) or 0
+            if max_p:
+                free = max(0, max_p - booked - waiting)
+            else:
+                free = slot.get("availableSlots", slot.get("freeCapacity", "?"))
+
+            # Optional location
+            location = (slot.get("location") or {}).get("name", "")
+            loc_str = f" | Ort: {location}" if location else ""
+
+            output.append(f"- {time_label} Uhr: {title} | Trainer: {trainer_name} | Frei: {free}{loc_str}")
 
         return "\n".join(output)
     except Exception as e:
@@ -338,14 +440,25 @@ def get_appointment_slots(category: str = "all", days: int = 3, tenant_id: int |
         q = category.lower().strip() if category else "all"
         if q in ("all", "*", ""): q = "all"
 
+        # Pre-filter bookables by name using compound-aware matching
+        if q != "all":
+            matched_bookables = [
+                b for b in bookables
+                if _title_match(category, str(b.get("name") or b.get("title") or ""))
+            ]
+            if not matched_bookables:
+                # No match — list available types so LLM can suggest alternatives
+                type_names = [str(b.get("name") or b.get("title") or "Termin") for b in bookables]
+                return (
+                    f"Kein Termintyp namens '{category}' gefunden.\n"
+                    f"Verfügbare Terminarten: {', '.join(type_names)}"
+                )
+            bookables = matched_bookables
+
         for b in bookables:
             b_name = str(b.get("name") or b.get("title") or "Termin")
             b_id = b.get("id") or b.get("bookableAppointmentId")
             if b_id is None:
-                continue
-            
-            # Fuzzy match: "cardio" matches "CARDIO TRAINING"
-            if q != "all" and q not in b_name.lower():
                 continue
 
             try:
@@ -371,11 +484,12 @@ def get_appointment_slots(category: str = "all", days: int = 3, tenant_id: int |
                 continue
             processed += 1
             found_any = True
-            output.append(f"\n- {b_name} (ID: {b_id})")
+            # ID is internal — shown in brackets so LLM can use for booking but won't present to user
+            output.append(f"\n{b_name} [booking_id:{b_id}]")
             # Show up to 10 slots per category for better selection
             for slot in slots[:10]:
                 start = slot.get("startDateTime", "")
-                output.append(f"  • {start[:10]} {start[11:16]}")
+                output.append(f"  • {start[:10]} {start[11:16]} Uhr")
             if len(slots) > 10:
                 output.append(f"  • ... und {len(slots) - 10} weitere")
             if processed >= 10:
@@ -833,6 +947,328 @@ def book_appointment_by_time(
             date=target_date.isoformat(),
         )
         return f"Fehler bei der Terminbuchung: {e}"
+
+
+# ─── Catalog: appointment types & class types ────────────────────────────────
+
+def get_appointment_types(tenant_id: int | None = None) -> str:
+    """List all bookable appointment types (name, category, duration)."""
+    client = get_client(tenant_id=tenant_id)
+    if not client:
+        return "Error: Magicline Integration nicht konfiguriert."
+    try:
+        payload = client.appointment_list_bookable(slice_size=100)
+        items = _extract_items(payload)
+        if not items:
+            return "Keine buchbaren Terminarten gefunden."
+        lines = ["Buchbare Terminarten:"]
+        for b in items:
+            name = b.get("name") or b.get("title") or "Termin"
+            bid = b.get("id") or b.get("bookableAppointmentId") or "?"
+            cat = b.get("category") or b.get("categoryName") or "–"
+            dur = b.get("durationInMinutes") or b.get("duration") or "?"
+            lines.append(f"- {name} (ID: {bid}, Kategorie: {cat}, Dauer: {dur} min)")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.error("magicline.get_appointment_types.failed", error=str(e))
+        return f"Fehler beim Abrufen der Terminarten: {e}"
+
+
+def get_class_types(tenant_id: int | None = None) -> str:
+    """List all class types with ID, name, category, duration."""
+    client = get_client(tenant_id=tenant_id)
+    if not client:
+        return "Error: Magicline Integration nicht konfiguriert."
+    try:
+        payload = client.class_list(slice_size=100)
+        items = _extract_items(payload)
+        if not items:
+            return "Keine Kursarten gefunden."
+        lines = ["Verfügbare Kursarten:"]
+        for c in items:
+            name = c.get("name") or c.get("title") or "Kurs"
+            cid = c.get("id") or c.get("classId") or "?"
+            cat = c.get("category") or c.get("categoryName") or "–"
+            dur = c.get("durationInMinutes") or c.get("duration") or "?"
+            max_p = c.get("maxParticipants") or "?"
+            lines.append(f"- {name} (ID: {cid}, Kategorie: {cat}, Dauer: {dur} min, Max. TN: {max_p})")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.error("magicline.get_class_types.failed", error=str(e))
+        return f"Fehler beim Abrufen der Kursarten: {e}"
+
+
+def get_class_slots_range(
+    days: int = 7,
+    start_date: str | None = None,
+    class_id: int | None = None,
+    tenant_id: int | None = None,
+) -> str:
+    """Fetch all class slots over a date range, optionally filtered by class_id."""
+    client = get_client(tenant_id=tenant_id)
+    if not client:
+        return "Error: Magicline Integration nicht konfiguriert."
+
+    days = max(1, min(int(days), 30))
+    target = _safe_date(start_date) if start_date else date.today()
+    if not target:
+        return "Ungültiges Startdatum."
+
+    try:
+        all_slots: list[dict] = []
+        seen: set = set()
+        current = target
+        end = target + timedelta(days=days)
+
+        while current < end:
+            remaining = (end - current).days
+            fetch_days = min(3, remaining) or 1
+            if class_id:
+                payload = client.class_list_slots(int(class_id), slice_size=200)
+                items = _extract_items(payload)
+                # Filter by date window
+                window_end = current + timedelta(days=fetch_days)
+                items = [
+                    s for s in items
+                    if (dt := _safe_datetime(s.get("startDateTime"))) and current <= dt.date() < window_end
+                ]
+            else:
+                payload = client.class_list_all_slots(
+                    days_ahead=fetch_days,
+                    slot_window_start_date=current.isoformat(),
+                )
+                items = _extract_items(payload)
+
+            for slot in items:
+                key = (slot.get("startDateTime"), slot.get("classId") or slot.get("id"))
+                if key not in seen:
+                    seen.add(key)
+                    all_slots.append(slot)
+            current += timedelta(days=fetch_days)
+
+        if not all_slots:
+            return f"Keine Kursslots für den Zeitraum {target.isoformat()} + {days} Tage gefunden."
+
+        all_slots.sort(key=lambda x: _safe_datetime(x.get("startDateTime")) or datetime.max)
+        lines = [f"Kursslots ({target.isoformat()} – {end.isoformat()}):"]
+        for slot in all_slots:
+            dt = _safe_datetime(slot.get("startDateTime"))
+            label = dt.strftime("%Y-%m-%d %H:%M") if dt else "??"
+            title = (
+                (slot.get("classInformation") or {}).get("title")
+                or (slot.get("classDetails") or {}).get("name")
+                or slot.get("className") or slot.get("title") or "Kurs"
+            )
+            sid = slot.get("id") or slot.get("classSlotId") or "?"
+            max_p = slot.get("maxParticipants") or 0
+            booked = slot.get("bookedParticipants", 0) or 0
+            waiting = slot.get("waitingListParticipants", 0) or 0
+            free = max(0, int(max_p) - int(booked) - int(waiting)) if max_p else "?"
+            instructors = slot.get("instructors") or []
+            trainer = "–"
+            if instructors and isinstance(instructors[0], dict):
+                first = instructors[0]
+                trainer = f"{first.get('firstName', '')} {first.get('lastName', '')}".strip() or "–"
+            lines.append(f"- {label} | {title} | Slot-ID: {sid} | Trainer: {trainer} | Frei: {free}")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.error("magicline.get_class_slots_range.failed", error=str(e))
+        return f"Fehler beim Abrufen der Kursslots: {e}"
+
+
+# ─── Employee operations ─────────────────────────────────────────────────────
+
+def get_employee_list(tenant_id: int | None = None) -> str:
+    """List all studio employees with role and competences."""
+    client = get_client(tenant_id=tenant_id)
+    if not client:
+        return "Error: Magicline Integration nicht konfiguriert."
+    try:
+        employees = client.employee_list()
+        if not employees:
+            return "Keine Mitarbeiter gefunden."
+        lines = [f"Mitarbeiter ({len(employees)} gesamt):"]
+        for e in employees:
+            name = f"{e.get('firstName', '')} {e.get('lastName', '')}".strip()
+            eid = e.get("id") or "?"
+            role = e.get("businessRole") or "–"
+            initials = e.get("employeeInitials") or ""
+            comps = e.get("employeeCompetences") or []
+            comp_str = ""
+            if comps:
+                if isinstance(comps[0], dict):
+                    names = [c.get("name", "") for c in comps]
+                else:
+                    names = [str(c) for c in comps]
+                comp_str = f" | Kompetenzen: {', '.join(names)}"
+            lines.append(f"- {name} (ID: {eid}, Kürzel: {initials}, Rolle: {role}{comp_str})")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.error("magicline.get_employee_list.failed", error=str(e))
+        return f"Fehler beim Abrufen der Mitarbeiter: {e}"
+
+
+def get_employee(employee_id: int, tenant_id: int | None = None) -> str:
+    """Get detailed information for a single employee by ID."""
+    client = get_client(tenant_id=tenant_id)
+    if not client:
+        return "Error: Magicline Integration nicht konfiguriert."
+    try:
+        e = client.employee_get(int(employee_id))
+        if not e:
+            return f"Mitarbeiter mit ID {employee_id} nicht gefunden."
+        name = f"{e.get('firstName', '')} {e.get('lastName', '')}".strip()
+        role = e.get("businessRole") or "–"
+        comps = e.get("employeeCompetences") or []
+        if comps:
+            if isinstance(comps[0], dict):
+                comp_names = [c.get("name", "") for c in comps]
+            else:
+                comp_names = [str(c) for c in comps]
+            comp_str = ", ".join(comp_names)
+        else:
+            comp_str = "–"
+        public = e.get("publicName") or "–"
+        email = e.get("email") or "–"
+        phone = e.get("phone1") or e.get("phone2") or "–"
+        initials = e.get("employeeInitials") or "–"
+        lines = [
+            f"Mitarbeiter: {name}",
+            f"  ID: {e.get('id')} | Kürzel: {initials} | Öffentlicher Name: {public}",
+            f"  Rolle: {role}",
+            f"  Kompetenzen: {comp_str}",
+            f"  E-Mail: {email} | Telefon: {phone}",
+        ]
+        return "\n".join(lines)
+    except Exception as e:
+        logger.error("magicline.get_employee.failed", error=str(e))
+        return f"Fehler beim Abrufen des Mitarbeiters: {e}"
+
+
+# ─── Extended member operations ───────────────────────────────────────────────
+
+def get_member_profile(user_identifier: str, tenant_id: int | None = None) -> str:
+    """Return full customer profile (contact data, membership type, contracts)."""
+    client = get_client(tenant_id=tenant_id)
+    if not client:
+        return "Error: Magicline Integration nicht konfiguriert."
+
+    member, err = _resolve_member_context(user_identifier, tenant_id=tenant_id)
+    if not member:
+        return err or "Mitglied konnte nicht aufgelöst werden."
+
+    try:
+        customer = client.customer_get(member.customer_id)
+        c = _first_item(customer) or customer if isinstance(customer, dict) else {}
+        email = c.get("email") or "–"
+        phone = c.get("phone") or c.get("mobilePhone") or c.get("phone1") or "–"
+        dob = c.get("dateOfBirth") or "–"
+        gender = c.get("gender") or "–"
+        street = c.get("street") or ""
+        house = c.get("houseNumber") or ""
+        zip_code = c.get("zipCode") or c.get("zip") or ""
+        city = c.get("city") or ""
+        address = f"{street} {house}, {zip_code} {city}".strip(" ,")
+        status = c.get("customerStatus") or c.get("status") or "–"
+
+        contracts = client.customer_contracts(member.customer_id)
+        active = [ct for ct in contracts if ct.get("status") == "ACTIVE" or not ct.get("endDate")]
+        contract_str = ", ".join(
+            ct.get("rateName") or ct.get("name") or "Tarif" for ct in active[:3]
+        ) or "Kein aktiver Vertrag"
+
+        lines = [
+            f"Mitgliedsprofil: {member.display_name}",
+            f"  ID: {member.customer_id} | Status: {status}",
+            f"  E-Mail: {email} | Telefon: {phone}",
+            f"  Geburtsdatum: {dob} | Geschlecht: {gender}",
+            f"  Adresse: {address or '–'}",
+            f"  Aktive Verträge: {contract_str}",
+        ]
+        return "\n".join(lines)
+    except Exception as e:
+        logger.error("magicline.get_member_profile.failed", error=str(e))
+        return f"Fehler beim Abrufen des Profils: {e}"
+
+
+def get_member_contracts(user_identifier: str, status: str = "ACTIVE", tenant_id: int | None = None) -> str:
+    """Return member contracts filtered by status (ACTIVE | INACTIVE | all)."""
+    client = get_client(tenant_id=tenant_id)
+    if not client:
+        return "Error: Magicline Integration nicht konfiguriert."
+
+    member, err = _resolve_member_context(user_identifier, tenant_id=tenant_id)
+    if not member:
+        return err or "Mitglied konnte nicht aufgelöst werden."
+
+    try:
+        status_arg = None if status.lower() == "all" else status.upper()
+        contracts = client.customer_contracts(member.customer_id, status=status_arg)
+        if not contracts:
+            label = "Aktive" if status_arg == "ACTIVE" else status_arg or "Alle"
+            return f"{member.display_name}: Keine {label} Verträge gefunden."
+
+        lines = [f"Verträge für {member.display_name}:"]
+        for ct in contracts:
+            name = ct.get("rateName") or ct.get("name") or "Tarif"
+            ct_status = ct.get("status") or "–"
+            start = (ct.get("startDate") or "")[:10]
+            end = (ct.get("endDate") or "unbefristet")[:10]
+            ct_id = ct.get("id") or "?"
+            notice = ct.get("cancellationDate") or ""
+            notice_str = f" | Kündigung: {notice[:10]}" if notice else ""
+            lines.append(f"- {name} | Status: {ct_status} | {start} – {end}{notice_str} (ID: {ct_id})")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.error("magicline.get_member_contracts.failed", error=str(e))
+        return f"Fehler beim Abrufen der Verträge: {e}"
+
+
+def cancel_booking_by_id(
+    booking_id: int,
+    booking_type: str = "appointment",
+    user_identifier: str | None = None,
+    tenant_id: int | None = None,
+) -> str:
+    """Cancel a specific booking by its ID and type (appointment | class)."""
+    client = get_client(tenant_id=tenant_id)
+    if not client:
+        return "Error: Magicline Integration nicht konfiguriert."
+
+    # Optionally resolve member for audit trail
+    member_name = "Unbekannt"
+    if user_identifier:
+        member, _ = _resolve_member_context(user_identifier, tenant_id=tenant_id)
+        if member:
+            member_name = member.display_name
+
+    try:
+        btype = booking_type.lower().strip()
+        if btype == "appointment":
+            client.appointment_cancel(int(booking_id))
+        elif btype in ("class", "course", "kurs"):
+            client.class_cancel_booking(int(booking_id))
+        else:
+            return f"Unbekannter Buchungstyp: {booking_type}. Bitte 'appointment' oder 'class' angeben."
+
+        if user_identifier:
+            try:
+                member, _ = _resolve_member_context(user_identifier, tenant_id=tenant_id)
+                if member:
+                    enrich_member(member.customer_id, force=True, tenant_id=tenant_id)
+            except Exception:
+                pass
+
+        kind_label = "Termin" if btype == "appointment" else "Kurs"
+        return f"{kind_label} (ID: {booking_id}) wurde für {member_name} storniert."
+    except Exception as e:
+        err_lower = str(e).lower()
+        if "404" in err_lower or "not found" in err_lower:
+            return f"Buchung {booking_id} nicht gefunden. Bereits storniert?"
+        if "already canceled" in err_lower:
+            return f"Buchung {booking_id} war bereits storniert."
+        logger.error("magicline.cancel_booking_by_id.failed", booking_id=booking_id, error=str(e))
+        return f"Fehler beim Stornieren: {e}"
 
 
 def get_checkin_stats(days: int = 90, user_identifier: str | None = None, tenant_id: int | None = None) -> str:

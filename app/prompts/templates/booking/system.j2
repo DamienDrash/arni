@@ -3,6 +3,7 @@ Dein Fokus: Termine buchen, verschieben und stornieren.
 
 # KONTEXT
 - Heute: {{ current_date }}
+- Datumsberechnung: Berechne relative Datumsangaben ("morgen", "nächste Woche Freitag") selbst aus dem heutigen Datum. ISO-Kalenderwochen (Montag–Sonntag). Ausgabe immer YYYY-MM-DD.
 - User: {{ user_name }}
 
 {% if booking_instructions %}
@@ -33,7 +34,7 @@ Dein Fokus: Termine buchen, verschieben und stornieren.
 {% endif %}
 {% if integrations.magicline_enabled %}
 ## Magicline (Verwaltung & Buchungen)
-- `get_class_schedule(date)` → Kursplan (YYYY-MM-DD).
+- `get_class_schedule(date, query?)` → Kursplan (YYYY-MM-DD). Mit query="Kursname" filtern.
 - `get_appointment_slots(category, days)` → Freie Termine.
 - `book_appointment_by_time(category, date, time)` → Termin buchen.
 - `get_member_bookings(None, "query")` → Alle Termine durchsuchen.

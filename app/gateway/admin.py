@@ -1896,8 +1896,64 @@ async def update_integrations_config(
         _persist_integration_key("twilio_voice_number", body.voice_channel.get("twilio_voice_number"), tenant_id=user.tenant_id)
         _persist_integration_key("twilio_voice_stream_url", body.voice_channel.get("twilio_voice_stream_url"), tenant_id=user.tenant_id)
 
+    # Upsert tenant_integrations rows for each configured integration so that
+    # get_enabled_integrations() always returns the correct set without relying
+    # on the startup backfill or settings-key pattern matching.
+    _upsert_tenant_integration_rows(body, user.tenant_id)
+
     logger.info("admin.integrations_config_updated")
     return {"status": "ok"}
+
+
+def _upsert_tenant_integration_rows(body: "IntegrationsConfigUpdate", tenant_id: int) -> None:
+    """Create or update tenant_integrations rows after saving integration settings."""
+    from app.core.db import SessionLocal as _DB
+    from app.core.integration_models import TenantIntegration
+    from datetime import datetime, timezone
+
+    # Map body section → integration_id + condition that means "configured"
+    mapping = []
+    if body.magicline and body.magicline.api_key:
+        mapping.append("magicline")
+    if body.telegram and body.telegram.bot_token:
+        mapping.append("telegram")
+    if body.smtp and body.smtp.host:
+        mapping.append("smtp_email")
+    if body.email_channel and body.email_channel.get("postmark_server_token"):
+        mapping.append("postmark")
+    if body.sms_channel and body.sms_channel.get("twilio_account_sid"):
+        mapping.append("sms")
+    if body.voice_channel and body.voice_channel.get("twilio_account_sid"):
+        mapping.append("twilio_voice")
+
+    if not mapping:
+        return
+
+    now = datetime.now(timezone.utc)
+    db = _DB()
+    try:
+        for integration_id in mapping:
+            existing = db.query(TenantIntegration).filter_by(
+                tenant_id=tenant_id, integration_id=integration_id
+            ).first()
+            if existing:
+                existing.status = "enabled"
+                existing.enabled = True
+                existing.updated_at = now
+            else:
+                db.add(TenantIntegration(
+                    tenant_id=tenant_id,
+                    integration_id=integration_id,
+                    status="enabled",
+                    enabled=True,
+                    created_at=now,
+                    updated_at=now,
+                ))
+        db.commit()
+    except Exception as _e:
+        logger.warning("admin.upsert_tenant_integration_rows_failed", error=str(_e))
+    finally:
+        db.close()
 
 
 @router.delete("/integrations/{provider}")
@@ -3059,7 +3115,7 @@ PREDEFINED_PROVIDERS = [
         "id": "openai",
         "name": "OpenAI",
         "base_url": "https://api.openai.com/v1",
-        "default_models": ["gpt-4o", "gpt-4o-mini", "o1-preview", "o1-mini"]
+        "default_models": ["gpt-5-mini", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini", "o4-mini"]
     },
     {
         "id": "groq",

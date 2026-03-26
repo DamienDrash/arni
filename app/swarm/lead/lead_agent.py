@@ -79,7 +79,7 @@ class LeadAgent:
         # Step 0: Load dynamic configuration
         config = self._config_manager.get_tenant_config(context.tenant_id)
         agent_team = config.get("agent_team") or {}
-        orch_config = config.get("orchestrator", {}).get("config") or {}
+        orch_config = (config.get("orchestrator") or {}).get("config") or {}
 
         # Step 1: Check for pending confirmation
         if self._redis:

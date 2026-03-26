@@ -466,8 +466,18 @@ async def register(req: RegisterRequest, request: Request, response: Response) -
             from app.gateway.persistence import persistence as _ps
             seed_prompt_settings(_ps, tenant.id)
             _ps.upsert_setting("tenant_display_name", tenant.name, tenant_id=tenant.id)
+            # Override generic default with the actual tenant name
+            _ps.upsert_setting("studio_name", tenant.name, tenant_id=tenant.id)
+            _ps.upsert_setting("persona_name", "ARIIA", tenant_id=tenant.id)
         except Exception as _ps_err:
             logger.warning("tenant.register.prompt_seed_failed", tenant_id=tenant.id, error=str(_ps_err))
+
+        # Seed default agent team
+        try:
+            from app.orchestration.team_seed import seed_default_team_for_tenant
+            seed_default_team_for_tenant(db, tenant.id, created_by=user.id)
+        except Exception as _team_err:
+            logger.warning("tenant.register.team_seed_failed", tenant_id=tenant.id, error=str(_team_err))
 
         # Send verification email
         _send_verification_email(user, verification_code)

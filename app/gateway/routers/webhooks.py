@@ -177,6 +177,22 @@ def _build_tenant_context(message: InboundMessage):
     except Exception:
         pass
 
+    # Resolve member's display name from studio_members by phone number.
+    # Uses the existing phone-normalization + candidate-matching logic so
+    # all local/international format variants are handled automatically.
+    user_name = ""
+    phone_number = ""
+    try:
+        from app.gateway.member_matching import match_member_by_phone
+        match = match_member_by_phone(message.user_id, tenant_id=tenant_id)
+        if match:
+            user_name = f"{match.first_name} {match.last_name}".strip()
+        # Store the raw user_id as phone_number so tools can resolve the member
+        # even when member_id is null (i.e., user hasn't done MFA yet).
+        phone_number = str(message.user_id)
+    except Exception:
+        phone_number = str(message.user_id or "")
+
     # Load commonly needed settings
     tenant_settings = {}
     for key in ("studio_name", "persona_name", "sales_prices_text", "custom_system_prompt"):
@@ -195,6 +211,8 @@ def _build_tenant_context(message: InboundMessage):
         settings=tenant_settings,
         member_id=member_id,
         session_id=session_id,
+        user_name=user_name,
+        phone_number=phone_number,
     )
 
 
@@ -717,6 +735,32 @@ async def webhook_waha_tenant(
         enabled_key = f"integration_whatsapp_{tenant_id}_enabled"
         if new_status == "WORKING":
             persistence.upsert_setting(enabled_key, "true", tenant_id=tenant_id)
+            # Ensure tenant_integrations row exists
+            try:
+                from app.core.db import SessionLocal as _DB
+                from app.core.integration_models import TenantIntegration
+                from datetime import datetime, timezone
+                _db = _DB()
+                try:
+                    _existing = _db.query(TenantIntegration).filter_by(
+                        tenant_id=tenant_id, integration_id="whatsapp"
+                    ).first()
+                    if _existing:
+                        _existing.status = "enabled"
+                        _existing.enabled = True
+                        _existing.updated_at = datetime.now(timezone.utc)
+                    else:
+                        _db.add(TenantIntegration(
+                            tenant_id=tenant_id, integration_id="whatsapp",
+                            status="enabled", enabled=True,
+                            created_at=datetime.now(timezone.utc),
+                            updated_at=datetime.now(timezone.utc),
+                        ))
+                    _db.commit()
+                finally:
+                    _db.close()
+            except Exception as _e:
+                logger.warning("webhooks.waha.tenant_integration_upsert_failed", error=str(_e))
         elif new_status in {"STOPPED", "FAILED"}:
             persistence.upsert_setting(enabled_key, "false", tenant_id=tenant_id)
             

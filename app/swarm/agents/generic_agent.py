@@ -180,9 +180,52 @@ class GenericExpertAgent(ExpertAgent):
 
         try:
             from jinja2 import Template
+            from datetime import datetime, timezone, timedelta
+            from types import SimpleNamespace
 
             ctx = task.tenant_context
             settings = ctx.settings or {}
+            active = ctx.active_integrations
+
+            _MONTHS_DE = [
+                "Januar", "Februar", "März", "April", "Mai", "Juni",
+                "Juli", "August", "September", "Oktober", "November", "Dezember",
+            ]
+            _DAYS_DE = [
+                "Montag", "Dienstag", "Mittwoch", "Donnerstag",
+                "Freitag", "Samstag", "Sonntag",
+            ]
+            now = datetime.now(timezone.utc)
+            weekday_de = _DAYS_DE[now.weekday()]
+            current_date = f"{weekday_de}, {now.day}. {_MONTHS_DE[now.month - 1]} {now.year}"
+            tomorrow_date = (now + timedelta(days=1)).date().isoformat()
+            yesterday_date = (now - timedelta(days=1)).date().isoformat()
+
+            # ISO calendar week maps so the LLM never has to calculate dates.
+            monday_this = (now - timedelta(days=now.weekday())).date()
+            monday_next = monday_this + timedelta(days=7)
+            this_week_dates: dict[str, str] = {
+                _DAYS_DE[i]: (monday_this + timedelta(days=i)).isoformat() for i in range(7)
+            }
+            next_week_dates: dict[str, str] = {
+                _DAYS_DE[i]: (monday_next + timedelta(days=i)).isoformat() for i in range(7)
+            }
+            # Keep upcoming_dates (rolling 7-day window) for backward compat
+            upcoming_dates: dict[str, str] = {}
+            for _offset in range(7):
+                _day = now + timedelta(days=_offset)
+                upcoming_dates[_DAYS_DE[_day.weekday()]] = _day.strftime("%Y-%m-%d")
+
+            integrations = SimpleNamespace(**{
+                f"{name}_enabled": (name in active)
+                for name in [
+                    "magicline", "calendly", "acuity", "calcom",
+                    "whatsapp", "telegram", "smtp_email", "sms",
+                    "twilio_voice", "shopify", "woocommerce",
+                    "hubspot", "salesforce", "stripe", "paypal",
+                    "database_crm", "manual_crm", "knowledge", "member_memory",
+                ]
+            })
 
             template_vars = {
                 "tenant_slug": ctx.tenant_slug,
@@ -190,11 +233,35 @@ class GenericExpertAgent(ExpertAgent):
                 "plan_slug": ctx.plan_slug,
                 "member_id": ctx.member_id,
                 "session_id": ctx.session_id,
-                "active_integrations": list(ctx.active_integrations),
+                "active_integrations": list(active),
                 "settings": settings,
+                "current_date": current_date,
+                "tomorrow_date": tomorrow_date,
+                "yesterday_date": yesterday_date,
+                "upcoming_dates": upcoming_dates,
+                "this_week_dates": this_week_dates,
+                "next_week_dates": next_week_dates,
+                "integrations": integrations,
+                "agent_display_name": self._display_name,
                 "studio_name": settings.get("studio_name", ""),
+                "studio_short_name": settings.get("studio_short_name", settings.get("studio_name", "")),
+                "studio_description": settings.get("studio_description", ""),
+                "studio_address": settings.get("studio_address", ""),
+                "studio_phone": settings.get("studio_phone", ""),
+                "studio_email": settings.get("studio_email", ""),
+                "studio_website": settings.get("studio_website", ""),
+                "studio_emergency_number": settings.get("studio_emergency_number", "112"),
                 "persona_name": settings.get("persona_name", "ARIIA"),
+                "persona_bio_text": settings.get("persona_bio_text", ""),
+                "soul_content": settings.get("soul_content", ""),
                 "sales_prices_text": settings.get("sales_prices_text", ""),
+                "sales_retention_rules": settings.get("sales_retention_rules", ""),
+                "booking_instructions": settings.get("booking_instructions", ""),
+                "booking_cancellation_policy": settings.get("booking_cancellation_policy", ""),
+                "escalation_contact": settings.get("escalation_contact", ""),
+                "health_advice_scope": settings.get("health_advice_scope", ""),
+                "user_name": ctx.user_name,
+                "member_profile": "",
                 # QA revision context (injected by LeadAgent on retry)
                 "qa_feedback": task.intent_payload.get("qa_feedback", ""),
                 "qa_attempt": task.intent_payload.get("qa_attempt", 0),

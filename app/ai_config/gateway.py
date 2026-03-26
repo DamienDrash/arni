@@ -169,6 +169,19 @@ class AIGateway:
 
     # ── Protocol Adapters ─────────────────────────────────────────────────
 
+    # Models that require max_completion_tokens instead of max_tokens
+    _MAX_COMPLETION_TOKENS_MODELS = ("o1", "o3", "o4", "gpt-5")
+    # Models that do not accept a temperature parameter (only default=1 supported)
+    _NO_TEMPERATURE_MODELS = ("o1", "o3", "o4", "gpt-5")
+
+    @classmethod
+    def _uses_max_completion_tokens(cls, model: str) -> bool:
+        return any(model.startswith(p) for p in cls._MAX_COMPLETION_TOKENS_MODELS)
+
+    @classmethod
+    def _supports_temperature(cls, model: str) -> bool:
+        return not any(model.startswith(p) for p in cls._NO_TEMPERATURE_MODELS)
+
     async def _call_openai_compatible(
         self,
         client: httpx.AsyncClient,
@@ -184,12 +197,18 @@ class AIGateway:
         tool_choice: str = "auto",
     ) -> GatewayResponse:
         """Call an OpenAI-compatible API (OpenAI, Anthropic, Groq, Mistral, xAI)."""
+        tokens_key = (
+            "max_completion_tokens"
+            if self._uses_max_completion_tokens(config.model)
+            else "max_tokens"
+        )
         payload: dict[str, Any] = {
             "model": config.model,
             "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
+            tokens_key: max_tokens,
         }
+        if self._supports_temperature(config.model):
+            payload["temperature"] = temperature
         if tools:
             payload["tools"] = tools
             payload["tool_choice"] = tool_choice

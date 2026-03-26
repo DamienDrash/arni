@@ -35,7 +35,7 @@ router = APIRouter(prefix="/admin/tenant/llm", tags=["tenant-llm"])
 ALL_PROVIDERS = [
     {
         "id": "openai", "name": "OpenAI",
-        "models": ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o", "gpt-4o-mini"],
+        "models": ["gpt-5-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o", "gpt-4o-mini"],
         "tier": "standard",
     },
     {

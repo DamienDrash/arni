@@ -215,6 +215,10 @@ class ExpertAgent(ABC):
                     params = json.loads(tc_args_str) if isinstance(tc_args_str, str) else tc_args_str
                     result: ToolResult = await tool.execute(params, task.tenant_context)
                     content = json.dumps(result.data) if result.success else (result.error_message or "Tool-Fehler")
+                    # Kontrollinstanz: annotate any date params with verified weekday
+                    date_annotation = self._annotate_dates(params)
+                    if date_annotation:
+                        content = f"{content}\n{date_annotation}"
                 except Exception as e:
                     logger.error(
                         "expert_agent.tool_error",
@@ -236,40 +240,128 @@ class ExpertAgent(ABC):
     def _render_prompt(self, task: AgentTask) -> str:
         """Render the Jinja2 system prompt for this agent.
 
-        Looks up the agent's prompt template and renders it with
-        the task's tenant context and metadata.
+        Uses the PromptEngine's full 3-tier resolution (DB registry →
+        per-tenant filesystem → system default) and injects all template
+        variables expected by the standard agent templates.
 
         Returns:
             Rendered system prompt string.
         """
         try:
             from app.prompts.engine import get_engine
+            from datetime import datetime, timezone, timedelta
+            from types import SimpleNamespace
+
             engine = get_engine()
+            ctx = task.tenant_context
+            settings = ctx.settings or {}
+            active = ctx.active_integrations
 
-            # Try tenant-specific prompt first
-            tenant_slug = task.tenant_context.tenant_slug
-            tenant_template = f"tenants/{tenant_slug}/{self.agent_id}-system.j2"
-            default_template = f"{self.agent_id}/system.j2"
+            # Build German-formatted current date without locale dependency
+            _MONTHS_DE = [
+                "Januar", "Februar", "März", "April", "Mai", "Juni",
+                "Juli", "August", "September", "Oktober", "November", "Dezember",
+            ]
+            _DAYS_DE = [
+                "Montag", "Dienstag", "Mittwoch", "Donnerstag",
+                "Freitag", "Samstag", "Sonntag",
+            ]
+            now = datetime.now(timezone.utc)
+            weekday_de = _DAYS_DE[now.weekday()]
+            current_date = f"{weekday_de}, {now.day}. {_MONTHS_DE[now.month - 1]} {now.year}"
+            tomorrow = (now + timedelta(days=1)).date()
+            tomorrow_date = tomorrow.isoformat()
+            yesterday = (now - timedelta(days=1)).date()
+            yesterday_date = yesterday.isoformat()
 
+            # ISO calendar week maps so the LLM never has to calculate dates.
+            # "diese Woche" = current ISO week (Mon–Sun), "nächste Woche" = next ISO week.
+            monday_this = (now - timedelta(days=now.weekday())).date()
+            monday_next = monday_this + timedelta(days=7)
+            this_week_dates: dict[str, str] = {
+                _DAYS_DE[i]: (monday_this + timedelta(days=i)).isoformat() for i in range(7)
+            }
+            next_week_dates: dict[str, str] = {
+                _DAYS_DE[i]: (monday_next + timedelta(days=i)).isoformat() for i in range(7)
+            }
+            # Keep upcoming_dates (rolling 7-day window) for backward compat
+            upcoming_dates: dict[str, str] = {}
+            for _offset in range(7):
+                _day = now + timedelta(days=_offset)
+                upcoming_dates[_DAYS_DE[_day.weekday()]] = _day.strftime("%Y-%m-%d")
+
+            # Integration flags as a namespace so templates can use
+            # `integrations.magicline_enabled` etc.
+            integrations = SimpleNamespace(**{
+                f"{name}_enabled": (name in active)
+                for name in [
+                    "magicline", "calendly", "acuity", "calcom",
+                    "whatsapp", "telegram", "smtp_email", "sms",
+                    "twilio_voice", "shopify", "woocommerce",
+                    "hubspot", "salesforce", "stripe", "paypal",
+                    "database_crm", "manual_crm", "knowledge", "member_memory",
+                ]
+            })
+
+            # tenant_slug and tenant_id are explicit params to render_for_tenant;
+            # keep them in context too so templates can reference {{ tenant_slug }}.
             context = {
-                "tenant_slug": tenant_slug,
-                "tenant_id": task.tenant_context.tenant_id,
-                "plan_slug": task.tenant_context.plan_slug,
-                "active_integrations": list(task.tenant_context.active_integrations),
-                "member_id": task.tenant_context.member_id,
-                "session_id": task.tenant_context.session_id,
-                "settings": task.tenant_context.settings,
+                # Tenant identity (also passed explicitly to render_for_tenant)
+                "tenant_slug": ctx.tenant_slug,
+                "tenant_id": ctx.tenant_id,
+                "plan_slug": ctx.plan_slug,
+                "member_id": ctx.member_id,
+                "session_id": ctx.session_id,
+                "active_integrations": list(active),
+                "settings": settings,
+                # Computed context
+                "current_date": current_date,
+                "tomorrow_date": tomorrow_date,
+                "yesterday_date": yesterday_date,
+                "upcoming_dates": upcoming_dates,
+                "this_week_dates": this_week_dates,
+                "next_week_dates": next_week_dates,
+                "integrations": integrations,
+                # Agent identity
+                "agent_display_name": getattr(self, "_display_name", self.agent_id),
+                # Studio / persona settings
+                "studio_name": settings.get("studio_name", ""),
+                "studio_short_name": settings.get("studio_short_name", settings.get("studio_name", "")),
+                "studio_description": settings.get("studio_description", ""),
+                "studio_address": settings.get("studio_address", ""),
+                "studio_phone": settings.get("studio_phone", ""),
+                "studio_email": settings.get("studio_email", ""),
+                "studio_website": settings.get("studio_website", ""),
+                "studio_owner_name": settings.get("studio_owner_name", ""),
+                "studio_emergency_number": settings.get("studio_emergency_number", "112"),
+                "persona_name": settings.get("persona_name", "ARIIA"),
+                "persona_bio_text": settings.get("persona_bio_text", ""),
+                "soul_content": settings.get("soul_content", ""),
+                # Sales / ops content
+                "sales_prices_text": settings.get("sales_prices_text", ""),
+                "sales_retention_rules": settings.get("sales_retention_rules", ""),
+                "sales_complaint_protocol": settings.get("sales_complaint_protocol", ""),
+                "booking_instructions": settings.get("booking_instructions", ""),
+                "booking_cancellation_policy": settings.get("booking_cancellation_policy", ""),
+                "escalation_contact": settings.get("escalation_contact", ""),
+                "escalation_triggers": settings.get("escalation_triggers", ""),
+                "health_advice_scope": settings.get("health_advice_scope", ""),
+                # Member context
+                "user_name": ctx.user_name,
+                "member_profile": "",
             }
 
-            try:
-                return engine.render(tenant_template, **context)
-            except Exception:
-                pass
+            # Pop keys that are explicit params of render_for_tenant to avoid
+            # "multiple values for keyword argument" errors.
+            context.pop("tenant_slug", None)
+            context.pop("tenant_id", None)
 
-            try:
-                return engine.render(default_template, **context)
-            except Exception:
-                pass
+            return engine.render_for_tenant(
+                f"{self.agent_id}/system.j2",
+                ctx.tenant_slug,
+                tenant_id=ctx.tenant_id,
+                **context,
+            )
         except Exception as e:
             logger.warning(
                 "expert_agent.prompt_render_failed",
@@ -279,6 +371,39 @@ class ExpertAgent(ABC):
 
         # Fallback: minimal prompt
         return f"Du bist der {self.agent_id}-Agent. Beantworte die Anfrage des Nutzers."
+
+    @staticmethod
+    def _annotate_dates(params: dict) -> str | None:
+        """Kontrollinstanz: scan tool params for YYYY-MM-DD dates and return
+        a verified weekday annotation so the LLM cannot mislabel the day.
+
+        Example: params={"date": "2026-04-03"}
+        Returns: "[Datumscheck: 2026-04-03 = Freitag]"
+        """
+        import re
+        from datetime import date as _date
+
+        _DAYS_DE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag",
+                    "Freitag", "Samstag", "Sonntag"]
+        _DATE_RE = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+
+        found: dict[str, str] = {}
+        for val in params.values():
+            if not isinstance(val, str):
+                continue
+            for match in _DATE_RE.findall(val):
+                if match in found:
+                    continue
+                try:
+                    d = _date.fromisoformat(match)
+                    found[match] = _DAYS_DE[d.weekday()]
+                except ValueError:
+                    pass
+
+        if not found:
+            return None
+        parts = [f"{dt} = {wd}" for dt, wd in sorted(found.items())]
+        return "[Datumscheck: " + ", ".join(parts) + "]"
 
     @staticmethod
     def _get_llm():

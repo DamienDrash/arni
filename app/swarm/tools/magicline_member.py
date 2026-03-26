@@ -13,6 +13,8 @@ from app.swarm.tools.base import SkillTool
 from app.swarm.tools.magicline import (
     get_member_status,
     get_member_bookings,
+    get_member_profile,
+    get_member_contracts,
     get_checkin_stats,
 )
 
@@ -31,8 +33,21 @@ class MagiclineMemberTool(SkillTool):
         "properties": {
             "action": {
                 "type": "string",
-                "enum": ["get_member_status", "get_member_bookings", "get_checkin_stats"],
-                "description": "The member action to perform.",
+                "enum": [
+                    "get_member_status",
+                    "get_member_profile",
+                    "get_member_contracts",
+                    "get_member_bookings",
+                    "get_checkin_stats",
+                ],
+                "description": (
+                    "The member action to perform.\n"
+                    "'get_member_status' — active contract and end date.\n"
+                    "'get_member_profile' — full contact data, address, active contracts.\n"
+                    "'get_member_contracts' — all contracts (filter with status: ACTIVE | INACTIVE | all).\n"
+                    "'get_member_bookings' — upcoming appointments and class bookings.\n"
+                    "'get_checkin_stats' — visit frequency and last visit date."
+                ),
             },
             "user_identifier": {
                 "type": "string",
@@ -50,6 +65,11 @@ class MagiclineMemberTool(SkillTool):
                 "type": "integer",
                 "description": "Number of days for stats window (default: 90 for get_checkin_stats).",
             },
+            "status": {
+                "type": "string",
+                "enum": ["ACTIVE", "INACTIVE", "all"],
+                "description": "Contract status filter for get_member_contracts (default: ACTIVE).",
+            },
         },
         "required": ["action", "user_identifier"],
     }
@@ -65,6 +85,16 @@ class MagiclineMemberTool(SkillTool):
         try:
             if action == "get_member_status":
                 result = get_member_status(user_identifier=user_id, tenant_id=tenant_id)
+
+            elif action == "get_member_profile":
+                result = get_member_profile(user_identifier=user_id, tenant_id=tenant_id)
+
+            elif action == "get_member_contracts":
+                result = get_member_contracts(
+                    user_identifier=user_id,
+                    status=params.get("status", "ACTIVE"),
+                    tenant_id=tenant_id,
+                )
 
             elif action == "get_member_bookings":
                 result = get_member_bookings(

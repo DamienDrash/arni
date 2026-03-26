@@ -27,8 +27,11 @@ PLAN_TIER: dict[str, int] = {
 # ── Default tool assignments per agent ───────────────────────────────────────
 
 AGENT_TOOL_MAP: dict[str, list[str]] = {
-    "ops": ["magicline_booking", "magicline_checkin", "magicline_contract", "calendly_schedule"],
-    "sales": ["magicline_contract", "magicline_booking", "member_memory"],
+    "ops": [
+        "magicline_booking", "magicline_member", "magicline_checkin",
+        "magicline_employee", "magicline_contract", "calendly_schedule",
+    ],
+    "sales": ["magicline_contract", "magicline_member", "magicline_booking", "member_memory"],
     "medic": ["member_memory", "knowledge_search"],
     "vision": ["knowledge_search"],
     "persona": ["member_memory", "knowledge_search"],
@@ -161,6 +164,7 @@ def _register_builtin_tools() -> None:
     from app.swarm.tools.magicline_booking import MagiclineBookingTool
     from app.swarm.tools.magicline_member import MagiclineMemberTool
     from app.swarm.tools.magicline_checkin import MagiclineCheckinTool
+    from app.swarm.tools.magicline_employee import MagiclineEmployeeTool
     from app.swarm.tools.calendly_tool import CalendlyTool
     from app.swarm.tools.knowledge_search_tool import KnowledgeSearchTool
     from app.swarm.tools.member_memory_tool import MemberMemoryTool
@@ -173,6 +177,7 @@ def _register_builtin_tools() -> None:
         MagiclineBookingTool,
         MagiclineMemberTool,
         MagiclineCheckinTool,
+        MagiclineEmployeeTool,
         CalendlyTool,
         KnowledgeSearchTool,
         MemberMemoryTool,

@@ -416,6 +416,38 @@ class MagiclineClient:
         """
         return self._delete(f"/v1/classes/booking/{int(booking_id)}")
 
+    # ─── Employees ───────────────────────────────────────────────────
+
+    def employee_list(self) -> list[dict]:
+        """GET /v1/employees  (EMPLOYEE_READ)
+
+        Returns all employees with id, firstName, lastName, businessRole
+        (STUDIO_OWNER | TRAINER | MARKETING | null), employeeCompetences[],
+        publicName, employeeInitials, phone1, phone2, email, gender, dateOfBirth.
+        No pagination — returns full list.
+        """
+        data = self._get("/v1/employees")
+        if isinstance(data, dict):
+            return data.get("result", [])
+        return data if isinstance(data, list) else []
+
+    def employee_get(self, employee_id: int) -> dict:
+        """GET /v1/employees/{id}  (EMPLOYEE_READ)
+
+        Returns full employee record. Same fields as employee_list() but
+        for a single employee.
+        """
+        return self._get(f"/v1/employees/{int(employee_id)}")
+
+    # ─── Studio ──────────────────────────────────────────────────────
+
+    def studio_utilization(self) -> dict:
+        """GET /v1/studios/utilization  (STUDIO_READ)
+
+        Returns current studio occupancy: {"capacity": int|null, "count": int}.
+        """
+        return self._get("/v1/studios/utilization")
+
     # ─── Pagination helper (workflow layer) ──────────────────────────
 
     @staticmethod

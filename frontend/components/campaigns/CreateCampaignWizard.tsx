@@ -1578,9 +1578,20 @@ export default function CreateCampaignWizard({ onCreated, onCancel }: WizardProp
 
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={async () => {
-                if (aiResult?.content) { try { const campaigns = await apiFetch("/admin/campaigns"); if (campaigns.ok) { const data = await campaigns.json(); const latest = data.items?.[0]; if (latest) await apiFetch(`/admin/campaigns/${latest.id}/approve`, { method: "POST" }); } } catch { /* ignore */ } }
+                if (createdCampaignId) {
+                  try { await apiFetch(`/admin/campaigns/${createdCampaignId}/approve`, { method: "POST" }); } catch { /* ignore */ }
+                  try { await apiFetch(`/admin/campaigns/${createdCampaignId}/send`, { method: "POST" }); } catch { /* ignore */ }
+                }
                 onCreated();
-              }} style={S.successBtn}><CheckCircle size={16} /> Freigeben</button>
+              }} style={{ ...S.successBtn, background: "linear-gradient(135deg, #00b894, #00cec9)" }}>
+                <CheckCircle size={16} /> Freigeben &amp; Senden
+              </button>
+              <button onClick={async () => {
+                if (createdCampaignId) {
+                  try { await apiFetch(`/admin/campaigns/${createdCampaignId}/approve`, { method: "POST" }); } catch { /* ignore */ }
+                }
+                onCreated();
+              }} style={S.successBtn}><CheckCircle size={16} /> Nur freigeben</button>
               <button onClick={onCreated} style={S.secondaryBtn}>Später prüfen</button>
             </div>
           </div>

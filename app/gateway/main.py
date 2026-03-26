@@ -116,13 +116,21 @@ async def lifespan(app: FastAPI):
     except Exception as _credit_err:
         logger.warning("ariia.gateway.credit_seed_skipped", error=str(_credit_err))
 
-    # Seed Orchestrator Definitions
+    # Seed Orchestrator Definitions + System Agents & Tools + Integration Definitions + Default Teams
     try:
         from app.orchestration.seed import seed_default_orchestrators
+        from app.swarm.registry.seed import seed_system_agents_and_tools
+        from app.platform.seed import seed_integration_definitions, backfill_tenant_integrations, backfill_prompt_settings
+        from app.orchestration.team_seed import backfill_default_teams
         from app.core.db import SessionLocal as _OrchSeedDB
         _orch_db = _OrchSeedDB()
         try:
             seed_default_orchestrators(_orch_db)
+            seed_system_agents_and_tools(_orch_db)
+            seed_integration_definitions(_orch_db)
+            backfill_tenant_integrations(_orch_db)
+            backfill_prompt_settings(_orch_db)
+            backfill_default_teams(_orch_db)
         finally:
             _orch_db.close()
     except Exception as _orch_err:
