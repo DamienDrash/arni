@@ -17,7 +17,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from unittest.mock import AsyncMock
 
-from app.gateway.main import app
+from app.edge.app import app
 
 
 @pytest.fixture(autouse=True)

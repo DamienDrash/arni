@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 import structlog
 from fastapi import HTTPException
 
+from app.core.module_registry import Capability
+
 logger = structlog.get_logger()
 
 # Default plan used when no subscription exists for a tenant.
@@ -185,6 +187,78 @@ class FeatureGate:
             status_code=402,
             detail=f"Feature '{feature}' is not available on your current plan. Please upgrade.",
         )
+
+    def has_capability(self, capability: Capability) -> bool:
+        """Evaluate if the tenant has a specific system capability.
+        
+        This bridges the old boolean feature flags and the new modular
+        capability system.
+        """
+        if capability == Capability.SUPPORT_CORE:
+            return True  # All tenants have basic support
+            
+        if capability == Capability.SUPPORT_L2:
+            return self._plan_data.get("ai_tier") in ("standard", "premium", "unlimited")
+            
+        if capability == Capability.CAMPAIGNS:
+            return True  # All tenants have some basic campaign access
+            
+        if capability == Capability.CAMPAIGNS_OPT_IN:
+            return self._plan_data.get("ai_tier") in ("premium", "unlimited")
+            
+        if capability == Capability.KNOWLEDGE_BASE:
+            return True
+
+        if capability == Capability.ADMIN_CONTROL_PLANE:
+            return True
+            
+        if capability == Capability.TENANT_MANAGEMENT:
+            return True
+            
+        if capability == Capability.IDENTITY_ACCESS:
+            return True
+
+        # Channels/Integrations
+        if capability == Capability.INTEGRATION_WHATSAPP_QR:
+            return self._plan_data.get("whatsapp_enabled", False)
+            
+        if capability == Capability.INTEGRATION_TELEGRAM:
+            return self._plan_data.get("telegram_enabled", False)
+            
+        if capability == Capability.INTEGRATION_CALENDLY:
+            return True  # Available to all by default
+            
+        if capability == Capability.INTEGRATION_MAGICLINE:
+            return True  # Available to all by default
+
+        # Dormant/Sunset Features
+        if capability == Capability.VOICE_PIPELINE:
+            return self._plan_data.get("voice_enabled", False) or self.has_addon("voice_pipeline")
+            
+        if capability == Capability.VISION_AI:
+            return self._plan_data.get("vision_ai_enabled", False) or self.has_addon("vision_ai")
+            
+        if capability == Capability.CHURN_PREDICTION:
+            return self._plan_data.get("churn_prediction_enabled", False) or self.has_addon("churn_prediction")
+            
+        if capability == Capability.ADVANCED_ANALYTICS:
+            return self._plan_data.get("advanced_analytics_enabled", False) or self.has_addon("advanced_analytics")
+            
+        if capability == Capability.BRAND_STYLE:
+            return self._plan_data.get("brand_style_enabled", False)
+            
+        if capability == Capability.MULTI_CHANNEL_ROUTING:
+            return self._plan_data.get("max_channels", 0) > 1
+
+        return False
+
+    def require_capability(self, capability: Capability) -> None:
+        """Raise HTTP 402 if the tenant lacks the specified capability."""
+        if not self.has_capability(capability):
+            raise HTTPException(
+                status_code=402,
+                detail=f"Capability '{capability.value}' is not available on your current plan. Please upgrade.",
+            )
 
     def get_plan_slug(self) -> str:
         """Return the current plan slug."""
