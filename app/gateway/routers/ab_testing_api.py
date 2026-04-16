@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.auth import AuthContext, get_current_user
-from app.core.models import Campaign, CampaignVariant
+from app.domains.campaigns.models import Campaign, CampaignVariant
 
 logger = structlog.get_logger(__name__)
 

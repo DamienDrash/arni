@@ -36,12 +36,11 @@ from app.billing.events import billing_events
 from app.billing.models import (
     BillingEventType,
     BillingInterval,
-    InvoiceRecord,
-    PlanV2,
     SubscriptionStatus,
-    SubscriptionV2,
     TenantAddonV2,
 )
+from app.billing.subscription_repository import subscription_repository
+from app.billing.webhook_repository import webhook_repository
 from app.billing.subscription_service import subscription_service
 
 logger = structlog.get_logger()
@@ -129,13 +128,11 @@ class WebhookProcessorV2:
 
             webhook_secret = (persistence.get_setting("billing_stripe_webhook_secret", "") or "").strip()
 
-            if webhook_secret:
-                event = _stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
-            else:
-                # No webhook secret configured — parse but log warning
-                logger.warning("billing.webhook.no_secret", msg="Webhook-Secret nicht konfiguriert, Signatur wird nicht geprüft")
-                event = json.loads(payload)
+            if not webhook_secret:
+                logger.error("billing.webhook.no_secret", msg="Webhook-Secret nicht konfiguriert")
+                return None
 
+            event = _stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
             return event
         except _stripe.error.SignatureVerificationError:
             logger.error("billing.webhook.invalid_signature")
@@ -190,13 +187,13 @@ class WebhookProcessorV2:
         stripe_subscription_id = session.get("subscription")
         stripe_customer_id = session.get("customer")
 
-        plan = db.query(PlanV2).filter(PlanV2.slug == plan_slug).first()
+        plan = subscription_repository.get_active_plan_by_slug(db, plan_slug)
         if not plan:
             logger.error("billing.webhook.plan_not_found", plan_slug=plan_slug)
             return {"action": "error", "reason": f"Plan '{plan_slug}' nicht gefunden"}
 
         # Check if subscription already exists
-        existing_sub = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        existing_sub = webhook_repository.get_subscription_by_tenant(db, tenant_id)
 
         if existing_sub:
             # Update existing subscription
@@ -251,7 +248,7 @@ class WebhookProcessorV2:
 
         if tokens_amount > 0:
             # Add tokens to tenant's balance
-            sub = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+            sub = webhook_repository.get_subscription_by_tenant(db, tenant_id)
             if sub:
                 current_extra = sub.extra_tokens_balance or 0
                 sub.extra_tokens_balance = current_extra + tokens_amount
@@ -276,7 +273,7 @@ class WebhookProcessorV2:
 
     async def _handle_image_credit_purchase(self, db: Session, session: dict, tenant_id: int, event_id: str) -> dict:
         """Handle image credit pack purchase checkout completion."""
-        from app.core.models import ImageCreditPurchase
+        from app.domains.billing.models import ImageCreditPurchase
         from app.media.credit_service import add_credits
 
         metadata = session.get("metadata", {})
@@ -342,10 +339,10 @@ class WebhookProcessorV2:
         quantity = int(metadata.get("quantity", 1))
 
         # Create or update tenant addon
-        existing = (
-            db.query(TenantAddonV2)
-            .filter(TenantAddonV2.tenant_id == tenant_id, TenantAddonV2.addon_slug == addon_slug)
-            .first()
+        existing = webhook_repository.get_tenant_addon(
+            db,
+            tenant_id=tenant_id,
+            addon_slug=addon_slug,
         )
 
         if existing:
@@ -436,7 +433,7 @@ class WebhookProcessorV2:
         if not tenant_id:
             return {"action": "skipped", "reason": "no_tenant_id"}
 
-        sub = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        sub = webhook_repository.get_subscription_by_tenant(db, tenant_id)
         if sub:
             sub.status = SubscriptionStatus.CANCELED
             sub.canceled_at = datetime.now(timezone.utc)
@@ -468,13 +465,11 @@ class WebhookProcessorV2:
             return {"action": "skipped", "reason": "no_tenant_id"}
 
         # Update or create invoice record
-        local = db.query(InvoiceRecord).filter(InvoiceRecord.stripe_invoice_id == invoice["id"]).first()
-        if not local:
-            local = InvoiceRecord(
-                tenant_id=tenant_id,
-                stripe_invoice_id=invoice["id"],
-            )
-            db.add(local)
+        local = webhook_repository.get_or_create_invoice_record(
+            db,
+            tenant_id=tenant_id,
+            stripe_invoice_id=invoice["id"],
+        )
 
         local.stripe_subscription_id = invoice.get("subscription")
         local.number = invoice.get("number")
@@ -488,7 +483,7 @@ class WebhookProcessorV2:
         local.paid_at = datetime.now(timezone.utc)
 
         # Update subscription latest invoice
-        sub = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        sub = webhook_repository.get_subscription_by_tenant(db, tenant_id)
         if sub:
             sub.stripe_latest_invoice_id = invoice["id"]
 
@@ -519,7 +514,7 @@ class WebhookProcessorV2:
         if not tenant_id:
             return {"action": "skipped", "reason": "no_tenant_id"}
 
-        sub = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        sub = webhook_repository.get_subscription_by_tenant(db, tenant_id)
         if sub:
             sub.status = SubscriptionStatus.PAST_DUE
 
@@ -550,13 +545,11 @@ class WebhookProcessorV2:
         if not tenant_id:
             return {"action": "skipped", "reason": "no_tenant_id"}
 
-        local = db.query(InvoiceRecord).filter(InvoiceRecord.stripe_invoice_id == invoice["id"]).first()
-        if not local:
-            local = InvoiceRecord(
-                tenant_id=tenant_id,
-                stripe_invoice_id=invoice["id"],
-            )
-            db.add(local)
+        local = webhook_repository.get_or_create_invoice_record(
+            db,
+            tenant_id=tenant_id,
+            stripe_invoice_id=invoice["id"],
+        )
 
         local.stripe_subscription_id = invoice.get("subscription")
         local.number = invoice.get("number")
@@ -626,9 +619,7 @@ class WebhookProcessorV2:
 
     def _tenant_from_customer(self, db: Session, customer_id: Optional[str]) -> Optional[int]:
         """Find tenant_id from Stripe customer_id."""
-        if not customer_id:
-            return None
-        sub = db.query(SubscriptionV2).filter(SubscriptionV2.stripe_customer_id == customer_id).first()
+        sub = webhook_repository.get_subscription_by_customer(db, customer_id)
         return sub.tenant_id if sub else None
 
 

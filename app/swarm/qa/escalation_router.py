@@ -14,6 +14,8 @@ import json
 import structlog
 from enum import Enum
 
+from app.shared.db import open_session
+
 logger = structlog.get_logger()
 
 
@@ -26,10 +28,9 @@ class EscalationHandler(str, Enum):
 def _get_configured_handler() -> str:
     """Read escalation_handler from OrchestratorManager quality-gate config."""
     try:
-        from app.core.db import SessionLocal
         from app.orchestration.manager import OrchestratorManager
 
-        db = SessionLocal()
+        db = open_session()
         try:
             mgr = OrchestratorManager(db)
             config = mgr.get_config("quality-gate")
@@ -140,10 +141,9 @@ async def _handle_dead_letter(result, tenant_id):
         result_text=getattr(result, "content", str(result))[:500],
     )
     try:
-        from app.core.db import SessionLocal
-        from app.core.models import AuditLog
+        from app.domains.identity.models import AuditLog
 
-        db = SessionLocal()
+        db = open_session()
         try:
             entry = AuditLog(
                 tenant_id=tenant_id,

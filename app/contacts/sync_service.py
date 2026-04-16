@@ -35,8 +35,8 @@ from app.core.contact_models import (
     ContactTag,
     ContactTagAssociation,
 )
-from app.core.db import SessionLocal
 from app.integrations.magicline.contact_fields import set_magicline_custom_field_values
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -155,7 +155,7 @@ class ContactSyncService:
         result = SyncResult()
         result.fetched = len(contacts)
 
-        db = SessionLocal()
+        db = open_session()
         try:
             # Build lookup of existing contacts from this source
             existing_contacts = (

@@ -17,7 +17,7 @@ import structlog
 from sqlalchemy.orm import Session
 
 from app.ai_config.encryption import encrypt_api_key, decrypt_api_key
-from app.core.db import SessionLocal
+from app.shared.db import open_session
 from app.memory_platform.notion_models import (
     NotionConnectionDB,
     NotionSyncedPageDB,
@@ -108,7 +108,7 @@ class NotionService:
         """Get the Notion connection for a tenant."""
         close = False
         if db is None:
-            db = SessionLocal()
+            db = open_session()
             close = True
         try:
             return db.query(NotionConnectionDB).filter(
@@ -209,7 +209,7 @@ class NotionService:
             bot_id = data.get("bot_id", "")
 
             # Store encrypted token in DB
-            db = SessionLocal()
+            db = open_session()
             try:
                 conn = db.query(NotionConnectionDB).filter(
                     NotionConnectionDB.tenant_id == tenant_id
@@ -249,7 +249,7 @@ class NotionService:
 
     def disconnect(self, tenant_id: int) -> dict[str, Any]:
         """Disconnect Notion for a tenant (delete connection and synced pages)."""
-        db = SessionLocal()
+        db = open_session()
         try:
             db.query(NotionSyncedPageDB).filter(NotionSyncedPageDB.tenant_id == tenant_id).delete()
             db.query(NotionSyncLogDB).filter(NotionSyncLogDB.tenant_id == tenant_id).delete()
@@ -278,7 +278,7 @@ class NotionService:
         pages = await connector.list_pages(query=query, page_size=50)
 
         # Enrich with sync status from DB
-        db = SessionLocal()
+        db = open_session()
         try:
             synced = {
                 sp.notion_page_id: sp
@@ -309,7 +309,7 @@ class NotionService:
 
     def get_synced_pages(self, tenant_id: int) -> list[dict[str, Any]]:
         """Get all synced pages for a tenant from DB."""
-        db = SessionLocal()
+        db = open_session()
         try:
             pages = db.query(NotionSyncedPageDB).filter(
                 NotionSyncedPageDB.tenant_id == tenant_id,
@@ -342,7 +342,7 @@ class NotionService:
         if not conn:
             return {"error": "Nicht verbunden"}
 
-        db = SessionLocal()
+        db = open_session()
         try:
             sp = db.query(NotionSyncedPageDB).filter(
                 NotionSyncedPageDB.tenant_id == tenant_id,
@@ -395,7 +395,7 @@ class NotionService:
         if not conn:
             return {"error": "Nicht verbunden"}
 
-        db = SessionLocal()
+        db = open_session()
         try:
             # Create sync log
             log = NotionSyncLogDB(
@@ -542,7 +542,7 @@ class NotionService:
 
     def get_sync_logs(self, tenant_id: int, limit: int = 20) -> list[dict[str, Any]]:
         """Get sync history for a tenant."""
-        db = SessionLocal()
+        db = open_session()
         try:
             logs = db.query(NotionSyncLogDB).filter(
                 NotionSyncLogDB.tenant_id == tenant_id

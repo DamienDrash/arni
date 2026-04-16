@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 
 from app.core.automation_models import AutomationRun
 from app.core.contact_models import Contact, ContactActivity
+from app.domains.campaigns.models import Campaign, CampaignRecipient
 from app.integrations.adapters.registry import get_adapter_registry
 
 logger = logging.getLogger("ariia.automation.executors")
@@ -183,8 +184,6 @@ class SendCampaignExecutor(BaseNodeExecutor):
     """Create and queue a campaign for the contact via the existing CampaignSchedulerWorker."""
 
     async def execute(self, db: Session, run: AutomationRun, node: dict) -> dict:
-        from app.core.models import Campaign, CampaignRecipient
-
         config = node.get("data", {})
         contact = db.query(Contact).filter(Contact.id == run.contact_id).first()
         if not contact:

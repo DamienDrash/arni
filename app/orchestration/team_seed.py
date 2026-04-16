@@ -9,7 +9,8 @@ import uuid
 import structlog
 from sqlalchemy.orm import Session
 
-from app.core.models import AgentTeam
+from app.domains.ai.models import AgentTeam
+from app.domains.identity.models import Tenant
 
 logger = structlog.get_logger()
 
@@ -64,8 +65,6 @@ def backfill_default_teams(db: Session) -> int:
 
     Returns the number of teams created.
     """
-    from app.core.models import Tenant
-
     tenants = db.query(Tenant).all()
     created = 0
     for tenant in tenants:

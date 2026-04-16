@@ -140,13 +140,13 @@ class PromptEngine:
         Converts template_name (e.g. "sales/system.j2") to a slug (e.g. "sales/system").
         """
         try:
-            from app.core.db import SessionLocal
+            from app.shared.db import open_session
             from app.ai_config.service import AIConfigService
 
             # Convert filename to slug: "sales/system.j2" → "sales/system"
             slug = template_name.replace(".j2", "").replace(".jinja2", "")
 
-            db = SessionLocal()
+            db = open_session()
             try:
                 svc = AIConfigService(db)
                 version = svc.resolve_prompt(slug, tenant_id=tenant_id, environment=environment)

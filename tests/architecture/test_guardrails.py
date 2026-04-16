@@ -15,11 +15,15 @@ import pytest
 # The current backend root
 APP_DIR = Path(__file__).parent.parent.parent / "app"
 
-# Baseline counts as of Epic 1 / Phase 0 analysis.
-# We fail the test if the count of violations EXCEEDS these baselines,
-# and we should manually lower these baselines as we refactor down to 0.
-BASELINE_SESSION_LOCAL_CALLS = 346
-BASELINE_CORE_MODELS_IMPORTS = 158  # Fixed baseline to prevent new additions
+BASELINE_CORE_MODELS_IMPORTS = 0  # Epic 7.3 complete: no productive app.core.models imports remain in app/
+ALLOWED_SESSIONLOCAL_FILES = {
+    (APP_DIR / "core" / "db.py").resolve(),
+    (APP_DIR / "shared" / "db.py").resolve(),
+}
+ALLOWED_COMPAT_ENTRYPOINTS = {
+    (APP_DIR / "gateway" / "main.py").resolve(),
+    (APP_DIR / "worker" / "main.py").resolve(),
+}
 
 
 def get_python_files(directory: Path) -> list[Path]:
@@ -70,28 +74,26 @@ class ArchitectureViolationVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def test_guardrail_session_local_no_new_usages() -> None:
-    """ENSURE no new direct `SessionLocal()` calls are added.
-    
-    Refactoring Goal (Epic 6): Replace with `Depends(get_db)` or Unit of Work.
-    """
-    total_calls = 0
+def test_guardrail_session_local_restricted_to_db_layers() -> None:
+    """ENSURE SessionLocal is only referenced inside the intentional DB layers."""
+    violations: list[str] = []
     py_files = get_python_files(APP_DIR)
-    
+
     for py_file in py_files:
+        resolved = py_file.resolve()
+        if resolved in ALLOWED_SESSIONLOCAL_FILES:
+            continue
         try:
             content = py_file.read_text(encoding="utf-8")
-            tree = ast.parse(content, filename=str(py_file))
-            visitor = ArchitectureViolationVisitor(py_file)
-            visitor.visit(tree)
-            total_calls += visitor.session_local_calls
+            if "SessionLocal" in content:
+                violations.append(str(py_file.relative_to(APP_DIR.parent)))
         except SyntaxError:
             pass  # Ignore invalid python files during active development
-            
-    assert total_calls <= BASELINE_SESSION_LOCAL_CALLS, (
-        f"Architecture Violation: Found {total_calls} direct SessionLocal() calls, "
-        f"which exceeds the baseline of {BASELINE_SESSION_LOCAL_CALLS}. "
-        f"Please use dependency injection `Depends(get_db)` instead."
+
+    assert not violations, (
+        "Architecture Violation: SessionLocal is only allowed in "
+        "`app/core/db.py` and `app/shared/db.py`. Found forbidden references in: "
+        + ", ".join(sorted(violations))
     )
 
 
@@ -121,4 +123,26 @@ def test_guardrail_core_models_no_new_imports() -> None:
         f"Architecture Violation: Found {total_imports} imports from app.core.models, "
         f"which exceeds the baseline of {BASELINE_CORE_MODELS_IMPORTS}. "
         f"Do not couple new domain logic to the monolithic models file."
+    )
+
+
+def test_guardrail_legacy_compat_entrypoints_do_not_spread() -> None:
+    """ENSURE new top-level compatibility shims are not introduced silently."""
+    violations: list[str] = []
+    py_files = get_python_files(APP_DIR)
+
+    for py_file in py_files:
+        resolved = py_file.resolve()
+        try:
+            content = py_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        header = content[:400].lower()
+        if "compatibility shim" in header or "compatibility wrapper" in header:
+            if resolved not in ALLOWED_COMPAT_ENTRYPOINTS:
+                violations.append(str(py_file.relative_to(APP_DIR.parent)))
+
+    assert not violations, (
+        "Architecture Violation: New compatibility entrypoints were introduced outside the "
+        "approved shim allowlist: " + ", ".join(sorted(violations))
     )

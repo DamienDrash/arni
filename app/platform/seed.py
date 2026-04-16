@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 import structlog
 from sqlalchemy.orm import Session
 
+from app.domains.identity.models import Tenant
+
 logger = structlog.get_logger()
 
 INTEGRATION_DEFINITIONS = [
@@ -107,7 +109,6 @@ def backfill_prompt_settings(db: Session) -> None:
     Uses Tenant.name as the default studio_name when the setting is absent.
     Safe to call multiple times — only inserts missing rows.
     """
-    from app.core.models import Tenant
     from sqlalchemy import text
 
     tenants = db.query(Tenant).all()
@@ -143,7 +144,6 @@ def backfill_tenant_integrations(db: Session) -> None:
     - {name}_api_key present                   (Magicline, Calendly, etc.)
     """
     from app.core.integration_models import TenantIntegration
-    from app.core.models import Tenant
     from sqlalchemy import text
 
     now = datetime.now(timezone.utc)

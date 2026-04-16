@@ -11,6 +11,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 import structlog
+from app.domains.campaigns.models import Campaign, CampaignRecipient, CampaignVariant
+from app.domains.support.models import ScheduledFollowUp
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -25,8 +28,6 @@ async def send_campaign_batch(
     batch_size: int = 100,
 ) -> dict[str, Any]:
     """Dequeue and send a batch of campaign messages from campaign:send_queue."""
-    from app.core.db import SessionLocal
-    from app.core.models import Campaign, CampaignRecipient
     from app.core.contact_models import Contact
     from app.campaign_engine.renderer import MessageRenderer
 
@@ -52,7 +53,7 @@ async def send_campaign_batch(
         recipient_id = job.get("recipient_id")
         contact_id = job.get("contact_id")
 
-        db = SessionLocal()
+        db = open_session()
         try:
             # Load campaign, recipient, contact
             campaign = db.query(Campaign).filter(Campaign.id == job_campaign_id).first()
@@ -248,10 +249,7 @@ async def _dispatch_messaging(campaign, contact, rendered) -> None:
 
 async def tick_campaign_scheduler(ctx: dict) -> dict[str, Any]:
     """Cron task: check for campaigns scheduled to run now, transition and enqueue."""
-    from app.core.db import SessionLocal
-    from app.core.models import Campaign
-
-    db = SessionLocal()
+    db = open_session()
     enqueued = 0
     try:
         now = datetime.now(timezone.utc)
@@ -292,9 +290,6 @@ async def tick_campaign_scheduler(ctx: dict) -> dict[str, Any]:
 
 async def aggregate_analytics_events(ctx: dict) -> dict[str, Any]:
     """Cron task: consume campaign:analytics_events Redis stream, write to DB."""
-    from app.core.db import SessionLocal
-    from app.core.models import CampaignRecipient
-
     redis = ctx["redis"]
     cursor_key = "ariia:campaign:analytics:cursor"
     stream_key = "campaign:analytics_events"
@@ -309,7 +304,7 @@ async def aggregate_analytics_events(ctx: dict) -> dict[str, Any]:
         if not results:
             return {"status": "ok", "processed": 0}
 
-        db = SessionLocal()
+        db = open_session()
         try:
             for stream_name, messages in results:
                 for msg_id, fields in messages:
@@ -372,10 +367,7 @@ async def aggregate_analytics_events(ctx: dict) -> dict[str, Any]:
 
 async def evaluate_ab_tests(ctx: dict) -> dict[str, Any]:
     """Cron task: run Z-test on A/B variants with enough samples, declare winner."""
-    from app.core.db import SessionLocal
-    from app.core.models import Campaign, CampaignVariant
-
-    db = SessionLocal()
+    db = open_session()
     evaluated = 0
     try:
         # Find A/B campaigns that are sending/sent with no winner yet
@@ -460,10 +452,7 @@ async def evaluate_ab_tests(ctx: dict) -> dict[str, Any]:
 
 async def process_follow_ups(ctx: dict) -> dict[str, Any]:
     """Cron task: dispatch scheduled follow-up messages that are due."""
-    from app.core.db import SessionLocal
-    from app.core.models import ScheduledFollowUp
-
-    db = SessionLocal()
+    db = open_session()
     dispatched = 0
     try:
         now = datetime.now(timezone.utc)

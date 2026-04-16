@@ -20,8 +20,9 @@ import jinja2
 import structlog
 from sqlalchemy.orm import Session
 
-from app.core.models import Campaign, CampaignTemplate
 from app.core.contact_models import Contact
+from app.domains.campaigns.models import Campaign, CampaignTemplate
+from app.domains.identity.models import Tenant
 
 logger = structlog.get_logger()
 
@@ -179,8 +180,6 @@ class MessageRenderer:
         recipient_id: int | None = None,
     ) -> dict:
         """Build the Jinja2 template context from contact and campaign data."""
-        from app.core.models import Tenant
-
         # Resolve tenant/studio name
         studio_name = ""
         if db:

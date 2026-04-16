@@ -6,6 +6,7 @@ It is imported by `app/edge/app.py` right before it builds the FastAPI applicati
 """
 
 import structlog
+from fastapi import APIRouter
 
 from app.core.module_registry import Capability, ModuleDefinition, registry
 from app.edge import health
@@ -15,7 +16,8 @@ logger = structlog.get_logger()
 
 def register_all_modules() -> None:
     """Populates the global registry with the core domain modules."""
-    
+    registry.clear()
+
     # ── 1. Edge/Foundation (Always Active) ───────────────────────────────
     registry.register(ModuleDefinition(
         name="edge_foundation",
@@ -26,10 +28,23 @@ def register_all_modules() -> None:
 
     # ── 2. Admin Control Plane ──────────────────────────────────────────
     def get_admin_routers():
-        from app.gateway.admin import router as fallback_admin
+        from app.gateway.routers.admin_core_settings import router as admin_core_settings
+        from app.gateway.routers.admin_analytics import router as admin_analytics
+        from app.gateway.routers.admin_billing_platform import router as admin_billing_platform
+        from app.billing.router import router as billing_v2
+        from app.gateway.routers.admin_integrations import router as admin_integrations
+        from app.gateway.routers.admin_knowledge import router as admin_knowledge
+        from app.gateway.routers.admin_operations import router as admin_operations
+        from app.gateway.routers.admin_prompts import router as admin_prompts
+        from app.gateway.routers.revenue_analytics import router as revenue_analytics
+        from app.gateway.routers.admin_settings import router as admin_settings
+        from app.gateway.routers.swarm_admin import router as swarm_admin
         from app.billing.admin_router import router as billing_admin
         from app.ai_config.router import admin_router as ai_admin
-        return [fallback_admin, billing_admin, ai_admin]
+        # V2 billing replaces legacy gateway/routers/billing.py under /admin/billing/...
+        billing_v2_admin = APIRouter(prefix="/admin")
+        billing_v2_admin.include_router(billing_v2)
+        return [admin_analytics, admin_billing_platform, admin_core_settings, admin_integrations, admin_knowledge, admin_operations, admin_prompts, revenue_analytics, admin_settings, swarm_admin, billing_v2_admin, billing_admin, ai_admin]
         
     registry.register(ModuleDefinition(
         name="admin_control_plane",
@@ -40,14 +55,9 @@ def register_all_modules() -> None:
     
     # ── 3. Tenant & Billing Management ──────────────────────────────────
     def get_tenant_routers():
-        from app.platform.api.tenant_portal import router as portal
-        from app.platform.api.marketplace import router as market
-        from app.billing.router import router as v2_billing
-        from app.gateway.routers.plans_admin import router as plans
-        from app.platform.api.analytics import router as plat_analytics
-        from app.gateway.routers.llm_costs import router as llm_costs
-        from app.ai_config.router import tenant_router as ai_tenant
-        return [portal, market, v2_billing, plans, plat_analytics, llm_costs, ai_tenant]
+        from app.domains.platform.module import get_tenant_management_routers
+
+        return get_tenant_management_routers()
         
     registry.register(ModuleDefinition(
         name="tenant_management",
@@ -71,62 +81,85 @@ def register_all_modules() -> None:
 
     # ── 5. Active Core: Support & Core CRM ──────────────────────────────
     def get_support_routers():
-        from app.contacts.router import router as contacts
-        from app.gateway.routers.members_crud import router as members
-        from app.gateway.routers.contact_sync_api import router as sync
-        from app.gateway.routers.chats import router as chats
-        from app.gateway.routers.agent_teams import router as teams
-        return [contacts, members, sync, chats, teams]
-        
+        from app.domains.support.module import get_support_routers as build_support_routers
+
+        return build_support_routers()
+
     registry.register(ModuleDefinition(
         name="support_core",
         description="Contact CRM, chats, agent teams, and basic support.",
         required_capabilities=[Capability.SUPPORT_CORE],
         get_routers=get_support_routers,
+        get_workers=lambda: __import__(
+            "app.domains.support.module",
+            fromlist=["get_support_workers"],
+        ).get_support_workers(),
     ))
 
     # ── 6. Active Core: Campaigns ───────────────────────────────────────
     def get_campaign_routers():
-        from app.gateway.routers.campaigns import router as cam_main
-        from app.gateway.routers.campaign_templates import router as cam_tmp
-        from app.gateway.routers.campaign_offers import router as cam_off
-        from app.gateway.routers.campaign_webhooks import router as cam_wh
-        return [cam_main, cam_tmp, cam_off, cam_wh]
+        from app.domains.campaigns.module import get_campaign_routers as build_campaign_routers
+
+        return build_campaign_routers()
         
     registry.register(ModuleDefinition(
         name="campaigns",
         description="Campaign engines, templates, and outbound marketing.",
         required_capabilities=[Capability.CAMPAIGNS],
         get_routers=get_campaign_routers,
+        get_workers=lambda: __import__(
+            "app.domains.campaigns.module",
+            fromlist=["get_campaign_workers"],
+        ).get_campaign_workers(),
     ))
 
     # ── 7. Active Core: Knowledge Base ──────────────────────────────────
     def get_knowledge_routers():
-        from app.gateway.routers.ingestion import router as ingestion
-        from app.gateway.routers.media import router as media
-        return [ingestion, media]
+        from app.domains.knowledge.module import get_knowledge_routers as build_knowledge_routers
+
+        return build_knowledge_routers()
         
     registry.register(ModuleDefinition(
         name="knowledge_base",
         description="Vector embeddings, files, chunks, and RAG pipelines.",
         required_capabilities=[Capability.KNOWLEDGE_BASE],
         get_routers=get_knowledge_routers,
+        get_workers=lambda: __import__(
+            "app.domains.knowledge.module",
+            fromlist=["get_knowledge_workers"],
+        ).get_knowledge_workers(),
     ))
 
     # ── 8. Active Integrations ──────────────────────────────────────────
     def get_magicline_routers():
-        from app.platform.api.integrations import router as integrations_sync
-        return [integrations_sync]
+        from app.domains.integrations.module import get_magicline_routers
+
+        return get_magicline_routers()
 
     def get_whatsapp_routers():
-        from app.gateway.routers.webhooks import router as wa_webhooks
-        return [wa_webhooks]
+        from app.domains.integrations.module import get_whatsapp_routers
+
+        return get_whatsapp_routers()
+
+    def get_telegram_routers():
+        from app.domains.integrations.module import get_telegram_routers
+
+        return get_telegram_routers()
+
+    def get_calendly_routers():
+        from app.domains.integrations.module import get_calendly_routers
+
+        return get_calendly_routers()
         
     registry.register(ModuleDefinition(
         name="integration_magicline",
         description="Magicline integration and syncing.",
         required_capabilities=[Capability.INTEGRATION_MAGICLINE],
         get_routers=get_magicline_routers,
+        get_workers=lambda: __import__(
+            "app.domains.integrations.module",
+            fromlist=["get_magicline_workers"],
+        ).get_magicline_workers(),
     ))
 
     registry.register(ModuleDefinition(
@@ -142,11 +175,13 @@ def register_all_modules() -> None:
         name="integration_telegram",
         description="Telegram bot integration.",
         required_capabilities=[Capability.INTEGRATION_TELEGRAM],
+        get_routers=get_telegram_routers,
     ))
     registry.register(ModuleDefinition(
         name="integration_calendly",
         description="Calendly booking integration.",
         required_capabilities=[Capability.INTEGRATION_CALENDLY],
+        get_routers=get_calendly_routers,
     ))
 
     # ── 9. Dormant Features (Coming Soon) ───────────────────────────────

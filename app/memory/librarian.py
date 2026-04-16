@@ -8,8 +8,8 @@ as semantic mid-term memory.
 import asyncio
 import structlog
 from datetime import datetime, timezone, timedelta
-from app.core.db import SessionLocal
-from app.core.models import ChatMessage, ChatSession
+from app.shared.db import open_session
+from app.domains.support.models import ChatMessage, ChatSession
 from app.swarm.llm import LLMClient
 from app.memory.member_memory_analyzer import _index_member_memory
 from config.settings import get_settings
@@ -59,7 +59,7 @@ class Librarian:
 
     async def run_archival_cycle(self):
         """Scans for sessions older than 24h that haven't been summarized yet."""
-        db = SessionLocal()
+        db = open_session()
         try:
             # Simple heuristic: last interaction > 24h ago
             cutoff = datetime.now(timezone.utc) - timedelta(hours=24)

@@ -18,12 +18,15 @@ Endpoints:
 from __future__ import annotations
 
 import structlog
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from app.core.auth import AuthContext, get_current_user, require_role
+from app.gateway.contact_sync_repository import contact_sync_repository
+from app.shared.db import session_scope, transaction_scope
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/sync", tags=["contact-sync"])
@@ -182,30 +185,18 @@ def toggle_integration(
     """Enable or disable an integration without changing its config."""
     _require_admin(user)
 
-    from app.core.db import SessionLocal
-    from app.core.integration_models import TenantIntegration
-    from datetime import datetime, timezone
-
-    db = SessionLocal()
-    try:
-        ti = (
-            db.query(TenantIntegration)
-            .filter(
-                TenantIntegration.tenant_id == user.tenant_id,
-                TenantIntegration.integration_id == integration_id,
-            )
-            .first()
+    with transaction_scope() as db:
+        ti = contact_sync_repository.get_tenant_integration(
+            db,
+            tenant_id=user.tenant_id,
+            integration_id=integration_id,
         )
         if not ti:
             raise HTTPException(status_code=404, detail="Integration nicht gefunden.")
 
         ti.enabled = enabled
         ti.updated_at = datetime.now(timezone.utc)
-        db.commit()
-
         return {"success": True, "enabled": enabled, "message": f"Integration {'aktiviert' if enabled else 'deaktiviert'}."}
-    finally:
-        db.close()
 
 
 @router.delete("/integrations/{integration_id}")
@@ -333,48 +324,52 @@ def get_sync_stats(
       - Per-integration breakdown
       - Trend data for charts
     """
-    from app.core.db import SessionLocal
-    from app.core.integration_models import TenantIntegration, SyncLog
-    from sqlalchemy import desc, func
-    from datetime import datetime, timedelta, timezone
-
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         now = datetime.now(timezone.utc)
         t_24h = now - timedelta(hours=24)
         t_7d = now - timedelta(days=7)
         t_30d = now - timedelta(days=30)
 
-        # Base query for this tenant's logs
-        base = db.query(SyncLog).filter(SyncLog.tenant_id == user.tenant_id)
-
-        # 24h stats
-        logs_24h = base.filter(SyncLog.started_at >= t_24h).all()
+        logs_24h = contact_sync_repository.list_sync_logs_since(
+            db,
+            tenant_id=user.tenant_id,
+            started_at_gte=t_24h,
+        )
         synced_24h = sum((l.records_created or 0) + (l.records_updated or 0) for l in logs_24h)
         errors_24h = sum(1 for l in logs_24h if l.status == "error")
         success_24h = sum(1 for l in logs_24h if l.status == "success")
 
-        # 7d stats
-        logs_7d = base.filter(SyncLog.started_at >= t_7d).all()
+        logs_7d = contact_sync_repository.list_sync_logs_since(
+            db,
+            tenant_id=user.tenant_id,
+            started_at_gte=t_7d,
+        )
         synced_7d = sum((l.records_created or 0) + (l.records_updated or 0) for l in logs_7d)
 
-        # 30d stats
-        logs_30d = base.filter(SyncLog.started_at >= t_30d).all()
+        logs_30d = contact_sync_repository.list_sync_logs_since(
+            db,
+            tenant_id=user.tenant_id,
+            started_at_gte=t_30d,
+        )
         synced_30d = sum((l.records_created or 0) + (l.records_updated or 0) for l in logs_30d)
 
-        # Per-integration breakdown
-        integrations = (
-            db.query(TenantIntegration)
-            .filter(TenantIntegration.tenant_id == user.tenant_id)
-            .all()
+        integrations = contact_sync_repository.list_tenant_integrations(
+            db,
+            tenant_id=user.tenant_id,
         )
 
         breakdown = []
         for ti in integrations:
-            ti_logs_24h = [l for l in logs_24h if l.integration_id == ti.integration_id]
+            ti_logs_24h = [
+                l for l in logs_24h if getattr(l, "tenant_integration_id", None) == ti.id
+            ]
+            display_name = getattr(ti, "display_name", None)
+            if not display_name:
+                integration = getattr(ti, "integration", None)
+                display_name = getattr(integration, "name", None) or ti.integration_id
             breakdown.append({
                 "integration_id": ti.integration_id,
-                "display_name": ti.display_name,
+                "display_name": display_name,
                 "status": ti.status,
                 "enabled": ti.enabled,
                 "syncs_24h": len(ti_logs_24h),
@@ -415,8 +410,6 @@ def get_sync_stats(
             "integrations": breakdown,
             "trend_7d": trend,
         }
-    finally:
-        db.close()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -440,18 +433,14 @@ async def receive_webhook(
 
     No authentication – webhook verification is handled by each adapter.
     """
-    # Resolve tenant_id from slug
-    from app.core.db import SessionLocal
-    from app.core.models import Tenant
-
-    db = SessionLocal()
-    try:
-        tenant = db.query(Tenant).filter(Tenant.slug == tenant_slug).first()
+    with session_scope() as db:
+        tenant = contact_sync_repository.get_tenant_by_slug(
+            db,
+            tenant_slug=tenant_slug,
+        )
         if not tenant:
             raise HTTPException(status_code=404, detail="Tenant not found")
         tenant_id = tenant.id
-    finally:
-        db.close()
 
     # Parse payload
     try:

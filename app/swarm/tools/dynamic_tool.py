@@ -12,7 +12,7 @@ import structlog
 from typing import Any
 
 from app.core.crypto import decrypt_value
-from app.core.models import ToolDefinition
+from app.domains.ai.models import ToolDefinition
 from app.swarm.contracts import TenantContext, ToolResult
 from app.swarm.tools.base import SkillTool
 

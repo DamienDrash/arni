@@ -17,7 +17,10 @@ from prometheus_client import (
     generate_latest,
 )
 
+from app.domains.campaigns.models import Campaign
+from app.domains.identity.models import UserAccount
 from app.integrations.pii_filter import filter_log_record
+from app.shared.db import open_session
 
 router = APIRouter(tags=["monitoring"])
 
@@ -88,9 +91,7 @@ CAMPAIGN_ACTIVE_COUNT = Gauge(
 @router.get("/metrics")
 def metrics():
     """Expose Prometheus metrics with synthetic checks."""
-    from app.core.db import SessionLocal
-    from app.core.models import UserAccount, Campaign
-    db = SessionLocal()
+    db = open_session()
     try:
         # 1. Run synthetic auth check
         admin = db.query(UserAccount).filter(
@@ -148,10 +149,8 @@ def campaign_health():
         health["status"] = "degraded"
 
     # Check database connectivity
-    from app.core.db import SessionLocal
     try:
-        db = SessionLocal()
-        from app.core.models import Campaign
+        db = open_session()
         active = db.query(Campaign).filter(
             Campaign.status.in_(["queued", "sending", "ab_testing"])
         ).count()
@@ -165,6 +164,11 @@ def campaign_health():
     except Exception as e:
         health["components"]["database"] = {"status": "unhealthy", "error": str(e)}
         health["status"] = "unhealthy"
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass
 
     return health
 

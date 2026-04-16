@@ -15,15 +15,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.core.auth import get_current_user, AuthContext, require_role
-from app.core.db import SessionLocal
-from app.core.models import (
-    AgentDefinition,
-    AuditLog,
-    ToolDefinition,
-    TenantAgentConfig,
-    TenantToolConfig,
-)
+from app.domains.ai.models import AgentDefinition, TenantAgentConfig, TenantToolConfig, ToolDefinition
+from app.domains.identity.models import AuditLog
 from app.gateway.dependencies import redis_bus
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -49,7 +44,7 @@ def _audit(
     target_id: str | None = None,
     details: dict[str, Any] | None = None,
 ) -> None:
-    db = SessionLocal()
+    db = open_session()
     try:
         actor_uid = actor.impersonator_user_id if actor.is_impersonating else actor.user_id
         actor_email = actor.impersonator_email if actor.is_impersonating else actor.email
@@ -221,7 +216,7 @@ def _tool_to_dict(t: ToolDefinition) -> dict:
 @router.get("/agents")
 async def list_agents(user: AuthContext = Depends(get_current_user)):
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         agents = db.query(AgentDefinition).order_by(AgentDefinition.display_name).all()
         return [_agent_to_dict(a) for a in agents]
@@ -232,7 +227,7 @@ async def list_agents(user: AuthContext = Depends(get_current_user)):
 @router.post("/agents", status_code=201)
 async def create_agent(body: AgentCreate, user: AuthContext = Depends(get_current_user)):
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         if db.query(AgentDefinition).filter(AgentDefinition.id == body.id).first():
             raise HTTPException(409, f"Agent '{body.id}' already exists")
@@ -260,7 +255,7 @@ async def create_agent(body: AgentCreate, user: AuthContext = Depends(get_curren
 @router.get("/agents/{agent_id}")
 async def get_agent(agent_id: str, user: AuthContext = Depends(get_current_user)):
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         agent = db.query(AgentDefinition).filter(AgentDefinition.id == agent_id).first()
         if not agent:
@@ -273,7 +268,7 @@ async def get_agent(agent_id: str, user: AuthContext = Depends(get_current_user)
 @router.patch("/agents/{agent_id}")
 async def update_agent(agent_id: str, body: AgentUpdate, user: AuthContext = Depends(get_current_user)):
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         agent = db.query(AgentDefinition).filter(AgentDefinition.id == agent_id).first()
         if not agent:
@@ -295,7 +290,7 @@ async def update_agent(agent_id: str, body: AgentUpdate, user: AuthContext = Dep
 @router.delete("/agents/{agent_id}", status_code=204)
 async def delete_agent(agent_id: str, user: AuthContext = Depends(get_current_user)):
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         agent = db.query(AgentDefinition).filter(AgentDefinition.id == agent_id).first()
         if not agent:
@@ -319,7 +314,7 @@ async def delete_agent(agent_id: str, user: AuthContext = Depends(get_current_us
 @router.get("/tools")
 async def list_tools(user: AuthContext = Depends(get_current_user)):
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         tools = db.query(ToolDefinition).order_by(ToolDefinition.display_name).all()
         return [_tool_to_dict(t) for t in tools]
@@ -330,7 +325,7 @@ async def list_tools(user: AuthContext = Depends(get_current_user)):
 @router.post("/tools", status_code=201)
 async def create_tool(body: ToolCreate, user: AuthContext = Depends(get_current_user)):
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         if db.query(ToolDefinition).filter(ToolDefinition.id == body.id).first():
             raise HTTPException(409, f"Tool '{body.id}' already exists")
@@ -357,7 +352,7 @@ async def create_tool(body: ToolCreate, user: AuthContext = Depends(get_current_
 @router.get("/tools/{tool_id}")
 async def get_tool(tool_id: str, user: AuthContext = Depends(get_current_user)):
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         tool = db.query(ToolDefinition).filter(ToolDefinition.id == tool_id).first()
         if not tool:
@@ -370,7 +365,7 @@ async def get_tool(tool_id: str, user: AuthContext = Depends(get_current_user)):
 @router.patch("/tools/{tool_id}")
 async def update_tool(tool_id: str, body: ToolUpdate, user: AuthContext = Depends(get_current_user)):
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         tool = db.query(ToolDefinition).filter(ToolDefinition.id == tool_id).first()
         if not tool:
@@ -392,7 +387,7 @@ async def update_tool(tool_id: str, body: ToolUpdate, user: AuthContext = Depend
 @router.delete("/tools/{tool_id}", status_code=204)
 async def delete_tool(tool_id: str, user: AuthContext = Depends(get_current_user)):
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         tool = db.query(ToolDefinition).filter(ToolDefinition.id == tool_id).first()
         if not tool:
@@ -420,7 +415,7 @@ async def configure_tenant_agent(
     user: AuthContext = Depends(get_current_user),
 ):
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         # Verify agent exists
         if not db.query(AgentDefinition).filter(AgentDefinition.id == agent_id).first():
@@ -469,7 +464,7 @@ async def configure_tenant_tool(
     user: AuthContext = Depends(get_current_user),
 ):
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         if not db.query(ToolDefinition).filter(ToolDefinition.id == tool_id).first():
             raise HTTPException(404, "Tool not found")
@@ -509,7 +504,7 @@ async def configure_tenant_tool(
 async def list_tenant_agent_configs(tenant_id: int, user: AuthContext = Depends(get_current_user)):
     """List all agents with their tenant-specific config (enabled state, overrides)."""
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         agents = db.query(AgentDefinition).order_by(AgentDefinition.display_name).all()
         configs = {
@@ -550,7 +545,7 @@ async def list_tenant_agent_configs(tenant_id: int, user: AuthContext = Depends(
 async def list_tenant_tool_configs(tenant_id: int, user: AuthContext = Depends(get_current_user)):
     """List all tools with their tenant-specific config (enabled state, settings)."""
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         tools = db.query(ToolDefinition).order_by(ToolDefinition.display_name).all()
         configs = {

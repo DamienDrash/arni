@@ -20,8 +20,8 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
-from app.core.db import SessionLocal
-from app.core.integration_models import TenantIntegration, SyncLog
+from app.core.integration_models import SyncLog, SyncSchedule, TenantIntegration
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -78,13 +78,28 @@ class SyncHealthService:
     SLOW_SYNC_WARNING_MS = 60_000     # 60 seconds
     SLOW_SYNC_CRITICAL_MS = 300_000   # 5 minutes
 
+    @staticmethod
+    def _cron_to_minutes(cron_expression: str | None) -> int:
+        cron = (cron_expression or "").strip()
+        if cron.startswith("*/"):
+            try:
+                return int(cron.split()[0][2:])
+            except (IndexError, ValueError):
+                return 60
+        if cron.startswith("0 */"):
+            try:
+                return int(cron.split()[1][2:]) * 60
+            except (IndexError, ValueError):
+                return 60
+        return 60
+
     def check_integration_health(
         self,
         tenant_id: int,
         integration_id: str,
     ) -> IntegrationHealth:
         """Run health checks for a single integration."""
-        db = SessionLocal()
+        db = open_session()
         try:
             ti = (
                 db.query(TenantIntegration)
@@ -104,7 +119,7 @@ class SyncHealthService:
             health = IntegrationHealth(
                 tenant_id=tenant_id,
                 integration_id=integration_id,
-                display_name=ti.display_name or integration_id,
+                display_name=ti.integration.name if getattr(ti, "integration", None) else integration_id,
             )
             health.enabled = ti.enabled
             health.last_check_at = datetime.now(timezone.utc)
@@ -118,8 +133,7 @@ class SyncHealthService:
             recent_logs = (
                 db.query(SyncLog)
                 .filter(
-                    SyncLog.tenant_id == tenant_id,
-                    SyncLog.integration_id == integration_id,
+                    SyncLog.tenant_integration_id == ti.id,
                 )
                 .order_by(desc(SyncLog.started_at))
                 .limit(20)
@@ -159,7 +173,7 @@ class SyncHealthService:
 
     def check_all_integrations(self, tenant_id: int) -> List[IntegrationHealth]:
         """Run health checks for all integrations of a tenant."""
-        db = SessionLocal()
+        db = open_session()
         try:
             integrations = (
                 db.query(TenantIntegration)
@@ -252,7 +266,12 @@ class SyncHealthService:
         if last_sync.tzinfo is None:
             last_sync = last_sync.replace(tzinfo=timezone.utc)
 
-        interval = timedelta(minutes=ti.sync_interval_minutes or 60)
+        schedule = getattr(ti, "schedule", None)
+        interval = timedelta(
+            minutes=self._cron_to_minutes(
+                schedule.cron_expression if schedule else None
+            )
+        )
         age = now - last_sync
 
         warning_threshold = interval * self.STALE_SYNC_WARNING_FACTOR
@@ -366,7 +385,9 @@ class SyncHealthService:
             "success_rate_7d": round(success_7d / total_7d, 3) if total_7d > 0 else None,
             "last_sync_at": ti.last_sync_at.isoformat() if ti.last_sync_at else None,
             "last_sync_status": ti.last_sync_status,
-            "sync_interval_minutes": ti.sync_interval_minutes,
+            "sync_interval_minutes": self._cron_to_minutes(
+                ti.schedule.cron_expression if getattr(ti, "schedule", None) else None
+            ),
         })
 
 

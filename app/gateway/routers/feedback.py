@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.models import MemberFeedback, ChatSession
+from app.domains.support.models import MemberFeedback, ChatSession
 
 router = APIRouter(tags=["feedback"])
 logger = structlog.get_logger()

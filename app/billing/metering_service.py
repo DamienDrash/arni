@@ -23,25 +23,18 @@ Usage:
 """
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Optional
 
 import structlog
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.billing.events import billing_events
+from app.billing.gating_repository import gating_repository
+from app.billing.metering_repository import metering_repository
 from app.billing.models import (
     BillingEventType,
-    Feature,
-    FeatureEntitlement,
-    FeatureSet,
-    FeatureType,
-    PlanV2,
-    SubscriptionV2,
-    UsageRecordV2,
 )
 
 logger = structlog.get_logger()
@@ -112,30 +105,24 @@ class MeteringService:
         soft_limit, hard_limit = self._get_limits(db, tenant_id, feature_key)
 
         # Get or create usage record
-        usage = (
-            db.query(UsageRecordV2)
-            .filter(
-                UsageRecordV2.tenant_id == tenant_id,
-                UsageRecordV2.feature_key == feature_key,
-                UsageRecordV2.period_year == period_year,
-                UsageRecordV2.period_month == period_month,
-            )
-            .first()
+        usage = metering_repository.get_usage_record(
+            db,
+            tenant_id=tenant_id,
+            feature_key=feature_key,
+            period_year=period_year,
+            period_month=period_month,
         )
 
         if not usage:
-            usage = UsageRecordV2(
+            usage = metering_repository.create_usage_record(
+                db,
                 tenant_id=tenant_id,
                 feature_key=feature_key,
                 period_year=period_year,
                 period_month=period_month,
-                usage_count=0,
-                overage_count=0,
-                soft_limit_snapshot=soft_limit,
-                hard_limit_snapshot=hard_limit,
+                soft_limit=soft_limit,
+                hard_limit=hard_limit,
             )
-            db.add(usage)
-            db.flush()
 
         # Check hard limit before recording
         if check_limits and hard_limit is not None:
@@ -216,29 +203,24 @@ class MeteringService:
 
         soft_limit, hard_limit = self._get_limits(db, tenant_id, feature_key)
 
-        usage = (
-            db.query(UsageRecordV2)
-            .filter(
-                UsageRecordV2.tenant_id == tenant_id,
-                UsageRecordV2.feature_key == feature_key,
-                UsageRecordV2.period_year == period_year,
-                UsageRecordV2.period_month == period_month,
-            )
-            .first()
+        usage = metering_repository.get_usage_record(
+            db,
+            tenant_id=tenant_id,
+            feature_key=feature_key,
+            period_year=period_year,
+            period_month=period_month,
         )
 
         if not usage:
-            usage = UsageRecordV2(
+            usage = metering_repository.create_usage_record(
+                db,
                 tenant_id=tenant_id,
                 feature_key=feature_key,
                 period_year=period_year,
                 period_month=period_month,
-                usage_count=0,
-                overage_count=0,
-                soft_limit_snapshot=soft_limit,
-                hard_limit_snapshot=hard_limit,
+                soft_limit=soft_limit,
+                hard_limit=hard_limit,
             )
-            db.add(usage)
 
         usage.usage_count = value
         usage.last_recorded_at = now
@@ -277,22 +259,19 @@ class MeteringService:
         year = period_year or now.year
         month = period_month or now.month
 
-        usage = (
-            db.query(UsageRecordV2)
-            .filter(
-                UsageRecordV2.tenant_id == tenant_id,
-                UsageRecordV2.feature_key == feature_key,
-                UsageRecordV2.period_year == year,
-                UsageRecordV2.period_month == month,
-            )
-            .first()
+        usage = metering_repository.get_usage_record(
+            db,
+            tenant_id=tenant_id,
+            feature_key=feature_key,
+            period_year=year,
+            period_month=month,
         )
 
         soft_limit, hard_limit = self._get_limits(db, tenant_id, feature_key)
         count = usage.usage_count if usage else 0
 
         # Get feature name
-        feature = db.query(Feature).filter(Feature.key == feature_key).first()
+        feature = gating_repository.get_feature_by_key(db, feature_key)
         feature_name = feature.name if feature else feature_key
 
         percentage = None
@@ -324,19 +303,24 @@ class MeteringService:
         year = period_year or now.year
         month = period_month or now.month
 
-        records = (
-            db.query(UsageRecordV2)
-            .filter(
-                UsageRecordV2.tenant_id == tenant_id,
-                UsageRecordV2.period_year == year,
-                UsageRecordV2.period_month == month,
-            )
-            .all()
+        records = metering_repository.list_usage_records(
+            db,
+            tenant_id=tenant_id,
+            period_year=year,
+            period_month=month,
         )
+
+        features_by_key = {
+            feature.key: feature
+            for feature in metering_repository.list_features_by_keys(
+                db,
+                [record.feature_key for record in records],
+            )
+        }
 
         summaries = []
         for rec in records:
-            feature = db.query(Feature).filter(Feature.key == rec.feature_key).first()
+            feature = features_by_key.get(rec.feature_key)
             soft_limit = rec.soft_limit_snapshot
             hard_limit = rec.hard_limit_snapshot
 
@@ -369,14 +353,11 @@ class MeteringService:
         period_month: int,
     ) -> int:
         """Reset all usage records for a tenant/period. Returns count of reset records."""
-        records = (
-            db.query(UsageRecordV2)
-            .filter(
-                UsageRecordV2.tenant_id == tenant_id,
-                UsageRecordV2.period_year == period_year,
-                UsageRecordV2.period_month == period_month,
-            )
-            .all()
+        records = metering_repository.list_usage_records(
+            db,
+            tenant_id=tenant_id,
+            period_year=period_year,
+            period_month=period_month,
         )
 
         count = 0
@@ -402,25 +383,22 @@ class MeteringService:
         Resolves through: Subscription → Plan → FeatureSet → FeatureEntitlement
         Returns (soft_limit, hard_limit). None = unlimited.
         """
-        sub = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        sub = gating_repository.get_subscription_by_tenant(db, tenant_id)
         if not sub:
             return (None, None)
 
-        plan = db.query(PlanV2).filter(PlanV2.id == sub.plan_id).first()
+        plan = gating_repository.get_plan_by_id(db, sub.plan_id)
         if not plan or not plan.feature_set_id:
             return (None, None)
 
-        feature = db.query(Feature).filter(Feature.key == feature_key).first()
+        feature = gating_repository.get_feature_by_key(db, feature_key)
         if not feature:
             return (None, None)
 
-        entitlement = (
-            db.query(FeatureEntitlement)
-            .filter(
-                FeatureEntitlement.feature_set_id == plan.feature_set_id,
-                FeatureEntitlement.feature_id == feature.id,
-            )
-            .first()
+        entitlement = gating_repository.get_feature_entitlement(
+            db,
+            feature_set_id=plan.feature_set_id,
+            feature_id=feature.id,
         )
 
         if not entitlement:

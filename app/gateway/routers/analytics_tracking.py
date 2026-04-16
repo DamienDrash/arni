@@ -244,12 +244,13 @@ async def unsubscribe_page(recipient_id: int, request: Request):
     unsubscribed. No authentication required – token-based via recipient_id.
     """
     from sqlalchemy.orm import Session
-    from app.core.db import SessionLocal
-    from app.core.models import CampaignRecipient, Campaign, Tenant
+    from app.shared.db import open_session
+    from app.domains.campaigns.models import Campaign, CampaignRecipient
+    from app.domains.identity.models import Tenant
     from app.core.contact_models import Contact
     from fastapi.responses import HTMLResponse
 
-    db: Session = SessionLocal()
+    db: Session = open_session()
     try:
         # Single JOIN query replacing 4 separate queries (recipient + contact + campaign + tenant)
         row = (

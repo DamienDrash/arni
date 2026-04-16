@@ -16,6 +16,8 @@ from typing import Optional, Any
 from dataclasses import dataclass
 
 from app.ai_config.schemas import ResolvedLLMConfig
+from app.domains.billing.models import LLMModelCost, LLMUsageLog
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -385,9 +387,7 @@ class AIGateway:
         now = time.time()
         if now - self._cost_cache_ts > self._COST_CACHE_TTL or not self._cost_cache:
             try:
-                from app.core.db import SessionLocal
-                from app.core.models import LLMModelCost
-                db = SessionLocal()
+                db = open_session()
                 try:
                     costs = db.query(LLMModelCost).filter(LLMModelCost.is_active.is_(True)).all()
                     self.__class__._cost_cache = {c.model_id: (c.input_cost_per_million, c.output_cost_per_million) for c in costs}
@@ -423,12 +423,11 @@ class AIGateway:
     ) -> None:
         """Persist usage log entry. Non-blocking."""
         try:
-            from app.core.db import SessionLocal, engine
-            from app.core.models import LLMUsageLog
+            from app.core.db import engine
             from sqlalchemy import text as sa_text
             from datetime import datetime, timezone
 
-            db = SessionLocal()
+            db = open_session()
             try:
                 log = LLMUsageLog(
                     tenant_id=tenant_id,

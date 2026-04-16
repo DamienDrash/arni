@@ -20,7 +20,7 @@ from typing import Optional
 import structlog
 from sqlalchemy.orm import Session
 
-from app.core.models import Campaign, CampaignVariant, CampaignRecipient
+from app.domains.campaigns.models import Campaign, CampaignRecipient, CampaignVariant
 
 logger = structlog.get_logger(__name__)
 

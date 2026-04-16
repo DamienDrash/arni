@@ -195,10 +195,10 @@ class LeadAgent:
         if not agent_ids:
             return {}
 
-        from app.core.db import SessionLocal
-        from app.core.models import AgentDefinition
+        from app.shared.db import open_session
+        from app.domains.ai.models import AgentDefinition
         
-        db = SessionLocal()
+        db = open_session()
         try:
             rows = db.query(AgentDefinition).filter(
                 AgentDefinition.id.in_(agent_ids)

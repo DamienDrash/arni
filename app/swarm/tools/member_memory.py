@@ -4,10 +4,11 @@ from __future__ import annotations
 import re
 import os
 import structlog
-from app.core.db import SessionLocal
-from app.core.models import Tenant, StudioMember
+from app.domains.identity.models import Tenant
+from app.domains.support.models import ChatSession, StudioMember
 from app.memory.member_memory_analyzer import member_collection_name_for_slug
 from app.gateway.persistence import persistence
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -16,38 +17,39 @@ def search_member_memory(user_identifier: str, query: str, tenant_id: int | None
     try:
         from app.core.knowledge.retriever import HybridRetriever
         
-        db_session = SessionLocal()
-        slug = "system"
-        t = db_session.query(Tenant).filter(Tenant.id == tenant_id).first()
-        if t: slug = t.slug
-        
-        # 1. Resolve identifiers
-        m_id = str(user_identifier).strip()
-        
-        from app.core.models import ChatSession
-        session = db_session.query(ChatSession).filter(ChatSession.user_id == m_id, ChatSession.tenant_id == tenant_id).first()
-        
-        # Candidate ID from session or direct input
-        candidate_id = session.member_id if session and session.member_id else m_id
-        
-        # Resolve to customer_id (int) if numeric
-        cid_lookup = -1
-        if candidate_id.isdigit() and int(candidate_id) <= 2147483647:
-            cid_lookup = int(candidate_id)
-            
-        # GOLD STANDARD: Multi-factor identification (ID, Member Number, or Email)
-        member = db_session.query(StudioMember).filter(StudioMember.tenant_id == tenant_id).filter(
-            (StudioMember.customer_id == cid_lookup) |
-            (StudioMember.member_number == candidate_id) |
-            (StudioMember.email == candidate_id)
-        ).first()
-        
-        if member:
-            target_ids = [str(member.customer_id), str(member.member_number)]
-        else:
-            target_ids = [candidate_id]
-            
-        db_session.close()
+        db_session = open_session()
+        try:
+            slug = "system"
+            t = db_session.query(Tenant).filter(Tenant.id == tenant_id).first()
+            if t:
+                slug = t.slug
+
+            # 1. Resolve identifiers
+            m_id = str(user_identifier).strip()
+
+            session = db_session.query(ChatSession).filter(ChatSession.user_id == m_id, ChatSession.tenant_id == tenant_id).first()
+
+            # Candidate ID from session or direct input
+            candidate_id = session.member_id if session and session.member_id else m_id
+
+            # Resolve to customer_id (int) if numeric
+            cid_lookup = -1
+            if candidate_id.isdigit() and int(candidate_id) <= 2147483647:
+                cid_lookup = int(candidate_id)
+
+            # GOLD STANDARD: Multi-factor identification (ID, Member Number, or Email)
+            member = db_session.query(StudioMember).filter(StudioMember.tenant_id == tenant_id).filter(
+                (StudioMember.customer_id == cid_lookup) |
+                (StudioMember.member_number == candidate_id) |
+                (StudioMember.email == candidate_id)
+            ).first()
+
+            if member:
+                target_ids = [str(member.customer_id), str(member.member_number)]
+            else:
+                target_ids = [candidate_id]
+        finally:
+            db_session.close()
         
         # 2. Retrieval
         collection_name = member_collection_name_for_slug(slug)

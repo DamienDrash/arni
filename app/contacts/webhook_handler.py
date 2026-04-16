@@ -25,9 +25,9 @@ from typing import Any, Dict, Optional
 import structlog
 from fastapi import APIRouter, Request, Response, HTTPException
 
-from app.core.db import SessionLocal
 from app.core.integration_models import TenantIntegration, WebhookEndpoint
 from app.core.credential_vault import get_vault
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -111,7 +111,7 @@ async def receive_webhook(
         content_length=len(body),
     )
 
-    db = SessionLocal()
+    db = open_session()
     try:
         ti = (
             db.query(TenantIntegration)

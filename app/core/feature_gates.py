@@ -18,7 +18,10 @@ from datetime import datetime, timezone
 import structlog
 from fastapi import HTTPException
 
+from app.domains.billing.models import AddonDefinition, Plan, Subscription, TenantAddon, UsageRecord
+from app.domains.identity.models import Tenant
 from app.core.module_registry import Capability
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -59,6 +62,34 @@ _STARTER_DEFAULTS: dict[str, object] = {
     "text_overlay_images_enabled": False,
 }
 
+_PLAN_CAPABILITY_FLAGS: dict[Capability, str] = {
+    Capability.INTEGRATION_WHATSAPP_QR: "whatsapp_enabled",
+    Capability.INTEGRATION_TELEGRAM: "telegram_enabled",
+    Capability.VOICE_PIPELINE: "voice_enabled",
+    Capability.VISION_AI: "vision_ai_enabled",
+    Capability.CHURN_PREDICTION: "churn_prediction_enabled",
+    Capability.ADVANCED_ANALYTICS: "advanced_analytics_enabled",
+    Capability.BRAND_STYLE: "brand_style_enabled",
+}
+
+_CAPABILITY_ADDON_SLUGS: dict[Capability, str] = {
+    Capability.VOICE_PIPELINE: "voice_pipeline",
+    Capability.VISION_AI: "vision_ai",
+    Capability.CHURN_PREDICTION: "churn_prediction",
+    Capability.ADVANCED_ANALYTICS: "advanced_analytics",
+}
+
+_BASELINE_CAPABILITIES: frozenset[Capability] = frozenset({
+    Capability.SUPPORT_CORE,
+    Capability.CAMPAIGNS,
+    Capability.KNOWLEDGE_BASE,
+    Capability.ADMIN_CONTROL_PLANE,
+    Capability.TENANT_MANAGEMENT,
+    Capability.IDENTITY_ACCESS,
+    Capability.INTEGRATION_CALENDLY,
+    Capability.INTEGRATION_MAGICLINE,
+})
+
 
 class FeatureGate:
     """Checks and enforces plan limits for a given tenant.
@@ -76,9 +107,7 @@ class FeatureGate:
     def _load_plan(self) -> dict[str, object]:
         """Load the tenant's plan data from DB. Falls back to Starter defaults."""
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import Subscription, Plan
-            db = SessionLocal()
+            db = open_session()
             try:
                 sub = db.query(Subscription).filter(
                     Subscription.tenant_id == self._tenant_id,
@@ -105,9 +134,7 @@ class FeatureGate:
     def _load_active_addons(self) -> set[str]:
         """Load the set of active addon slugs for this tenant."""
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import TenantAddon
-            db = SessionLocal()
+            db = open_session()
             try:
                 addons = db.query(TenantAddon.addon_slug).filter(
                     TenantAddon.tenant_id == self._tenant_id,
@@ -189,68 +216,31 @@ class FeatureGate:
         )
 
     def has_capability(self, capability: Capability) -> bool:
-        """Evaluate if the tenant has a specific system capability.
-        
-        This bridges the old boolean feature flags and the new modular
-        capability system.
-        """
-        if capability == Capability.SUPPORT_CORE:
-            return True  # All tenants have basic support
-            
-        if capability == Capability.SUPPORT_L2:
-            return self._plan_data.get("ai_tier") in ("standard", "premium", "unlimited")
-            
-        if capability == Capability.CAMPAIGNS:
-            return True  # All tenants have some basic campaign access
-            
-        if capability == Capability.CAMPAIGNS_OPT_IN:
-            return self._plan_data.get("ai_tier") in ("premium", "unlimited")
-            
-        if capability == Capability.KNOWLEDGE_BASE:
-            return True
+        """Evaluate if the tenant has a specific system capability."""
+        return capability in self.get_capabilities()
 
-        if capability == Capability.ADMIN_CONTROL_PLANE:
-            return True
-            
-        if capability == Capability.TENANT_MANAGEMENT:
-            return True
-            
-        if capability == Capability.IDENTITY_ACCESS:
-            return True
+    def get_capabilities(self) -> set[Capability]:
+        """Resolve the tenant's technical capability set from plan and add-ons."""
+        capabilities = set(_BASELINE_CAPABILITIES)
 
-        # Channels/Integrations
-        if capability == Capability.INTEGRATION_WHATSAPP_QR:
-            return self._plan_data.get("whatsapp_enabled", False)
-            
-        if capability == Capability.INTEGRATION_TELEGRAM:
-            return self._plan_data.get("telegram_enabled", False)
-            
-        if capability == Capability.INTEGRATION_CALENDLY:
-            return True  # Available to all by default
-            
-        if capability == Capability.INTEGRATION_MAGICLINE:
-            return True  # Available to all by default
+        ai_tier = str(self._plan_data.get("ai_tier", "basic"))
+        if ai_tier in {"standard", "premium", "unlimited"}:
+            capabilities.add(Capability.SUPPORT_L2)
+        if ai_tier in {"premium", "unlimited"}:
+            capabilities.add(Capability.CAMPAIGNS_OPT_IN)
 
-        # Dormant/Sunset Features
-        if capability == Capability.VOICE_PIPELINE:
-            return self._plan_data.get("voice_enabled", False) or self.has_addon("voice_pipeline")
-            
-        if capability == Capability.VISION_AI:
-            return self._plan_data.get("vision_ai_enabled", False) or self.has_addon("vision_ai")
-            
-        if capability == Capability.CHURN_PREDICTION:
-            return self._plan_data.get("churn_prediction_enabled", False) or self.has_addon("churn_prediction")
-            
-        if capability == Capability.ADVANCED_ANALYTICS:
-            return self._plan_data.get("advanced_analytics_enabled", False) or self.has_addon("advanced_analytics")
-            
-        if capability == Capability.BRAND_STYLE:
-            return self._plan_data.get("brand_style_enabled", False)
-            
-        if capability == Capability.MULTI_CHANNEL_ROUTING:
-            return self._plan_data.get("max_channels", 0) > 1
+        for capability, plan_key in _PLAN_CAPABILITY_FLAGS.items():
+            if bool(self._plan_data.get(plan_key, False)):
+                capabilities.add(capability)
 
-        return False
+        for capability, addon_slug in _CAPABILITY_ADDON_SLUGS.items():
+            if self.has_addon(addon_slug):
+                capabilities.add(capability)
+
+        if int(self._plan_data.get("max_channels", 0) or 0) > 1:
+            capabilities.add(Capability.MULTI_CHANNEL_ROUTING)
+
+        return capabilities
 
     def require_capability(self, capability: Capability) -> None:
         """Raise HTTP 402 if the tenant lacks the specified capability."""
@@ -302,9 +292,7 @@ class FeatureGate:
     def _get_image_addon_quota(self) -> int:
         """Sum image_quota_grant x quantity for all active image pack add-ons."""
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import TenantAddon, AddonDefinition
-            db = SessionLocal()
+            db = open_session()
             try:
                 rows = db.query(TenantAddon, AddonDefinition).join(
                     AddonDefinition, TenantAddon.addon_slug == AddonDefinition.slug
@@ -322,9 +310,7 @@ class FeatureGate:
     def _get_image_preview_addon_quota(self) -> int:
         """Sum image_preview_quota_grant x quantity for all active preview pack add-ons."""
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import TenantAddon, AddonDefinition
-            db = SessionLocal()
+            db = open_session()
             try:
                 rows = db.query(TenantAddon, AddonDefinition).join(
                     AddonDefinition, TenantAddon.addon_slug == AddonDefinition.slug
@@ -424,9 +410,7 @@ class FeatureGate:
         """Return current month's usage record for the tenant."""
         now = datetime.now(timezone.utc)
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import UsageRecord
-            db = SessionLocal()
+            db = open_session()
             try:
                 rec = db.query(UsageRecord).filter(
                     UsageRecord.tenant_id == self._tenant_id,
@@ -487,10 +471,9 @@ class FeatureGate:
         now = datetime.now(timezone.utc)
         try:
             from sqlalchemy import text
-            from app.core.db import SessionLocal, engine
-            from app.core.models import UsageRecord
+            from app.core.db import engine
             
-            db = SessionLocal()
+            db = open_session()
             try:
                 dialect = engine.dialect.name
                 if dialect == "postgresql":
@@ -530,10 +513,9 @@ class FeatureGate:
         now = datetime.now(timezone.utc)
         try:
             from sqlalchemy import text
-            from app.core.db import SessionLocal, engine
-            from app.core.models import UsageRecord
+            from app.core.db import engine
             
-            db = SessionLocal()
+            db = open_session()
             try:
                 dialect = engine.dialect.name
                 if dialect == "postgresql":
@@ -577,10 +559,7 @@ def seed_plans() -> None:
 
     Called at startup from gateway/main.py.
     """
-    from app.core.db import SessionLocal
-    from app.core.models import Plan, Subscription, Tenant, AddonDefinition
-
-    db = SessionLocal()
+    db = open_session()
     try:
         plans_data = [
             {
@@ -991,7 +970,6 @@ def _expire_overdue_trials(db) -> None:
     Moves expired trialing subscriptions to 'expired' status.
     This is called at startup and can also be called periodically.
     """
-    from app.core.models import Subscription
     now = datetime.now(timezone.utc)
     try:
         expired_trials = db.query(Subscription).filter(
@@ -1015,10 +993,8 @@ def check_expired_trials() -> None:
     """Public function to check and expire overdue trials.
     Can be called from a cron job or startup hook.
     """
-    from app.core.db import SessionLocal
-    db = SessionLocal()
+    db = open_session()
     try:
         _expire_overdue_trials(db)
     finally:
         db.close()
-

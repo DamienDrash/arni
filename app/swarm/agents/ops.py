@@ -138,9 +138,9 @@ class AgentOps(BaseAgent):
         if session and session.member_id:
             try:
                 # Resolve numeric customer_id from member_id (may be member_number or customer_id string)
-                from app.core.db import SessionLocal
-                from app.core.models import StudioMember
-                db = SessionLocal()
+                from app.shared.db import open_session
+                from app.domains.support.models import StudioMember
+                db = open_session()
                 try:
                     mid = session.member_id.strip()
                     row = (

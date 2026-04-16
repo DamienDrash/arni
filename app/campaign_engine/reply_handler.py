@@ -10,7 +10,8 @@ from datetime import datetime, timezone
 import structlog
 from sqlalchemy.orm import Session
 
-from app.core.models import Campaign, CampaignRecipient, ContactConsent
+from app.domains.campaigns.models import Campaign, CampaignOffer, CampaignRecipient
+from app.domains.support.models import ContactConsent
 
 logger = structlog.get_logger()
 
@@ -47,7 +48,6 @@ async def _send_offer_confirmation(
 ) -> bool:
     """Send the offer-specific confirmation message. Returns True if sent."""
     try:
-        from app.core.models import CampaignOffer
         offer = db.query(CampaignOffer).filter(
             CampaignOffer.tenant_id == tenant_id,
             CampaignOffer.slug == offer_slug,

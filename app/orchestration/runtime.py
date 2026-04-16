@@ -17,9 +17,9 @@ import redis
 import structlog
 from sqlalchemy.orm import Session
 
-from app.core.db import SessionLocal
-from app.core.models import AgentTeam
+from app.domains.ai.models import AgentTeam
 from app.orchestration.models import OrchestratorDefinition, OrchestratorTenantOverride
+from app.shared.db import open_session
 from config.settings import get_settings
 
 logger = structlog.get_logger()
@@ -129,7 +129,7 @@ class DynamicConfigManager:
 
     def _load_from_db(self, tenant_id: int) -> dict[str, Any]:
         """Internal helper to load config from the database."""
-        db: Session = SessionLocal()
+        db: Session = open_session()
         try:
             # 1. Fetch Active AgentTeam for tenant
             # Assuming there's one primary team or we fetch the first active one

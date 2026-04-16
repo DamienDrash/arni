@@ -9,6 +9,8 @@ import structlog
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.core.media_models import MediaAsset
+from app.domains.billing.models import UsageRecord
+from app.domains.billing.queries import billing_queries
 
 try:
     from PIL import Image, ImageStat
@@ -75,31 +77,20 @@ class MediaService:
             return {}
 
     def _get_plan_limits(self) -> dict:
-        from app.core.models import Plan, Subscription
-        sub = self._db.query(Subscription).filter(
-            Subscription.tenant_id == self._tenant_id,
-            Subscription.status == "active",
-        ).first()
-        if not sub:
-            return {}
-        plan = self._db.query(Plan).filter(Plan.id == sub.plan_id).first()
-        if not plan:
-            return {}
-        limits = {}
-        if hasattr(plan, "ai_image_generations_per_month"):
-            limits["ai_image_generations_per_month"] = plan.ai_image_generations_per_month
-        if hasattr(plan, "media_storage_mb"):
-            limits["media_storage_mb"] = plan.media_storage_mb
-        return limits
+        return billing_queries.get_plan_limits_for_tenant(
+            self._db,
+            self._tenant_id,
+            subscription_statuses=("active",),
+        )
 
     def _get_current_usage(self) -> dict:
-        from app.core.models import UsageRecord
         now = datetime.now(timezone.utc)
-        rec = self._db.query(UsageRecord).filter(
-            UsageRecord.tenant_id == self._tenant_id,
-            UsageRecord.period_year == now.year,
-            UsageRecord.period_month == now.month,
-        ).first()
+        rec = billing_queries.get_usage_record_for_period(
+            self._db,
+            tenant_id=self._tenant_id,
+            year=now.year,
+            month=now.month,
+        )
         if not rec:
             return {"ai_image_generations_used": 0, "media_storage_bytes_used": 0}
         return {
@@ -108,13 +99,13 @@ class MediaService:
         }
 
     def _get_or_create_usage_record(self):
-        from app.core.models import UsageRecord
         now = datetime.now(timezone.utc)
-        rec = self._db.query(UsageRecord).filter(
-            UsageRecord.tenant_id == self._tenant_id,
-            UsageRecord.period_year == now.year,
-            UsageRecord.period_month == now.month,
-        ).first()
+        rec = billing_queries.get_usage_record_for_period(
+            self._db,
+            tenant_id=self._tenant_id,
+            year=now.year,
+            month=now.month,
+        )
         if not rec:
             rec = UsageRecord(
                 tenant_id=self._tenant_id,

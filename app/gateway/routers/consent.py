@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.auth import AuthContext, get_current_user
-from app.core.models import ContactConsent
+from app.domains.support.models import ContactConsent
 
 router = APIRouter(prefix="/admin/contacts", tags=["consent"])
 

@@ -8,9 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import text, func, desc
 
-from app.core.db import SessionLocal
-from app.core.models import LLMModelCost, LLMUsageLog
+from app.domains.billing.models import LLMModelCost, LLMUsageLog
 from app.gateway.auth import get_current_user, AuthContext
+from app.shared.db import open_session
 
 def _require_system_admin(user: AuthContext) -> None:
     from fastapi import HTTPException
@@ -48,7 +48,7 @@ class ModelCostResponse(BaseModel):
 async def list_model_costs(user: AuthContext = Depends(get_current_user)):
     """List all LLM model cost configurations."""
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         costs = db.query(LLMModelCost).order_by(LLMModelCost.provider_id, LLMModelCost.model_id).all()
         return [
@@ -72,7 +72,7 @@ async def list_model_costs(user: AuthContext = Depends(get_current_user)):
 async def upsert_model_cost(data: ModelCostUpdate, user: AuthContext = Depends(get_current_user)):
     """Create or update a model cost entry."""
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         existing = db.query(LLMModelCost).filter(LLMModelCost.model_id == data.model_id).first()
         if existing:
@@ -102,7 +102,7 @@ async def upsert_model_cost(data: ModelCostUpdate, user: AuthContext = Depends(g
 async def delete_model_cost(model_id: str, user: AuthContext = Depends(get_current_user)):
     """Delete a model cost entry."""
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         cost = db.query(LLMModelCost).filter(LLMModelCost.model_id == model_id).first()
         if not cost:
@@ -123,7 +123,7 @@ async def get_usage_summary(
     user: AuthContext = Depends(get_current_user),
 ):
     """Get aggregated LLM usage summary across all tenants or for a specific tenant."""
-    db = SessionLocal()
+    db = open_session()
     try:
         since = datetime.now(timezone.utc) - timedelta(days=days)
         
@@ -165,7 +165,7 @@ async def get_usage_by_model(
     user: AuthContext = Depends(get_current_user),
 ):
     """Get LLM usage breakdown by model."""
-    db = SessionLocal()
+    db = open_session()
     try:
         since = datetime.now(timezone.utc) - timedelta(days=days)
         
@@ -209,7 +209,7 @@ async def get_usage_by_tenant(
     user: AuthContext = Depends(get_current_user),
 ):
     """Get LLM usage breakdown by tenant."""
-    db = SessionLocal()
+    db = open_session()
     try:
         since = datetime.now(timezone.utc) - timedelta(days=days)
         
@@ -255,7 +255,7 @@ async def get_usage_daily(
     user: AuthContext = Depends(get_current_user),
 ):
     """Get daily LLM usage for charting."""
-    db = SessionLocal()
+    db = open_session()
     try:
         since = datetime.now(timezone.utc) - timedelta(days=days)
         
@@ -297,7 +297,7 @@ async def get_recent_logs(
     user: AuthContext = Depends(get_current_user),
 ):
     """Get recent LLM usage log entries."""
-    db = SessionLocal()
+    db = open_session()
     try:
         query = db.query(LLMUsageLog).order_by(desc(LLMUsageLog.created_at)).limit(limit)
         if tenant_id:

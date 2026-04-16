@@ -25,7 +25,6 @@ from typing import Any
 import structlog
 
 from app.core.contact_models import ActivityType, Contact, ContactActivity, LifecycleStage
-from app.core.db import SessionLocal
 from app.integrations.magicline import get_client
 from app.integrations.magicline.member_enrichment import (
     CHECKIN_SLICE_SIZE,
@@ -38,6 +37,7 @@ from app.integrations.magicline.member_enrichment import (
     _fetch_recent_bookings,
 )
 from app.integrations.magicline.contact_fields import set_magicline_custom_field_values
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -198,7 +198,7 @@ async def enrich_contacts_for_tenant(tenant_id: int, force: bool = False) -> dic
     Returns:
         Summary dict: {enriched, skipped, errors, tenant_id}
     """
-    db = SessionLocal()
+    db = open_session()
     try:
         contacts = (
             db.query(Contact)
@@ -274,7 +274,7 @@ async def enrich_contacts_for_tenant(tenant_id: int, force: bool = False) -> dic
             continue
 
         # Persist enrichment results
-        db2 = SessionLocal()
+        db2 = open_session()
         try:
             contact_db = db2.query(Contact).filter(Contact.id == contact.id).first()
             if not contact_db:

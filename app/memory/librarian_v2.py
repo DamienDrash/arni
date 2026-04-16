@@ -22,6 +22,9 @@ from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Any, Optional
 
+from app.domains.support.models import ChatMessage, ChatSession
+from app.shared.db import open_session
+
 logger = structlog.get_logger()
 
 
@@ -235,6 +238,19 @@ class LibrarianWorker:
             "total_retries": 0,
         }
 
+    @staticmethod
+    def _session_message_identifiers(session: Any) -> list[str]:
+        identifiers: list[str] = []
+        user_id = getattr(session, "user_id", None)
+        session_id = getattr(session, "id", None)
+        if user_id:
+            identifiers.append(str(user_id))
+        if session_id is not None:
+            session_id_str = str(session_id)
+            if session_id_str not in identifiers:
+                identifiers.append(session_id_str)
+        return identifiers
+
     # ─── Job Management ───────────────────────────────────────────────
 
     def create_job(
@@ -436,25 +452,28 @@ class LibrarianWorker:
         that haven't been archived yet.
         """
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import ChatSession, ChatMessage
-
-            db = SessionLocal()
+            db = open_session()
             try:
                 cutoff = datetime.now(timezone.utc) - timedelta(hours=age_hours)
                 sessions = db.query(ChatSession).filter(
                     ChatSession.last_message_at < cutoff,
                     ChatSession.is_active == True,
+                ).order_by(
+                    ChatSession.id.desc(),
+                    ChatSession.last_message_at.desc(),
                 ).limit(BATCH_SIZE).all()
 
                 results = []
                 for sess in sessions:
+                    session_identifiers = self._session_message_identifiers(sess)
                     msgs = db.query(ChatMessage).filter(
-                        ChatMessage.session_id == sess.user_id,
-                    ).all()
+                        ChatMessage.tenant_id == sess.tenant_id,
+                        ChatMessage.session_id.in_(session_identifiers),
+                    ).order_by(ChatMessage.timestamp.asc()).all()
 
                     if msgs:
                         results.append({
+                            "chat_session_id": sess.id,
                             "session_id": sess.user_id,
                             "member_id": sess.member_id or sess.user_id,
                             "tenant_id": sess.tenant_id,
@@ -509,13 +528,17 @@ class LibrarianWorker:
 
                     # Mark session as archived
                     try:
-                        from app.core.db import SessionLocal
-                        from app.core.models import ChatSession
-                        db = SessionLocal()
+                        db = open_session()
                         try:
-                            sess = db.query(ChatSession).filter(
-                                ChatSession.user_id == session_info["session_id"],
-                            ).first()
+                            chat_session_id = session_info.get("chat_session_id")
+                            if chat_session_id is not None:
+                                sess = db.query(ChatSession).filter(
+                                    ChatSession.id == chat_session_id,
+                                ).first()
+                            else:
+                                sess = db.query(ChatSession).filter(
+                                    ChatSession.user_id == session_info["session_id"],
+                                ).first()
                             if sess:
                                 sess.is_active = False
                                 db.commit()

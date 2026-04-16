@@ -32,17 +32,10 @@ from typing import Any, Optional
 import structlog
 from sqlalchemy.orm import Session
 
+from app.billing.gating_repository import gating_repository
 from app.billing.models import (
-    AddonDefinitionV2,
-    Feature,
-    FeatureEntitlement,
-    FeatureSet,
     FeatureType,
-    PlanV2,
     SubscriptionStatus,
-    SubscriptionV2,
-    TenantAddonV2,
-    UsageRecordV2,
 )
 
 logger = structlog.get_logger()
@@ -186,15 +179,11 @@ class GatingServiceV2:
         hard_limit = entitlement.get("hard_limit") if entitlement else None
 
         # Get current usage
-        usage = (
-            db.query(UsageRecordV2)
-            .filter(
-                UsageRecordV2.tenant_id == tenant_id,
-                UsageRecordV2.feature_key == feature_key,
-                UsageRecordV2.period_year == now.year,
-                UsageRecordV2.period_month == now.month,
-            )
-            .first()
+        usage = gating_repository.get_usage_record_for_period(
+            db,
+            tenant_id=tenant_id,
+            feature_key=feature_key,
+            period=now,
         )
 
         current = usage.usage_count if usage else 0
@@ -235,20 +224,15 @@ class GatingServiceV2:
 
         Returns a dict keyed by feature_key with the resolved entitlement values.
         """
-        sub = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        sub = gating_repository.get_subscription_by_tenant(db, tenant_id)
         if not sub:
             return {}
 
-        plan = db.query(PlanV2).filter(PlanV2.id == sub.plan_id).first()
+        plan = gating_repository.get_plan_by_id(db, sub.plan_id)
         if not plan or not plan.feature_set_id:
             return {}
 
-        entitlements = (
-            db.query(FeatureEntitlement, Feature)
-            .join(Feature, FeatureEntitlement.feature_id == Feature.id)
-            .filter(FeatureEntitlement.feature_set_id == plan.feature_set_id)
-            .all()
-        )
+        entitlements = gating_repository.list_entitlements_for_feature_set(db, plan.feature_set_id)
 
         result = {}
         for ent, feat in entitlements:
@@ -278,18 +262,9 @@ class GatingServiceV2:
             for addon in sub.addons:
                 if addon.status != "active":
                     continue
-                addon_def = (
-                    db.query(AddonDefinitionV2)
-                    .filter(AddonDefinitionV2.slug == addon.addon_slug)
-                    .first()
-                )
+                addon_def = gating_repository.get_addon_definition_by_slug(db, addon.addon_slug)
                 if addon_def and addon_def.feature_set_id:
-                    addon_ents = (
-                        db.query(FeatureEntitlement, Feature)
-                        .join(Feature, FeatureEntitlement.feature_id == Feature.id)
-                        .filter(FeatureEntitlement.feature_set_id == addon_def.feature_set_id)
-                        .all()
-                    )
+                    addon_ents = gating_repository.list_entitlements_for_feature_set(db, addon_def.feature_set_id)
                     for ent, feat in addon_ents:
                         if feat.key in result:
                             # Additive: for booleans, OR; for limits, add
@@ -328,12 +303,7 @@ class GatingServiceV2:
 
         Used for the pricing page.
         """
-        plans = (
-            db.query(PlanV2)
-            .filter(PlanV2.is_active.is_(True), PlanV2.is_public.is_(True))
-            .order_by(PlanV2.display_order.asc())
-            .all()
-        )
+        plans = gating_repository.list_active_public_plans(db)
 
         result = []
         for plan in plans:
@@ -359,16 +329,12 @@ class GatingServiceV2:
                     plan_data["features_display"] = json.loads(plan.features_json)
                 except (json.JSONDecodeError, TypeError):
                     pass
+            # Legacy-compatible features list (string list)
+            plan_data["features"] = plan_data["features_display"] if plan_data["features_display"] else self._build_fallback_features(plan)
 
             # Get entitlements
             if plan.feature_set_id:
-                entitlements = (
-                    db.query(FeatureEntitlement, Feature)
-                    .join(Feature, FeatureEntitlement.feature_id == Feature.id)
-                    .filter(FeatureEntitlement.feature_set_id == plan.feature_set_id)
-                    .order_by(Feature.display_order.asc())
-                    .all()
-                )
+                entitlements = gating_repository.list_entitlements_for_feature_set(db, plan.feature_set_id)
 
                 for ent, feat in entitlements:
                     value: Any = None
@@ -390,6 +356,33 @@ class GatingServiceV2:
 
         return result
 
+    def _build_fallback_features(self, plan: Any) -> list[str]:
+        """Build a stable public feature list when features_json is empty."""
+        features: list[str] = []
+        max_channels = getattr(plan, "max_channels", None)
+        if isinstance(max_channels, int) and max_channels > 0:
+            features.append(f"{max_channels} Kanal" if max_channels == 1 else f"{max_channels} Kanaele")
+        max_members = getattr(plan, "max_members", None)
+        if max_members is None:
+            features.append("Unbegrenzte Mitglieder")
+        elif isinstance(max_members, int) and max_members > 0:
+            features.append(f"{max_members} Mitglieder")
+        max_messages = getattr(plan, "max_monthly_messages", None)
+        if max_messages is None:
+            features.append("Unbegrenzte Nachrichten/Monat")
+        elif isinstance(max_messages, int) and max_messages > 0:
+            features.append(f"{max_messages} Nachrichten/Monat")
+        ai_tier = (getattr(plan, "ai_tier", "") or "").strip()
+        if ai_tier:
+            features.append(f"{ai_tier.title()} AI")
+        if getattr(plan, "custom_prompts_enabled", False):
+            features.append("Eigene Prompts")
+        if getattr(plan, "advanced_analytics_enabled", False):
+            features.append("Advanced Analytics")
+        if getattr(plan, "api_access_enabled", False):
+            features.append("API-Zugang")
+        return features
+
     # ── Internal Resolution ─────────────────────────────────────────────
 
     def _resolve_entitlement(
@@ -403,7 +396,7 @@ class GatingServiceV2:
 
         Checks plan FeatureSet first, then merges addon FeatureSets.
         """
-        sub = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        sub = gating_repository.get_subscription_by_tenant(db, tenant_id)
         if not sub:
             return None
 
@@ -420,22 +413,18 @@ class GatingServiceV2:
             # Past due / canceled — return minimal access
             return {"value_bool": False, "value_limit": 0, "value_tier": "basic"}
 
-        plan = db.query(PlanV2).filter(PlanV2.id == sub.plan_id).first()
+        plan = gating_repository.get_plan_by_id(db, sub.plan_id)
         if not plan or not plan.feature_set_id:
             return None
 
-        feature = db.query(Feature).filter(Feature.key == feature_key).first()
+        feature = gating_repository.get_feature_by_key(db, feature_key)
         if not feature:
             return None
 
-        # Get plan entitlement
-        entitlement = (
-            db.query(FeatureEntitlement)
-            .filter(
-                FeatureEntitlement.feature_set_id == plan.feature_set_id,
-                FeatureEntitlement.feature_id == feature.id,
-            )
-            .first()
+        entitlement = gating_repository.get_feature_entitlement(
+            db,
+            feature_set_id=plan.feature_set_id,
+            feature_id=feature.id,
         )
 
         if not entitlement:
@@ -454,21 +443,14 @@ class GatingServiceV2:
             for addon in sub.addons:
                 if addon.status != "active":
                     continue
-                addon_def = (
-                    db.query(AddonDefinitionV2)
-                    .filter(AddonDefinitionV2.slug == addon.addon_slug)
-                    .first()
-                )
+                addon_def = gating_repository.get_addon_definition_by_slug(db, addon.addon_slug)
                 if not addon_def or not addon_def.feature_set_id:
                     continue
 
-                addon_ent = (
-                    db.query(FeatureEntitlement)
-                    .filter(
-                        FeatureEntitlement.feature_set_id == addon_def.feature_set_id,
-                        FeatureEntitlement.feature_id == feature.id,
-                    )
-                    .first()
+                addon_ent = gating_repository.get_feature_entitlement(
+                    db,
+                    feature_set_id=addon_def.feature_set_id,
+                    feature_id=feature.id,
                 )
                 if not addon_ent:
                     continue

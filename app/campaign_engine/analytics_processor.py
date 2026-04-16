@@ -18,8 +18,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.analytics_models import AnalyticsEvent
-from app.core.models import Campaign, CampaignRecipient
 from app.core.contact_models import ContactActivity
+from app.domains.campaigns.models import Campaign, CampaignRecipient
 
 logger = structlog.get_logger()
 

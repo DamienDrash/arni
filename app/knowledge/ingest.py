@@ -7,7 +7,9 @@ import re
 
 import structlog
 
+from app.knowledge.ingest_repository import ingest_repository
 from app.knowledge.store import KnowledgeStore
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -24,15 +26,14 @@ def collection_name_for_slug(tenant_slug: str) -> str:
 
 def ingest_tenant_knowledge(tenant_id: int | None = None, tenant_slug: str | None = None) -> dict:
     """Ingest global knowledge AND tenant-specific knowledge for a studio."""
-    from app.core.db import SessionLocal
-    from app.core.models import Tenant
-    
     # 1. Resolve slug and ID
     if tenant_id and not tenant_slug:
-        db = SessionLocal()
-        t = db.query(Tenant).filter(Tenant.id == tenant_id).first()
-        tenant_slug = t.slug if t else "system"
-        db.close()
+        db = open_session()
+        try:
+            t = ingest_repository.get_tenant_by_id(db, tenant_id)
+            tenant_slug = t.slug if t else "system"
+        finally:
+            db.close()
     
     slug = tenant_slug or "system"
     collection_name = collection_name_for_slug(slug)
@@ -125,21 +126,20 @@ def ingest_tenant_knowledge(tenant_id: int | None = None, tenant_slug: str | Non
 
 def ingest_all_tenants() -> dict:
     """Automated sync for all active studios in the system."""
-    from app.core.db import SessionLocal
-    from app.core.models import Tenant
-    
-    db = SessionLocal()
-    tenants = db.query(Tenant).filter(Tenant.is_active.is_(True)).all()
-    results = {}
-    
-    # System first
-    results["system"] = ingest_tenant_knowledge(tenant_slug="system")
-    
-    for t in tenants:
-        results[t.slug] = ingest_tenant_knowledge(tenant_id=t.id, tenant_slug=t.slug)
-    
-    db.close()
-    return results
+    db = open_session()
+    try:
+        tenants = ingest_repository.list_active_tenants(db)
+        results = {}
+
+        # System first
+        results["system"] = ingest_tenant_knowledge(tenant_slug="system")
+
+        for t in tenants:
+            results[t.slug] = ingest_tenant_knowledge(tenant_id=t.id, tenant_slug=t.slug)
+
+        return results
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":

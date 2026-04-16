@@ -4,16 +4,14 @@ Handles incoming voice calls (Twilio) and real-time media streams.
 """
 
 import urllib.parse
-from uuid import uuid4
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 
 from app.gateway.persistence import persistence
-from app.gateway.dependencies import get_settings
-from app.core.models import Tenant
-from app.core.db import SessionLocal
+from app.gateway.voice_repository import voice_repository
+from app.shared.db import session_scope
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["voice"])
@@ -22,12 +20,9 @@ def _resolve_tenant_id_by_slug(tenant_slug: str) -> int | None:
     slug = (tenant_slug or "").strip().lower()
     if not slug:
         return None
-    db = SessionLocal()
-    try:
-        row = db.query(Tenant).filter(Tenant.slug == slug, Tenant.is_active.is_(True)).first()
+    with session_scope() as db:
+        row = voice_repository.get_active_tenant_by_slug(db, tenant_slug=slug)
         return int(row.id) if row else None
-    finally:
-        db.close()
 
 def _bool_setting(value: str | None, default: bool = False) -> bool:
     if value is None:

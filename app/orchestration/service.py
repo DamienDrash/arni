@@ -16,8 +16,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from fastapi import HTTPException
 
+from app.domains.ai.models import AgentTeam
 from app.orchestration.models import OrchestratorDefinition, OrchestratorVersion
-from app.core.models import AgentTeam
 
 logger = structlog.get_logger()
 

@@ -399,11 +399,11 @@ class KnowledgeAdapter(BaseAdapter):
         Falls back to the system default collection if tenant lookup fails.
         """
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import Tenant
+            from app.shared.db import open_session
+            from app.domains.identity.models import Tenant
             from app.knowledge.ingest import collection_name_for_slug
 
-            db = SessionLocal()
+            db = open_session()
             tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
             slug = tenant.slug if tenant else "system"
             db.close()

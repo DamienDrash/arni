@@ -20,7 +20,7 @@ from app.ai_config.models import (
 )
 from app.ai_config.schemas import ResolvedLLMConfig
 from app.ai_config.encryption import encrypt_api_key, decrypt_api_key
-from app.core.models import Subscription, Plan, UsageRecord
+from app.domains.billing.models import Plan, Subscription, UsageRecord
 
 logger = structlog.get_logger()
 

@@ -25,11 +25,11 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.auth import AuthContext, get_current_user
-from app.core.models import (
+from app.domains.campaigns.models import (
     Campaign, CampaignTemplate, CampaignVariant, CampaignRecipient,
-    MemberSegment, ScheduledFollowUp, ChatMessage, ChatSession,
-    Tenant,
 )
+from app.domains.identity.models import Tenant
+from app.domains.support.models import ChatMessage, ChatSession, MemberSegment, ScheduledFollowUp
 from app.core.contact_models import Contact, ContactTagAssociation, ContactTag
 
 logger = structlog.get_logger()
@@ -1558,7 +1558,6 @@ async def get_queue_stats(
         workers_active = r.ping()
         
         # Count only active sends in DB for accurate send queue length
-        from app.core.models import CampaignRecipient
         send_queue_len = (
             db.query(func.count(CampaignRecipient.id))
             .filter(

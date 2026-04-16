@@ -12,20 +12,24 @@ Endpoints (prefix /admin/revenue):
 """
 from __future__ import annotations
 
-import json as _json
 import structlog
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, text, desc
+from sqlalchemy import func
 
-from app.core.auth import AuthContext, get_current_user, require_role
-from app.core.db import SessionLocal
-from app.core.models import (
-    Plan, Subscription, Tenant, UsageRecord, TenantAddon,
-    AddonDefinition, TokenPurchase,
+from app.core.auth import AuthContext, get_current_user
+from app.domains.billing.models import (
+    AddonDefinition,
+    Plan,
+    Subscription,
+    TenantAddon,
+    TokenPurchase,
+    UsageRecord,
 )
+from app.domains.identity.models import Tenant
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -57,7 +61,7 @@ async def revenue_overview(user: AuthContext = Depends(get_current_user)) -> dic
     """High-level revenue KPIs sourced from Stripe + local DB."""
     _require_system_admin(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         # ── Local DB: subscriber counts & plan distribution ──
         active_subs = (
@@ -167,7 +171,7 @@ async def revenue_monthly(
     """Monthly revenue breakdown from Stripe invoices (source of truth)."""
     _require_system_admin(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         now = datetime.now(timezone.utc)
 
@@ -255,7 +259,7 @@ async def revenue_tenants(user: AuthContext = Depends(get_current_user)) -> list
     """Per-tenant revenue from Stripe invoices + local usage data."""
     _require_system_admin(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         now = datetime.now(timezone.utc)
 
@@ -366,7 +370,7 @@ async def revenue_tenants(user: AuthContext = Depends(get_current_user)) -> list
 async def token_analytics(user: AuthContext = Depends(get_current_user)) -> dict[str, Any]:
     """Token usage analytics across all tenants."""
     _require_system_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         now = datetime.now(timezone.utc)
 
@@ -468,7 +472,7 @@ async def list_stripe_invoices(
             meta = inv.get("subscription_details", {}).get("metadata", {}) if inv.get("subscription_details") else {}
             tenant_id = meta.get("tenant_id")
             if tenant_id:
-                db = SessionLocal()
+                db = open_session()
                 try:
                     t = db.query(Tenant).filter(Tenant.id == int(tenant_id)).first()
                     if t:

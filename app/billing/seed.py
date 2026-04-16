@@ -909,10 +909,10 @@ async def seed_billing_v2(db: Session) -> dict[str, int]:
 
 if __name__ == "__main__":
     import asyncio
-    from app.core.db import SessionLocal
+    from app.shared.db import open_session
 
     async def main():
-        db = SessionLocal()
+        db = open_session()
         try:
             result = await seed_billing_v2(db)
             print(f"Seed complete: {result}")

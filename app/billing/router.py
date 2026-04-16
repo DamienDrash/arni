@@ -41,8 +41,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from app.core.auth import AuthContext, get_current_user, require_role
-from app.core.db import SessionLocal
-from app.core.models import AuditLog, Tenant
+from app.domains.identity.models import AuditLog
+from app.shared.db import open_session
 
 from app.billing.events import billing_events
 from app.billing.gating_service import gating_service
@@ -50,11 +50,11 @@ from app.billing.metering_service import metering_service
 from app.billing.models import (
     BillingEventType,
     BillingInterval,
-    PlanV2,
     SubscriptionStatus,
-    SubscriptionV2,
 )
+from app.billing.stripe_repository import stripe_billing_repository
 from app.billing.stripe_service import stripe_service
+from app.billing.subscription_repository import subscription_repository
 from app.billing.subscription_service import subscription_service
 from app.billing.webhook_processor import webhook_processor
 from app.gateway.persistence import persistence
@@ -73,7 +73,7 @@ def _require_billing_access(user: AuthContext) -> None:
 
 
 def _audit(actor: AuthContext, action: str, details: dict) -> None:
-    db = SessionLocal()
+    db = open_session()
     try:
         db.add(AuditLog(
             actor_user_id=actor.user_id,
@@ -133,7 +133,7 @@ class VerifySessionRequest(BaseModel):
 @router.get("/billing/plans")
 async def list_plans() -> list[dict[str, Any]]:
     """Öffentlicher Plan-Katalog mit Feature-Entitlements."""
-    db = SessionLocal()
+    db = open_session()
     try:
         return await gating_service.get_plan_comparison(db)
     except Exception as exc:
@@ -160,7 +160,7 @@ async def get_subscription_status(
     """Aktuellen Abonnement-Status abrufen."""
     _require_billing_access(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         data = subscription_service.get_subscription_with_plan(db, user.tenant_id)
         if not data:
@@ -190,7 +190,7 @@ async def get_subscription_status(
             )
 
         if sub.pending_plan_id:
-            pending_plan = db.query(PlanV2).filter(PlanV2.id == sub.pending_plan_id).first()
+            pending_plan = subscription_repository.get_plan_by_id(db, sub.pending_plan_id)
             if pending_plan:
                 result["pending_downgrade"] = {
                     "plan_name": pending_plan.name,
@@ -217,7 +217,7 @@ async def create_checkout_session(
     """Stripe Checkout Session für Plan-Subscription erstellen."""
     _require_billing_access(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         billing_interval = BillingInterval(req.billing_interval) if req.billing_interval in ("month", "year") else BillingInterval.MONTH
 
@@ -260,7 +260,7 @@ async def create_addon_checkout_session(
     """Stripe Checkout Session für Add-on-Kauf erstellen."""
     _require_billing_access(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         base_url = (persistence.get_setting("gateway_public_url", "") or "").rstrip("/")
         success_url = req.success_url or f"{base_url}/settings/billing?addon=success"
@@ -313,7 +313,7 @@ async def create_token_purchase(
         # Custom: €0.05 per 1000 tokens
         price_cents = max(99, int(req.tokens_amount / 1000 * 5))
 
-    db = SessionLocal()
+    db = open_session()
     try:
         base_url = (persistence.get_setting("gateway_public_url", "") or "").rstrip("/")
         success_url = req.success_url or f"{base_url}/settings/billing?tokens=success"
@@ -345,7 +345,7 @@ async def create_customer_portal(
     """Stripe Customer Portal Session erstellen."""
     _require_billing_access(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         sub = subscription_service.get_subscription(db, user.tenant_id)
         if not sub or not sub.stripe_customer_id:
@@ -386,16 +386,14 @@ async def preview_plan_change(
     """Vorschau der Kosten bei Plan-Wechsel (Proration Preview)."""
     _require_billing_access(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         sub = subscription_service.get_subscription(db, user.tenant_id)
         if not sub or not sub.stripe_subscription_id:
             raise HTTPException(status_code=404, detail="Kein aktives Stripe-Abonnement gefunden.")
 
-        current_plan = db.query(PlanV2).filter(PlanV2.id == sub.plan_id).first()
-        new_plan = db.query(PlanV2).filter(
-            PlanV2.slug == req.plan_slug, PlanV2.is_active.is_(True)
-        ).first()
+        current_plan = subscription_repository.get_plan_by_id(db, sub.plan_id)
+        new_plan = subscription_repository.get_active_plan_by_slug(db, req.plan_slug)
         if not new_plan:
             raise HTTPException(status_code=404, detail=f"Plan '{req.plan_slug}' nicht gefunden.")
 
@@ -486,7 +484,7 @@ async def change_plan(
     """Plan wechseln (Upgrade sofort mit Proration, Downgrade zum Periodenende)."""
     _require_billing_access(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         sub = subscription_service.get_subscription(db, user.tenant_id)
         if not sub or not sub.stripe_subscription_id:
@@ -501,10 +499,8 @@ async def change_plan(
         if status_str not in ("active", "trialing"):
             raise HTTPException(status_code=400, detail=f"Plan-Wechsel nicht möglich. Status: {status_str}")
 
-        current_plan = db.query(PlanV2).filter(PlanV2.id == sub.plan_id).first()
-        new_plan = db.query(PlanV2).filter(
-            PlanV2.slug == req.plan_slug, PlanV2.is_active.is_(True)
-        ).first()
+        current_plan = subscription_repository.get_plan_by_id(db, sub.plan_id)
+        new_plan = subscription_repository.get_active_plan_by_slug(db, req.plan_slug)
         if not new_plan:
             raise HTTPException(status_code=404, detail=f"Plan '{req.plan_slug}' nicht gefunden.")
 
@@ -653,7 +649,7 @@ async def cancel_subscription(
     """Abonnement zum Ende des Abrechnungszeitraums kündigen."""
     _require_billing_access(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         sub = subscription_service.get_subscription(db, user.tenant_id)
         if not sub or not sub.stripe_subscription_id:
@@ -707,7 +703,7 @@ async def reactivate_subscription(
     """Gekündigtes Abonnement reaktivieren."""
     _require_billing_access(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         sub = subscription_service.get_subscription(db, user.tenant_id)
         if not sub or not sub.stripe_subscription_id:
@@ -790,12 +786,12 @@ async def verify_checkout_session(
     stripe_sub_id = session.get("subscription")
     stripe_cid = session.get("customer")
 
-    db = SessionLocal()
+    db = open_session()
     try:
         if session_type in ("subscription", "plan_upgrade"):
-            plan = db.query(PlanV2).filter(PlanV2.slug == plan_slug).first()
+            plan = subscription_repository.get_active_plan_by_slug(db, plan_slug)
             if plan:
-                sub = subscription_service.get_subscription(db, user.tenant_id)
+                sub = subscription_repository.get_subscription_by_tenant(db, user.tenant_id)
                 if sub:
                     sub.plan_id = plan.id
                     sub.status = SubscriptionStatus.ACTIVE
@@ -855,7 +851,7 @@ async def deactivate_account(
     """Konto deaktivieren."""
     _require_billing_access(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         sub = subscription_service.get_subscription(db, user.tenant_id)
 
@@ -883,7 +879,7 @@ async def deactivate_account(
                     actor_id=str(user.user_id),
                 )
 
-        tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+        tenant = stripe_billing_repository.get_tenant_by_id(db, user.tenant_id)
         if tenant:
             tenant.is_active = False
 
@@ -916,7 +912,7 @@ async def get_usage(
     """Aktuelle Nutzungsmetriken abrufen."""
     _require_billing_access(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         summaries = await metering_service.get_all_usage(db, user.tenant_id)
         return [
@@ -943,7 +939,7 @@ async def get_entitlements(
     """Feature-Entitlements für den aktuellen Plan abrufen."""
     _require_billing_access(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         return await gating_service.get_entitlements(db, user.tenant_id)
     finally:
@@ -957,7 +953,7 @@ async def get_invoices(
     """Rechnungshistorie von Stripe abrufen."""
     _require_billing_access(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         return await stripe_service.sync_invoices(db, user.tenant_id)
     except Exception as exc:
@@ -975,7 +971,7 @@ async def get_billing_events(
     """Billing-Event-Audit-Log abrufen."""
     _require_billing_access(user)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         events = billing_events.get_events_for_tenant(db, user.tenant_id, limit=limit)
         return [
@@ -1004,9 +1000,18 @@ async def stripe_webhook(request: Request) -> Response:
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
 
-    db = SessionLocal()
+    db = open_session()
     try:
         result = await webhook_processor.process(db, payload, sig_header)
+        if result.get("status") == "error" and result.get("reason") in (
+            "Ungültige Webhook-Signatur",
+            "Webhook-Secret nicht konfiguriert",
+        ):
+            return Response(
+                content=_json.dumps(result),
+                status_code=400,
+                media_type="application/json",
+            )
         return Response(
             content=_json.dumps({"received": True, **result}),
             status_code=200,
@@ -1016,7 +1021,7 @@ async def stripe_webhook(request: Request) -> Response:
         logger.error("billing.webhook.unhandled_error", error=str(exc))
         return Response(
             content=_json.dumps({"received": True, "error": str(exc)}),
-            status_code=200,  # Always return 200 to Stripe
+            status_code=200,  # Always return 200 to Stripe for processing errors
             media_type="application/json",
         )
     finally:

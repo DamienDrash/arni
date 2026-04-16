@@ -17,9 +17,9 @@ from typing import Any
 
 import structlog
 
-from app.core.db import SessionLocal
-from app.core.models import StudioMember
+from app.domains.support.models import StudioMember
 from app.integrations.magicline import get_client
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -346,7 +346,7 @@ def enrich_member(customer_id: int, force: bool = False, tenant_id: int | None =
     Skips enrichment if data is fresh (< ENRICHMENT_TTL_HOURS) unless force=True.
     Returns a dict with the enrichment data or an error/cached indicator.
     """
-    db = SessionLocal()
+    db = open_session()
     try:
         q = db.query(StudioMember).filter(StudioMember.customer_id == customer_id)
         if tenant_id is not None:
@@ -523,7 +523,7 @@ def enrich_member(customer_id: int, force: bool = False, tenant_id: int | None =
 def get_member_profile(customer_id: int, tenant_id: int | None = None) -> dict | None:
     """Return full member profile from DB including enrichment data (no API call)."""
     import json as _json
-    db = SessionLocal()
+    db = open_session()
     try:
         q = db.query(StudioMember).filter(StudioMember.customer_id == customer_id)
         if tenant_id is not None:

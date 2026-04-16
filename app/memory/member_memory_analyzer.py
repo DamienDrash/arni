@@ -7,8 +7,9 @@ from typing import Final
 
 import structlog
 
-from app.core.db import SessionLocal
-from app.core.models import ChatMessage, ChatSession, StudioMember, Tenant
+from app.domains.identity.models import Tenant
+from app.domains.support.models import ChatMessage, ChatSession, StudioMember
+from app.shared.db import open_session
 from app.swarm.llm import LLMClient
 from config.settings import get_settings
 from app.gateway.persistence import persistence
@@ -31,10 +32,12 @@ def member_collection_name_for_slug(tenant_slug: str) -> str:
 async def _index_member_memory(member_id: str, tenant_id: int | None, profile_summary: str):
     """Upsert the member's analytical summary into the vector DB."""
     try:
-        db = SessionLocal()
-        t = db.query(Tenant).filter(Tenant.id == tenant_id).first()
-        slug = t.slug if t else "system"
-        db.close()
+        db = open_session()
+        try:
+            t = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+            slug = t.slug if t else "system"
+        finally:
+            db.close()
         
         collection_name = member_collection_name_for_slug(slug)
         store = KnowledgeStore(collection_name=collection_name)
@@ -85,7 +88,7 @@ def _cron_due_utc(expr: str, now: datetime) -> bool:
 def _tenant_slug(tenant_id: int | None) -> str:
     if tenant_id is None:
         return "system"
-    db = SessionLocal()
+    db = open_session()
     try:
         row = db.query(Tenant).filter(Tenant.id == tenant_id).first()
         return (row.slug if row and row.slug else "system").strip().lower()
@@ -155,7 +158,7 @@ def _load_instructions(tenant_id: int | None) -> str:
 
 
 def _chat_summary_for_member(member_id: str, tenant_id: int | None, max_messages: int = 80) -> str:
-    db = SessionLocal()
+    db = open_session()
     try:
         q = db.query(ChatSession).filter(ChatSession.member_id == member_id)
         if tenant_id is not None:
@@ -163,7 +166,14 @@ def _chat_summary_for_member(member_id: str, tenant_id: int | None, max_messages
         session = q.order_by(ChatSession.last_message_at.desc()).first()
         if not session:
             return ""
-        qmsg = db.query(ChatMessage).filter(ChatMessage.session_id == session.user_id)
+
+        candidate_session_ids = [session.user_id]
+        session_pk = getattr(session, "id", None)
+        if session_pk is not None:
+            candidate_session_ids.append(str(session_pk))
+
+        session_ids = [sid for sid in dict.fromkeys(candidate_session_ids) if sid]
+        qmsg = db.query(ChatMessage).filter(ChatMessage.session_id.in_(session_ids))
         if tenant_id is not None:
             qmsg = qmsg.filter(ChatMessage.tenant_id == tenant_id)
         rows = qmsg.order_by(ChatMessage.timestamp.desc()).limit(max_messages).all()
@@ -287,7 +297,7 @@ async def _extract_profile_with_llm_async(
 
 
 def _magicline_summary(member_id: str, tenant_id: int | None) -> str:
-    db = SessionLocal()
+    db = open_session()
     try:
         m_id = str(member_id).strip()
         q = db.query(StudioMember).filter(StudioMember.tenant_id == tenant_id)
@@ -376,7 +386,7 @@ def analyze_member(member_id: str, tenant_id: int | None) -> None:
 
 
 def analyze_all_members(tenant_id: int | None = None) -> dict[str, int]:
-    db = SessionLocal()
+    db = open_session()
     try:
         query = db.query(ChatSession.tenant_id, ChatSession.member_id).filter(ChatSession.member_id.isnot(None))
         if tenant_id is not None:
@@ -406,7 +416,7 @@ async def scheduler_loop() -> None:
             slot = f"{now:%Y-%m-%d %H:%M}"
             if slot != last_slot:
                 last_slot = slot
-                db = SessionLocal()
+                db = open_session()
                 tenant_ids: set[int] = set()
                 try:
                     system_tid = persistence.get_system_tenant_id()
