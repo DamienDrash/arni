@@ -15,8 +15,8 @@ from typing import Optional
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.core.auth import AuthContext, get_current_user, require_role
-from app.core.db import SessionLocal
 from app.ai_config.service import AIConfigService
+from app.shared.db import open_session
 from app.ai_config.schemas import (
     LLMProviderCreate, LLMProviderUpdate, LLMProviderResponse,
     TenantLLMProviderCreate, TenantLLMProviderUpdate, TenantLLMProviderResponse,
@@ -40,7 +40,7 @@ admin_router = APIRouter(prefix="/admin/ai", tags=["ai-config-admin"])
 
 
 def _get_service():
-    db = SessionLocal()
+    db = open_session()
     try:
         yield AIConfigService(db)
     finally:

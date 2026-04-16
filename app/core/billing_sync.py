@@ -34,7 +34,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.core.models import Plan, AddonDefinition
+from app.domains.billing.models import AddonDefinition, Plan
 from app.gateway.persistence import persistence
 
 logger = structlog.get_logger()

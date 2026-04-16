@@ -10,9 +10,10 @@ import structlog
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
-from app.core.db import SessionLocal, engine
-from app.core.models import StudioMember
+from app.core.db import engine
+from app.domains.support.models import StudioMember
 from app.integrations.magicline import get_client
+from app.shared.db import open_session
 from app.integrations.magicline.client import MagiclineClient
 
 logger = structlog.get_logger()
@@ -296,7 +297,7 @@ def sync_members_from_magicline(tenant_id: int | None = None) -> dict[str, int]:
     deleted = 0
 
     for attempt in range(2):
-        db = SessionLocal()
+        db = open_session()
         try:
             if tenant_id is None:
                 tenant_row = db.execute(text("SELECT id FROM tenants WHERE slug = 'system' LIMIT 1")).first()

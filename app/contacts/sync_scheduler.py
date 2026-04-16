@@ -12,7 +12,7 @@ Responsibilities:
 Design:
   - Runs as a background task in the FastAPI event loop
   - Checks every 60 seconds for due integrations
-  - Uses last_sync_at + sync_interval_minutes to determine next run
+  - Uses last_sync_at + SyncSchedule.cron_expression to determine next run
   - Respects enabled/disabled state
   - Logs all activity to sync_logs
 """
@@ -20,17 +20,16 @@ Design:
 from __future__ import annotations
 
 import asyncio
-import json
 import traceback
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import structlog
-from sqlalchemy import and_
+from sqlalchemy import desc
 
-from app.core.db import SessionLocal
 from app.core.advisory_locks import advisory_lock_or_skip
-from app.core.integration_models import TenantIntegration, SyncSchedule
+from app.core.integration_models import SyncLog, SyncSchedule, TenantIntegration
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -52,6 +51,21 @@ class SyncScheduler:
             "total_syncs_triggered": 0,
             "total_syncs_failed": 0,
         }
+
+    @staticmethod
+    def _cron_to_minutes(cron_expression: str | None) -> int:
+        cron = (cron_expression or "").strip()
+        if cron.startswith("*/"):
+            try:
+                return int(cron.split()[0][2:])
+            except (IndexError, ValueError):
+                return 60
+        if cron.startswith("0 */"):
+            try:
+                return int(cron.split()[1][2:]) * 60
+            except (IndexError, ValueError):
+                return 60
+        return 60
 
     @property
     def is_running(self) -> bool:
@@ -121,7 +135,7 @@ class SyncScheduler:
                 continue
 
             # Check advisory lock to prevent concurrent execution across workers
-            db = SessionLocal()
+            db = open_session()
             try:
                 lock_key = f"sync:{ti.tenant_id}:{ti.integration_id}"
                 with advisory_lock_or_skip(db, lock_key) as acquired:
@@ -140,12 +154,17 @@ class SyncScheduler:
 
     def _get_due_integrations(self) -> List[TenantIntegration]:
         """Query DB for integrations that are due for sync."""
-        db = SessionLocal()
+        db = open_session()
         try:
             now = datetime.now(timezone.utc)
 
-            integrations = (
+            rows = (
                 db.query(TenantIntegration)
+                .outerjoin(
+                    SyncSchedule,
+                    SyncSchedule.tenant_integration_id == TenantIntegration.id,
+                )
+                .add_entity(SyncSchedule)
                 .filter(
                     TenantIntegration.enabled == True,
                     TenantIntegration.status.in_(["connected", "configured", "error"]),
@@ -154,8 +173,15 @@ class SyncScheduler:
             )
 
             due = []
-            for ti in integrations:
-                interval = timedelta(minutes=ti.sync_interval_minutes or 60)
+            for ti, schedule in rows:
+                if schedule is not None and not bool(schedule.is_enabled):
+                    continue
+
+                interval = timedelta(
+                    minutes=self._cron_to_minutes(
+                        schedule.cron_expression if schedule else None
+                    )
+                )
 
                 if ti.last_sync_at is None:
                     # Never synced – due immediately
@@ -190,15 +216,12 @@ class SyncScheduler:
 
     def _get_consecutive_errors(self, ti: TenantIntegration) -> int:
         """Count consecutive error syncs for retry backoff."""
-        from app.core.integration_models import SyncLog
-        db = SessionLocal()
+        db = open_session()
         try:
-            from sqlalchemy import desc
             logs = (
                 db.query(SyncLog)
                 .filter(
-                    SyncLog.tenant_id == ti.tenant_id,
-                    SyncLog.integration_id == ti.integration_id,
+                    SyncLog.tenant_integration_id == ti.id,
                 )
                 .order_by(desc(SyncLog.started_at))
                 .limit(5)

@@ -41,6 +41,7 @@ from app.billing.models import (
     PlanV2,
     SubscriptionV2,
 )
+from app.billing.stripe_repository import stripe_billing_repository
 
 logger = structlog.get_logger()
 
@@ -87,7 +88,7 @@ class StripeServiceV2:
         """
         stripe = _get_stripe()
 
-        sub = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        sub = stripe_billing_repository.get_subscription_by_tenant(db, tenant_id)
         if sub and sub.stripe_customer_id:
             try:
                 customer = stripe.Customer.retrieve(sub.stripe_customer_id)
@@ -102,8 +103,7 @@ class StripeServiceV2:
 
         # Get tenant info for defaults
         if not email or not name:
-            from app.core.models import Tenant
-            tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+            tenant = stripe_billing_repository.get_tenant_by_id(db, tenant_id)
             if tenant:
                 email = email or getattr(tenant, "admin_email", None)
                 name = name or getattr(tenant, "name", f"Tenant {tenant_id}")
@@ -148,7 +148,7 @@ class StripeServiceV2:
         """
         stripe = _get_stripe()
 
-        plan = db.query(PlanV2).filter(PlanV2.slug == plan_slug, PlanV2.is_active.is_(True)).first()
+        plan = stripe_billing_repository.get_active_plan_by_slug(db, plan_slug)
         if not plan:
             raise ValueError(f"Plan '{plan_slug}' nicht gefunden.")
 
@@ -224,10 +224,7 @@ class StripeServiceV2:
         """Create a checkout session for an addon purchase."""
         stripe = _get_stripe()
 
-        addon = db.query(AddonDefinitionV2).filter(
-            AddonDefinitionV2.slug == addon_slug,
-            AddonDefinitionV2.is_active.is_(True),
-        ).first()
+        addon = stripe_billing_repository.get_active_addon_by_slug(db, addon_slug)
         if not addon:
             raise ValueError(f"Addon '{addon_slug}' nicht gefunden.")
 
@@ -316,11 +313,11 @@ class StripeServiceV2:
         """
         stripe = _get_stripe()
 
-        sub = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        sub = stripe_billing_repository.get_subscription_by_tenant(db, tenant_id)
         if not sub or not sub.stripe_subscription_id:
             raise ValueError("Kein aktives Stripe-Abonnement gefunden.")
 
-        plan = db.query(PlanV2).filter(PlanV2.slug == new_plan_slug, PlanV2.is_active.is_(True)).first()
+        plan = stripe_billing_repository.get_active_plan_by_slug(db, new_plan_slug)
         if not plan:
             raise ValueError(f"Plan '{new_plan_slug}' nicht gefunden.")
 
@@ -370,7 +367,7 @@ class StripeServiceV2:
         """Cancel a Stripe subscription."""
         stripe = _get_stripe()
 
-        sub = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        sub = stripe_billing_repository.get_subscription_by_tenant(db, tenant_id)
         if not sub or not sub.stripe_subscription_id:
             raise ValueError("Kein aktives Stripe-Abonnement gefunden.")
 
@@ -396,7 +393,7 @@ class StripeServiceV2:
         """Reactivate a canceled Stripe subscription."""
         stripe = _get_stripe()
 
-        sub = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        sub = stripe_billing_repository.get_subscription_by_tenant(db, tenant_id)
         if not sub or not sub.stripe_subscription_id:
             raise ValueError("Kein aktives Stripe-Abonnement gefunden.")
 
@@ -505,8 +502,8 @@ class StripeServiceV2:
 
     async def full_sync_to_stripe(self, db: Session) -> dict[str, int]:
         """Push all active plans and addons to Stripe."""
-        plans = db.query(PlanV2).filter(PlanV2.is_active.is_(True)).all()
-        addons = db.query(AddonDefinitionV2).filter(AddonDefinitionV2.is_active.is_(True)).all()
+        plans = stripe_billing_repository.list_active_plans(db)
+        addons = stripe_billing_repository.list_active_addons(db)
 
         plans_ok = sum(1 for p in plans if await self.sync_plan_to_stripe(db, p))
         addons_ok = sum(1 for a in addons if await self.sync_addon_to_stripe(db, a))
@@ -532,7 +529,7 @@ class StripeServiceV2:
         """Fetch and cache invoices from Stripe."""
         stripe = _get_stripe()
 
-        sub = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        sub = stripe_billing_repository.get_subscription_by_tenant(db, tenant_id)
         if not sub or not sub.stripe_customer_id:
             return []
 
@@ -541,13 +538,11 @@ class StripeServiceV2:
 
         for inv in invoices.data:
             # Upsert local cache
-            local = db.query(InvoiceRecord).filter(InvoiceRecord.stripe_invoice_id == inv.id).first()
-            if not local:
-                local = InvoiceRecord(
-                    tenant_id=tenant_id,
-                    stripe_invoice_id=inv.id,
-                )
-                db.add(local)
+            local = stripe_billing_repository.get_or_create_invoice_record(
+                db,
+                tenant_id=tenant_id,
+                stripe_invoice_id=inv.id,
+            )
 
             local.stripe_subscription_id = inv.subscription
             local.number = inv.number

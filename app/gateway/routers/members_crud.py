@@ -19,9 +19,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, EmailStr
 
 from app.core.auth import AuthContext, get_current_user, require_role
-from app.core.db import SessionLocal
-from app.core.models import StudioMember, MemberCustomColumn, MemberImportLog, Plan
+from app.domains.billing.models import Plan
+from app.domains.support.models import MemberCustomColumn, MemberImportLog, StudioMember
 from app.core.feature_gates import FeatureGate
+from app.shared.db import open_session
 
 router = APIRouter(prefix="/admin/members", tags=["members"])
 
@@ -73,6 +74,13 @@ def _check_member_limit(tenant_id: int):
     gate = FeatureGate(tenant_id)
     gate.check_member_limit()
 
+
+def _member_to_dict(member: StudioMember) -> Dict[str, Any]:
+    data = {c.name: getattr(member, c.name) for c in StudioMember.__table__.columns}
+    data["tags"] = json.loads(member.tags) if member.tags else []
+    data["custom_fields"] = json.loads(member.custom_fields) if member.custom_fields else {}
+    return data
+
 # ── Member CRUD ────────────────────────────────────────────────────────────────
 
 @router.get("", response_model=List[Dict[str, Any]])
@@ -84,7 +92,7 @@ def list_members(
     user: AuthContext = Depends(get_current_user)
 ):
     """List members with pagination and search."""
-    db = SessionLocal()
+    db = open_session()
     try:
         q = db.query(StudioMember).filter(StudioMember.tenant_id == user.tenant_id)
         if search:
@@ -98,10 +106,7 @@ def list_members(
         # Serialize custom fields
         result = []
         for m in members:
-            data = {c.name: getattr(m, c.name) for c in StudioMember.__table__.columns}
-            if m.tags: data["tags"] = json.loads(m.tags)
-            if m.custom_fields: data["custom_fields"] = json.loads(m.custom_fields)
-            result.append(data)
+            result.append(_member_to_dict(m))
         return result
     finally:
         db.close()
@@ -116,7 +121,7 @@ def create_member(
     _require_admin(user)
     _check_member_limit(user.tenant_id)
     
-    db = SessionLocal()
+    db = open_session()
     try:
         # Duplicate check: email or phone must be unique per tenant
         if member.email:
@@ -172,8 +177,7 @@ def create_member(
             new_member.customer_id = new_member.id
             db.commit()
 
-        data = {c.name: getattr(new_member, c.name) for c in StudioMember.__table__.columns}
-        return data
+        return _member_to_dict(new_member)
     finally:
         db.close()
 
@@ -184,7 +188,7 @@ def update_member(
     user: AuthContext = Depends(get_current_user)
 ):
     _require_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         mem = db.query(StudioMember).filter(
             StudioMember.id == member_id, 
@@ -208,10 +212,7 @@ def update_member(
         
         db.commit()
         db.refresh(mem)
-        data = {c.name: getattr(mem, c.name) for c in StudioMember.__table__.columns}
-        if mem.tags: data["tags"] = json.loads(mem.tags)
-        if mem.custom_fields: data["custom_fields"] = json.loads(mem.custom_fields)
-        return data
+        return _member_to_dict(mem)
     finally:
         db.close()
 
@@ -222,7 +223,7 @@ def bulk_delete_members(
     user: AuthContext = Depends(get_current_user)
 ):
     _require_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         # Only delete manual members or allow all? Usually sensitive.
         # "One-Way-Door: Irreversible actions require human confirmation."
@@ -247,7 +248,7 @@ def bulk_delete_members(
 
 @router.get("/columns", response_model=List[Dict[str, Any]])
 def list_custom_columns(user: AuthContext = Depends(get_current_user)):
-    db = SessionLocal()
+    db = open_session()
     try:
         cols = db.query(MemberCustomColumn).filter(
             MemberCustomColumn.tenant_id == user.tenant_id
@@ -263,7 +264,7 @@ def create_custom_column(
     user: AuthContext = Depends(get_current_user)
 ):
     _require_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         new_col = MemberCustomColumn(
             tenant_id=user.tenant_id,
@@ -305,7 +306,7 @@ async def import_csv(
     return {"status": "import_started", "filename": file.filename}
 
 def _process_csv_import(csv_content: str, tenant_id: int):
-    db = SessionLocal()
+    db = open_session()
     log = MemberImportLog(
         tenant_id=tenant_id,
         source="csv",
@@ -384,7 +385,7 @@ def _process_csv_import(csv_content: str, tenant_id: int):
 def export_csv(user: AuthContext = Depends(get_current_user)):
     """Export all members as CSV."""
     EXPORT_LIMIT = 10000
-    db = SessionLocal()
+    db = open_session()
     try:
         members = (
             db.query(StudioMember)

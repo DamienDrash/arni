@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.models import CampaignRecipient
+from app.domains.campaigns.models import CampaignRecipient
 from config.settings import get_settings
 
 logger = structlog.get_logger()

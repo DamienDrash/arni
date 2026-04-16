@@ -28,11 +28,12 @@ from typing import Any, Optional
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 
 from app.core.auth import AuthContext, get_current_user, require_role
-from app.core.db import SessionLocal
-from app.core.models import ChatSession, Tenant
+from app.domains.identity.models import Tenant
+from app.domains.support.models import ChatSession
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
@@ -263,7 +264,7 @@ async def get_dashboard(
 ) -> dict[str, Any]:
     """Overview dashboard with key KPIs."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         start, end = _parse_period(days)
 
@@ -326,7 +327,7 @@ async def get_conversation_metrics(
 ) -> dict[str, Any]:
     """Detailed conversation metrics over time."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         start, end = _parse_period(days)
 
@@ -362,7 +363,7 @@ async def get_intent_analysis(
 ) -> dict[str, Any]:
     """Intent distribution and trend analysis."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         start, _ = _parse_period(days)
 
@@ -388,7 +389,7 @@ async def get_feedback_metrics(
 ) -> dict[str, Any]:
     """Customer satisfaction scores and feedback analysis."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         start, _ = _parse_period(days)
 
@@ -414,7 +415,7 @@ async def get_channel_performance(
 ) -> dict[str, Any]:
     """Channel performance comparison."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         start, _ = _parse_period(days)
 
@@ -456,7 +457,7 @@ async def get_escalation_analysis(
 ) -> dict[str, Any]:
     """Escalation analysis with reasons and trends."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         start, _ = _parse_period(days)
 
@@ -487,7 +488,7 @@ async def get_agent_performance(
 ) -> dict[str, Any]:
     """Agent/specialist performance metrics."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         start, _ = _parse_period(days)
 
@@ -529,7 +530,7 @@ async def export_analytics(
 ) -> Any:
     """Export analytics data."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         start, end = _parse_period(days)
 
@@ -576,8 +577,8 @@ async def export_analytics(
                 ])
 
             output.seek(0)
-            return StreamingResponse(
-                iter([output.getvalue()]),
+            return Response(
+                content=output.getvalue(),
                 media_type="text/csv",
                 headers={"Content-Disposition": f"attachment; filename=analytics_{days}d.csv"},
             )

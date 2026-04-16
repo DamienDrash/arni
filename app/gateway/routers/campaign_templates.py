@@ -13,12 +13,12 @@ from typing import Optional
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.auth import AuthContext, get_current_user
-from app.core.models import CampaignTemplate
+from app.domains.campaigns.models import CampaignTemplate
+from app.gateway.campaign_templates_repository import campaign_templates_repository
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/v2/admin/templates", tags=["templates"])
@@ -63,16 +63,18 @@ async def list_templates(
     db: Session = Depends(get_db),
 ):
     """List all active templates for the tenant."""
-    query = db.query(CampaignTemplate).filter(
-        CampaignTemplate.tenant_id == user.tenant_id,
-        CampaignTemplate.is_active.is_(True),
+    total = campaign_templates_repository.count_active_templates(
+        db,
+        tenant_id=user.tenant_id,
+        template_type=type,
     )
-    if type:
-        query = query.filter(CampaignTemplate.type == type)
-
-    total = query.count()
-    templates = query.order_by(desc(CampaignTemplate.created_at)) \
-        .offset((page - 1) * limit).limit(limit).all()
+    templates = campaign_templates_repository.list_active_templates(
+        db,
+        tenant_id=user.tenant_id,
+        page=page,
+        limit=limit,
+        template_type=type,
+    )
 
     return {
         "items": [_template_to_dict(t) for t in templates],
@@ -96,7 +98,7 @@ async def create_template(
         tenant_id=user.tenant_id,
         **body.model_dump(),
     )
-    db.add(template)
+    campaign_templates_repository.add_template(db, template=template)
     db.commit()
     db.refresh(template)
 
@@ -110,11 +112,7 @@ async def get_default_templates(
     db: Session = Depends(get_db),
 ):
     """Get the default template for each channel type."""
-    defaults = db.query(CampaignTemplate).filter(
-        CampaignTemplate.tenant_id == user.tenant_id,
-        CampaignTemplate.is_default.is_(True),
-        CampaignTemplate.is_active.is_(True),
-    ).all()
+    defaults = campaign_templates_repository.list_default_templates(db, tenant_id=user.tenant_id)
     return {t.type: _template_to_dict(t) for t in defaults}
 
 
@@ -205,22 +203,22 @@ async def duplicate_template(
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _get_template_or_404(db: Session, tenant_id: int, template_id: int) -> CampaignTemplate:
-    template = db.query(CampaignTemplate).filter(
-        CampaignTemplate.id == template_id,
-        CampaignTemplate.tenant_id == tenant_id,
-        CampaignTemplate.is_active.is_(True),
-    ).first()
+    template = campaign_templates_repository.get_active_template_by_id(
+        db,
+        tenant_id=tenant_id,
+        template_id=template_id,
+    )
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
     return template
 
 
 def _unset_defaults(db: Session, tenant_id: int, template_type: str):
-    db.query(CampaignTemplate).filter(
-        CampaignTemplate.tenant_id == tenant_id,
-        CampaignTemplate.type == template_type,
-        CampaignTemplate.is_default.is_(True),
-    ).update({"is_default": False})
+    campaign_templates_repository.unset_default_templates(
+        db,
+        tenant_id=tenant_id,
+        template_type=template_type,
+    )
 
 
 def _template_to_dict(t: CampaignTemplate) -> dict:

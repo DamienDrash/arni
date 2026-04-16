@@ -277,3 +277,89 @@ async def test_analytics_confidence_distribution_sums(client: AsyncClient) -> No
     assert all("range" in b and "count" in b for b in dist)
     total = sum(b["count"] for b in dist)
     assert total == 5  # all 5 messages have confidence data
+
+
+@pytest.mark.anyio
+async def test_analytics_recent_sessions_formats_latest_activity(client: AsyncClient) -> None:
+    from datetime import datetime, timezone
+
+    from app.core.db import SessionLocal
+    from app.core.models import ChatMessage, ChatSession
+
+    token, tenant_id = await _register_tenant(client, "recent-sessions")
+
+    db = SessionLocal()
+    try:
+        now = datetime.now(timezone.utc)
+        session = ChatSession(
+            tenant_id=tenant_id,
+            user_id="recent-user-1",
+            user_name="Max Mustermann",
+            platform="whatsapp",
+            last_message_at=now,
+        )
+        db.add(session)
+        db.flush()
+        db.add(ChatMessage(
+            session_id="recent-user-1",
+            tenant_id=tenant_id,
+            role="user",
+            content="Ich brauche Hilfe mit meinem Vertrag",
+            timestamp=now,
+        ))
+        db.add(ChatMessage(
+            session_id="recent-user-1",
+            tenant_id=tenant_id,
+            role="assistant",
+            content="Wir kuemmern uns darum",
+            timestamp=now,
+            metadata_json=json.dumps({"channel": "whatsapp", "confidence": 0.87, "escalated": False}),
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    resp = await client.get("/admin/analytics/sessions/recent", headers=await _auth_headers(token))
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["member"] == "Max Mustermann"
+    assert data[0]["avatar"] == "MM"
+    assert data[0]["confidence"] == 87
+    assert data[0]["status"] == "resolved"
+    assert data[0]["channel"] == "whatsapp"
+    assert data[0]["messages"] == 2
+
+
+@pytest.mark.anyio
+async def test_audit_endpoint_parses_legacy_details_payload(client: AsyncClient) -> None:
+    from datetime import datetime, timezone
+
+    from app.core.db import SessionLocal
+    from app.core.models import AuditLog
+
+    token, tenant_id = await _register_tenant(client, "audit-legacy")
+
+    db = SessionLocal()
+    try:
+        db.add(AuditLog(
+            tenant_id=tenant_id,
+            actor_user_id=1,
+            actor_email="admin@example.test",
+            action="settings.updated",
+            category="admin",
+            target_type="setting",
+            target_id="branding",
+            details_json="{'source': 'legacy', 'changes': 2}",
+            created_at=datetime.now(timezone.utc),
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    resp = await client.get("/admin/audit", headers=await _auth_headers(token))
+    assert resp.status_code == 200, resp.text
+    payload = resp.json()
+    assert payload["total"] >= 1
+    assert payload["items"][0]["action"] == "settings.updated"
+    assert payload["items"][0]["details"] == {"source": "legacy", "changes": 2}

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.core.db import SessionLocal
-from app.core.models import StudioMember
+from app.domains.support.models import StudioMember
+from app.gateway.member_matching_repository import member_matching_repository
+from app.shared.db import open_session
 
 
 def normalize_phone(value: str | None) -> str:
@@ -45,13 +46,10 @@ def match_member_by_phone(phone_number: str | None, tenant_id: int | None = None
     if not requested:
         return None
 
-    db = SessionLocal()
+    db = open_session()
     try:
         matches: list[StudioMember] = []
-        q = db.query(StudioMember).filter(StudioMember.phone_number.isnot(None))
-        if tenant_id is not None:
-            q = q.filter(StudioMember.tenant_id == tenant_id)
-        for row in q.all():
+        for row in member_matching_repository.list_members_with_phone(db, tenant_id=tenant_id):
             row_candidates = phone_candidates(row.phone_number)
             if not row_candidates:
                 continue

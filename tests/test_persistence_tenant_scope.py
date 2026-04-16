@@ -91,3 +91,41 @@ def test_recent_sessions_are_tenant_scoped() -> None:
     assert user_b not in system_users
     assert user_b in tenant_b_users
     assert user_a not in tenant_b_users
+
+
+def test_stats_and_reset_remain_tenant_scoped_for_same_user_id() -> None:
+    unique = int(time.time() * 1000)
+    external_user_id = f"tenant-reset-user-{unique}"
+
+    system = _ensure_tenant("system", "System")
+    tenant_b = _ensure_tenant(f"scope3-{unique}", f"Scope3 {unique}")
+
+    persistence.save_message(
+        user_id=external_user_id,
+        role="user",
+        content="system-message",
+        platform=Platform.TELEGRAM,
+        tenant_id=system.id,
+    )
+    persistence.save_message(
+        user_id=external_user_id,
+        role="user",
+        content="tenant-message",
+        platform=Platform.TELEGRAM,
+        tenant_id=tenant_b.id,
+    )
+
+    system_stats = persistence.get_stats(system.id)
+    tenant_b_stats = persistence.get_stats(tenant_b.id)
+
+    assert system_stats["total_messages"] >= 1
+    assert tenant_b_stats["total_messages"] >= 1
+
+    reset_result = persistence.reset_chat(external_user_id, tenant_id=tenant_b.id)
+    assert reset_result == {"session_found": True}
+
+    system_history = persistence.get_chat_history(external_user_id, tenant_id=system.id, limit=20)
+    tenant_b_history = persistence.get_chat_history(external_user_id, tenant_id=tenant_b.id, limit=20)
+
+    assert [m.content for m in system_history] == ["system-message"]
+    assert tenant_b_history == []

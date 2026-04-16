@@ -9,16 +9,17 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import text
 import structlog
 
-from app.core.db import SessionLocal
-from app.core.models import ChatMessage, AuditLog
+from app.domains.identity.models import AuditLog
+from app.domains.support.models import ChatMessage
 from app.gateway.persistence import persistence
+from app.shared.db import open_session
 from app.memory.librarian_v2 import LibrarianWorker
 
 logger = structlog.get_logger()
 
 async def run_data_retention_cleanup() -> dict:
     """Purge old data across all tenants based on platform settings."""
-    db = SessionLocal()
+    db = open_session()
     results = {"messages_deleted": 0, "audit_deleted": 0}
     
     try:

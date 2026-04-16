@@ -49,8 +49,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.core.auth import AuthContext, get_current_user, require_role
-from app.core.db import SessionLocal
-from app.core.models import Plan, AddonDefinition, Subscription
+from app.domains.billing.models import AddonDefinition, Plan, Subscription
+from app.shared.db import open_session
 from app.core.billing_sync import (
     push_plan_to_stripe,
     push_addon_to_stripe,
@@ -71,6 +71,7 @@ from app.billing.models import (
     SubscriptionStatus,
 )
 from app.billing.events import billing_events, BillingEventType
+from app.gateway.admin_billing_repository import admin_billing_repository
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/admin/plans", tags=["admin-plans"])
@@ -427,11 +428,9 @@ def _v2_addon_to_dict(addon: AddonDefinitionV2) -> dict[str, Any]:
 async def list_all_plans(user: AuthContext = Depends(get_current_user)):
     """List all plans with full details (system_admin only)."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
-        plans = db.query(Plan).order_by(
-            Plan.display_order.asc(), Plan.price_monthly_cents.asc()
-        ).all()
+        plans = admin_billing_repository.list_plans_for_admin(db)
         return [_plan_to_dict(p) for p in plans]
     finally:
         db.close()
@@ -441,7 +440,7 @@ async def list_all_plans(user: AuthContext = Depends(get_current_user)):
 async def create_plan(data: PlanCreate, user: AuthContext = Depends(get_current_user)):
     """Create a new plan and optionally push to Stripe."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         if db.query(Plan).filter(Plan.slug == data.slug).first():
             raise HTTPException(status_code=400, detail=f"Plan mit Slug '{data.slug}' existiert bereits")
@@ -492,7 +491,7 @@ async def create_plan(data: PlanCreate, user: AuthContext = Depends(get_current_
 async def update_plan(plan_id: int, data: PlanUpdate, user: AuthContext = Depends(get_current_user)):
     """Update a plan (partial update) and sync to Stripe."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         plan = db.query(Plan).filter(Plan.id == plan_id).first()
         if not plan:
@@ -550,7 +549,7 @@ async def update_plan(plan_id: int, data: PlanUpdate, user: AuthContext = Depend
 async def delete_plan(plan_id: int, user: AuthContext = Depends(get_current_user)):
     """Delete a plan. Archives in Stripe if linked."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         plan = db.query(Plan).filter(Plan.id == plan_id).first()
         if not plan:
@@ -609,7 +608,7 @@ async def delete_plan(plan_id: int, user: AuthContext = Depends(get_current_user
 async def list_features(user: AuthContext = Depends(get_current_user)):
     """List all feature definitions."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         features = db.query(Feature).order_by(Feature.category.asc(), Feature.key.asc()).all()
         return [_feature_to_dict(f) for f in features]
@@ -623,7 +622,7 @@ async def list_features(user: AuthContext = Depends(get_current_user)):
 async def create_feature(data: FeatureCreate, user: AuthContext = Depends(get_current_user)):
     """Create a new feature definition."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         existing = db.query(Feature).filter(Feature.key == data.key).first()
         if existing:
@@ -656,7 +655,7 @@ async def create_feature(data: FeatureCreate, user: AuthContext = Depends(get_cu
 async def update_feature(feature_id: int, data: FeatureUpdate, user: AuthContext = Depends(get_current_user)):
     """Update a feature definition."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         feature = db.query(Feature).filter(Feature.id == feature_id).first()
         if not feature:
@@ -679,7 +678,7 @@ async def update_feature(feature_id: int, data: FeatureUpdate, user: AuthContext
 async def get_plan_features(plan_id: int, user: AuthContext = Depends(get_current_user)):
     """Get all feature entitlements for a specific plan via its FeatureSet."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         # Try to find V2 plan by ID or by matching V1 plan slug
         v2_plan = db.query(PlanV2).filter(PlanV2.id == plan_id).first()
@@ -725,7 +724,7 @@ async def set_plan_features(
 ):
     """Set feature entitlements for a plan's feature set (replaces all existing)."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         v2_plan = db.query(PlanV2).filter(PlanV2.id == plan_id).first()
         if not v2_plan:
@@ -784,12 +783,9 @@ async def set_plan_features(
 async def list_all_addons(user: AuthContext = Depends(get_current_user)):
     """List all addon definitions (system_admin only)."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
-        addons = db.query(AddonDefinition).order_by(
-            AddonDefinition.display_order.asc(),
-            AddonDefinition.name.asc(),
-        ).all()
+        addons = admin_billing_repository.list_addons_for_admin(db)
         return [_addon_to_dict(a) for a in addons]
     finally:
         db.close()
@@ -799,7 +795,7 @@ async def list_all_addons(user: AuthContext = Depends(get_current_user)):
 async def create_addon(data: AddonCreate, user: AuthContext = Depends(get_current_user)):
     """Create a new addon definition and push to Stripe."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         if db.query(AddonDefinition).filter(AddonDefinition.slug == data.slug).first():
             raise HTTPException(status_code=400, detail=f"Addon mit Slug '{data.slug}' existiert bereits")
@@ -839,7 +835,7 @@ async def create_addon(data: AddonCreate, user: AuthContext = Depends(get_curren
 async def update_addon(addon_id: int, data: AddonUpdate, user: AuthContext = Depends(get_current_user)):
     """Update an addon definition and sync to Stripe."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         addon = db.query(AddonDefinition).filter(AddonDefinition.id == addon_id).first()
         if not addon:
@@ -864,7 +860,7 @@ async def update_addon(addon_id: int, data: AddonUpdate, user: AuthContext = Dep
 async def delete_addon(addon_id: int, user: AuthContext = Depends(get_current_user)):
     """Delete an addon definition. Archives in Stripe if linked."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         addon = db.query(AddonDefinition).filter(AddonDefinition.id == addon_id).first()
         if not addon:
@@ -892,7 +888,7 @@ async def delete_addon(addon_id: int, user: AuthContext = Depends(get_current_us
 async def trigger_full_sync(user: AuthContext = Depends(get_current_user)):
     """Full bidirectional sync: push local → Stripe, then pull Stripe → local."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         result = await full_bidirectional_sync(db)
         return {"status": "ok", "result": result}
@@ -904,7 +900,7 @@ async def trigger_full_sync(user: AuthContext = Depends(get_current_user)):
 async def trigger_sync_from_stripe(user: AuthContext = Depends(get_current_user)):
     """Pull all plan and addon data from Stripe into local DB."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         plans_result = await sync_plans_from_stripe(db)
         addons_result = await sync_addons_from_stripe(db)
@@ -917,7 +913,7 @@ async def trigger_sync_from_stripe(user: AuthContext = Depends(get_current_user)
 async def trigger_sync_to_stripe(user: AuthContext = Depends(get_current_user)):
     """Push all local plans and addons to Stripe."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         plans = db.query(Plan).filter(Plan.is_active.is_(True)).all()
         addons = db.query(AddonDefinition).filter(AddonDefinition.is_active.is_(True)).all()
@@ -942,7 +938,7 @@ async def trigger_sync_to_stripe(user: AuthContext = Depends(get_current_user)):
 async def cleanup_orphaned_plans(user: AuthContext = Depends(get_current_user)):
     """Remove all plans that have no Stripe Product ID and no active subscriptions."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
         orphaned = db.query(Plan).filter(
             Plan.stripe_product_id.is_(None),
@@ -1017,17 +1013,14 @@ async def get_revenue_metrics(user: AuthContext = Depends(get_current_user)):
 async def get_subscribers(user: AuthContext = Depends(get_current_user)):
     """Active subscriber list with plan details."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
-        subs = db.query(Subscription).filter(
-            Subscription.status.in_(["active", "trialing", "past_due"])
-        ).all()
+        subs = admin_billing_repository.list_subscribers(db)
 
         result = []
         for sub in subs:
-            plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
-            from app.core.models import Tenant
-            tenant = db.query(Tenant).filter(Tenant.id == sub.tenant_id).first() if sub.tenant_id else None
+            plan = admin_billing_repository.get_plan_by_id(db, sub.plan_id)
+            tenant = admin_billing_repository.get_tenant_by_id(db, sub.tenant_id)
 
             result.append({
                 "tenant_id": sub.tenant_id,
@@ -1061,12 +1054,9 @@ async def list_public_plans():
     # Canonical plan slugs — only these are real subscription tiers
     CANONICAL_PLAN_SLUGS = {"trial", "starter", "pro", "business", "enterprise"}
 
-    db = SessionLocal()
+    db = open_session()
     try:
-        plans = db.query(Plan).filter(
-            Plan.is_active.is_(True),
-            Plan.is_public.is_(True),
-        ).order_by(Plan.display_order.asc(), Plan.price_monthly_cents.asc()).all()
+        plans = admin_billing_repository.list_public_plans(db)
 
         # Deduplicate by slug — keep first occurrence (by display_order)
         # Also filter out non-plan entries (overage, add-ons) that may have
@@ -1142,11 +1132,9 @@ async def list_public_plans():
 @router.get("/public/addons")
 async def list_public_addons():
     """Public addon catalog. No auth required."""
-    db = SessionLocal()
+    db = open_session()
     try:
-        addons = db.query(AddonDefinition).filter(
-            AddonDefinition.is_active.is_(True),
-        ).order_by(AddonDefinition.display_order.asc()).all()
+        addons = admin_billing_repository.list_active_addons(db)
 
         return [
             {
@@ -1172,11 +1160,9 @@ async def list_public_addons():
 async def list_v2_plans(user: AuthContext = Depends(get_current_user)):
     """List all V2 plans with full details."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
-        plans = db.query(PlanV2).order_by(
-            PlanV2.display_order.asc(), PlanV2.price_monthly_cents.asc()
-        ).all()
+        plans = admin_billing_repository.list_v2_plans(db)
         return [_v2_plan_to_dict(p) for p in plans]
     finally:
         db.close()
@@ -1186,12 +1172,9 @@ async def list_v2_plans(user: AuthContext = Depends(get_current_user)):
 async def list_v2_addons(user: AuthContext = Depends(get_current_user)):
     """List all V2 addon definitions."""
     require_role(user, {"system_admin"})
-    db = SessionLocal()
+    db = open_session()
     try:
-        addons = db.query(AddonDefinitionV2).order_by(
-            AddonDefinitionV2.display_order.asc(),
-            AddonDefinitionV2.name.asc(),
-        ).all()
+        addons = admin_billing_repository.list_v2_addons(db)
         return [_v2_addon_to_dict(a) for a in addons]
     finally:
         db.close()

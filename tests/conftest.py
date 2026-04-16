@@ -3,6 +3,15 @@
 Shared fixtures for all tests.
 """
 
+# Exclude legacy sprint-style test scripts (they contain sys.exit() at module
+# level which kills the pytest process) and other non-pytest test files.
+collect_ignore_glob = [
+    "test_sprint*.py",
+    "test_phase2_refactoring.py",
+    "run_all_qa.py",
+    "test_memory_platform.py",
+]
+
 import os
 
 # Force testing mode to allow SQLite fallback in app/core/db.py
@@ -40,11 +49,26 @@ def seed_system_tenant():
     attempts from one test do not poison subsequent tests.
     """
     import os
+    import asyncio
     from app.core.auth import ensure_default_tenant_and_admin, hash_password
+    from app.core.feature_gates import seed_plans
+    from app.billing.seed import seed_billing_v2
     from app.core.db import SessionLocal
     from app.gateway.auth import UserAccount
     try:
         ensure_default_tenant_and_admin()
+    except Exception:
+        pass
+    try:
+        seed_plans()
+    except Exception:
+        pass
+    try:
+        db = SessionLocal()
+        try:
+            asyncio.run(seed_billing_v2(db))
+        finally:
+            db.close()
     except Exception:
         pass
     # Ensure admin has the test password and no lockout

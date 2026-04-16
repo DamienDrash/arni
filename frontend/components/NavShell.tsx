@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import Sidebar from "./Sidebar";
-import { getStoredUser, setStoredUser, type AuthUser } from "@/lib/auth";
-import { apiFetch } from "@/lib/api";
-import { useI18n } from "@/lib/i18n/LanguageContext";
+import { getStoredUser } from "@/lib/auth";
+import { usePermissions } from "@/lib/permissions";
+import { getRouteAccessState } from "@/lib/route-access";
 import styles from "./NavShell.module.css";
 
 export default function NavShell({ children }: { children: React.ReactNode }) {
-    const { t, language } = useI18n();
     const [mobileOpen, setMobileOpen] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
@@ -40,29 +39,8 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
         setMobileOpen(false);
     }, []);
 
-    // DYNAMIC META: Re-evaluates every time the language changes!
-    const pageMeta = useMemo(() => ({
-        "/": { title: t("common.welcome"), subtitle: "" },
-        "/dashboard": { title: t("common.dashboard"), subtitle: "" },
-        "/live": { title: t("sidebar.monitor"), subtitle: "" },
-        "/contacts": { title: "Kontakte", subtitle: "" },
-        "/tenants": { title: t("sidebar.tenants"), subtitle: "" },
-        "/audit": { title: t("sidebar.audit"), subtitle: "" },
-        "/settings": { title: t("common.settings"), subtitle: "" },
-        "/settings/account": { title: t("settings.account.title"), subtitle: t("settings.account.subtitle") },
-        "/settings/general": { title: t("settings.general.title"), subtitle: t("settings.general.subtitle") },
-        "/settings/ai": { title: t("settings.aiEngine"), subtitle: "" },
-        "/swarm/agent-teams": { title: "Swarm Agent Teams", subtitle: "" },
-        "/login": { title: t("common.login"), subtitle: "" },
-    }), [t, language]); // Dependency on language is CRITICAL
-
-    const currentMeta = useMemo(() => {
-        const path = pathname || "/";
-        return pageMeta[path as keyof typeof pageMeta] || { title: "ARIIA", subtitle: "" };
-    }, [pathname, pageMeta]);
-
     const [authReady, setAuthReady] = useState(false);
-    const [user, setUser] = useState<AuthUser | null>(null);
+    const { role, canPage, feature, loading: permissionsLoading } = usePermissions();
 
     useEffect(() => {
         const publicPaths = ["/", "/features", "/pricing", "/login", "/register", "/legal", "/impressum", "/datenschutz", "/agb", "/forgot-password", "/reset-password", "/verify-email", "/accept-invitation", "/mfa-verify", "/subscribe", "/unsubscribe", "/optin-confirm"];
@@ -70,7 +48,6 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
 
         const cached = getStoredUser();
         if (cached) {
-            setUser(cached);
             setAuthReady(true);
         } else if (isPublic) {
             setAuthReady(true);
@@ -87,6 +64,18 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
     if (isPublic) {
         return <>{children}</>;
     }
+
+    const routeAccess = permissionsLoading
+        ? "available"
+        : getRouteAccessState(pathname || "/", { role, canPage, feature });
+
+    useEffect(() => {
+        if (routeAccess === "hidden") {
+            router.replace("/dashboard");
+        }
+    }, [routeAccess, router]);
+
+    if (routeAccess === "hidden") return null;
 
     return (
         <div className={styles.root}>
@@ -128,8 +117,30 @@ export default function NavShell({ children }: { children: React.ReactNode }) {
 
             {/* Main Content */}
             <main className={styles.appMain}>
-                {children}
+                {routeAccess === "coming_soon" ? (
+                    <FeatureStatePanel
+                        title="Coming Soon"
+                        description="Dieses Modul ist im aktuellen Product Core dormitisiert und wird nach der Modularisierung wieder gezielt aktiviert."
+                    />
+                ) : routeAccess === "upgrade" ? (
+                    <FeatureStatePanel
+                        title="Upgrade Required"
+                        description="Diese Funktion ist in Ihrer aktuellen Konfiguration nicht freigeschaltet. Nutzen Sie das Billing, um den Zugriff zu erweitern."
+                    />
+                ) : (
+                    children
+                )}
             </main>
         </div>
+    );
+}
+
+function FeatureStatePanel({ title, description }: { title: string; description: string }) {
+    return (
+        <section className={styles.statePanel}>
+            <div className={styles.stateBadge}>{title}</div>
+            <h1 className={styles.stateTitle}>{title}</h1>
+            <p className={styles.stateText}>{description}</p>
+        </section>
     );
 }

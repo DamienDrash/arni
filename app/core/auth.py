@@ -12,8 +12,9 @@ from uuid import uuid4
 import structlog
 from fastapi import Cookie, Header, HTTPException
 
-from app.core.db import SessionLocal, Base, engine
-from app.core.models import Tenant, UserAccount
+from app.core.db import Base, engine
+from app.domains.identity.models import Tenant, UserAccount
+from app.shared.db import open_session
 from config.settings import get_settings
 
 
@@ -220,7 +221,7 @@ def _check_token_blacklist(payload: dict) -> None:
 
 def _resolve_context_from_payload(payload: dict) -> AuthContext:
     _check_token_blacklist(payload)
-    db = SessionLocal()
+    db = open_session()
     try:
         user = db.query(UserAccount).filter(UserAccount.id == int(payload["sub"])).first()
         if not user or not user.is_active:
@@ -278,7 +279,7 @@ def get_current_user(
         return _resolve_context_from_payload(payload)
 
     if os.getenv("PYTEST_CURRENT_TEST"):
-        db = SessionLocal()
+        db = open_session()
         try:
             tenant = db.query(Tenant).filter(Tenant.slug == "system").first()
             user = db.query(UserAccount).filter(UserAccount.role == "system_admin").first()
@@ -361,7 +362,7 @@ def ensure_default_tenant_and_admin() -> None:
     if settings.is_production:
         _validate_admin_password(admin_password)
     Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
+    db = open_session()
     try:
         tenant = db.query(Tenant).filter(Tenant.slug == "system").first()
         if not tenant:

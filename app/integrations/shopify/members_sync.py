@@ -8,15 +8,15 @@ import httpx
 import structlog
 from sqlalchemy.orm import Session
 
-from app.core.db import SessionLocal
-from app.core.models import StudioMember, MemberImportLog
+from app.domains.support.models import MemberImportLog, StudioMember
 from app.gateway.persistence import persistence
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
 async def run_sync(tenant_id: int):
     """Full customer sync from Shopify."""
-    db = SessionLocal()
+    db = open_session()
     log = MemberImportLog(
         tenant_id=tenant_id,
         source="shopify",

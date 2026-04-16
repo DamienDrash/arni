@@ -41,3 +41,15 @@ def test_global_billing_setting_is_system_scoped() -> None:
     persistence.upsert_setting("billing_default_provider", "stripe", tenant_id=tenant_x.id)
     assert persistence.get_setting("billing_default_provider", tenant_id=tenant_y.id) == "stripe"
     assert persistence.get_setting("billing_default_provider", tenant_id=system.id) == "stripe"
+
+
+def test_legacy_set_setting_alias_respects_tenant_scope() -> None:
+    unique = int(time.time() * 1000)
+    tenant_a = _ensure_tenant(f"legacy-a-{unique}", f"Legacy A {unique}")
+    tenant_b = _ensure_tenant(f"legacy-b-{unique}", f"Legacy B {unique}")
+
+    persistence.set_setting("legacy_sync_status", "running", tenant_id=tenant_a.id)
+    persistence.set_setting("legacy_sync_status", "idle", tenant_id=tenant_b.id)
+
+    assert persistence.get_setting("legacy_sync_status", tenant_id=tenant_a.id) == "running"
+    assert persistence.get_setting("legacy_sync_status", tenant_id=tenant_b.id) == "idle"

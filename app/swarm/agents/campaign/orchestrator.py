@@ -6,6 +6,10 @@ from typing import Optional
 import structlog
 from sqlalchemy.orm import Session
 
+from app.domains.campaigns.models import CampaignTemplate
+from app.domains.identity.models import Tenant
+from app.domains.support.models import ChatMessage
+
 logger = structlog.get_logger()
 
 
@@ -62,7 +66,6 @@ class CampaignOrchestrator:
             tenant_slug = ""
             studio_name = ""
             try:
-                from app.core.models import Tenant
                 tenant_obj = db.query(Tenant).filter(Tenant.id == request.tenant_id).first()
                 tenant_slug = tenant_obj.slug if tenant_obj else "default"
                 # Use the tenant's actual business name — never the platform name
@@ -90,7 +93,6 @@ class CampaignOrchestrator:
             # Step 3: Load template if specified
             template = None
             if request.template_id:
-                from app.core.models import CampaignTemplate
                 template = db.query(CampaignTemplate).filter(
                     CampaignTemplate.id == request.template_id,
                     CampaignTemplate.tenant_id == request.tenant_id,
@@ -212,7 +214,6 @@ class CampaignOrchestrator:
         try:
             from app.knowledge.knowledge_manager import KnowledgeManager
             if not tenant_slug:
-                from app.core.models import Tenant
                 tenant = db.query(Tenant).filter(Tenant.id == request.tenant_id).first()
                 tenant_slug = tenant.slug if tenant else "default"
             km = KnowledgeManager()
@@ -253,7 +254,6 @@ class CampaignOrchestrator:
 
     def _gather_chat_context(self, request: CampaignGenerationRequest, db: Session) -> str:
         try:
-            from app.core.models import ChatMessage
             from sqlalchemy import desc
             recent = db.query(ChatMessage).filter(
                 ChatMessage.tenant_id == request.tenant_id,

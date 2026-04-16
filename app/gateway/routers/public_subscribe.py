@@ -27,7 +27,10 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.models import Campaign, CampaignOffer, ContactConsent, Tenant
+from app.domains.campaigns.models import CampaignRecipient
+from app.domains.campaigns.queries import campaign_queries
+from app.domains.identity.queries import identity_queries
+from app.domains.support.models import ContactConsent
 
 logger = structlog.get_logger()
 
@@ -301,27 +304,29 @@ async def subscribe_info(
     """Return public context for the subscribe landing page."""
     tenant_id, campaign_id, channel = _decode_token(token)
 
-    tenant = db.query(Tenant).filter(Tenant.id == tenant_id, Tenant.is_active.is_(True)).first()
+    tenant = identity_queries.get_active_tenant_by_id(db, tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Unbekannter Anbieter.")
 
     campaign_name: str | None = None
     description: str | None = None
     if campaign_id:
-        campaign = db.query(Campaign).filter(
-            Campaign.id == campaign_id, Campaign.tenant_id == tenant_id
-        ).first()
+        campaign = campaign_queries.get_campaign_for_tenant(
+            db,
+            tenant_id=tenant_id,
+            campaign_id=campaign_id,
+        )
         if campaign:
             campaign_name = campaign.name
             description = campaign.description
 
     offer_name: str | None = None
     if offer:
-        db_offer = db.query(CampaignOffer).filter(
-            CampaignOffer.tenant_id == tenant_id,
-            CampaignOffer.slug == offer.lower(),
-            CampaignOffer.is_active.is_(True),
-        ).first()
+        db_offer = campaign_queries.get_active_offer_for_tenant(
+            db,
+            tenant_id=tenant_id,
+            slug=offer.lower(),
+        )
         if db_offer:
             offer_name = db_offer.name
 
@@ -350,7 +355,7 @@ async def subscribe(
     """
     tenant_id, campaign_id, channel = _decode_token(token)
 
-    tenant = db.query(Tenant).filter(Tenant.id == tenant_id, Tenant.is_active.is_(True)).first()
+    tenant = identity_queries.get_active_tenant_by_id(db, tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Unbekannter Anbieter.")
 
@@ -359,11 +364,11 @@ async def subscribe(
     # Resolve offer name for email copy
     offer_name: str | None = None
     if offer_slug:
-        db_offer = db.query(CampaignOffer).filter(
-            CampaignOffer.tenant_id == tenant_id,
-            CampaignOffer.slug == offer_slug,
-            CampaignOffer.is_active.is_(True),
-        ).first()
+        db_offer = campaign_queries.get_active_offer_for_tenant(
+            db,
+            tenant_id=tenant_id,
+            slug=offer_slug,
+        )
         if db_offer:
             offer_name = db_offer.name
 
@@ -477,7 +482,7 @@ async def optin_confirm(token: str, db: Session = Depends(get_db)):
     """
     tenant_id, pending_id, channel, offer_slug = _decode_optin_confirm_token(token)
 
-    tenant = db.query(Tenant).filter(Tenant.id == tenant_id, Tenant.is_active.is_(True)).first()
+    tenant = identity_queries.get_active_tenant_by_id(db, tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Unbekannter Anbieter.")
 
@@ -568,10 +573,11 @@ async def optin_confirm(token: str, db: Session = Depends(get_db)):
     campaign_id = pending.get("campaign_id", 0)
     if campaign_id:
         try:
-            from app.core.models import CampaignRecipient
-            campaign = db.query(Campaign).filter(
-                Campaign.id == campaign_id, Campaign.tenant_id == tenant_id
-            ).first()
+            campaign = campaign_queries.get_campaign_for_tenant(
+                db,
+                tenant_id=tenant_id,
+                campaign_id=campaign_id,
+            )
             if campaign:
                 recipient = CampaignRecipient(
                     campaign_id=campaign.id,
@@ -597,11 +603,11 @@ async def optin_confirm(token: str, db: Session = Depends(get_db)):
     # Deliver offer content
     offer_name: str | None = None
     if offer_slug:
-        db_offer = db.query(CampaignOffer).filter(
-            CampaignOffer.tenant_id == tenant_id,
-            CampaignOffer.slug == offer_slug,
-            CampaignOffer.is_active.is_(True),
-        ).first()
+        db_offer = campaign_queries.get_active_offer_for_tenant(
+            db,
+            tenant_id=tenant_id,
+            slug=offer_slug,
+        )
         if db_offer:
             offer_name = db_offer.name
             if contact.email:
@@ -652,7 +658,7 @@ async def unsubscribe_info(token: str, db: Session = Depends(get_db)):
     """Return context for the unsubscribe landing page."""
     tenant_id, contact_id, channel = _decode_token(token)
 
-    tenant = db.query(Tenant).filter(Tenant.id == tenant_id, Tenant.is_active.is_(True)).first()
+    tenant = identity_queries.get_active_tenant_by_id(db, tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Unbekannter Anbieter.")
 
@@ -667,7 +673,7 @@ async def unsubscribe(token: str, db: Session = Depends(get_db)):
     """Revoke consent for a contact via a tokenized unsubscribe link."""
     tenant_id, contact_id, channel = _decode_token(token)
 
-    tenant = db.query(Tenant).filter(Tenant.id == tenant_id, Tenant.is_active.is_(True)).first()
+    tenant = identity_queries.get_active_tenant_by_id(db, tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Unbekannter Anbieter.")
 

@@ -115,8 +115,8 @@ from app.contacts.schemas import (
 )
 from app.contacts.service import contact_service
 from app.core.auth import AuthContext, get_current_user, require_role
-from app.core.db import SessionLocal
 from app.core.contact_models import Contact, ContactImportLog
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -915,7 +915,7 @@ def _process_csv_import(
     filename: str,
 ):
     """Background task for CSV import (legacy)."""
-    db = SessionLocal()
+    db = open_session()
     from app.contacts.repository import contact_repo
     from app.core.contact_models import Contact, ContactImportLog, ActivityType
 
@@ -1035,7 +1035,7 @@ def export_contacts_v2(
 @router.get("/export/csv/")
 def export_csv(user: AuthContext = Depends(get_current_user)):
     """Export all contacts as CSV (legacy)."""
-    db = SessionLocal()
+    db = open_session()
     try:
         contacts = (
             db.query(Contact)

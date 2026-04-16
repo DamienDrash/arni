@@ -33,6 +33,7 @@ from app.billing.models import (
     SubscriptionV2,
     TenantAddonV2,
 )
+from app.billing.subscription_repository import subscription_repository
 
 logger = structlog.get_logger()
 
@@ -72,12 +73,12 @@ class SubscriptionServiceV2:
         the subscription starts in TRIALING status.
         """
         # Validate plan exists
-        plan = db.query(PlanV2).filter(PlanV2.slug == plan_slug, PlanV2.is_active.is_(True)).first()
+        plan = subscription_repository.get_active_plan_by_slug(db, plan_slug)
         if not plan:
             raise ValueError(f"Plan '{plan_slug}' nicht gefunden oder nicht aktiv.")
 
         # Check for existing subscription
-        existing = db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        existing = subscription_repository.get_subscription_by_tenant(db, tenant_id)
         if existing:
             raise ValueError(
                 f"Tenant {tenant_id} hat bereits ein Abonnement (ID: {existing.id}, "
@@ -154,7 +155,7 @@ class SubscriptionServiceV2:
 
     def get_subscription(self, db: Session, tenant_id: int) -> Optional[SubscriptionV2]:
         """Get the current subscription for a tenant."""
-        return db.query(SubscriptionV2).filter(SubscriptionV2.tenant_id == tenant_id).first()
+        return subscription_repository.get_subscription_by_tenant(db, tenant_id)
 
     def get_subscription_with_plan(self, db: Session, tenant_id: int) -> Optional[dict[str, Any]]:
         """Get subscription with plan details."""
@@ -162,7 +163,7 @@ class SubscriptionServiceV2:
         if not sub:
             return None
 
-        plan = db.query(PlanV2).filter(PlanV2.id == sub.plan_id).first()
+        plan = subscription_repository.get_plan_by_id(db, sub.plan_id)
         return {
             "subscription": sub,
             "plan": plan,
@@ -223,12 +224,9 @@ class SubscriptionServiceV2:
         Upgrades are always immediate (prorated in Stripe).
         """
         sub = self._get_or_raise(db, tenant_id)
-        old_plan = db.query(PlanV2).filter(PlanV2.id == sub.plan_id).first()
+        old_plan = subscription_repository.get_plan_by_id(db, sub.plan_id)
 
-        new_plan = db.query(PlanV2).filter(
-            PlanV2.slug == new_plan_slug,
-            PlanV2.is_active.is_(True),
-        ).first()
+        new_plan = subscription_repository.get_active_plan_by_slug(db, new_plan_slug)
         if not new_plan:
             raise ValueError(f"Plan '{new_plan_slug}' nicht gefunden oder nicht aktiv.")
 
@@ -289,12 +287,9 @@ class SubscriptionServiceV2:
         Set immediate=True to apply immediately (not recommended).
         """
         sub = self._get_or_raise(db, tenant_id)
-        old_plan = db.query(PlanV2).filter(PlanV2.id == sub.plan_id).first()
+        old_plan = subscription_repository.get_plan_by_id(db, sub.plan_id)
 
-        new_plan = db.query(PlanV2).filter(
-            PlanV2.slug == new_plan_slug,
-            PlanV2.is_active.is_(True),
-        ).first()
+        new_plan = subscription_repository.get_active_plan_by_slug(db, new_plan_slug)
         if not new_plan:
             raise ValueError(f"Plan '{new_plan_slug}' nicht gefunden oder nicht aktiv.")
 
@@ -515,14 +510,7 @@ class SubscriptionServiceV2:
         Returns list of tenant_ids that were updated.
         """
         now = datetime.now(timezone.utc)
-        pending = (
-            db.query(SubscriptionV2)
-            .filter(
-                SubscriptionV2.pending_plan_id.isnot(None),
-                SubscriptionV2.scheduled_change_at <= now,
-            )
-            .all()
-        )
+        pending = subscription_repository.list_pending_subscriptions_due(db, now=now)
 
         updated_tenants = []
         for sub in pending:

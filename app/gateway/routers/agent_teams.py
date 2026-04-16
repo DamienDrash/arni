@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import AuthContext, get_current_user, require_role
 from app.core.db import get_db
-from app.core.models import AgentTeam, AgentDefinition
+from app.domains.ai.models import AgentTeam
+from app.gateway.agent_teams_repository import agent_teams_repository
 
 router = APIRouter(prefix="/admin/agent-teams", tags=["agent-teams"])
 
@@ -44,7 +45,7 @@ def _team_out(t: AgentTeam) -> dict:
         "description": t.description,
         "agent_ids": t.agent_ids or [],
         "orchestrator_name": t.orchestrator_name,
-        "state": t.state,
+        "state": t.status,
         "created_at": t.created_at.isoformat() if t.created_at else None,
         "updated_at": t.updated_at.isoformat() if t.updated_at else None,
     }
@@ -53,13 +54,13 @@ def _team_out(t: AgentTeam) -> dict:
 @router.get("")
 def list_teams(user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     require_role(user, {"system_admin"})
-    return [_team_out(t) for t in db.query(AgentTeam).order_by(AgentTeam.display_name).all()]
+    return [_team_out(t) for t in agent_teams_repository.list_teams(db)]
 
 
 @router.post("", status_code=201)
 def create_team(body: TeamBody, user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     require_role(user, {"system_admin"})
-    if db.query(AgentTeam).filter(AgentTeam.name == body.name).first():
+    if agent_teams_repository.get_team_by_name(db, team_name=body.name):
         raise HTTPException(409, f"Team '{body.name}' already exists")
     now = datetime.now(timezone.utc)
     team = AgentTeam(
@@ -69,12 +70,12 @@ def create_team(body: TeamBody, user: AuthContext = Depends(get_current_user), d
         description=body.description,
         agent_ids=body.agent_ids,
         orchestrator_name=body.orchestrator_name,
-        state="ACTIVE",
+        status="ACTIVE",
         created_at=now,
         updated_at=now,
         created_by=user.user_id,
     )
-    db.add(team)
+    agent_teams_repository.add_team(db, team=team)
     db.commit()
     db.refresh(team)
     return _team_out(team)
@@ -83,7 +84,7 @@ def create_team(body: TeamBody, user: AuthContext = Depends(get_current_user), d
 @router.get("/{team_name}")
 def get_team(team_name: str, user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     require_role(user, {"system_admin"})
-    team = db.query(AgentTeam).filter(AgentTeam.name == team_name).first()
+    team = agent_teams_repository.get_team_by_name(db, team_name=team_name)
     if not team:
         raise HTTPException(404, f"Team '{team_name}' not found")
     return _team_out(team)
@@ -92,7 +93,7 @@ def get_team(team_name: str, user: AuthContext = Depends(get_current_user), db: 
 @router.patch("/{team_name}")
 def update_team(team_name: str, body: TeamPatchBody, user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     require_role(user, {"system_admin"})
-    team = db.query(AgentTeam).filter(AgentTeam.name == team_name).first()
+    team = agent_teams_repository.get_team_by_name(db, team_name=team_name)
     if not team:
         raise HTTPException(404, f"Team '{team_name}' not found")
     updates = body.model_dump(exclude_unset=True)
@@ -109,10 +110,10 @@ def set_team_state(team_name: str, body: StateBody, user: AuthContext = Depends(
     require_role(user, {"system_admin"})
     if body.state not in VALID_STATES:
         raise HTTPException(422, f"state must be one of {VALID_STATES}")
-    team = db.query(AgentTeam).filter(AgentTeam.name == team_name).first()
+    team = agent_teams_repository.get_team_by_name(db, team_name=team_name)
     if not team:
         raise HTTPException(404, f"Team '{team_name}' not found")
-    team.state = body.state
+    team.status = body.state
     team.updated_at = datetime.now(timezone.utc)
     db.commit()
     return {"status": "ok", "new_state": body.state}
@@ -121,7 +122,7 @@ def set_team_state(team_name: str, body: StateBody, user: AuthContext = Depends(
 @router.delete("/{team_name}", status_code=204)
 def delete_team(team_name: str, user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     require_role(user, {"system_admin"})
-    team = db.query(AgentTeam).filter(AgentTeam.name == team_name).first()
+    team = agent_teams_repository.get_team_by_name(db, team_name=team_name)
     if not team:
         raise HTTPException(404, f"Team '{team_name}' not found")
     db.delete(team)

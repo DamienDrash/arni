@@ -18,6 +18,8 @@ import structlog
 from dataclasses import dataclass
 from typing import Any
 
+from app.domains.ai.models import AgentDefinition, TenantAgentConfig, TenantToolConfig
+from app.shared.db import open_session
 from app.swarm.contracts import TenantContext
 from app.swarm.agents.generic_agent import GenericExpertAgent
 
@@ -200,10 +202,7 @@ class DynamicAgentLoader:
     def list_agents(self) -> list[dict[str, Any]]:
         """List all available agent definitions from the DB."""
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import AgentDefinition
-
-            db = SessionLocal()
+            db = open_session()
             try:
                 rows = db.query(AgentDefinition).all()
                 return [
@@ -259,10 +258,7 @@ class DynamicAgentLoader:
     def _load_agent_def(agent_id: str) -> CachedAgentDef | None:
         """Load an AgentDefinition from the database."""
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import AgentDefinition
-
-            db = SessionLocal()
+            db = open_session()
             try:
                 row = db.query(AgentDefinition).filter(
                     AgentDefinition.id == agent_id
@@ -296,10 +292,7 @@ class DynamicAgentLoader:
     ) -> dict[str, Any] | None:
         """Load TenantAgentConfig for this agent + tenant."""
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import TenantAgentConfig
-
-            db = SessionLocal()
+            db = open_session()
             try:
                 row = (
                     db.query(TenantAgentConfig)
@@ -349,10 +342,7 @@ class DynamicAgentLoader:
                 logger.warning("tool_registry.redis_cache_read_failed", error=str(e))
 
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import TenantToolConfig
-
-            db = SessionLocal()
+            db = open_session()
             try:
                 rows = (
                     db.query(TenantToolConfig)

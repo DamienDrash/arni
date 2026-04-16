@@ -26,6 +26,10 @@ from typing import Any
 
 import structlog
 
+from app.domains.billing.models import Subscription
+from app.domains.knowledge.models import IngestionJobStatus
+from app.shared.db import open_session
+
 logger = structlog.get_logger()
 
 
@@ -81,8 +85,6 @@ async def process_ingestion_job(
     redis = ctx["redis"]
 
     # Lazy imports (nur im Worker, nicht im API-Prozess)
-    from app.core.db import SessionLocal
-    from app.core.models import IngestionJobStatus, Subscription
     from app.gateway.persistence import persistence
     from app.ingestion.parsers.base import ParserRegistry
     # Trigger Parser-Registrierungen
@@ -156,7 +158,7 @@ async def process_ingestion_job(
         logger.info("ingestion.chunked", job_id=job_id, chunks=chunks_total)
 
         # ── Step 5: Tenant-Plan laden ─────────────────────────────────────────
-        db = SessionLocal()
+        db = open_session()
         plan_slug = "starter"  # default
         try:
             sub = db.query(Subscription).filter(
@@ -280,7 +282,7 @@ async def process_ingestion_job(
 
     except Exception as exc:
         # ── Error Handling ────────────────────────────────────────────────────
-        from app.core.models import IngestionJobStatus as _IJS
+        _IJS = IngestionJobStatus
         from app.worker.retry import (
             categorize_error,
             should_retry,

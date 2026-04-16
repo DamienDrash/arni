@@ -186,7 +186,7 @@ class BaseAgent(ABC):
         Returns a ResolvedLLMConfig or None (fallback to legacy).
         """
         try:
-            from app.core.db import SessionLocal
+            from app.shared.db import open_session
             from app.ai_config.service import AIConfigService
 
             if not tenant_id:
@@ -197,7 +197,7 @@ class BaseAgent(ABC):
                 )
                 return None
 
-            db = SessionLocal()
+            db = open_session()
             try:
                 svc = AIConfigService(db)
                 config = svc.resolve_llm_config(

@@ -210,7 +210,7 @@ export default function MembersPage() {
 
   const fetchCatalog = useCallback(async () => {
     try {
-      const res = await apiFetch("/admin/connector-hub/catalog");
+      const res = await apiFetch("/admin/integrations/catalog");
       if (res.ok) setConnectorCatalog(await res.json());
     } catch {
       // best effort
@@ -352,7 +352,7 @@ export default function MembersPage() {
   async function savePlatformConfig(connectorId: string) {
     setConfigSaving(true);
     try {
-      const res = await apiFetch(`/admin/connector-hub/${connectorId}/config`, {
+      const res = await apiFetch(`/admin/integrations/connectors/${connectorId}/config`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...platformConfig, enabled: true }),
@@ -371,7 +371,7 @@ export default function MembersPage() {
     setConfigTesting(true);
     setConfigTestResult(null);
     try {
-      const res = await apiFetch(`/admin/connector-hub/${connectorId}/test`, {
+      const res = await apiFetch(`/admin/integrations/connectors/${connectorId}/test`, {
         method: "POST",
       });
       if (res.ok) {

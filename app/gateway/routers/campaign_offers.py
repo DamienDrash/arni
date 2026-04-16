@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import AuthContext, get_current_user
 from app.core.db import get_db
-from app.core.models import CampaignOffer
+from app.domains.campaigns.models import CampaignOffer
+from app.gateway.campaign_offers_repository import campaign_offers_repository
 
 router = APIRouter(prefix="/admin/campaign-offers", tags=["campaign-offers"])
 
@@ -53,18 +54,17 @@ def _out(o: CampaignOffer) -> dict:
 
 @router.get("")
 def list_offers(user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
-    return [_out(o) for o in db.query(CampaignOffer).filter(
-        CampaignOffer.tenant_id == user.tenant_id
-    ).order_by(CampaignOffer.name).all()]
+    return [_out(o) for o in campaign_offers_repository.list_offers(db, tenant_id=user.tenant_id)]
 
 
 @router.post("", status_code=201)
 def create_offer(body: OfferBody, user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     slug = body.slug.lower().strip().replace(" ", "-")
-    existing = db.query(CampaignOffer).filter(
-        CampaignOffer.tenant_id == user.tenant_id,
-        CampaignOffer.slug == slug,
-    ).first()
+    existing = campaign_offers_repository.get_offer_by_slug(
+        db,
+        tenant_id=user.tenant_id,
+        slug=slug,
+    )
     if existing:
         raise HTTPException(409, f"Angebot mit slug '{slug}' existiert bereits")
     now = datetime.now(timezone.utc)
@@ -79,7 +79,7 @@ def create_offer(body: OfferBody, user: AuthContext = Depends(get_current_user),
         created_at=now,
         updated_at=now,
     )
-    db.add(offer)
+    campaign_offers_repository.add_offer(db, offer=offer)
     db.commit()
     db.refresh(offer)
     return _out(offer)
@@ -87,10 +87,11 @@ def create_offer(body: OfferBody, user: AuthContext = Depends(get_current_user),
 
 @router.patch("/{offer_id}")
 def update_offer(offer_id: int, body: OfferPatch, user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
-    offer = db.query(CampaignOffer).filter(
-        CampaignOffer.id == offer_id,
-        CampaignOffer.tenant_id == user.tenant_id,
-    ).first()
+    offer = campaign_offers_repository.get_offer_by_id(
+        db,
+        tenant_id=user.tenant_id,
+        offer_id=offer_id,
+    )
     if not offer:
         raise HTTPException(404, "Angebot nicht gefunden")
     updates = body.model_dump(exclude_unset=True)
@@ -104,10 +105,11 @@ def update_offer(offer_id: int, body: OfferPatch, user: AuthContext = Depends(ge
 
 @router.delete("/{offer_id}", status_code=204)
 def delete_offer(offer_id: int, user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
-    offer = db.query(CampaignOffer).filter(
-        CampaignOffer.id == offer_id,
-        CampaignOffer.tenant_id == user.tenant_id,
-    ).first()
+    offer = campaign_offers_repository.get_offer_by_id(
+        db,
+        tenant_id=user.tenant_id,
+        offer_id=offer_id,
+    )
     if not offer:
         raise HTTPException(404, "Angebot nicht gefunden")
     db.delete(offer)

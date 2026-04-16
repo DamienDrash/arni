@@ -18,6 +18,7 @@ import hashlib
 import math
 import re
 import secrets
+import threading
 import time
 
 import structlog
@@ -38,8 +39,10 @@ from app.core.auth import (
     require_role,
     verify_password,
 )
-from app.core.db import SessionLocal
-from app.core.models import AuditLog, Tenant, UserAccount
+from app.domains.billing.models import Plan, Subscription
+from app.domains.identity.models import AuditLog, PendingInvitation, Tenant, UserAccount
+from app.shared.db import session_scope
+from app.gateway.auth_repository import auth_repo
 from app.gateway.persistence import persistence
 
 logger = structlog.get_logger()
@@ -298,8 +301,7 @@ def _write_audit(
     target_id: str | None = None,
     details: dict | None = None,
 ) -> None:
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         db.add(
             AuditLog(
                 actor_user_id=actor.user_id if actor else None,
@@ -314,60 +316,79 @@ def _write_audit(
             )
         )
         db.commit()
-    finally:
-        db.close()
+
+
+def _run_background_side_effect(name: str, fn, **context: object) -> None:
+    """Run non-critical side effects outside the request path."""
+    import os
+
+    if os.getenv("ENVIRONMENT") == "testing":
+        logger.debug("auth.side_effect_skipped_in_testing", side_effect=name, **context)
+        return
+
+    def _runner() -> None:
+        try:
+            fn()
+        except Exception as exc:
+            logger.error("auth.side_effect_failed", side_effect=name, error=str(exc), **context)
+
+    threading.Thread(target=_runner, daemon=True, name=f"auth-{name}").start()
 
 
 def _send_verification_email(user: UserAccount, code: str) -> None:
-    """Send verification email in background (non-blocking)."""
-    try:
+    """Schedule verification email delivery outside the request path."""
+    def _send() -> None:
         from app.core.auth_email import render_verification_email, send_auth_email
         from config.settings import Settings
+
         settings = Settings()
         base_url = settings.gateway_public_url or "https://www.ariia.ai"
         verify_url = f"{base_url.rstrip('/')}/verify-email?email={user.email}&code={code}"
         subject, html, plaintext = render_verification_email(user.full_name, code, verify_url)
         send_auth_email(user.email, subject, html, plaintext)
-    except Exception as e:
-        logger.error("auth.verification_email_failed", user_id=user.id, error=str(e))
+
+    _run_background_side_effect("verification-email", _send, user_id=user.id)
 
 
 def _send_password_reset_email(user: UserAccount, code: str) -> None:
-    """Send password reset email."""
-    try:
+    """Schedule password reset email delivery outside the request path."""
+    def _send() -> None:
         from app.core.auth_email import render_password_reset_email, send_auth_email
         from config.settings import Settings
+
         settings = Settings()
         base_url = settings.gateway_public_url or "https://www.ariia.ai"
         reset_url = f"{base_url.rstrip('/')}/reset-password?email={user.email}&code={code}"
         subject, html, plaintext = render_password_reset_email(user.full_name, code, reset_url)
         send_auth_email(user.email, subject, html, plaintext)
-    except Exception as e:
-        logger.error("auth.password_reset_email_failed", user_id=user.id, error=str(e))
+
+    _run_background_side_effect("password-reset-email", _send, user_id=user.id)
 
 
 def _send_welcome_email(user: UserAccount, tenant: Tenant) -> None:
-    """Send welcome email after verification."""
-    try:
+    """Schedule welcome email delivery outside the request path."""
+    def _send() -> None:
         from app.core.auth_email import render_welcome_email, send_auth_email
         from config.settings import Settings
+
         settings = Settings()
         base_url = settings.gateway_public_url or "https://www.ariia.ai"
         login_url = f"{base_url.rstrip('/')}/dashboard"
         subject, html, plaintext = render_welcome_email(user.full_name, tenant.name, login_url)
         send_auth_email(user.email, subject, html, plaintext)
-    except Exception as e:
-        logger.error("auth.welcome_email_failed", user_id=user.id, error=str(e))
+
+    _run_background_side_effect("welcome-email", _send, user_id=user.id, tenant_id=tenant.id)
 
 
 def _send_password_changed_email(user: UserAccount) -> None:
-    """Send password changed notification."""
-    try:
+    """Schedule password changed notification outside the request path."""
+    def _send() -> None:
         from app.core.auth_email import render_password_changed_email, send_auth_email
+
         subject, html, plaintext = render_password_changed_email(user.full_name)
         send_auth_email(user.email, subject, html, plaintext)
-    except Exception as e:
-        logger.error("auth.password_changed_email_failed", user_id=user.id, error=str(e))
+
+    _run_background_side_effect("password-changed-email", _send, user_id=user.id)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -391,19 +412,18 @@ async def register(req: RegisterRequest, request: Request, response: Response) -
             detail="You must accept the Terms of Service and Privacy Policy to register.",
         )
 
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         slug_base = normalize_tenant_slug(req.tenant_slug or req.tenant_name)
         if slug_base in RESERVED_TENANT_SLUGS:
             raise HTTPException(status_code=422, detail="Tenant slug is reserved")
         slug = slug_base
         i = 1
-        while db.query(Tenant).filter(Tenant.slug == slug).first():
+        while auth_repo.tenant_slug_exists(db, slug):
             i += 1
             slug = f"{slug_base}-{i}"
 
         email = _normalize_email(req.email)
-        if db.query(UserAccount).filter(UserAccount.email == email).first():
+        if auth_repo.user_email_exists(db, email):
             raise HTTPException(status_code=409, detail="Email already registered")
 
         now = datetime.now(timezone.utc)
@@ -438,11 +458,10 @@ async def register(req: RegisterRequest, request: Request, response: Response) -
 
         # Seed Trial subscription
         try:
-            from app.core.models import Plan, Subscription as Sub
-            trial_plan = db.query(Plan).filter(Plan.slug == "trial", Plan.is_active.is_(True)).first()
+            trial_plan = auth_repo.get_plan_by_slug(db, "trial")
             if trial_plan:
                 trial_end = now + timedelta(days=14)
-                db.add(Sub(
+                db.add(Subscription(
                     tenant_id=tenant.id,
                     plan_id=trial_plan.id,
                     status="trialing",
@@ -453,9 +472,9 @@ async def register(req: RegisterRequest, request: Request, response: Response) -
                 db.commit()
                 logger.info("tenant.register.trial_started", tenant_id=tenant.id, trial_ends_at=trial_end.isoformat())
             else:
-                starter = db.query(Plan).filter(Plan.slug == "starter", Plan.is_active.is_(True)).first()
+                starter = auth_repo.get_plan_by_slug(db, "starter")
                 if starter:
-                    db.add(Sub(tenant_id=tenant.id, plan_id=starter.id, status="active"))
+                    db.add(Subscription(tenant_id=tenant.id, plan_id=starter.id, status="active"))
                     db.commit()
         except Exception as _sub_err:
             logger.warning("tenant.register.subscription_seed_failed", tenant_id=tenant.id, error=str(_sub_err))
@@ -507,8 +526,6 @@ async def register(req: RegisterRequest, request: Request, response: Response) -
                 "email_verified": False,
             },
         }
-    finally:
-        db.close()
 
 
 @router.post("/verify-email")
@@ -516,10 +533,9 @@ async def verify_email(req: VerifyEmailRequest, request: Request) -> dict:
     """Verify email address with 6-digit code."""
     _check_rate_limit(request, "verify-email", max_requests=5, window_seconds=900)
 
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         email = _normalize_email(req.email)
-        user = db.query(UserAccount).filter(UserAccount.email == email).first()
+        user = auth_repo.get_user_by_email(db, email)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -549,14 +565,12 @@ async def verify_email(req: VerifyEmailRequest, request: Request) -> dict:
         db.commit()
 
         # Send welcome email
-        tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+        tenant = auth_repo.get_tenant_by_id(db, user.tenant_id)
         if tenant:
             _send_welcome_email(user, tenant)
 
         logger.info("auth.email_verified", user_id=user.id)
         return {"verified": True, "message": "Email successfully verified"}
-    finally:
-        db.close()
 
 
 @router.post("/resend-verification")
@@ -564,10 +578,9 @@ async def resend_verification(req: ResendVerificationRequest, request: Request) 
     """Resend email verification code (max 3 per hour)."""
     _check_rate_limit(request, "resend-verification", max_requests=3, window_seconds=3600)
 
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         email = _normalize_email(req.email)
-        user = db.query(UserAccount).filter(UserAccount.email == email).first()
+        user = auth_repo.get_user_by_email(db, email)
 
         # Always return success to prevent email enumeration
         if not user or user.email_verified:
@@ -582,8 +595,6 @@ async def resend_verification(req: ResendVerificationRequest, request: Request) 
         _send_verification_email(user, code)
 
         return {"message": "If the email exists and is not yet verified, a new code has been sent."}
-    finally:
-        db.close()
 
 
 @router.post("/login")
@@ -591,10 +602,9 @@ async def login(req: LoginRequest, request: Request, response: Response) -> dict
     # Rate limit: 10 login attempts per IP per 15 minutes
     _check_rate_limit(request, "login", max_requests=10, window_seconds=900)
 
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         email = _normalize_email(req.email)
-        user = db.query(UserAccount).filter(UserAccount.email == email).first()
+        user = auth_repo.get_user_by_email(db, email)
 
         if not user or not user.is_active:
             raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -607,7 +617,7 @@ async def login(req: LoginRequest, request: Request, response: Response) -> dict
             _record_failed_login(db, user)
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
-        tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+        tenant = auth_repo.get_tenant_by_id(db, user.tenant_id)
         if not tenant or not tenant.is_active:
             raise HTTPException(status_code=401, detail="Tenant inactive")
 
@@ -673,8 +683,6 @@ async def login(req: LoginRequest, request: Request, response: Response) -> dict
                 "mfa_enabled": bool(user.mfa_enabled),
             },
         }
-    finally:
-        db.close()
 
 
 @router.post("/refresh")
@@ -706,13 +714,12 @@ async def refresh_token_endpoint(
     user_id = int(payload["sub"])
     tenant_id = int(payload["tenant_id"])
 
-    db = SessionLocal()
-    try:
-        user = db.query(UserAccount).filter(UserAccount.id == user_id, UserAccount.is_active.is_(True)).first()
+    with session_scope() as db:
+        user = auth_repo.get_active_user_by_id(db, user_id)
         if not user:
             raise HTTPException(status_code=401, detail="User not found or inactive")
 
-        tenant = db.query(Tenant).filter(Tenant.id == tenant_id, Tenant.is_active.is_(True)).first()
+        tenant = auth_repo.get_active_tenant_by_id(db, tenant_id)
         if not tenant:
             raise HTTPException(status_code=401, detail="Tenant not found or inactive")
 
@@ -757,8 +764,6 @@ async def refresh_token_endpoint(
                 "mfa_enabled": bool(user.mfa_enabled),
             },
         }
-    finally:
-        db.close()
 
 
 @router.post("/forgot-password")
@@ -766,10 +771,9 @@ async def forgot_password(req: ForgotPasswordRequest, request: Request) -> dict:
     """Send password reset email. Always returns 200 to prevent email enumeration."""
     _check_rate_limit(request, "forgot-password", max_requests=3, window_seconds=3600)
 
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         email = _normalize_email(req.email)
-        user = db.query(UserAccount).filter(UserAccount.email == email).first()
+        user = auth_repo.get_user_by_email(db, email)
 
         if user and user.is_active:
             code = _generate_verification_code()
@@ -781,8 +785,6 @@ async def forgot_password(req: ForgotPasswordRequest, request: Request) -> dict:
 
         # Always return same response
         return {"message": "If the email is registered, a password reset code has been sent."}
-    finally:
-        db.close()
 
 
 @router.post("/reset-password")
@@ -795,10 +797,9 @@ async def reset_password(req: ResetPasswordRequest, request: Request) -> dict:
     if pw_error:
         raise HTTPException(status_code=422, detail=pw_error)
 
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         email = _normalize_email(req.email)
-        user = db.query(UserAccount).filter(UserAccount.email == email).first()
+        user = auth_repo.get_user_by_email(db, email)
 
         if not user or not user.is_active:
             raise HTTPException(status_code=400, detail="Invalid reset request")
@@ -840,8 +841,6 @@ async def reset_password(req: ResetPasswordRequest, request: Request) -> dict:
 
         logger.info("auth.password_reset.success", user_id=user.id)
         return {"message": "Password successfully reset. Please log in with your new password."}
-    finally:
-        db.close()
 
 
 @router.post("/change-password")
@@ -853,9 +852,8 @@ async def change_password(req: ChangePasswordRequest, request: Request, user: Au
     if pw_error:
         raise HTTPException(status_code=422, detail=pw_error)
 
-    db = SessionLocal()
-    try:
-        db_user = db.query(UserAccount).filter(UserAccount.id == user.user_id).first()
+    with session_scope() as db:
+        db_user = auth_repo.get_user_by_id(db, user.user_id)
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -873,8 +871,6 @@ async def change_password(req: ChangePasswordRequest, request: Request, user: Au
 
         logger.info("auth.password_changed", user_id=user.user_id)
         return {"message": "Password successfully changed."}
-    finally:
-        db.close()
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -889,10 +885,9 @@ async def logout(response: Response) -> Response:
 
 @router.get("/me")
 async def me(user: AuthContext = Depends(get_current_user)) -> dict:
-    db = SessionLocal()
-    try:
-        db_user = db.query(UserAccount).filter(UserAccount.id == user.user_id).first()
-        tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    with session_scope() as db:
+        db_user = auth_repo.get_user_by_id(db, user.user_id)
+        tenant = auth_repo.get_tenant_by_id(db, user.tenant_id)
         result = {
             "id": user.user_id,
             "email": user.email,
@@ -923,15 +918,12 @@ async def me(user: AuthContext = Depends(get_current_user)) -> dict:
                 "started_at": getattr(user, "impersonation_started_at", None),
             }
         return result
-    finally:
-        db.close()
 
 
 @router.get("/profile-settings")
 async def get_profile_settings(user: AuthContext = Depends(get_current_user)) -> dict:
-    db = SessionLocal()
-    try:
-        db_user = db.query(UserAccount).filter(UserAccount.id == user.user_id).first()
+    with session_scope() as db:
+        db_user = auth_repo.get_user_by_id(db, user.user_id)
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
         return {
@@ -945,14 +937,11 @@ async def get_profile_settings(user: AuthContext = Depends(get_current_user)) ->
             "email_verified": bool(db_user.email_verified),
             "mfa_enabled": bool(db_user.mfa_enabled),
         }
-    finally:
-        db.close()
 
 
 @router.put("/profile-settings")
 async def update_profile_settings(req: ProfileSettingsUpdate, user: AuthContext = Depends(get_current_user)) -> dict:
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         db_user = db.query(UserAccount).filter(UserAccount.id == user.user_id).first()
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -983,8 +972,6 @@ async def update_profile_settings(req: ProfileSettingsUpdate, user: AuthContext 
             db.commit()
             _send_password_changed_email(db_user)
         return {"ok": True}
-    finally:
-        db.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -993,12 +980,11 @@ async def update_profile_settings(req: ProfileSettingsUpdate, user: AuthContext 
 
 @router.get("/users")
 async def list_users(user: AuthContext = Depends(get_current_user)) -> list[dict]:
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         if user.role == "system_admin":
-            users = db.query(UserAccount).all()
+            users = auth_repo.list_users_for_scope(db)
         else:
-            users = db.query(UserAccount).filter(UserAccount.tenant_id == user.tenant_id).all()
+            users = auth_repo.list_users_for_scope(db, user.tenant_id)
         result = []
         for u in users:
             result.append({
@@ -1015,8 +1001,6 @@ async def list_users(user: AuthContext = Depends(get_current_user)) -> list[dict
                 "last_login_at": _safe_iso(getattr(u, "last_login_at", None)),
             })
         return result
-    finally:
-        db.close()
 
 
 @router.post("/users")
@@ -1028,17 +1012,25 @@ async def create_user(req: CreateUserRequest, user: AuthContext = Depends(get_cu
     if pw_error:
         raise HTTPException(status_code=422, detail=pw_error)
 
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         email = _normalize_email(req.email)
-        if db.query(UserAccount).filter(UserAccount.email == email).first():
+        if auth_repo.user_email_exists(db, email):
             raise HTTPException(status_code=409, detail="Email already registered")
 
-        target_tenant_id = req.tenant_id if (user.role == "system_admin" and req.tenant_id) else user.tenant_id
         allowed_roles = {"tenant_admin", "tenant_user"}
         if user.role == "system_admin":
             allowed_roles.add("system_admin")
-        role = req.role if req.role in allowed_roles else "tenant_user"
+        if req.role not in allowed_roles:
+            raise HTTPException(status_code=403, detail="Role not allowed")
+
+        role = req.role
+        if user.role == "system_admin":
+            if role != "system_admin" and req.tenant_id is None:
+                raise HTTPException(status_code=422, detail="tenant_id is required for non-system roles")
+            if role == "system_admin" and req.tenant_id not in (None, user.tenant_id):
+                raise HTTPException(status_code=422, detail="system_admin must belong to the system tenant")
+
+        target_tenant_id = req.tenant_id if (user.role == "system_admin" and req.tenant_id is not None) else user.tenant_id
 
         new_user = UserAccount(
             tenant_id=target_tenant_id,
@@ -1070,17 +1062,14 @@ async def create_user(req: CreateUserRequest, user: AuthContext = Depends(get_cu
             "is_active": new_user.is_active,
             "tenant_id": new_user.tenant_id,
         }
-    finally:
-        db.close()
 
 
 @router.put("/users/{user_id}")
 async def update_user(user_id: int, req: UpdateUserRequest, user: AuthContext = Depends(get_current_user)) -> dict:
     if user.role not in ("system_admin", "tenant_admin"):
         raise HTTPException(status_code=403, detail="Admin role required")
-    db = SessionLocal()
-    try:
-        target = db.query(UserAccount).filter(UserAccount.id == user_id).first()
+    with session_scope() as db:
+        target = auth_repo.get_user_by_id(db, user_id)
         if not target:
             raise HTTPException(status_code=404, detail="User not found")
         if user.role == "tenant_admin" and target.tenant_id != user.tenant_id:
@@ -1132,8 +1121,6 @@ async def update_user(user_id: int, req: UpdateUserRequest, user: AuthContext = 
             "tenant_id": target.tenant_id,
             "email_verified": bool(target.email_verified),
         }
-    finally:
-        db.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1144,12 +1131,9 @@ async def update_user(user_id: int, req: UpdateUserRequest, user: AuthContext = 
 async def list_tenants(user: AuthContext = Depends(get_current_user)) -> list[dict]:
     if user.role != "system_admin":
         raise HTTPException(status_code=403, detail="System admin required")
-    db = SessionLocal()
-    try:
-        tenants = db.query(Tenant).all()
+    with session_scope() as db:
+        tenants = auth_repo.list_tenants(db)
         return [{"id": t.id, "slug": t.slug, "name": t.name, "is_active": t.is_active, "created_at": _safe_iso(t.created_at)} for t in tenants]
-    finally:
-        db.close()
 
 
 class CreateTenantRequest(BaseModel):
@@ -1160,14 +1144,13 @@ class CreateTenantRequest(BaseModel):
 async def create_tenant(req: CreateTenantRequest, user: AuthContext = Depends(get_current_user)) -> dict:
     if user.role != "system_admin":
         raise HTTPException(status_code=403, detail="System admin required")
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         slug_base = normalize_tenant_slug(req.slug or req.name)
         if slug_base in RESERVED_TENANT_SLUGS:
             raise HTTPException(status_code=422, detail="Tenant slug is reserved")
         slug = slug_base
         i = 1
-        while db.query(Tenant).filter(Tenant.slug == slug).first():
+        while auth_repo.tenant_slug_exists(db, slug):
             i += 1
             slug = f"{slug_base}-{i}"
         tenant = Tenant(name=req.name.strip(), slug=slug, is_active=True)
@@ -1183,17 +1166,14 @@ async def create_tenant(req: CreateTenantRequest, user: AuthContext = Depends(ge
             details={"name": tenant.name, "slug": tenant.slug},
         )
         return {"id": tenant.id, "slug": tenant.slug, "name": tenant.name, "is_active": tenant.is_active}
-    finally:
-        db.close()
 
 
 @router.put("/tenants/{tenant_id}")
 async def update_tenant(tenant_id: int, req: UpdateTenantRequest, user: AuthContext = Depends(get_current_user)) -> dict:
     if user.role != "system_admin":
         raise HTTPException(status_code=403, detail="System admin required")
-    db = SessionLocal()
-    try:
-        tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    with session_scope() as db:
+        tenant = auth_repo.get_tenant_by_id(db, tenant_id)
         if not tenant:
             raise HTTPException(status_code=404, detail="Tenant not found")
         changes = {}
@@ -1204,8 +1184,7 @@ async def update_tenant(tenant_id: int, req: UpdateTenantRequest, user: AuthCont
             new_slug = normalize_tenant_slug(req.slug)
             if new_slug in RESERVED_TENANT_SLUGS:
                 raise HTTPException(status_code=422, detail="Slug reserved")
-            existing = db.query(Tenant).filter(Tenant.slug == new_slug, Tenant.id != tenant_id).first()
-            if existing:
+            if auth_repo.tenant_slug_exists(db, new_slug, exclude_id=tenant_id):
                 raise HTTPException(status_code=409, detail="Slug already in use")
             tenant.slug = new_slug
             changes["slug"] = new_slug
@@ -1222,8 +1201,6 @@ async def update_tenant(tenant_id: int, req: UpdateTenantRequest, user: AuthCont
             details=changes,
         )
         return {"id": tenant.id, "slug": tenant.slug, "name": tenant.name, "is_active": tenant.is_active}
-    finally:
-        db.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1247,27 +1224,24 @@ async def invite_team_member(
 
     _check_rate_limit(request, "invite", max_requests=20, window_seconds=3600)
 
-    from app.core.models import PendingInvitation
-
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         email = _normalize_email(req.email)
 
         # Check if user already exists in this tenant
-        existing_user = db.query(UserAccount).filter(
-            UserAccount.email == email,
-            UserAccount.tenant_id == user.tenant_id,
-        ).first()
+        existing_user = auth_repo.get_user_by_email(db, email)
+        if existing_user and existing_user.tenant_id != user.tenant_id:
+            existing_user = None
         if existing_user:
             raise HTTPException(status_code=409, detail="User with this email already exists in your organization")
 
         # Check for pending invitation
-        pending = db.query(PendingInvitation).filter(
-            PendingInvitation.email == email,
-            PendingInvitation.tenant_id == user.tenant_id,
-            PendingInvitation.accepted_at.is_(None),
-            PendingInvitation.expires_at > datetime.now(timezone.utc),
-        ).first()
+        pending = auth_repo.get_pending_invitation(
+            db,
+            tenant_id=user.tenant_id,
+            email=email,
+            only_unaccepted=True,
+            only_unexpired=True,
+        )
         if pending:
             raise HTTPException(status_code=409, detail="An invitation for this email is already pending")
 
@@ -1298,11 +1272,11 @@ async def invite_team_member(
             invite_url = f"{base_url.rstrip('/')}/accept-invitation?token={token}"
 
             inviter_name = user.email
-            db_user = db.query(UserAccount).filter(UserAccount.id == user.user_id).first()
+            db_user = auth_repo.get_user_by_id(db, user.user_id)
             if db_user and db_user.full_name:
                 inviter_name = db_user.full_name
 
-            tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+            tenant = auth_repo.get_tenant_by_id(db, user.tenant_id)
             tenant_name = tenant.name if tenant else "your organization"
 
             subject, html, plaintext = render_team_invitation_email(
@@ -1332,8 +1306,6 @@ async def invite_team_member(
             "expires_at": _safe_iso(invitation.expires_at),
             "message": "Invitation sent successfully",
         }
-    finally:
-        db.close()
 
 
 @router.get("/invitations")
@@ -1342,17 +1314,12 @@ async def list_invitations(user: AuthContext = Depends(get_current_user)) -> lis
     if user.role not in ("system_admin", "tenant_admin"):
         raise HTTPException(status_code=403, detail="Admin role required")
 
-    from app.core.models import PendingInvitation
-
-    db = SessionLocal()
-    try:
-        invitations = db.query(PendingInvitation).filter(
-            PendingInvitation.tenant_id == user.tenant_id,
-        ).order_by(PendingInvitation.created_at.desc()).all()
+    with session_scope() as db:
+        invitations = auth_repo.list_invitations_for_tenant(db, user.tenant_id)
 
         result = []
         for inv in invitations:
-            inviter = db.query(UserAccount).filter(UserAccount.id == inv.invited_by).first() if inv.invited_by else None
+            inviter = auth_repo.get_user_by_id(db, inv.invited_by) if inv.invited_by else None
             result.append({
                 "id": inv.id,
                 "email": inv.email,
@@ -1367,8 +1334,6 @@ async def list_invitations(user: AuthContext = Depends(get_current_user)) -> lis
                 ),
             })
         return result
-    finally:
-        db.close()
 
 
 @router.delete("/invitations/{invitation_id}")
@@ -1380,14 +1345,12 @@ async def revoke_invitation(
     if user.role not in ("system_admin", "tenant_admin"):
         raise HTTPException(status_code=403, detail="Admin role required")
 
-    from app.core.models import PendingInvitation
-
-    db = SessionLocal()
-    try:
-        invitation = db.query(PendingInvitation).filter(
-            PendingInvitation.id == invitation_id,
-            PendingInvitation.tenant_id == user.tenant_id,
-        ).first()
+    with session_scope() as db:
+        invitation = auth_repo.get_pending_invitation(
+            db,
+            invitation_id=invitation_id,
+            tenant_id=user.tenant_id,
+        )
         if not invitation:
             raise HTTPException(status_code=404, detail="Invitation not found")
         if invitation.accepted_at:
@@ -1406,8 +1369,6 @@ async def revoke_invitation(
         )
 
         return {"message": "Invitation revoked"}
-    finally:
-        db.close()
 
 
 @router.post("/accept-invitation")
@@ -1432,15 +1393,13 @@ async def accept_invitation(
     if pw_error:
         raise HTTPException(status_code=422, detail=pw_error)
 
-    from app.core.models import PendingInvitation
-
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         token_hash = _hash_token(token)
-        invitation = db.query(PendingInvitation).filter(
-            PendingInvitation.token == token_hash,
-            PendingInvitation.accepted_at.is_(None),
-        ).first()
+        invitation = auth_repo.get_pending_invitation(
+            db,
+            token_hash=token_hash,
+            only_unaccepted=True,
+        )
 
         if not invitation:
             raise HTTPException(status_code=404, detail="Invalid or expired invitation")
@@ -1452,10 +1411,10 @@ async def accept_invitation(
             raise HTTPException(status_code=410, detail="This invitation has expired")
 
         # Check if email already registered
-        if db.query(UserAccount).filter(UserAccount.email == invitation.email).first():
+        if auth_repo.user_email_exists(db, invitation.email):
             raise HTTPException(status_code=409, detail="An account with this email already exists")
 
-        tenant = db.query(Tenant).filter(Tenant.id == invitation.tenant_id, Tenant.is_active.is_(True)).first()
+        tenant = auth_repo.get_active_tenant_by_id(db, invitation.tenant_id)
         if not tenant:
             raise HTTPException(status_code=404, detail="Organization not found or inactive")
 
@@ -1537,8 +1496,6 @@ async def accept_invitation(
                 "email_verified": True,
             },
         }
-    finally:
-        db.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1549,8 +1506,7 @@ async def accept_invitation(
 async def list_audit_logs(limit: int = 200, user: AuthContext = Depends(get_current_user)) -> list[dict]:
     if user.role != "system_admin":
         raise HTTPException(status_code=403, detail="System admin required")
-    db = SessionLocal()
-    try:
+    with session_scope() as db:
         logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit).all()
         result = []
         for log in logs:
@@ -1568,8 +1524,6 @@ async def list_audit_logs(limit: int = 200, user: AuthContext = Depends(get_curr
             }
             result.append(entry)
         return result
-    finally:
-        db.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1587,12 +1541,11 @@ async def start_impersonation(
         raise HTTPException(status_code=403, detail="System admin required")
     if user.user_id == user_id:
         raise HTTPException(status_code=422, detail="Cannot impersonate yourself")
-    db = SessionLocal()
-    try:
-        target = db.query(UserAccount).filter(UserAccount.id == user_id).first()
+    with session_scope() as db:
+        target = auth_repo.get_user_by_id(db, user_id)
         if not target or not target.is_active:
             raise HTTPException(status_code=404, detail="Target user not found or inactive")
-        tenant = db.query(Tenant).filter(Tenant.id == target.tenant_id).first()
+        tenant = auth_repo.get_tenant_by_id(db, target.tenant_id)
         if not tenant or not tenant.is_active:
             raise HTTPException(status_code=404, detail="Target tenant not found or inactive")
         token = create_access_token(
@@ -1648,8 +1601,6 @@ async def start_impersonation(
             },
             "expires_in_seconds": IMPERSONATION_TTL_SECONDS,
         }
-    finally:
-        db.close()
 
 
 @router.post("/impersonation/stop")
@@ -1657,14 +1608,13 @@ async def stop_impersonation(response: Response, user: AuthContext = Depends(get
     impersonator_id = getattr(user, "impersonator_user_id", None)
     if not impersonator_id:
         raise HTTPException(status_code=400, detail="Not currently impersonating")
-    db = SessionLocal()
-    try:
-        admin = db.query(UserAccount).filter(UserAccount.id == impersonator_id).first()
+    with session_scope() as db:
+        admin = auth_repo.get_user_by_id(db, impersonator_id)
         if not admin or not admin.is_active:
             response.delete_cookie(AUTH_COOKIE, path="/")
             response.delete_cookie(CSRF_COOKIE, path="/")
             raise HTTPException(status_code=401, detail="Impersonator account not found")
-        admin_tenant = db.query(Tenant).filter(Tenant.id == admin.tenant_id).first()
+        admin_tenant = auth_repo.get_tenant_by_id(db, admin.tenant_id)
         if not admin_tenant:
             raise HTTPException(status_code=500, detail="Impersonator tenant not found")
         token = create_access_token(
@@ -1698,8 +1648,6 @@ async def stop_impersonation(response: Response, user: AuthContext = Depends(get
                 "tenant_slug": admin_tenant.slug,
             },
         }
-    finally:
-        db.close()
 
 
 
@@ -1734,9 +1682,8 @@ async def mfa_setup(
 
     from app.core.mfa import generate_totp_secret, get_totp_uri, encrypt_secret
 
-    db = SessionLocal()
-    try:
-        db_user = db.query(UserAccount).filter(UserAccount.id == user.user_id).first()
+    with session_scope() as db:
+        db_user = auth_repo.get_user_by_id(db, user.user_id)
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -1766,8 +1713,6 @@ async def mfa_setup(
             "uri": uri,
             "message": "Scan the QR code with your authenticator app, then verify with a code.",
         }
-    finally:
-        db.close()
 
 
 @router.post("/mfa/verify-setup")
@@ -1781,9 +1726,8 @@ async def mfa_verify_setup(
 
     from app.core.mfa import verify_totp, decrypt_secret, generate_backup_codes, hash_backup_codes
 
-    db = SessionLocal()
-    try:
-        db_user = db.query(UserAccount).filter(UserAccount.id == user.user_id).first()
+    with session_scope() as db:
+        db_user = auth_repo.get_user_by_id(db, user.user_id)
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -1840,8 +1784,6 @@ async def mfa_verify_setup(
             "backup_codes": backup_codes,
             "message": "MFA is now enabled. Save these backup codes securely – they won't be shown again.",
         }
-    finally:
-        db.close()
 
 
 @router.post("/mfa/verify")
@@ -1855,12 +1797,8 @@ async def mfa_verify_login(
 
     from app.core.mfa import verify_totp, decrypt_secret, verify_backup_code
 
-    db = SessionLocal()
-    try:
-        user = db.query(UserAccount).filter(
-            UserAccount.id == req.user_id,
-            UserAccount.is_active.is_(True),
-        ).first()
+    with session_scope() as db:
+        user = auth_repo.get_active_user_by_id(db, req.user_id)
         if not user:
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -1916,7 +1854,7 @@ async def mfa_verify_login(
         db.commit()
 
         # Issue tokens
-        tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+        tenant = auth_repo.get_tenant_by_id(db, user.tenant_id)
         if not tenant or not tenant.is_active:
             raise HTTPException(status_code=401, detail="Tenant inactive")
 
@@ -1959,8 +1897,6 @@ async def mfa_verify_login(
                 "mfa_enabled": True,
             },
         }
-    finally:
-        db.close()
 
 
 @router.post("/mfa/disable")
@@ -1974,9 +1910,8 @@ async def mfa_disable(
 
     from app.core.mfa import verify_totp, decrypt_secret
 
-    db = SessionLocal()
-    try:
-        db_user = db.query(UserAccount).filter(UserAccount.id == user.user_id).first()
+    with session_scope() as db:
+        db_user = auth_repo.get_user_by_id(db, user.user_id)
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -2012,8 +1947,6 @@ async def mfa_disable(
 
         logger.info("auth.mfa.disabled", user_id=user.user_id)
         return {"mfa_enabled": False, "message": "Two-factor authentication has been disabled."}
-    finally:
-        db.close()
 
 
 @router.post("/mfa/regenerate-backup-codes")
@@ -2026,9 +1959,8 @@ async def mfa_regenerate_backup_codes(
 
     from app.core.mfa import generate_backup_codes, hash_backup_codes
 
-    db = SessionLocal()
-    try:
-        db_user = db.query(UserAccount).filter(UserAccount.id == user.user_id).first()
+    with session_scope() as db:
+        db_user = auth_repo.get_user_by_id(db, user.user_id)
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -2046,5 +1978,3 @@ async def mfa_regenerate_backup_codes(
             "backup_codes": backup_codes,
             "message": "New backup codes generated. Save them securely – the old codes are no longer valid.",
         }
-    finally:
-        db.close()

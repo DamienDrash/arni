@@ -1,550 +1,113 @@
-"""ARIIA v2.0 – Hybrid Gateway (Project Titan).
+"""Legacy gateway entrypoint kept as a thin compatibility wrapper.
 
-@BACKEND: High-End SaaS Architecture (Phase 1, Refactored)
-Decoupled entry point. Logic moved to app/gateway/routers/.
-Security: HMAC verification, rate limiting, input sanitization.
+Epic 4 moves application assembly to `app.edge.app`. This module now preserves
+legacy imports (`app.gateway.main:app`) while keeping only the small set of
+compatibility exports and routes that existing tests and integrations still use.
 """
 
-import asyncio
-import os
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from __future__ import annotations
+
 from typing import Any
 
-import structlog
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-
-from app.gateway.dependencies import redis_bus
-from app.gateway.routers import webhooks, websocket
-from app.gateway.routers.billing import router as billing_router
-
-# V2 Billing Router (Refactored)
-try:
-    from app.billing.router import router as billing_v2_router
-    from app.billing.admin_router import router as billing_v2_admin_router
-    _billing_v2_available = True
-except Exception as _bv2_err:
-    _billing_v2_available = False
-    import sys; print(f"[WARN] billing_v2 import skipped: {_bv2_err}", file=sys.stderr)
-from app.gateway.routers.llm_costs import router as llm_costs_router
-from app.gateway.admin import router as admin_router
-from app.core.instrumentation import setup_instrumentation
-from app.core.auth import ensure_default_tenant_and_admin
-from app.core.db import run_migrations
-from app.core.security import SecurityMiddleware, get_rate_limiter
-from config.settings import get_settings
-
-logger = structlog.get_logger()
-settings = get_settings()
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from fastapi import Header, HTTPException
+from app.edge.app import create_app
+from app.edge.health import build_legacy_health
+from app.core.module_registry import registry
+from app.gateway.dependencies import active_websockets
+from app.gateway.routers.voice import router as legacy_voice_router
+from app.gateway.routers.webhooks import webhook_telegram_tenant
+from app.gateway.routers.websocket import router as websocket_router
+from app.gateway.utils import broadcast_to_admins
+from config.settings import Settings, get_settings
 
 
-def _enforce_startup_guards() -> None:
-    weak_auth = settings.auth_secret in {"", "change-me-long-random-secret", "changeme", "password123"}
-    weak_acp = settings.acp_secret in {"", "ariia-acp-secret-changeme", "changeme", "password123"}
-    if weak_auth or weak_acp:
-        if settings.is_production:
-            raise RuntimeError("Refusing startup: weak secrets detected")
-        else:
-            logger.warning("startup.weak_secrets_detected", msg="Change secrets before production deployment")
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan: connect Redis on startup, disconnect on shutdown."""
-    background_tasks = []
-    _enforce_startup_guards()
-    ensure_default_tenant_and_admin()
-    run_migrations()
-    os.makedirs(os.path.join(BASE_DIR, "data", "knowledge", "members"), exist_ok=True)
-    
-    # Seed billing plans
-    try:
-        from app.core.feature_gates import seed_plans
-        seed_plans()
-    except Exception as _e:
-        logger.warning("ariia.gateway.billing_seed_skipped", error=str(_e))
-
-    # Seed V2 billing features
-    try:
-        from app.billing.seed import seed_v2_features
-        from app.core.db import SessionLocal as _BillingSeedDB
-        _billing_db = _BillingSeedDB()
-        try:
-            seed_v2_features(_billing_db)
-        finally:
-            _billing_db.close()
-    except Exception as _bv2_seed_err:
-        logger.warning("ariia.gateway.billing_v2_seed_skipped", error=str(_bv2_seed_err))
-
-    # Seed AI Config (providers, agents, prompts)
-    try:
-        from app.ai_config.seed import seed_ai_config
-        from app.core.db import SessionLocal as _AISeedDB
-        _ai_db = _AISeedDB()
-        try:
-            seed_ai_config(_ai_db)
-        finally:
-            _ai_db.close()
-    except Exception as _ai_err:
-        logger.warning("ariia.gateway.ai_config_seed_skipped", error=str(_ai_err))
-
-    # Seed AI Image Providers (DALL-E, Stability AI)
-    try:
-        from app.ai_config.image_seed import seed_image_providers
-        from app.core.db import SessionLocal as _ImgSeedDB
-        _img_db = _ImgSeedDB()
-        try:
-            seed_image_providers(_img_db)
-        finally:
-            _img_db.close()
-    except Exception as _img_err:
-        logger.warning("ariia.gateway.image_providers_seed_skipped", error=str(_img_err))
-
-    # Seed Image Credit Packs and Plan Credits
-    try:
-        from app.billing.credit_seed import seed_credit_packs, seed_plan_credits
-        from app.core.db import SessionLocal as _CreditSeedDB
-        _credit_db = _CreditSeedDB()
-        try:
-            seed_credit_packs(_credit_db)
-            seed_plan_credits(_credit_db)
-        finally:
-            _credit_db.close()
-    except Exception as _credit_err:
-        logger.warning("ariia.gateway.credit_seed_skipped", error=str(_credit_err))
-
-    # Seed Orchestrator Definitions + System Agents & Tools + Integration Definitions + Default Teams
-    try:
-        from app.orchestration.seed import seed_default_orchestrators
-        from app.swarm.registry.seed import seed_system_agents_and_tools
-        from app.platform.seed import seed_integration_definitions, backfill_tenant_integrations, backfill_prompt_settings
-        from app.orchestration.team_seed import backfill_default_teams
-        from app.core.db import SessionLocal as _OrchSeedDB
-        _orch_db = _OrchSeedDB()
-        try:
-            seed_default_orchestrators(_orch_db)
-            seed_system_agents_and_tools(_orch_db)
-            seed_integration_definitions(_orch_db)
-            backfill_tenant_integrations(_orch_db)
-            backfill_prompt_settings(_orch_db)
-            backfill_default_teams(_orch_db)
-        finally:
-            _orch_db.close()
-    except Exception as _orch_err:
-        logger.warning("ariia.gateway.orchestrator_seed_skipped", error=str(_orch_err))
-
-    logger.info("ariia.gateway.startup", version="2.0.0", env=settings.environment)
-    
-    try:
-        await redis_bus.connect()
-    except Exception:
-        logger.warning("ariia.gateway.redis_unavailable", msg="Starting without Redis")
-
-    try:
-        from app.memory.member_memory_analyzer import scheduler_loop
-        background_tasks.append(asyncio.create_task(scheduler_loop()))
-    except Exception as e:
-        logger.warning("ariia.gateway.member_memory_scheduler_skipped", error=str(e))
-        
-    try:
-        from app.integrations.magicline.scheduler import magicline_sync_scheduler_loop
-        background_tasks.append(asyncio.create_task(magicline_sync_scheduler_loop()))
-    except Exception as e:
-        logger.warning("ariia.gateway.magicline_scheduler_skipped", error=str(e))
-
-    # Contact Sync Scheduler (Phase 3) — DEPRECATED: replaced by IntegrationSyncOrchestrator
-    # Kept as fallback; the orchestrator delegates to sync_scheduler internally.
-    try:
-        from app.contacts.sync_scheduler import start_sync_scheduler
-        start_sync_scheduler()
-        logger.info("ariia.gateway.contact_sync_scheduler_started")
-    except Exception as e:
-        logger.warning("ariia.gateway.contact_sync_scheduler_skipped", error=str(e))
-
-    # IntegrationSyncOrchestrator (unified sync scheduling)
-    try:
-        from app.orchestration.sync_orchestrator import get_integration_sync_orchestrator
-        _sync_orch = get_integration_sync_orchestrator()
-        background_tasks.append(asyncio.create_task(_sync_orch.run_forever(interval_seconds=60)))
-        logger.info("ariia.gateway.sync_orchestrator_started")
-    except Exception as e:
-        logger.warning("ariia.gateway.sync_orchestrator_skipped", error=str(e))
-
-    # Data Retention & Maintenance Loop
-    try:
-        from app.core.maintenance import maintenance_loop
-        background_tasks.append(asyncio.create_task(maintenance_loop()))
-    except Exception as e:
-        logger.warning("ariia.gateway.maintenance_loop_skipped", error=str(e))
-
-    # Billing Sync Task (Plans + Addons from Stripe every 15 min)
-    async def billing_sync_loop():
-        from app.core.billing_sync import sync_plans_from_stripe, sync_addons_from_stripe
-        from app.core.db import SessionLocal as _SL
-        while True:
-            try:
-                db = _SL()
-                try:
-                    await sync_plans_from_stripe(db)
-                    await sync_addons_from_stripe(db)
-                finally:
-                    db.close()
-            except Exception as e:
-                logger.error("billing_sync_loop.failed", error=str(e), exc_info=True)
-            await asyncio.sleep(900)  # Retry nach 15 min auch bei Fehler
-    background_tasks.append(asyncio.create_task(billing_sync_loop()))
-
-    # Image Model Sync (weekly — keeps AA leaderboard rankings + fal catalog fresh)
-    async def image_model_sync_loop():
-        from app.ai_config.model_sync_service import run_model_sync
-        from app.core.db import SessionLocal as _SL
-        await asyncio.sleep(300)  # Wait 5min after startup before first sync
-        while True:
-            try:
-                db = _SL()
-                try:
-                    report = await run_model_sync(db)
-                    logger.info(
-                        "image_model_sync.weekly_run",
-                        updated=len(report.get("updated", [])),
-                        new_t2i=len(report.get("new_t2i", [])),
-                        new_edit=len(report.get("new_edit", [])),
-                        fal_missing=len(report.get("fal_missing", [])),
-                    )
-                finally:
-                    db.close()
-            except Exception as _e:
-                logger.warning("image_model_sync.failed", error=str(_e))
-            await asyncio.sleep(7 * 24 * 3600)  # Weekly
-    background_tasks.append(asyncio.create_task(image_model_sync_loop()))
-
-    # Rate Limiter Cleanup Task
-    try:
-        from app.core.security import start_rate_limiter_cleanup
-        background_tasks.append(asyncio.create_task(start_rate_limiter_cleanup()))
-    except Exception as _rlc_err:
-        logger.warning("ariia.gateway.rate_limiter_cleanup_skipped", error=str(_rlc_err))
-
-    # Confirmation Gate TTL Warning Notification Dispatcher
-    try:
-        from app.swarm.lead.notification_dispatcher import poll_pending_notifications
-        background_tasks.append(asyncio.create_task(poll_pending_notifications(redis_bus)))
-    except Exception as _notif_err:
-        logger.warning("ariia.gateway.notification_dispatcher_skipped", error=str(_notif_err))
-
-    yield
-    
-    for task in background_tasks:
-        task.cancel()
-        try:
-            await asyncio.wait_for(asyncio.shield(task), timeout=5.0)
-        except (asyncio.CancelledError, asyncio.TimeoutError):
-            pass
-    await redis_bus.disconnect()
-    logger.info("ariia.gateway.shutdown")
-
-
-app = FastAPI(
-    title="ARIIA Gateway",
-    description="ARIIA – Multi-Tenant AI Agent Gateway (Refactored)",
-    version="2.0.0",
-    lifespan=lifespan,
-)
-
-from app.gateway.persistence import persistence
-from fastapi import FastAPI, Request, Response
-from fastapi.responses import JSONResponse
-
-# --- Maintenance Middleware ---
-@app.middleware("http")
-async def maintenance_middleware(request: Request, call_next):
-    path = request.url.path
-    
-    # 1. Whitelist system, auth, admin and health paths
-    # Admins must always be able to access the dashboard and settings to fix the system.
-    whitelist = ["/health", "/metrics", "/_next", "/static", "/admin", "/auth", "/proxy/admin", "/proxy/auth", "/webhook", "/public"]
-    if any(path.startswith(p) for p in whitelist):
-        return await call_next(request)
-        
-    mode = persistence.get_setting("maintenance_mode", "false")
-    if mode == "true":
-        # 2. Block all other traffic (Public API, Tenant Webhooks etc.)
-        return JSONResponse(
-            status_code=503,
-            content={"detail": "System Maintenance: ARIIA is currently updating. Please try again later."}
+class _LegacySettingsProxy:
+    def __init__(self, base: Settings) -> None:
+        object.__setattr__(self, "_base", base)
+        object.__setattr__(
+            self,
+            "_extra",
+            {
+                "telegram_webhook_secret": "",
+                "meta_app_secret": "",
+                "meta_verify_token": "",
+            },
         )
-            
-    return await call_next(request)
 
-# Setup Security Middleware (Rate Limiting on webhook paths)
-app.add_middleware(SecurityMiddleware)
+    def __getattr__(self, name: str) -> Any:
+        extra = object.__getattribute__(self, "_extra")
+        if name in extra:
+            return extra[name]
+        return getattr(object.__getattribute__(self, "_base"), name)
 
-# Setup Instrumentation
-setup_instrumentation(app)
+    def __setattr__(self, name: str, value: Any) -> None:
+        extra = object.__getattribute__(self, "_extra")
+        if name in extra:
+            extra[name] = value
+            return
+        setattr(object.__getattribute__(self, "_base"), name, value)
 
-# Configure CORS
-origins = [o.strip() for o in settings.cors_allowed_origins.split(",") if o.strip()]
 
-# Validate: wildcard origins + allow_credentials=True is a browser security violation
-if "*" in origins:
-    logger.warning(
-        "ariia.gateway.cors_wildcard_with_credentials",
-        msg="Using '*' in CORS origins with allow_credentials=True is insecure and rejected by browsers. "
-            "Set CORS_ALLOWED_ORIGINS to explicit origins before production deployment.",
-    )
+settings = _LegacySettingsProxy(get_settings())
+app = create_app()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "X-Requested-With"],
-)
-
-# --- Routers ---
-app.include_router(webhooks.router)
-app.include_router(websocket.router)
-from app.gateway.routers import members_crud as _mc
-app.include_router(_mc.router)
-app.include_router(admin_router)
-app.include_router(billing_router, prefix="/admin")
-
-# V2 Billing Routers (under /v2 prefix to coexist with V1 during migration)
-if _billing_v2_available:
-    try:
-        app.include_router(billing_v2_router, prefix="/v2")
-        app.include_router(billing_v2_admin_router, prefix="/v2")
-        logger.info("ariia.gateway.billing_v2_routers_registered")
-    except Exception as _bv2_reg_err:
-        logger.warning("ariia.gateway.billing_v2_registration_failed", error=str(_bv2_reg_err))
-
-# Monitoring Router
-from app.core.instrumentation import router as metrics_router
-app.include_router(metrics_router)
-
-# --- New Routers (PR 2, 3, 4) ---
-from app.gateway.routers import integrations_sync, connector_hub, permissions, platform_ai, plans_admin
-from app.gateway.routers.contact_sync_api import router as contact_sync_router, webhook_router as contact_sync_webhook_router
-from app.gateway.routers import revenue_analytics, tenant_llm, campaigns
-from app.gateway.routers import docker_management
-from app.gateway.routers import smtp_config
-from app.gateway.routers import campaign_templates
-from app.gateway.routers import automations
-from app.gateway.routers import analytics_tracking
-from app.gateway.routers import analytics_api
-from app.gateway.routers import ab_testing_api
-from app.gateway.routers.campaign_webhooks import router as campaign_webhooks_router
-app.include_router(integrations_sync.router)
-app.include_router(connector_hub.router)
-app.include_router(contact_sync_router)
-app.include_router(contact_sync_webhook_router)
-app.include_router(permissions.router)
-app.include_router(platform_ai.router)
-app.include_router(plans_admin.router)
-app.include_router(revenue_analytics.router)
-app.include_router(tenant_llm.router)
-app.include_router(campaigns.router)
-app.include_router(campaigns.v2_campaigns_router)
-app.include_router(campaign_templates.router)
-app.include_router(automations.router)
-app.include_router(analytics_tracking.router)
-app.include_router(analytics_api.router)
-app.include_router(ab_testing_api.router)
-app.include_router(docker_management.router)
-app.include_router(smtp_config.router)
-app.include_router(campaign_webhooks_router)
-
-# --- Orchestrator Manager Admin API ---
-from app.gateway.routers.orchestrators import router as orchestrators_router, tenant_override_router as orchestrators_tenant_router
-app.include_router(orchestrators_router)
-app.include_router(orchestrators_tenant_router)
-
-# --- Agent Teams Admin API ---
-from app.gateway.routers.agent_teams import router as agent_teams_router
-app.include_router(agent_teams_router)
-
-# --- Campaign Offers Admin API ---
-from app.gateway.routers.campaign_offers import router as campaign_offers_router
-app.include_router(campaign_offers_router)
-
-# --- Media & Image Provider Routers ---
-try:
-    from app.gateway.routers.media import router as media_router
-    from app.gateway.routers.image_providers import router as image_providers_router
-    app.include_router(media_router)
-    app.include_router(image_providers_router)
-except Exception as _media_err:
-    logger.warning("ariia.gateway.media_routers_skipped", error=str(_media_err))
-
-# --- Integration Registry API (Phase 2) ---
-from app.platform.api.integrations import router as integration_registry_router
-app.include_router(integration_registry_router)
-
-# --- Phase 5: Enterprise Features & Self-Service ---
-from app.platform.api.tenant_portal import router as tenant_portal_router
-from app.platform.api.marketplace import router as marketplace_router
-from app.platform.api.analytics import router as analytics_router
-app.include_router(tenant_portal_router)
-app.include_router(marketplace_router)
-app.include_router(analytics_router)
-
-# --- Telemetry & Metrics (Phase 5) ---
-try:
-    from app.core.telemetry import get_tracer, get_metrics, TelemetryMiddleware, create_metrics_router
-    _tel_tracer = get_tracer()
-    _tel_metrics = get_metrics()
-    app.add_middleware(TelemetryMiddleware, tracer=_tel_tracer, metrics=_tel_metrics)
-    app.include_router(create_metrics_router(_tel_tracer, _tel_metrics))
-except Exception as _tel_err:
-    logger.warning("ariia.gateway.telemetry_skipped", error=str(_tel_err))
-
-# --- Phase 6: Skalierung & Ökosystem ---
-try:
-    from app.core.sso import create_sso_router
-    app.include_router(create_sso_router())
-except Exception as _sso_err:
-    logger.warning("ariia.gateway.sso_skipped", error=str(_sso_err))
-
-try:
-    from app.platform.api.public_api import create_public_api_router
-    app.include_router(create_public_api_router())
-except Exception as _api_err:
-    logger.warning("ariia.gateway.public_api_skipped", error=str(_api_err))
-
-try:
-    from app.platform.ghost_mode_v2 import create_ghost_mode_v2_router
-    app.include_router(create_ghost_mode_v2_router())
-except Exception as _gm_err:
-    logger.warning("ariia.gateway.ghost_mode_v2_skipped", error=str(_gm_err))
-
-# --- Contacts v2 Router (Refactoring) ---
-try:
-    from app.contacts.router import admin_router as contacts_v2_admin_router
-    from app.contacts.router import router as contacts_v2_router
-    app.include_router(contacts_v2_router)
-    app.include_router(contacts_v2_admin_router)
-except Exception as _contacts_err:
-    logger.warning("ariia.gateway.contacts_v2_skipped", error=str(_contacts_err))
-
-# --- Contact Sync Webhook Handler ---
-try:
-    from app.contacts.webhook_handler import router as contact_webhook_router
-    app.include_router(contact_webhook_router)
-except Exception as _cwhook_err:
-    logger.warning("ariia.gateway.contact_webhooks_skipped", error=str(_cwhook_err))
-
-# --- Chat Admin Router ---
-try:
-    from app.gateway.routers.chats import router as chats_router
-    app.include_router(chats_router)
-except Exception as _chats_err:
-    logger.warning("ariia.gateway.chats_router_skipped", error=str(_chats_err))
-
-# --- Ingestion Router (S1-T4: Upload + SSE Job Status + DLQ) ---
-try:
-    from app.gateway.routers.ingestion import router as ingestion_router
-    app.include_router(ingestion_router, prefix="/admin")
-except Exception as _ingestion_err:
-    logger.warning("ariia.gateway.ingestion_router_skipped", error=str(_ingestion_err))
-
-# --- Member Memory Admin Router ---
-try:
-    from app.gateway.routers.member_memory_admin import router as member_memory_router
-    app.include_router(member_memory_router)
-except Exception as _mm_err:
-    logger.warning("ariia.gateway.member_memory_router_skipped", error=str(_mm_err))
-
-# --- Member Feedback ---
-from app.gateway.routers.feedback import router as feedback_router
-app.include_router(feedback_router)
-
-# --- Contact Consent (DSGVO) ---
-from app.gateway.routers.consent import router as consent_router
-app.include_router(consent_router)
-
-# --- Public Subscribe (no auth) ---
-from app.gateway.routers.public_subscribe import router as public_subscribe_router
-app.include_router(public_subscribe_router)
-
-# --- AI Config Management Router (Refactored) ---
-try:
-    from app.ai_config.router import admin_router as ai_config_admin_router, tenant_router as ai_config_tenant_router
-    from app.ai_config.observability import admin_obs_router as ai_obs_admin_router, tenant_obs_router as ai_obs_tenant_router
-    app.include_router(ai_config_admin_router)
-    app.include_router(ai_config_tenant_router)
-    app.include_router(ai_obs_admin_router)
-    app.include_router(ai_obs_tenant_router)
-except Exception as _ai_cfg_err:
-    logger.warning("ariia.gateway.ai_config_router_skipped", error=str(_ai_cfg_err))
-
-# --- Swarm v3 Admin Router ---
-try:
-    from app.gateway.routers.swarm_admin import router as swarm_admin_router
-    app.include_router(swarm_admin_router)
-except Exception as _swarm_err:
-    logger.warning("ariia.gateway.swarm_admin_router_skipped", error=str(_swarm_err))
-
-# --- ACP Router ---
-from app.acp.server import router as acp_router
-app.include_router(acp_router)
-
-# --- Auth Router ---
-from app.gateway.auth import router as auth_router
-app.include_router(auth_router)
-app.include_router(llm_costs_router, prefix="/admin")
-
-# --- Memory Platform Router ---
-from app.memory_platform.api import router as memory_platform_router
-app.include_router(memory_platform_router)
-
-# --- Static Media Files ---
-try:
-    _media_root = os.path.join(BASE_DIR, "data", "media", "tenants")
-    os.makedirs(_media_root, exist_ok=True)
-    app.mount("/media/tenants", StaticFiles(directory=_media_root), name="media_tenants")
-except Exception as _static_err:
-    logger.warning("ariia.gateway.static_media_mount_skipped", error=str(_static_err))
-
-# --- Compatibility exports expected by tests and legacy code ---
 
 class _WhatsAppVerifier:
-    """Proxy for WhatsApp HMAC verifier – allows tests to swap the secret at runtime."""
+    """Compatibility proxy for legacy tests that patch the app secret."""
+
     def __init__(self) -> None:
         self._app_secret: str = ""
 
+
 _whatsapp_verifier = _WhatsAppVerifier()
 
-# Re-export for test compatibility
-from app.gateway.dependencies import active_websockets  # noqa: E402, F401
+
+def _has_route(app_instance: Any, path: str) -> bool:
+    return any(getattr(route, "path", None) == path for route in app_instance.routes)
 
 
-async def broadcast_to_admins(message: dict, tenant_id: int | None = None) -> None:
-    """Broadcast a message to all connected admin WebSocket clients."""
-    from app.gateway.dependencies import active_websockets
-    targets: list = []
-    if tenant_id is not None:
-        targets = active_websockets.get(tenant_id, [])
-    else:
-        for ws_list in active_websockets.values():
-            targets.extend(ws_list)
-    for ws in list(targets):
-        try:
-            await ws.send_json(message)
-        except Exception:
-            pass
+def _has_route_on_default_app(path: str) -> bool:
+    return any(getattr(route, "path", None) == path for route in app.routes)
 
 
-# --- Health Check ---
-@app.get("/health")
-async def health_check() -> dict[str, Any]:
-    redis_ok = await redis_bus.health_check()
-    return {
-        "status": "ok" if redis_ok else "degraded",
-        "service": "ariia-gateway",
-        "version": "2.0.0",
-        "redis": "connected" if redis_ok else "disconnected",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
+def _has_active_module(name: str) -> bool:
+    return any(module.name == name for module in registry.get_active_modules())
+
+
+def apply_legacy_compat_routes(app_instance: Any) -> Any:
+    if settings.enable_legacy_ws_control and not _has_route(app_instance, "/ws/control"):
+        app_instance.include_router(websocket_router)
+
+    if (
+        settings.enable_legacy_voice_routes
+        and _has_active_module("voice_pipeline")
+        and not _has_route(app_instance, "/voice/incoming/{tenant_slug}")
+    ):
+        app_instance.include_router(legacy_voice_router)
+
+    if settings.enable_legacy_health_endpoint and not _has_route(app_instance, "/health"):
+        @app_instance.get("/health")
+        async def health_check() -> dict[str, Any]:
+            """Legacy flat health endpoint retained for backwards compatibility."""
+            return await build_legacy_health()
+
+    if settings.enable_legacy_telegram_webhook_alias and not _has_route(app_instance, "/webhook/telegram"):
+        @app_instance.post("/webhook/telegram")
+        async def telegram_webhook_legacy(
+            payload: dict[str, Any],
+            x_telegram_webhook_secret: str | None = Header(default=None, alias="x-telegram-webhook-secret"),
+        ) -> dict[str, str]:
+            """Legacy single-tenant alias retained for existing tests/integrations."""
+            if settings.telegram_webhook_secret:
+                if (x_telegram_webhook_secret or "").strip() != settings.telegram_webhook_secret.strip():
+                    raise HTTPException(status_code=403, detail="Invalid webhook secret")
+            return await webhook_telegram_tenant(
+                tenant_slug="system",
+                payload=payload,
+                x_telegram_webhook_secret=x_telegram_webhook_secret,
+            )
+
+    return app_instance
+
+
+apply_legacy_compat_routes(app)

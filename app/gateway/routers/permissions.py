@@ -17,7 +17,10 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.auth import AuthContext, get_current_user
-from app.core.models import Plan, Subscription, UsageRecord, StudioMember, TenantAddon, AddonDefinition
+from app.core.feature_gates import FeatureGate
+from app.core.module_registry import Capability, RUNTIME_ACTIVE_CAPABILITIES, DORMANT_CAPABILITIES
+from app.domains.billing.models import AddonDefinition, Plan, Subscription, TenantAddon, UsageRecord
+from app.domains.support.models import StudioMember
 
 router = APIRouter(prefix="/admin", tags=["permissions"])
 
@@ -170,6 +173,12 @@ async def get_permissions(
 
     # 2. Active Addons for this tenant
     active_addons = _get_active_addons(db, user.tenant_id) if not is_sys else []
+    gate = FeatureGate(user.tenant_id)
+    capability_values = (
+        sorted(cap.value for cap in Capability)
+        if is_sys
+        else sorted(cap.value for cap in gate.get_capabilities())
+    )
 
     # 3. Build permission response
     if is_sys:
@@ -364,4 +373,7 @@ async def get_permissions(
         "pages": pages_data,
         "addons": active_addons,
         "overage": overage_data,
+        "capabilities": capability_values,
+        "runtime_active_capabilities": sorted(cap.value for cap in RUNTIME_ACTIVE_CAPABILITIES),
+        "dormant_capabilities": sorted(cap.value for cap in DORMANT_CAPABILITIES),
     }

@@ -30,7 +30,7 @@ def _tenant_name(tenant_id: int) -> str:
     """Return the tenant's business name, falling back to an empty string."""
     try:
         from app.gateway.persistence import get_db_session
-        from app.core.models import Tenant
+        from app.domains.identity.models import Tenant
         with get_db_session() as db:
             tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
             return tenant.name if tenant and tenant.name else ""

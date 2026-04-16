@@ -3,6 +3,8 @@ from __future__ import annotations
 import structlog
 from sqlalchemy.orm import Session
 
+from app.domains.billing.models import ImageCreditPack, Plan
+
 logger = structlog.get_logger()
 
 _CREDIT_PACKS = [
@@ -49,7 +51,6 @@ _PLAN_MONTHLY_CREDITS = {
 
 def seed_credit_packs(db: Session) -> None:
     """Idempotently seed credit packs."""
-    from app.core.models import ImageCreditPack
     for data in _CREDIT_PACKS:
         existing = db.query(ImageCreditPack).filter(ImageCreditPack.slug == data["slug"]).first()
         if existing:
@@ -67,7 +68,6 @@ def seed_credit_packs(db: Session) -> None:
 
 def seed_plan_credits(db: Session) -> None:
     """Backfill monthly_image_credits on all plans."""
-    from app.core.models import Plan
     for slug, credits in _PLAN_MONTHLY_CREDITS.items():
         plan = db.query(Plan).filter(Plan.slug == slug).first()
         if plan and getattr(plan, "monthly_image_credits", None) != credits:

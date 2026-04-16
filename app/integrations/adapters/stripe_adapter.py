@@ -24,7 +24,10 @@ from typing import Any
 
 import structlog
 
+from app.domains.billing.models import Plan, Subscription
+from app.domains.identity.models import Tenant
 from app.integrations.adapters.base import AdapterResult, BaseAdapter
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -248,10 +251,7 @@ class StripeAdapter(BaseAdapter):
             return err
 
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import Subscription
-
-            db = SessionLocal()
+            db = open_session()
             try:
                 sub = db.query(Subscription).filter(Subscription.tenant_id == tenant_id).first()
                 if not sub or not sub.stripe_subscription_id:
@@ -338,10 +338,7 @@ class StripeAdapter(BaseAdapter):
     async def _get_subscription_status(self, tenant_id: int, **kwargs: Any) -> AdapterResult:
         """Get the current subscription status for a tenant."""
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import Subscription, Plan
-
-            db = SessionLocal()
+            db = open_session()
             try:
                 sub = db.query(Subscription).filter(Subscription.tenant_id == tenant_id).first()
                 if not sub:
@@ -358,7 +355,7 @@ class StripeAdapter(BaseAdapter):
                         "subscription_id": sub.stripe_subscription_id,
                         "status": sub.status,
                         "plan_name": plan.name if plan else None,
-                        "plan_tier": plan.tier if plan else None,
+                        "plan_tier": getattr(plan, "tier", None) or getattr(plan, "slug", None) if plan else None,
                         "stripe_customer_id": sub.stripe_customer_id,
                         "current_period_start": str(sub.current_period_start) if hasattr(sub, "current_period_start") else None,
                         "current_period_end": str(sub.current_period_end) if hasattr(sub, "current_period_end") else None,
@@ -386,10 +383,7 @@ class StripeAdapter(BaseAdapter):
             return err
 
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import Subscription
-
-            db = SessionLocal()
+            db = open_session()
             try:
                 sub = db.query(Subscription).filter(Subscription.tenant_id == tenant_id).first()
                 if not sub or not sub.stripe_customer_id:
@@ -450,10 +444,7 @@ class StripeAdapter(BaseAdapter):
             return err
 
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import Subscription, Tenant
-
-            db = SessionLocal()
+            db = open_session()
             try:
                 sub = db.query(Subscription).filter(Subscription.tenant_id == tenant_id).first()
                 if sub and sub.stripe_customer_id:
@@ -469,7 +460,7 @@ class StripeAdapter(BaseAdapter):
                     )
 
                 tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
-                email = kwargs.get("email") or (tenant.admin_email if tenant else None)
+                email = kwargs.get("email") or (getattr(tenant, "admin_email", None) if tenant else None)
                 name = kwargs.get("name") or (tenant.name if tenant else f"Tenant {tenant_id}")
 
                 customer = stripe.Customer.create(

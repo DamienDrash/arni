@@ -100,6 +100,13 @@ def get_whatsapp_client(tenant_id: int | None = None) -> WhatsAppClient:
         
         # Load session name (tenant slug)
         session_name = persistence.get_tenant_slug(tenant_id) or "default"
+    else:
+        try:
+            from app.gateway.main import _whatsapp_verifier, settings as legacy_settings
+
+            secret = getattr(_whatsapp_verifier, "_app_secret", "") or getattr(legacy_settings, "meta_app_secret", "")
+        except Exception:
+            secret = ""
         
     # Global fallbacks if tenant-specific settings are missing
     if not waha_url:
@@ -119,7 +126,7 @@ def get_whatsapp_client(tenant_id: int | None = None) -> WhatsAppClient:
         return WhatsAppClient(
             access_token="",
             phone_number_id="",
-            app_secret="",
+            app_secret=secret,
             waha_api_url=waha_url,
             waha_api_key=waha_key,
             session_name=session_name

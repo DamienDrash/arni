@@ -19,7 +19,6 @@ from typing import Optional
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -32,10 +31,54 @@ from app.core.integration_models import (
     IntegrationStatus,
     TenantIntegration,
 )
+from app.platform.api.integrations_repository import integrations_repository
 
 logger = structlog.get_logger()
 
 router = APIRouter(prefix="/api/v1/integrations", tags=["integrations"])
+
+
+def _build_integration_out(db: Session, integration: IntegrationDefinition) -> IntegrationOut:
+    return IntegrationOut(
+        id=integration.id,
+        name=integration.name,
+        description=integration.description,
+        category=integration.category,
+        logo_url=integration.logo_url,
+        auth_type=integration.auth_type,
+        config_schema=integration.config_schema,
+        adapter_class=integration.adapter_class,
+        skill_file=integration.skill_file,
+        is_public=integration.is_public,
+        is_active=integration.is_active,
+        min_plan=integration.min_plan,
+        version=integration.version,
+        capabilities=integrations_repository.list_capability_ids_for_integration(
+            db, integration_id=integration.id
+        ),
+    )
+
+
+def _build_tenant_integration_out(
+    db: Session,
+    tenant_integration: TenantIntegration,
+) -> TenantIntegrationOut:
+    integration = integrations_repository.get_integration(
+        db, integration_id=tenant_integration.integration_id
+    )
+    return TenantIntegrationOut(
+        id=tenant_integration.id,
+        tenant_id=tenant_integration.tenant_id,
+        integration_id=tenant_integration.integration_id,
+        status=tenant_integration.status,
+        config_meta=tenant_integration.config_meta,
+        enabled=tenant_integration.enabled,
+        last_health_check=(
+            str(tenant_integration.last_health_check) if tenant_integration.last_health_check else None
+        ),
+        last_error=tenant_integration.last_error,
+        integration_name=integration.name if integration else None,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -152,121 +195,59 @@ def list_integrations(
     db: Session = Depends(get_db),
 ):
     """List all integration definitions (marketplace catalog)."""
-    query = select(IntegrationDefinition).where(IntegrationDefinition.is_active == True)
-    if category:
-        query = query.where(IntegrationDefinition.category == category)
-    if is_public is not None:
-        query = query.where(IntegrationDefinition.is_public == is_public)
-
-    integrations = db.execute(query).scalars().all()
-    result = []
-    for integ in integrations:
-        caps = db.execute(
-            select(IntegrationCapability.capability_id)
-            .where(IntegrationCapability.integration_id == integ.id)
-        ).scalars().all()
-        out = IntegrationOut(
-            id=integ.id,
-            name=integ.name,
-            description=integ.description,
-            category=integ.category,
-            logo_url=integ.logo_url,
-            auth_type=integ.auth_type,
-            config_schema=integ.config_schema,
-            adapter_class=integ.adapter_class,
-            skill_file=integ.skill_file,
-            is_public=integ.is_public,
-            is_active=integ.is_active,
-            min_plan=integ.min_plan,
-            version=integ.version,
-            capabilities=list(caps),
-        )
-        result.append(out)
-    return result
+    integrations = integrations_repository.list_integrations(
+        db,
+        category=category,
+        is_public=is_public,
+    )
+    return [_build_integration_out(db, integration) for integration in integrations]
 
 
 @router.get("/definitions/{integration_id}", response_model=IntegrationOut)
 def get_integration(integration_id: str, db: Session = Depends(get_db)):
     """Get a single integration definition by ID."""
-    integ = db.get(IntegrationDefinition, integration_id)
-    if not integ:
+    integration = integrations_repository.get_integration(db, integration_id=integration_id)
+    if not integration:
         raise HTTPException(status_code=404, detail=f"Integration '{integration_id}' not found")
-    caps = db.execute(
-        select(IntegrationCapability.capability_id)
-        .where(IntegrationCapability.integration_id == integ.id)
-    ).scalars().all()
-    return IntegrationOut(
-        id=integ.id,
-        name=integ.name,
-        description=integ.description,
-        category=integ.category,
-        logo_url=integ.logo_url,
-        auth_type=integ.auth_type,
-        config_schema=integ.config_schema,
-        adapter_class=integ.adapter_class,
-        skill_file=integ.skill_file,
-        is_public=integ.is_public,
-        is_active=integ.is_active,
-        min_plan=integ.min_plan,
-        version=integ.version,
-        capabilities=list(caps),
-    )
+    return _build_integration_out(db, integration)
 
 
 @router.post("/definitions", response_model=IntegrationOut, status_code=201)
 def create_integration(data: IntegrationCreate, db: Session = Depends(get_db)):
     """Create a new integration definition (admin-only)."""
-    existing = db.get(IntegrationDefinition, data.id)
+    existing = integrations_repository.get_integration(db, integration_id=data.id)
     if existing:
         raise HTTPException(status_code=409, detail=f"Integration '{data.id}' already exists")
 
-    integ = IntegrationDefinition(**data.model_dump())
-    db.add(integ)
+    integration = integrations_repository.create_integration(db, data=data.model_dump())
     db.commit()
-    db.refresh(integ)
-    logger.info("integration_registry.created", integration_id=integ.id)
-    return IntegrationOut(
-        id=integ.id, name=integ.name, description=integ.description,
-        category=integ.category, logo_url=integ.logo_url, auth_type=integ.auth_type,
-        config_schema=integ.config_schema, adapter_class=integ.adapter_class,
-        skill_file=integ.skill_file, is_public=integ.is_public, is_active=integ.is_active,
-        min_plan=integ.min_plan, version=integ.version, capabilities=[],
-    )
+    db.refresh(integration)
+    logger.info("integration_registry.created", integration_id=integration.id)
+    return _build_integration_out(db, integration)
 
 
 @router.patch("/definitions/{integration_id}", response_model=IntegrationOut)
 def update_integration(integration_id: str, data: IntegrationUpdate, db: Session = Depends(get_db)):
     """Update an integration definition (admin-only)."""
-    integ = db.get(IntegrationDefinition, integration_id)
-    if not integ:
+    integration = integrations_repository.get_integration(db, integration_id=integration_id)
+    if not integration:
         raise HTTPException(status_code=404, detail=f"Integration '{integration_id}' not found")
 
     for field, value in data.model_dump(exclude_unset=True).items():
-        setattr(integ, field, value)
+        setattr(integration, field, value)
     db.commit()
-    db.refresh(integ)
-    logger.info("integration_registry.updated", integration_id=integ.id)
-
-    caps = db.execute(
-        select(IntegrationCapability.capability_id)
-        .where(IntegrationCapability.integration_id == integ.id)
-    ).scalars().all()
-    return IntegrationOut(
-        id=integ.id, name=integ.name, description=integ.description,
-        category=integ.category, logo_url=integ.logo_url, auth_type=integ.auth_type,
-        config_schema=integ.config_schema, adapter_class=integ.adapter_class,
-        skill_file=integ.skill_file, is_public=integ.is_public, is_active=integ.is_active,
-        min_plan=integ.min_plan, version=integ.version, capabilities=list(caps),
-    )
+    db.refresh(integration)
+    logger.info("integration_registry.updated", integration_id=integration.id)
+    return _build_integration_out(db, integration)
 
 
 @router.delete("/definitions/{integration_id}", status_code=204)
 def delete_integration(integration_id: str, db: Session = Depends(get_db)):
     """Delete an integration definition (admin-only)."""
-    integ = db.get(IntegrationDefinition, integration_id)
-    if not integ:
+    integration = integrations_repository.get_integration(db, integration_id=integration_id)
+    if not integration:
         raise HTTPException(status_code=404, detail=f"Integration '{integration_id}' not found")
-    db.delete(integ)
+    db.delete(integration)
     db.commit()
     logger.info("integration_registry.deleted", integration_id=integration_id)
 
@@ -282,21 +263,17 @@ def list_capabilities(
     db: Session = Depends(get_db),
 ):
     """List all capability definitions."""
-    query = select(CapabilityDefinition)
-    if category:
-        query = query.where(CapabilityDefinition.category == category)
-    return db.execute(query).scalars().all()
+    return integrations_repository.list_capabilities(db, category=category)
 
 
 @router.post("/capabilities", response_model=CapabilityOut, status_code=201)
 def create_capability(data: CapabilityCreate, db: Session = Depends(get_db)):
     """Create a new capability definition (admin-only)."""
-    existing = db.get(CapabilityDefinition, data.id)
+    existing = integrations_repository.get_capability(db, capability_id=data.id)
     if existing:
         raise HTTPException(status_code=409, detail=f"Capability '{data.id}' already exists")
 
-    cap = CapabilityDefinition(**data.model_dump())
-    db.add(cap)
+    cap = integrations_repository.create_capability(db, data=data.model_dump())
     db.commit()
     db.refresh(cap)
     logger.info("capability_registry.created", capability_id=cap.id)
@@ -306,7 +283,7 @@ def create_capability(data: CapabilityCreate, db: Session = Depends(get_db)):
 @router.delete("/capabilities/{capability_id}", status_code=204)
 def delete_capability(capability_id: str, db: Session = Depends(get_db)):
     """Delete a capability definition (admin-only)."""
-    cap = db.get(CapabilityDefinition, capability_id)
+    cap = integrations_repository.get_capability(db, capability_id=capability_id)
     if not cap:
         raise HTTPException(status_code=404, detail=f"Capability '{capability_id}' not found")
     db.delete(cap)
@@ -322,21 +299,24 @@ def delete_capability(capability_id: str, db: Session = Depends(get_db)):
 @router.post("/definitions/{integration_id}/capabilities/{capability_id}", status_code=201)
 def link_capability(integration_id: str, capability_id: str, db: Session = Depends(get_db)):
     """Link a capability to an integration."""
-    if not db.get(IntegrationDefinition, integration_id):
+    if not integrations_repository.get_integration(db, integration_id=integration_id):
         raise HTTPException(status_code=404, detail=f"Integration '{integration_id}' not found")
-    if not db.get(CapabilityDefinition, capability_id):
+    if not integrations_repository.get_capability(db, capability_id=capability_id):
         raise HTTPException(status_code=404, detail=f"Capability '{capability_id}' not found")
 
-    existing = db.execute(
-        select(IntegrationCapability)
-        .where(IntegrationCapability.integration_id == integration_id)
-        .where(IntegrationCapability.capability_id == capability_id)
-    ).scalar_one_or_none()
+    existing = integrations_repository.get_integration_capability_link(
+        db,
+        integration_id=integration_id,
+        capability_id=capability_id,
+    )
     if existing:
         raise HTTPException(status_code=409, detail="Link already exists")
 
-    link = IntegrationCapability(integration_id=integration_id, capability_id=capability_id)
-    db.add(link)
+    integrations_repository.create_integration_capability_link(
+        db,
+        integration_id=integration_id,
+        capability_id=capability_id,
+    )
     db.commit()
     logger.info("integration_capability.linked", integration_id=integration_id, capability_id=capability_id)
     return {"status": "linked"}
@@ -345,11 +325,11 @@ def link_capability(integration_id: str, capability_id: str, db: Session = Depen
 @router.delete("/definitions/{integration_id}/capabilities/{capability_id}", status_code=204)
 def unlink_capability(integration_id: str, capability_id: str, db: Session = Depends(get_db)):
     """Unlink a capability from an integration."""
-    link = db.execute(
-        select(IntegrationCapability)
-        .where(IntegrationCapability.integration_id == integration_id)
-        .where(IntegrationCapability.capability_id == capability_id)
-    ).scalar_one_or_none()
+    link = integrations_repository.get_integration_capability_link(
+        db,
+        integration_id=integration_id,
+        capability_id=capability_id,
+    )
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
     db.delete(link)
@@ -364,60 +344,38 @@ def unlink_capability(integration_id: str, capability_id: str, db: Session = Dep
 @router.get("/tenant/{tenant_id}", response_model=list[TenantIntegrationOut])
 def list_tenant_integrations(tenant_id: int, db: Session = Depends(get_db)):
     """List all integrations activated by a tenant."""
-    query = (
-        select(TenantIntegration)
-        .where(TenantIntegration.tenant_id == tenant_id)
-    )
-    results = db.execute(query).scalars().all()
-    out = []
-    for ti in results:
-        integ = db.get(IntegrationDefinition, ti.integration_id)
-        out.append(TenantIntegrationOut(
-            id=ti.id,
-            tenant_id=ti.tenant_id,
-            integration_id=ti.integration_id,
-            status=ti.status,
-            config_meta=ti.config_meta,
-            enabled=ti.enabled,
-            last_health_check=str(ti.last_health_check) if ti.last_health_check else None,
-            last_error=ti.last_error,
-            integration_name=integ.name if integ else None,
-        ))
-    return out
+    results = integrations_repository.list_tenant_integrations(db, tenant_id=tenant_id)
+    return [_build_tenant_integration_out(db, tenant_integration) for tenant_integration in results]
 
 
 @router.post("/tenant/{tenant_id}", response_model=TenantIntegrationOut, status_code=201)
 def activate_integration(tenant_id: int, data: TenantIntegrationCreate, db: Session = Depends(get_db)):
     """Activate an integration for a tenant (marketplace action)."""
-    integ = db.get(IntegrationDefinition, data.integration_id)
+    integ = integrations_repository.get_integration(db, integration_id=data.integration_id)
     if not integ:
         raise HTTPException(status_code=404, detail=f"Integration '{data.integration_id}' not found")
     if not integ.is_active:
         raise HTTPException(status_code=400, detail=f"Integration '{data.integration_id}' is not active")
 
-    existing = db.execute(
-        select(TenantIntegration)
-        .where(TenantIntegration.tenant_id == tenant_id)
-        .where(TenantIntegration.integration_id == data.integration_id)
-    ).scalar_one_or_none()
+    existing = integrations_repository.get_tenant_integration(
+        db,
+        tenant_id=tenant_id,
+        integration_id=data.integration_id,
+    )
     if existing:
         raise HTTPException(status_code=409, detail="Integration already activated for this tenant")
 
-    ti = TenantIntegration(
+    ti = integrations_repository.create_tenant_integration(
+        db,
         tenant_id=tenant_id,
         integration_id=data.integration_id,
         config_meta=data.config_meta,
         status=IntegrationStatus.PENDING_SETUP.value,
     )
-    db.add(ti)
     db.commit()
     db.refresh(ti)
     logger.info("tenant_integration.activated", tenant_id=tenant_id, integration_id=data.integration_id)
-    return TenantIntegrationOut(
-        id=ti.id, tenant_id=ti.tenant_id, integration_id=ti.integration_id,
-        status=ti.status, config_meta=ti.config_meta, enabled=ti.enabled,
-        last_health_check=None, last_error=None, integration_name=integ.name,
-    )
+    return _build_tenant_integration_out(db, ti)
 
 
 @router.patch("/tenant/{tenant_id}/{integration_id}", response_model=TenantIntegrationOut)
@@ -428,11 +386,11 @@ def update_tenant_integration(
     db: Session = Depends(get_db),
 ):
     """Update a tenant's integration configuration."""
-    ti = db.execute(
-        select(TenantIntegration)
-        .where(TenantIntegration.tenant_id == tenant_id)
-        .where(TenantIntegration.integration_id == integration_id)
-    ).scalar_one_or_none()
+    ti = integrations_repository.get_tenant_integration(
+        db,
+        tenant_id=tenant_id,
+        integration_id=integration_id,
+    )
     if not ti:
         raise HTTPException(status_code=404, detail="Tenant integration not found")
 
@@ -441,23 +399,17 @@ def update_tenant_integration(
     db.commit()
     db.refresh(ti)
     logger.info("tenant_integration.updated", tenant_id=tenant_id, integration_id=integration_id)
-    integ = db.get(IntegrationDefinition, ti.integration_id)
-    return TenantIntegrationOut(
-        id=ti.id, tenant_id=ti.tenant_id, integration_id=ti.integration_id,
-        status=ti.status, config_meta=ti.config_meta, enabled=ti.enabled,
-        last_health_check=str(ti.last_health_check) if ti.last_health_check else None,
-        last_error=ti.last_error, integration_name=integ.name if integ else None,
-    )
+    return _build_tenant_integration_out(db, ti)
 
 
 @router.delete("/tenant/{tenant_id}/{integration_id}", status_code=204)
 def deactivate_integration(tenant_id: int, integration_id: str, db: Session = Depends(get_db)):
     """Deactivate an integration for a tenant."""
-    ti = db.execute(
-        select(TenantIntegration)
-        .where(TenantIntegration.tenant_id == tenant_id)
-        .where(TenantIntegration.integration_id == integration_id)
-    ).scalar_one_or_none()
+    ti = integrations_repository.get_tenant_integration(
+        db,
+        tenant_id=tenant_id,
+        integration_id=integration_id,
+    )
     if not ti:
         raise HTTPException(status_code=404, detail="Tenant integration not found")
     db.delete(ti)

@@ -20,6 +20,11 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import structlog
+from sqlalchemy import text
+
+from app.domains.billing.models import Plan, Subscription
+from app.domains.identity.models import Tenant
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -154,21 +159,17 @@ def get_db_with_tenant():
 
     The tenant_id is propagated to PostgreSQL via SET LOCAL for RLS policies.
     """
-    from app.core.db import SessionLocal, tenant_context as db_tenant_var
+    from app.core.db import tenant_context as db_tenant_var
 
     ctx = get_tenant_context_or_none()
     if ctx:
         db_tenant_var.set(ctx.tenant_id)
 
-    db = SessionLocal()
+    db = open_session()
     try:
         if ctx:
             # Set PostgreSQL session variable for RLS
-            db.execute(
-                __import__("sqlalchemy").text(
-                    f"SET LOCAL app.current_tenant_id = '{ctx.tenant_id}'"
-                )
-            )
+            db.execute(text(f"SET LOCAL app.current_tenant_id = '{ctx.tenant_id}'"))
         yield db
     finally:
         db.close()
@@ -188,10 +189,7 @@ def resolve_tenant_from_slug(slug: str) -> Optional[TenantContext]:
     if not slug:
         return None
 
-    from app.core.db import SessionLocal
-    from app.core.models import Tenant
-
-    db = SessionLocal()
+    db = open_session()
     try:
         tenant = db.query(Tenant).filter(
             Tenant.slug == slug.strip().lower(),
@@ -203,8 +201,6 @@ def resolve_tenant_from_slug(slug: str) -> Optional[TenantContext]:
         # Try to load plan slug
         plan_slug = "starter"
         try:
-            from app.core.models import Subscription, Plan
-
             sub = db.query(Subscription).filter(
                 Subscription.tenant_id == tenant.id,
                 Subscription.status.in_(["active", "trialing"]),

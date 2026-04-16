@@ -30,11 +30,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.core.auth import AuthContext, get_current_user, require_role
-from app.core.db import SessionLocal
-from app.core.models import (
-    Tenant, TenantConfig, Subscription, Plan, AuditLog,
-    UsageRecord, ChatSession, ChatMessage,
-)
+from app.domains.identity.models import AuditLog
+from app.domains.support.models import ChatSession
+from app.platform.api.tenant_portal_repository import tenant_portal_repository
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v1/tenant/portal", tags=["tenant-portal"])
@@ -52,23 +51,13 @@ def _require_tenant_admin(user: AuthContext) -> AuthContext:
 
 def _get_config(db, tenant_id: int, key: str, default: str = "") -> str:
     """Read a single tenant config value."""
-    row = db.query(TenantConfig).filter(
-        TenantConfig.tenant_id == tenant_id,
-        TenantConfig.key == key,
-    ).first()
+    row = tenant_portal_repository.get_tenant_config(db, tenant_id=tenant_id, key=key)
     return row.value if row and row.value else default
 
 
 def _set_config(db, tenant_id: int, key: str, value: str) -> None:
     """Upsert a tenant config value."""
-    row = db.query(TenantConfig).filter(
-        TenantConfig.tenant_id == tenant_id,
-        TenantConfig.key == key,
-    ).first()
-    if row:
-        row.value = value
-    else:
-        db.add(TenantConfig(tenant_id=tenant_id, key=key, value=value))
+    tenant_portal_repository.set_tenant_config(db, tenant_id=tenant_id, key=key, value=value)
 
 
 def _get_json_config(db, tenant_id: int, key: str, default: Any = None) -> Any:
@@ -92,13 +81,22 @@ def _audit(db, tenant_id: int, user_id: int, action: str, details: dict) -> None
     try:
         db.add(AuditLog(
             tenant_id=tenant_id,
-            user_id=user_id,
+            actor_user_id=user_id,
             action=action,
-            details=json.dumps(details, ensure_ascii=False, default=str),
+            category="tenant_portal",
+            details_json=json.dumps(details, ensure_ascii=False, default=str),
             created_at=datetime.now(timezone.utc),
         ))
     except Exception:
         logger.warning("audit_log.write_failed", action=action)
+
+
+def _audit_details_text(entry: AuditLog) -> Optional[str]:
+    """Return a tolerant text representation for legacy and newer audit payload fields."""
+    raw = getattr(entry, "details", None)
+    if raw:
+        return raw
+    return getattr(entry, "details_json", None)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -161,34 +159,33 @@ async def get_tenant_overview(
 ) -> dict[str, Any]:
     """Tenant dashboard overview with key metrics and health status."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
-        tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+        tenant = tenant_portal_repository.get_tenant_by_id(db, user.tenant_id)
         if not tenant:
             raise HTTPException(status_code=404, detail="Tenant not found")
 
         # Subscription info
-        sub = db.query(Subscription).filter(
-            Subscription.tenant_id == user.tenant_id
-        ).first()
+        sub = tenant_portal_repository.get_subscription_by_tenant(db, user.tenant_id)
 
-        plan = None
-        if sub and sub.plan_id:
-            plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
+        plan = tenant_portal_repository.get_plan_by_id(db, sub.plan_id if sub else None)
 
         # Usage stats for current period
         now = datetime.now(timezone.utc)
         period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-        conversation_count = db.query(ChatSession).filter(
-            ChatSession.tenant_id == user.tenant_id,
-            ChatSession.created_at >= period_start,
-        ).count()
+        conversation_count = tenant_portal_repository.count_conversations_since(
+            db,
+            tenant_id=user.tenant_id,
+            since=period_start,
+        )
 
         # Recent audit entries
-        recent_audits = db.query(AuditLog).filter(
-            AuditLog.tenant_id == user.tenant_id,
-        ).order_by(AuditLog.created_at.desc()).limit(5).all()
+        recent_audits = tenant_portal_repository.list_recent_audits(
+            db,
+            tenant_id=user.tenant_id,
+            limit=5,
+        )
 
         # Agent config summary
         agent_name = _get_config(db, user.tenant_id, "agent_name", "ARIIA Agent")
@@ -226,7 +223,7 @@ async def get_tenant_overview(
                 {
                     "action": a.action,
                     "created_at": str(a.created_at),
-                    "details": a.details[:200] if a.details else None,
+                    "details": (_audit_details_text(a) or "")[:200] or None,
                 }
                 for a in recent_audits
             ],
@@ -258,7 +255,7 @@ async def get_system_status(
 
     # Database
     try:
-        db = SessionLocal()
+        db = open_session()
         from sqlalchemy import text
         start = time.time()
         db.execute(text("SELECT 1"))
@@ -285,7 +282,7 @@ async def get_usage_metrics(
 ) -> dict[str, Any]:
     """Usage metrics for the current billing period."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         now = datetime.now(timezone.utc)
         since = now - timedelta(days=days)
@@ -297,21 +294,18 @@ async def get_usage_metrics(
         ).count()
 
         # Usage records (token usage)
-        usage_records = db.query(UsageRecord).filter(
-            UsageRecord.tenant_id == user.tenant_id,
-            UsageRecord.created_at >= since,
-        ).all()
+        usage_records = tenant_portal_repository.list_usage_records_since(
+            db,
+            tenant_id=user.tenant_id,
+            since=since,
+        )
 
         total_tokens = sum(r.tokens_used for r in usage_records if hasattr(r, "tokens_used") and r.tokens_used)
         total_cost_cents = sum(r.cost_cents for r in usage_records if hasattr(r, "cost_cents") and r.cost_cents)
 
         # Subscription limits
-        sub = db.query(Subscription).filter(
-            Subscription.tenant_id == user.tenant_id
-        ).first()
-        plan = None
-        if sub and sub.plan_id:
-            plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
+        sub = tenant_portal_repository.get_subscription_by_tenant(db, user.tenant_id)
+        plan = tenant_portal_repository.get_plan_by_id(db, sub.plan_id if sub else None)
 
         max_messages = plan.max_monthly_messages if plan and hasattr(plan, "max_monthly_messages") else None
 
@@ -338,15 +332,20 @@ async def get_audit_log(
 ) -> dict[str, Any]:
     """Recent audit log entries for the tenant."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
-        query = db.query(AuditLog).filter(AuditLog.tenant_id == user.tenant_id)
-
-        if action_filter:
-            query = query.filter(AuditLog.action.ilike(f"%{action_filter}%"))
-
-        total = query.count()
-        entries = query.order_by(AuditLog.created_at.desc()).offset(offset).limit(limit).all()
+        total = tenant_portal_repository.count_audit_logs(
+            db,
+            tenant_id=user.tenant_id,
+            action_filter=action_filter,
+        )
+        entries = tenant_portal_repository.list_audit_logs(
+            db,
+            tenant_id=user.tenant_id,
+            limit=limit,
+            offset=offset,
+            action_filter=action_filter,
+        )
 
         return {
             "total": total,
@@ -356,8 +355,8 @@ async def get_audit_log(
                 {
                     "id": e.id,
                     "action": e.action,
-                    "user_id": e.user_id,
-                    "details": e.details,
+                    "user_id": getattr(e, "actor_user_id", None),
+                    "details": _audit_details_text(e),
                     "created_at": str(e.created_at),
                 }
                 for e in entries
@@ -377,7 +376,7 @@ async def get_agent_config(
 ) -> dict[str, Any]:
     """Get the current agent configuration for this tenant."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         config = {
             "agent_name": _get_config(db, user.tenant_id, "agent_name", "ARIIA Agent"),
@@ -403,7 +402,7 @@ async def update_agent_config(
 ) -> dict[str, Any]:
     """Update agent configuration for this tenant."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         updates = body.model_dump(exclude_none=True)
         field_map = {
@@ -449,7 +448,7 @@ async def get_agent_persona(
 ) -> dict[str, Any]:
     """Get the current agent persona for this tenant."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         persona = _get_json_config(db, user.tenant_id, "agent_persona", {
             "name": "ARIIA",
@@ -471,7 +470,7 @@ async def update_agent_persona(
 ) -> dict[str, Any]:
     """Update agent persona for this tenant."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         current = _get_json_config(db, user.tenant_id, "agent_persona", {})
         updates = body.model_dump(exclude_none=True)
@@ -500,7 +499,7 @@ async def get_system_prompts(
 ) -> dict[str, Any]:
     """Get all system prompts for this tenant."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         prompts = {
             "main_system_prompt": _get_config(db, user.tenant_id, "system_prompt", ""),
@@ -521,7 +520,7 @@ async def update_system_prompts(
 ) -> dict[str, Any]:
     """Update system prompts for this tenant."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         updates = body.model_dump(exclude_none=True)
         prompt_map = {
@@ -598,7 +597,7 @@ async def get_channels(
 ) -> dict[str, Any]:
     """Get all messaging channels with their status for this tenant."""
     _require_tenant_admin(user)
-    db = SessionLocal()
+    db = open_session()
     try:
         channels_config = _get_json_config(db, user.tenant_id, "channels_config", {})
 
@@ -633,7 +632,7 @@ async def update_channel(
     if channel_id not in SUPPORTED_CHANNELS:
         raise HTTPException(status_code=404, detail=f"Unknown channel: {channel_id}")
 
-    db = SessionLocal()
+    db = open_session()
     try:
         channels_config = _get_json_config(db, user.tenant_id, "channels_config", {})
 

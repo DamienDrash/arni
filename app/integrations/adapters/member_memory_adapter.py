@@ -23,7 +23,10 @@ from typing import Any
 
 import structlog
 
+from app.domains.identity.models import Tenant
+from app.domains.support.models import ChatMessage, ChatSession, StudioMember
 from app.integrations.adapters.base import AdapterResult, BaseAdapter
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -223,58 +226,52 @@ class MemberMemoryAdapter(BaseAdapter):
         limit = kwargs.get("limit", 20)
 
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import ChatMessage, ChatSession, StudioMember
+            db = open_session()
+            try:
+                # Resolve member to find their chat sessions
+                cid_lookup = -1
+                mid = str(member_id).strip()
+                if mid.isdigit() and int(mid) <= 2147483647:
+                    cid_lookup = int(mid)
 
-            db = SessionLocal()
+                member = db.query(StudioMember).filter(
+                    StudioMember.tenant_id == tenant_id,
+                    (StudioMember.customer_id == cid_lookup) | (StudioMember.member_number == mid)
+                ).first()
 
-            # Resolve member to find their chat sessions
-            cid_lookup = -1
-            mid = str(member_id).strip()
-            if mid.isdigit() and int(mid) <= 2147483647:
-                cid_lookup = int(mid)
+                if not member:
+                    return AdapterResult(
+                        success=True,
+                        data="Mitglied nicht gefunden.",
+                        metadata={"member_id": member_id, "found": False},
+                    )
 
-            member = db.query(StudioMember).filter(
-                StudioMember.tenant_id == tenant_id,
-                (StudioMember.customer_id == cid_lookup) | (StudioMember.member_number == mid)
-            ).first()
+                # Find sessions linked to this member
+                sessions = db.query(ChatSession).filter(
+                    ChatSession.tenant_id == tenant_id,
+                    ChatSession.member_id == str(member.customer_id),
+                ).order_by(ChatSession.last_message_at.desc()).limit(5).all()
 
-            if not member:
+                if not sessions:
+                    return AdapterResult(
+                        success=True,
+                        data="Keine Chat-Sitzungen für dieses Mitglied gefunden.",
+                        metadata={"member_id": member_id, "found": False},
+                    )
+
+                session_ids = [str(session.id) for session in sessions]
+                messages = db.query(ChatMessage).filter(
+                    ChatMessage.session_id.in_(session_ids),
+                ).order_by(ChatMessage.timestamp.desc()).limit(limit).all()
+            finally:
                 db.close()
-                return AdapterResult(
-                    success=True,
-                    data="Mitglied nicht gefunden.",
-                    metadata={"member_id": member_id, "found": False},
-                )
-
-            # Find sessions linked to this member
-            sessions = db.query(ChatSession).filter(
-                ChatSession.tenant_id == tenant_id,
-                ChatSession.member_id == str(member.customer_id),
-            ).order_by(ChatSession.updated_at.desc()).limit(5).all()
-
-            if not sessions:
-                db.close()
-                return AdapterResult(
-                    success=True,
-                    data="Keine Chat-Sitzungen für dieses Mitglied gefunden.",
-                    metadata={"member_id": member_id, "found": False},
-                )
-
-            session_ids = [s.id for s in sessions]
-
-            messages = db.query(ChatMessage).filter(
-                ChatMessage.session_id.in_(session_ids),
-            ).order_by(ChatMessage.created_at.desc()).limit(limit).all()
-
-            db.close()
 
             history = []
             for msg in reversed(messages):
                 history.append({
                     "role": msg.role,
                     "content": msg.content[:500] if msg.content else "",
-                    "timestamp": msg.created_at.isoformat() if msg.created_at else None,
+                    "timestamp": msg.timestamp.isoformat() if msg.timestamp else None,
                 })
 
             return AdapterResult(
@@ -422,14 +419,12 @@ class MemberMemoryAdapter(BaseAdapter):
     def _resolve_tenant_slug(self, tenant_id: int) -> str:
         """Resolve the tenant slug from tenant_id."""
         try:
-            from app.core.db import SessionLocal
-            from app.core.models import Tenant
-
-            db = SessionLocal()
-            tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
-            slug = tenant.slug if tenant else "system"
-            db.close()
-            return slug
+            db = open_session()
+            try:
+                tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+                return tenant.slug if tenant else "system"
+            finally:
+                db.close()
         except Exception:
             return "system"
 

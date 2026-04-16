@@ -9,6 +9,10 @@ from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.core.auth import AuthContext, get_current_user
 from app.core.media_models import MediaAsset
+from app.domains.billing.models import ImageCreditPack
+from app.domains.billing.queries import billing_queries
+from app.domains.campaigns.queries import campaign_queries
+from app.domains.identity.queries import identity_queries
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/admin/media", tags=["media"])
@@ -47,11 +51,10 @@ async def upload_media(
     """Upload an image file. Supported: PNG, JPG, GIF, WebP. Max 10MB."""
     from app.media.storage import ALLOWED_EXTENSIONS, MAX_FILE_SIZE, save_upload_bytes, get_public_url
     from app.media.service import MediaService
-    from app.core.models import Tenant
     from pathlib import Path
 
     # Get tenant slug
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant = identity_queries.get_tenant_by_id(db, user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
@@ -127,10 +130,9 @@ async def upload_document(
         save_document_bytes,
         get_document_public_url,
     )
-    from app.core.models import Tenant
     from pathlib import Path
 
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant = identity_queries.get_tenant_by_id(db, user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
@@ -182,10 +184,9 @@ async def list_documents(
 ):
     """List all uploaded documents for the current tenant."""
     from app.media.storage import get_document_path, get_document_public_url, _get_media_root
-    from app.core.models import Tenant
     import os
 
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant = identity_queries.get_tenant_by_id(db, user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
@@ -215,9 +216,8 @@ async def delete_document(
 ):
     """Delete an uploaded document."""
     from app.media.storage import delete_document as _delete, _validate_tenant_slug
-    from app.core.models import Tenant
 
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant = identity_queries.get_tenant_by_id(db, user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
@@ -357,22 +357,13 @@ async def get_credit_balance(
 ):
     """Return the current image credit balance for the tenant."""
     from app.media.credit_service import get_balance
-    from app.core.models import Subscription, Plan
 
     balance = get_balance(db, user.tenant_id)
-
-    # Get plan monthly grant and slug
-    monthly_grant = 0
-    plan_slug = None
-    sub = db.query(Subscription).filter(
-        Subscription.tenant_id == user.tenant_id,
-        Subscription.status.in_(["active", "trialing"]),
-    ).first()
-    if sub:
-        plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
-        if plan:
-            monthly_grant = getattr(plan, "monthly_image_credits", 0) or 0
-            plan_slug = plan.slug
+    monthly_grant, plan_slug = billing_queries.get_monthly_image_credit_grant_for_tenant(
+        db,
+        user.tenant_id,
+        subscription_statuses=("active", "trialing"),
+    )
 
     return {"balance": balance, "monthly_grant": monthly_grant, "plan_slug": plan_slug}
 
@@ -383,8 +374,6 @@ async def list_credit_packs(
     db: Session = Depends(get_db),
 ):
     """Return all active image credit packs."""
-    from app.core.models import ImageCreditPack
-
     packs = db.query(ImageCreditPack).filter(
         ImageCreditPack.is_active.is_(True)
     ).order_by(ImageCreditPack.display_order).all()
@@ -432,11 +421,10 @@ async def ai_generate_image(
     from app.media.storage import save_bytes, get_public_url
     from app.ai_config.image_service import ImageConfigService
     from app.ai_config.image_generator import generate_image
-    from app.core.models import Tenant
     import httpx
     import base64
 
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant = identity_queries.get_tenant_by_id(db, user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
@@ -602,8 +590,7 @@ async def list_media(
     total = q.count()
     assets = q.order_by(MediaAsset.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
 
-    from app.core.models import Tenant
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant = identity_queries.get_tenant_by_id(db, user.tenant_id)
     slug = tenant.slug if tenant else "unknown"
 
     return {
@@ -624,7 +611,6 @@ async def search_media(
     db: Session = Depends(get_db),
 ):
     """Search media assets by description, tags, and context."""
-    from app.core.models import Tenant
     from sqlalchemy import or_, cast, Text
 
     query = db.query(MediaAsset).filter(MediaAsset.tenant_id == user.tenant_id)
@@ -648,7 +634,7 @@ async def search_media(
     total = query.count()
     assets = query.order_by(MediaAsset.created_at.desc()).limit(limit).all()
 
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant = identity_queries.get_tenant_by_id(db, user.tenant_id)
     slug = tenant.slug if tenant else "unknown"
 
     return {
@@ -685,8 +671,7 @@ async def update_media_metadata(
 
     db.commit()
 
-    from app.core.models import Tenant
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant = identity_queries.get_tenant_by_id(db, user.tenant_id)
     slug = tenant.slug if tenant else "unknown"
     return _asset_to_dict(asset, slug)
 
@@ -705,8 +690,7 @@ async def describe_media(
     if not asset:
         raise HTTPException(status_code=404, detail="Media asset not found")
 
-    from app.core.models import Tenant
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant = identity_queries.get_tenant_by_id(db, user.tenant_id)
     slug = tenant.slug if tenant else "unknown"
 
     # Read image bytes from disk
@@ -767,7 +751,6 @@ async def ai_edit_image(
     from app.media.storage import save_bytes, get_public_url
     from app.ai_config.image_service import ImageConfigService
     from app.ai_config.image_generator import generate_edit_image
-    from app.core.models import Tenant
     import httpx
     import base64
 
@@ -779,7 +762,7 @@ async def ai_edit_image(
     if not asset:
         raise HTTPException(status_code=404, detail="Media asset not found")
 
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant = identity_queries.get_tenant_by_id(db, user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
@@ -873,12 +856,11 @@ async def delete_media(
         raise HTTPException(status_code=404, detail="Media asset not found")
 
     # Protect assets referenced by active campaigns
-    from app.core.models import Campaign
-    ref = db.query(Campaign).filter(
-        Campaign.tenant_id == user.tenant_id,
-        Campaign.featured_image_asset_id == asset_id,
-        Campaign.status.in_(["draft", "scheduled", "sending"]),
-    ).first()
+    ref = campaign_queries.get_active_campaign_by_featured_asset(
+        db,
+        tenant_id=user.tenant_id,
+        asset_id=asset_id,
+    )
     if ref:
         raise HTTPException(
             status_code=409,
@@ -887,9 +869,8 @@ async def delete_media(
 
     from app.media.storage import delete_file
     from app.media.service import MediaService
-    from app.core.models import Tenant
 
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant = identity_queries.get_tenant_by_id(db, user.tenant_id)
     slug = tenant.slug if tenant else "unknown"
 
     file_size = asset.file_size or 0
@@ -908,9 +889,8 @@ async def delete_media(
 @router.get("/brand-references")
 async def list_brand_references(user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.core.media_models import TenantBrandReference, MediaAsset
-    from app.core.models import Tenant
     from app.media.storage import get_public_url
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant = identity_queries.get_tenant_by_id(db, user.tenant_id)
     refs = db.query(TenantBrandReference).filter(
         TenantBrandReference.tenant_id == user.tenant_id
     ).order_by(TenantBrandReference.created_at.desc()).all()
@@ -937,14 +917,13 @@ class BrandReferenceCreate(BaseModel):
 async def create_brand_reference(body: BrandReferenceCreate, user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.core.media_models import TenantBrandReference, MediaAsset
     from app.core.feature_gates import FeatureGate
-    from app.core.models import Tenant
     from app.media.storage import get_public_url, get_media_path
     gate = FeatureGate(user.tenant_id)
     gate.require_brand_style()
     asset = db.query(MediaAsset).filter(MediaAsset.id == body.asset_id, MediaAsset.tenant_id == user.tenant_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    tenant = identity_queries.get_tenant_by_id(db, user.tenant_id)
 
     # Auto-analyze if the asset has never been described (so prompt injection has data)
     if not asset.description and tenant:

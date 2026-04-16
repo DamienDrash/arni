@@ -239,6 +239,108 @@ class ContactRepository:
             q = q.filter(Contact.deleted_at.is_(None))
         return q.scalar() or 0
 
+    def get_statistics_snapshot(self, db: Session, tenant_id: int) -> Dict[str, Any]:
+        """Return aggregate contact statistics for a tenant."""
+        total = self.count(db, tenant_id)
+
+        lifecycle_dist = (
+            db.query(Contact.lifecycle_stage, func.count(Contact.id))
+            .filter(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None))
+            .group_by(Contact.lifecycle_stage)
+            .all()
+        )
+        source_dist = (
+            db.query(Contact.source, func.count(Contact.id))
+            .filter(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None))
+            .group_by(Contact.source)
+            .all()
+        )
+        with_email = (
+            db.query(func.count(Contact.id))
+            .filter(
+                Contact.tenant_id == tenant_id,
+                Contact.deleted_at.is_(None),
+                Contact.email.isnot(None),
+                Contact.email != "",
+            )
+            .scalar()
+            or 0
+        )
+        with_phone = (
+            db.query(func.count(Contact.id))
+            .filter(
+                Contact.tenant_id == tenant_id,
+                Contact.deleted_at.is_(None),
+                Contact.phone.isnot(None),
+                Contact.phone != "",
+            )
+            .scalar()
+            or 0
+        )
+        avg_score = (
+            db.query(func.avg(Contact.score))
+            .filter(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None))
+            .scalar()
+            or 0
+        )
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        recent_activities = (
+            db.query(func.count(ContactActivity.id))
+            .filter(
+                ContactActivity.tenant_id == tenant_id,
+                ContactActivity.created_at >= week_ago,
+            )
+            .scalar()
+            or 0
+        )
+        tag_count = (
+            db.query(func.count(ContactTag.id))
+            .filter(ContactTag.tenant_id == tenant_id)
+            .scalar()
+            or 0
+        )
+
+        return {
+            "total": total,
+            "lifecycle_distribution": {stage: count for stage, count in lifecycle_dist},
+            "source_distribution": {source: count for source, count in source_dist},
+            "with_email": with_email,
+            "with_phone": with_phone,
+            "average_score": round(float(avg_score), 1),
+            "recent_activities_7d": recent_activities,
+            "tag_count": tag_count,
+        }
+
+    def list_contacts_for_export(
+        self,
+        db: Session,
+        tenant_id: int,
+        *,
+        contact_ids: Optional[List[int]] = None,
+        segment_id: Optional[int] = None,
+    ) -> List[Contact]:
+        """List contacts for CSV/XLSX export with the legacy segment filter behavior."""
+        query = db.query(Contact).filter(
+            Contact.tenant_id == tenant_id,
+            Contact.deleted_at.is_(None),
+        )
+
+        if contact_ids:
+            query = query.filter(Contact.id.in_(contact_ids))
+
+        if segment_id:
+            segment = self.get_segment_by_id(db, tenant_id, segment_id)
+            if segment and segment.filter_json:
+                filters = segment.filter_json
+                if not isinstance(filters, dict):
+                    filters = json.loads(filters)
+                if "lifecycle_stage" in filters:
+                    query = query.filter(Contact.lifecycle_stage == filters["lifecycle_stage"])
+                if "source" in filters:
+                    query = query.filter(Contact.source == filters["source"])
+
+        return query.order_by(Contact.created_at.desc()).all()
+
     def find_by_email(self, db: Session, tenant_id: int, email: str) -> Optional[Contact]:
         """Find a contact by email within a tenant."""
         return (
@@ -764,6 +866,22 @@ class ContactRepository:
             ContactTag.id == tag_id,
             ContactTag.tenant_id == tenant_id,
         ).first()
+
+    def get_tag_by_name(self, db: Session, tenant_id: int, name: str) -> Optional[ContactTag]:
+        """Get a tag by name."""
+        return db.query(ContactTag).filter(
+            ContactTag.tenant_id == tenant_id,
+            ContactTag.name == name,
+        ).first()
+
+    def count_tag_contacts(self, db: Session, tag_id: int) -> int:
+        """Count how many contacts are associated with a tag."""
+        return (
+            db.query(func.count(ContactTagAssociation.id))
+            .filter(ContactTagAssociation.tag_id == tag_id)
+            .scalar()
+            or 0
+        )
 
     def update_tag(self, db: Session, tag: ContactTag, **kwargs) -> ContactTag:
         """Update a tag."""

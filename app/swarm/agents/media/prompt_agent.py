@@ -34,7 +34,7 @@ class ImagePromptAgent(BaseAgent):
         reference_context = ""
         try:
             if db:
-                from app.core.models import Tenant
+                from app.domains.identity.models import Tenant
                 tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
                 if tenant:
                     color = getattr(tenant, "primary_color", None) or getattr(tenant, "tenant_primary_color", None)

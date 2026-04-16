@@ -1001,6 +1001,7 @@ export default function SettingsIntegrationsPage() {
   // Connector state
   const [connectorCatalog, setConnectorCatalog] = useState<any[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
+  const catalogRequestInFlight = useRef(false);
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
   const [configSaving, setConfigSaving] = useState(false);
   const [configTesting, setConfigTesting] = useState(false);
@@ -1040,7 +1041,7 @@ export default function SettingsIntegrationsPage() {
   async function fetchSystemConnectors() {
     setSystemLoading(true);
     try {
-      const res = await apiFetch("/admin/connector-hub/system/connectors");
+      const res = await apiFetch("/admin/integrations/system/connectors");
       if (res.ok) setSystemConnectors(await res.json());
     } catch { /* best effort */ }
     finally { setSystemLoading(false); }
@@ -1048,14 +1049,14 @@ export default function SettingsIntegrationsPage() {
 
   async function fetchUsageStats() {
     try {
-      const res = await apiFetch("/admin/connector-hub/system/usage-overview");
+      const res = await apiFetch("/admin/integrations/system/usage-overview");
       if (res.ok) setUsageStats(await res.json());
     } catch { /* best effort */ }
   }
 
   async function createConnector() {
     try {
-      const res = await apiFetch("/admin/connector-hub/system/connectors", {
+      const res = await apiFetch("/admin/integrations/system/connectors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(createForm),
@@ -1070,7 +1071,7 @@ export default function SettingsIntegrationsPage() {
 
   async function updateConnector(connectorId: string, data: any) {
     try {
-      const res = await apiFetch(`/admin/connector-hub/system/connectors/${connectorId}`, {
+      const res = await apiFetch(`/admin/integrations/system/connectors/${connectorId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -1084,7 +1085,7 @@ export default function SettingsIntegrationsPage() {
 
   async function deleteConnector(connectorId: string) {
     try {
-      const res = await apiFetch(`/admin/connector-hub/system/connectors/${connectorId}`, {
+      const res = await apiFetch(`/admin/integrations/system/connectors/${connectorId}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -1097,7 +1098,7 @@ export default function SettingsIntegrationsPage() {
   // ── Docs Data Fetching ─────────────────────────────────────────────────────
   async function fetchAllDocsOverview() {
     try {
-      const res = await apiFetch("/admin/connector-hub/docs/all");
+      const res = await apiFetch("/admin/integrations/docs/all");
       if (res.ok) setAllDocsOverview(await res.json());
     } catch { /* best effort */ }
   }
@@ -1105,7 +1106,7 @@ export default function SettingsIntegrationsPage() {
   async function fetchConnectorDocs(connectorId: string) {
     setDocsLoading(true);
     try {
-      const res = await apiFetch(`/admin/connector-hub/${connectorId}/docs`);
+      const res = await apiFetch(`/admin/integrations/connectors/${connectorId}/docs`);
       if (res.ok) {
         const data = await res.json();
         setConnectorDocs(data);
@@ -1138,7 +1139,7 @@ export default function SettingsIntegrationsPage() {
     }
     const fetchWebhookInfo = async () => {
       try {
-        const res = await apiFetch(`/admin/connector-hub/${selectedIntegration.connectorId}/webhook-info`);
+        const res = await apiFetch(`/admin/integrations/connectors/${selectedIntegration.connectorId}/webhook-info`);
         if (res.ok) {
           const data = await res.json();
           setWebhookInfo(data);
@@ -1178,12 +1179,17 @@ export default function SettingsIntegrationsPage() {
 
   // ── Data Fetching ──────────────────────────────────────────────────────────
   async function fetchCatalog() {
+    if (catalogRequestInFlight.current) return;
+    catalogRequestInFlight.current = true;
     setCatalogLoading(true);
     try {
-      const res = await apiFetch("/admin/connector-hub/catalog");
+      const res = await apiFetch("/admin/integrations/catalog");
       if (res.ok) setConnectorCatalog(await res.json());
     } catch { /* best effort */ }
-    finally { setCatalogLoading(false); }
+    finally {
+      catalogRequestInFlight.current = false;
+      setCatalogLoading(false);
+    }
   }
 
   useEffect(() => { fetchCatalog(); }, []);
@@ -1241,7 +1247,7 @@ export default function SettingsIntegrationsPage() {
 
   async function loadExistingConfig(connectorId: string) {
     try {
-      const res = await apiFetch(`/admin/connector-hub/${connectorId}/config`);
+      const res = await apiFetch(`/admin/integrations/connectors/${connectorId}/config`);
       if (res.ok) {
         const data = await res.json();
         setConfigValues(data);
@@ -1253,7 +1259,7 @@ export default function SettingsIntegrationsPage() {
     if (!selectedIntegration?.connectorId) return false;
     setConfigSaving(true);
     try {
-      const res = await apiFetch(`/admin/connector-hub/${selectedIntegration.connectorId}/config`, {
+      const res = await apiFetch(`/admin/integrations/connectors/${selectedIntegration.connectorId}/config`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...configValues, enabled: true }),
@@ -1274,7 +1280,7 @@ export default function SettingsIntegrationsPage() {
     setTestResult(null);
     try {
       await saveConfig();
-      const res = await apiFetch(`/admin/connector-hub/${selectedIntegration.connectorId}/test`, {
+      const res = await apiFetch(`/admin/integrations/connectors/${selectedIntegration.connectorId}/test`, {
         method: "POST",
       });
       if (res.ok) {
@@ -1292,7 +1298,7 @@ export default function SettingsIntegrationsPage() {
 
   async function disconnectIntegration(connectorId: string) {
     try {
-      await apiFetch(`/admin/connector-hub/${connectorId}/config`, {
+      await apiFetch(`/admin/integrations/connectors/${connectorId}/config`, {
         method: "DELETE",
       });
       fetchCatalog();

@@ -10,7 +10,7 @@ import json
 import structlog
 from sqlalchemy.orm import Session
 
-from app.core.models import AgentDefinition, ToolDefinition
+from app.domains.ai.models import AgentDefinition, ToolDefinition
 
 logger = structlog.get_logger()
 

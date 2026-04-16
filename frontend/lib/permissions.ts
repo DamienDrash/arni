@@ -60,6 +60,9 @@ export interface PermissionsResponse {
   pages: Record<string, boolean>;
   addons: ActiveAddon[];
   overage: Overage | null;
+  capabilities: string[];
+  runtime_active_capabilities: string[];
+  dormant_capabilities: string[];
 }
 
 // Hook
@@ -93,6 +96,21 @@ export function usePermissions() {
   const canPage = (path: string): boolean => {
     if (!data?.pages) return true;
     return !!data.pages[path];
+  };
+
+  const capability = (key: string): boolean => {
+    if (!data?.capabilities) return false;
+    return data.capabilities.includes(key);
+  };
+
+  const isCapabilityRuntimeActive = (key: string): boolean => {
+    if (!data?.runtime_active_capabilities) return true;
+    return data.runtime_active_capabilities.includes(key);
+  };
+
+  const isCapabilityDormant = (key: string): boolean => {
+    if (!data?.dormant_capabilities) return false;
+    return data.dormant_capabilities.includes(key);
   };
 
   /**
@@ -198,12 +216,16 @@ export function usePermissions() {
     isTenantAdmin,
     isTenantUser,
     feature,
+    capability,
+    isCapabilityRuntimeActive,
+    isCapabilityDormant,
     canPage,
     plan: data?.plan,
     usage: data?.usage,
     subscription: data?.subscription,
     addons: data?.addons || [],
     overage: data?.overage || null,
+    capabilities: data?.capabilities || [],
     isNearLimit,
     isOverLimit,
     usagePercent,

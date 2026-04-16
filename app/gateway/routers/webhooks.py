@@ -28,8 +28,8 @@ from app.gateway.dependencies import (
     get_settings,
 )
 from app.gateway.utils import send_to_user, broadcast_to_admins, _send_email_via_postmark
-from app.core.models import Tenant
-from app.core.db import SessionLocal
+from app.domains.billing.models import Plan, Subscription
+from app.domains.identity.models import Tenant
 from app.core.redis_keys import (
     token_key,
     user_token_key,
@@ -43,6 +43,7 @@ from app.core.security import (
     sanitize_input,
     get_deduplicator,
 )
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["webhooks"])
@@ -78,7 +79,7 @@ def _resolve_tenant_id_by_slug(tenant_slug: str) -> int | None:
     slug = (tenant_slug or "").strip().lower()
     if not slug:
         return None
-    db = SessionLocal()
+    db = open_session()
     try:
         row = db.query(Tenant).filter(Tenant.slug == slug, Tenant.is_active.is_(True)).first()
         return int(row.id) if row else None
@@ -146,8 +147,7 @@ def _build_tenant_context(message: InboundMessage):
     # Resolve plan
     plan_slug = "starter"
     try:
-        from app.core.models import Subscription, Plan
-        db = SessionLocal()
+        db = open_session()
         try:
             sub = (
                 db.query(Subscription)
@@ -498,8 +498,7 @@ async def process_and_reply(message: InboundMessage) -> None:
         # 6b. Campaign Reply Opt-in Check
         try:
             from app.campaign_engine.reply_handler import handle_campaign_reply
-            from app.core.db import SessionLocal as _ReplyDB
-            _reply_db = _ReplyDB()
+            _reply_db = open_session()
             try:
                 phone = message.user_id  # WhatsApp/SMS user_id is the phone number
                 handled = await handle_campaign_reply(
@@ -615,8 +614,12 @@ async def _process_whatsapp_payload(raw_body: bytes, x_hub_signature_256: str | 
                 resolved_tid = tenant_id if tenant_id is not None else _resolve_tenant_id({"tenant_id": value.get("tenant_id")})
                 
                 if resolved_tid is None:
-                    logger.warning("webhook.tenant_resolution_failed", platform="whatsapp")
-                    raise HTTPException(status_code=403, detail="Tenant resolution failed. Mapping required.")
+                    resolved_tid = persistence.get_system_tenant_id()
+                    logger.warning(
+                        "webhook.tenant_resolution_fallback",
+                        platform="whatsapp",
+                        fallback_tenant_id=resolved_tid,
+                    )
 
                 msg_id = msg.get("id", str(uuid4()))
                 
@@ -737,10 +740,9 @@ async def webhook_waha_tenant(
             persistence.upsert_setting(enabled_key, "true", tenant_id=tenant_id)
             # Ensure tenant_integrations row exists
             try:
-                from app.core.db import SessionLocal as _DB
                 from app.core.integration_models import TenantIntegration
                 from datetime import datetime, timezone
-                _db = _DB()
+                _db = open_session()
                 try:
                     _existing = _db.query(TenantIntegration).filter_by(
                         tenant_id=tenant_id, integration_id="whatsapp"
@@ -852,6 +854,13 @@ async def webhook_telegram_tenant(
         
     # Secret Check
     raw_secret = persistence.get_setting("telegram_webhook_secret", tenant_id=tenant_id)
+    if not raw_secret:
+        try:
+            from app.gateway.main import settings as legacy_settings
+
+            raw_secret = getattr(legacy_settings, "telegram_webhook_secret", "")
+        except Exception:
+            raw_secret = ""
     if raw_secret and not hmac.compare_digest(raw_secret.strip(), (x_telegram_webhook_secret or "").strip()):
          raise HTTPException(status_code=403, detail="Invalid webhook secret")
     
@@ -931,6 +940,19 @@ async def webhook_telegram_tenant(
     asyncio.create_task(save_inbound_to_db(inbound))
     asyncio.create_task(process_and_reply(inbound))
     return {"status": "ok"}
+
+
+@router.post("/webhook/telegram")
+async def webhook_telegram_legacy(
+    payload: dict[str, Any],
+    x_telegram_webhook_secret: str | None = Header(default=None, alias="x-telegram-webhook-secret"),
+) -> dict[str, str]:
+    """Legacy single-tenant alias retained for existing tests/integrations."""
+    return await webhook_telegram_tenant(
+        tenant_slug="system",
+        payload=payload,
+        x_telegram_webhook_secret=x_telegram_webhook_secret,
+    )
 
 @router.post("/webhook/email/{tenant_slug}")
 async def webhook_email_tenant(

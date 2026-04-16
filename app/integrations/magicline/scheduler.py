@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 
 import structlog
 
-from app.core.db import SessionLocal
-from app.core.models import Tenant
+from app.domains.identity.models import Tenant
 from app.gateway.persistence import persistence
+from app.shared.db import open_session
 from app.integrations.magicline.contact_enrichment import enrich_contacts_for_tenant
 from app.integrations.magicline.contact_sync import sync_contacts_from_magicline
 
@@ -39,7 +39,7 @@ def _cron_due_utc(expr: str, now: datetime) -> bool:
 
 
 def _active_tenant_ids() -> list[int]:
-    db = SessionLocal()
+    db = open_session()
     try:
         rows = db.query(Tenant).filter(Tenant.is_active.is_(True)).all()
         return [int(r.id) for r in rows]

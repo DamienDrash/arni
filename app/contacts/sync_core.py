@@ -30,7 +30,6 @@ from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
 from app.contacts.sync_service import ContactSyncService, contact_sync_service
-from app.core.db import SessionLocal
 from app.core.integration_models import (
     IntegrationDefinition,
     SyncLog,
@@ -38,6 +37,7 @@ from app.core.integration_models import (
     TenantIntegration,
 )
 from app.core.credential_vault import CredentialVault
+from app.shared.db import open_session
 from app.integrations.adapters.base import (
     BaseAdapter,
     ConnectionTestResult,
@@ -139,6 +139,80 @@ class SyncCore:
         self.vault = CredentialVault()
         self.sync_service = contact_sync_service
 
+    @staticmethod
+    def _serialize_config(config: Dict[str, Any]) -> Dict[str, Any]:
+        return dict(config or {})
+
+    @staticmethod
+    def _deserialize_config(ti: TenantIntegration) -> Dict[str, Any]:
+        config_meta = getattr(ti, "config_meta", None)
+        if isinstance(config_meta, dict):
+            return dict(config_meta)
+        if isinstance(config_meta, str):
+            try:
+                return json.loads(config_meta)
+            except (json.JSONDecodeError, TypeError):
+                return {}
+        legacy_config = getattr(ti, "config_json", None)
+        if isinstance(legacy_config, str):
+            try:
+                return json.loads(legacy_config)
+            except (json.JSONDecodeError, TypeError):
+                return {}
+        return {}
+
+    @staticmethod
+    def _minutes_to_cron(sync_interval_minutes: int) -> str:
+        minutes = max(int(sync_interval_minutes or 60), 1)
+        if minutes < 60:
+            return f"*/{minutes} * * * *"
+        hours = max(minutes // 60, 1)
+        return f"0 */{hours} * * *"
+
+    @staticmethod
+    def _cron_to_minutes(cron_expression: str | None) -> int:
+        cron = (cron_expression or "").strip()
+        if cron.startswith("*/"):
+            try:
+                return int(cron.split()[0][2:])
+            except (IndexError, ValueError):
+                return 60
+        if cron.startswith("0 */"):
+            try:
+                return int(cron.split()[1][2:]) * 60
+            except (IndexError, ValueError):
+                return 60
+        return 60
+
+    def _upsert_schedule(
+        self,
+        db: Session,
+        tenant_integration_id: int,
+        tenant_id: int,
+        sync_interval_minutes: int,
+        enabled: bool,
+    ) -> None:
+        schedule = (
+            db.query(SyncSchedule)
+            .filter(SyncSchedule.tenant_integration_id == tenant_integration_id)
+            .first()
+        )
+        cron_expression = self._minutes_to_cron(sync_interval_minutes)
+        if schedule:
+            schedule.cron_expression = cron_expression
+            schedule.is_enabled = enabled
+            schedule.updated_at = datetime.now(timezone.utc)
+            return
+
+        db.add(
+            SyncSchedule(
+                tenant_integration_id=tenant_integration_id,
+                tenant_id=tenant_id,
+                cron_expression=cron_expression,
+                is_enabled=enabled,
+            )
+        )
+
     # ── Integration Management ───────────────────────────────────────────
 
     def get_available_integrations(self) -> List[Dict[str, Any]]:
@@ -158,7 +232,7 @@ class SyncCore:
 
     def get_tenant_integrations(self, tenant_id: int) -> List[Dict[str, Any]]:
         """List all integrations configured for a tenant."""
-        db = SessionLocal()
+        db = open_session()
         try:
             integrations = (
                 db.query(TenantIntegration)
@@ -178,10 +252,12 @@ class SyncCore:
                     "status": ti.status,
                     "enabled": ti.enabled,
                     "sync_direction": ti.sync_direction,
-                    "sync_interval_minutes": ti.sync_interval_minutes,
+                    "sync_interval_minutes": self._cron_to_minutes(
+                        ti.schedule.cron_expression if ti.schedule else None
+                    ),
                     "last_sync_at": ti.last_sync_at.isoformat() if ti.last_sync_at else None,
                     "last_sync_status": ti.last_sync_status,
-                    "last_sync_message": ti.last_sync_message,
+                    "last_sync_message": ti.last_sync_error,
                     "last_sync_log": last_sync,
                     "created_at": ti.created_at.isoformat() if ti.created_at else None,
                 })
@@ -255,7 +331,7 @@ class SyncCore:
         secrets = {k: v for k, v in config.items() if k in secret_fields}
         non_secrets = {k: v for k, v in config.items() if k not in secret_fields}
 
-        db = SessionLocal()
+        db = open_session()
         try:
             # Upsert tenant_integration record
             ti = (
@@ -268,9 +344,10 @@ class SyncCore:
             )
 
             if ti:
-                ti.config_json = json.dumps(non_secrets, ensure_ascii=False)
+                ti.config_meta = self._serialize_config(non_secrets)
+                if secrets:
+                    ti.config_encrypted = self.vault.encrypt(secrets)
                 ti.sync_direction = sync_direction
-                ti.sync_interval_minutes = sync_interval_minutes
                 ti.enabled = enabled
                 ti.status = "configured"
                 ti.updated_at = datetime.now(timezone.utc)
@@ -278,9 +355,9 @@ class SyncCore:
                 ti = TenantIntegration(
                     tenant_id=tenant_id,
                     integration_id=integration_id,
-                    config_json=json.dumps(non_secrets, ensure_ascii=False),
+                    config_meta=self._serialize_config(non_secrets),
+                    config_encrypted=self.vault.encrypt(secrets) if secrets else None,
                     sync_direction=sync_direction,
-                    sync_interval_minutes=sync_interval_minutes,
                     enabled=enabled,
                     status="configured",
                     created_at=datetime.now(timezone.utc),
@@ -290,10 +367,14 @@ class SyncCore:
 
             db.commit()
             db.refresh(ti)
-
-            # Store secrets in Vault
-            if secrets:
-                self.vault.store_credentials(tenant_id, integration_id, secrets)
+            self._upsert_schedule(
+                db=db,
+                tenant_integration_id=ti.id,
+                tenant_id=tenant_id,
+                sync_interval_minutes=sync_interval_minutes,
+                enabled=enabled,
+            )
+            db.commit()
 
             logger.info(
                 "sync_core.integration_saved",
@@ -319,7 +400,7 @@ class SyncCore:
 
     def delete_integration(self, tenant_id: int, integration_id: str) -> Dict[str, Any]:
         """Remove an integration configuration for a tenant."""
-        db = SessionLocal()
+        db = open_session()
         try:
             ti = (
                 db.query(TenantIntegration)
@@ -334,9 +415,6 @@ class SyncCore:
 
             db.delete(ti)
             db.commit()
-
-            # Remove credentials from Vault
-            self.vault.delete_credentials(tenant_id, integration_id)
 
             logger.info("sync_core.integration_deleted", tenant_id=tenant_id, integration_id=integration_id)
             return {"success": True, "message": "Integration erfolgreich entfernt."}
@@ -378,7 +456,7 @@ class SyncCore:
         if not adapter:
             return {"success": False, "error": f"Unbekannte Integration: {integration_id}"}
 
-        db = SessionLocal()
+        db = open_session()
         sync_start = datetime.now(timezone.utc)
 
         try:
@@ -398,19 +476,10 @@ class SyncCore:
                 return {"success": False, "error": "Integration ist deaktiviert."}
 
             # Build full config (non-secrets from DB + secrets from Vault)
-            config = {}
-            if ti.config_json:
-                try:
-                    config = json.loads(ti.config_json)
-                except (json.JSONDecodeError, TypeError):
-                    config = {}
+            config = self._deserialize_config(ti)
 
-            # Merge credentials from Vault
-            try:
-                creds = self.vault.get_credentials(tenant_id, integration_id)
-                config.update(creds)
-            except Exception:
-                pass  # No credentials stored yet
+            if ti.config_encrypted:
+                config.update(self.vault.decrypt(ti.config_encrypted))
 
             # Determine sync mode
             if sync_mode is None:
@@ -451,13 +520,13 @@ class SyncCore:
             if not adapter_result.success:
                 # Adapter failed – log and update status
                 self._log_sync(
-                    db, tenant_id, integration_id, sync_start,
+                    db, ti.id, tenant_id, integration_id, sync_start,
                     success=False, error_message=adapter_result.error_message,
                     triggered_by=triggered_by, sync_mode=sync_mode,
                 )
                 ti.status = "error"
                 ti.last_sync_status = "error"
-                ti.last_sync_message = adapter_result.error_message or "Adapter-Fehler"
+                ti.last_sync_error = adapter_result.error_message or "Adapter-Fehler"
                 db.commit()
                 db.close()
                 return {
@@ -513,7 +582,7 @@ class SyncCore:
             }
 
             self._log_sync(
-                db, tenant_id, integration_id, sync_start,
+                db, ti.id, tenant_id, integration_id, sync_start,
                 success=True, summary=summary,
                 triggered_by=triggered_by, sync_mode=sync_mode,
                 records_fetched=adapter_result.records_fetched,
@@ -527,7 +596,7 @@ class SyncCore:
             ti.status = "connected"
             ti.last_sync_at = sync_end
             ti.last_sync_status = "success"
-            ti.last_sync_message = (
+            ti.last_sync_error = (
                 f"Sync erfolgreich: {svc_result.created} erstellt, "
                 f"{svc_result.updated} aktualisiert, "
                 f"{svc_result.unchanged} unverändert."
@@ -566,13 +635,13 @@ class SyncCore:
 
             try:
                 self._log_sync(
-                    db, tenant_id, integration_id, sync_start,
+                    db, ti.id, tenant_id, integration_id, sync_start,
                     success=False, error_message=error_msg,
                     triggered_by=triggered_by, sync_mode=sync_mode,
                 )
                 ti.status = "error"
                 ti.last_sync_status = "error"
-                ti.last_sync_message = error_msg
+                ti.last_sync_error = error_msg
                 db.commit()
             except Exception:
                 db.rollback()
@@ -603,7 +672,7 @@ class SyncCore:
         if not adapter.supports_webhooks:
             return {"success": False, "error": f"{integration_id} unterstützt keine Webhooks"}
 
-        db = SessionLocal()
+        db = open_session()
         try:
             # Load config
             ti = (
@@ -617,17 +686,9 @@ class SyncCore:
             if not ti:
                 return {"success": False, "error": "Integration nicht konfiguriert"}
 
-            config = {}
-            if ti.config_json:
-                try:
-                    config = json.loads(ti.config_json)
-                except (json.JSONDecodeError, TypeError):
-                    pass
-            try:
-                creds = self.vault.get_credentials(tenant_id, integration_id)
-                config.update(creds)
-            except Exception:
-                pass
+            config = self._deserialize_config(ti)
+            if ti.config_encrypted:
+                config.update(self.vault.decrypt(ti.config_encrypted))
 
             # Dispatch to adapter
             result = await adapter.handle_webhook(tenant_id, config, payload, headers)
@@ -681,20 +742,23 @@ class SyncCore:
         limit: int = 20,
     ) -> List[Dict[str, Any]]:
         """Get sync history for a tenant, optionally filtered by integration."""
-        db = SessionLocal()
+        db = open_session()
         try:
-            query = db.query(SyncLog).filter(SyncLog.tenant_id == tenant_id)
+            query = db.query(SyncLog).join(
+                TenantIntegration,
+                SyncLog.tenant_integration_id == TenantIntegration.id,
+            ).filter(SyncLog.tenant_id == tenant_id)
             if integration_id:
-                query = query.filter(SyncLog.integration_id == integration_id)
+                query = query.filter(TenantIntegration.integration_id == integration_id)
             logs = query.order_by(desc(SyncLog.started_at)).limit(limit).all()
 
             return [
                 {
                     "id": log.id,
-                    "integration_id": log.integration_id,
-                    "sync_mode": log.sync_mode,
+                    "integration_id": log.tenant_integration.integration_id if log.tenant_integration else None,
+                    "sync_mode": log.sync_type,
                     "status": log.status,
-                    "triggered_by": log.triggered_by,
+                    "triggered_by": log.trigger,
                     "records_fetched": log.records_fetched,
                     "records_created": log.records_created,
                     "records_updated": log.records_updated,
@@ -702,7 +766,7 @@ class SyncCore:
                     "duration_ms": log.duration_ms,
                     "error_message": log.error_message,
                     "started_at": log.started_at.isoformat() if log.started_at else None,
-                    "completed_at": log.completed_at.isoformat() if log.completed_at else None,
+                    "completed_at": log.finished_at.isoformat() if log.finished_at else None,
                 }
                 for log in logs
             ]
@@ -714,6 +778,7 @@ class SyncCore:
     def _log_sync(
         self,
         db: Session,
+        tenant_integration_id: int,
         tenant_id: int,
         integration_id: str,
         started_at: datetime,
@@ -734,20 +799,20 @@ class SyncCore:
             duration_ms = (completed_at - started_at).total_seconds() * 1000
 
         log = SyncLog(
+            tenant_integration_id=tenant_integration_id,
             tenant_id=tenant_id,
-            integration_id=integration_id,
-            sync_mode=sync_mode.value if sync_mode else "full",
+            sync_type=sync_mode.value if sync_mode else "full",
             status="success" if success else "error",
-            triggered_by=triggered_by,
+            trigger=triggered_by,
             records_fetched=records_fetched,
             records_created=records_created,
             records_updated=records_updated,
             records_failed=records_failed,
             duration_ms=int(duration_ms),
             error_message=error_message,
-            summary_json=json.dumps(summary, ensure_ascii=False, default=str) if summary else None,
+            metadata_json=summary or None,
             started_at=started_at,
-            completed_at=completed_at,
+            finished_at=completed_at,
         )
         db.add(log)
         try:
@@ -761,9 +826,13 @@ class SyncCore:
         """Get the most recent sync log for an integration."""
         log = (
             db.query(SyncLog)
+            .join(
+                TenantIntegration,
+                SyncLog.tenant_integration_id == TenantIntegration.id,
+            )
             .filter(
                 SyncLog.tenant_id == tenant_id,
-                SyncLog.integration_id == integration_id,
+                TenantIntegration.integration_id == integration_id,
             )
             .order_by(desc(SyncLog.started_at))
             .first()

@@ -180,6 +180,53 @@ class TestTenantContextVar:
         ctx = TenantContext(tenant_id=5)
         assert ctx.vector_namespace == "ariia_tenant_5"
 
+    def test_resolve_tenant_from_slug_returns_context_for_active_tenant(self):
+        from app.core.db import SessionLocal
+        from app.core.models import Plan, Subscription, Tenant
+        from app.core.tenant_context import resolve_tenant_from_slug
+
+        slug = "tenant-context-resolve"
+        plan_slug = "tenant-context-plan"
+        db = SessionLocal()
+        try:
+            plan = db.query(Plan).filter(Plan.slug == plan_slug).first()
+            if not plan:
+                plan = Plan(
+                    name="Tenant Context Plan",
+                    slug=plan_slug,
+                    price_monthly_cents=0,
+                    monthly_tokens=10000,
+                    is_active=True,
+                    is_public=False,
+                )
+                db.add(plan)
+                db.flush()
+
+            tenant = db.query(Tenant).filter(Tenant.slug == slug).first()
+            if not tenant:
+                tenant = Tenant(name="Tenant Context Resolve", slug=slug, is_active=True)
+                db.add(tenant)
+                db.flush()
+
+            sub = db.query(Subscription).filter(Subscription.tenant_id == tenant.id).first()
+            if not sub:
+                sub = Subscription(tenant_id=tenant.id, plan_id=plan.id, status="active")
+                db.add(sub)
+            else:
+                sub.plan_id = plan.id
+                sub.status = "active"
+
+            db.commit()
+            tenant_id = tenant.id
+        finally:
+            db.close()
+
+        ctx = resolve_tenant_from_slug(slug)
+        assert ctx is not None
+        assert ctx.tenant_id == tenant_id
+        assert ctx.tenant_slug == slug
+        assert ctx.plan_slug == plan_slug
+
 
 class TestTenantInterceptor:
     """Tests for the SQLAlchemy tenant isolation interceptor."""

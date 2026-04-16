@@ -17,10 +17,11 @@ from pydantic import BaseModel
 from sqlalchemy import func, text as sa_text, Integer
 from sqlalchemy.orm import Session
 
+from app.domains.billing.models import LLMUsageLog, Plan, Subscription, UsageRecord
+from app.domains.identity.models import Tenant
 from app.core.auth import AuthContext, get_current_user, require_role
-from app.core.db import SessionLocal
-from app.core.models import LLMUsageLog, UsageRecord
 from app.ai_config.models import PlanAIBudget, TenantAIBudgetOverride
+from app.shared.db import open_session
 
 logger = structlog.get_logger()
 
@@ -96,7 +97,7 @@ tenant_obs_router = APIRouter(prefix="/api/v1/tenant/ai/observability", tags=["a
 
 
 def _get_db():
-    db = SessionLocal()
+    db = open_session()
     try:
         yield db
     finally:
@@ -176,7 +177,6 @@ def admin_all_budgets(
     db: Session = Depends(_get_db),
 ):
     """Get budget status for all tenants."""
-    from app.core.models import Subscription, Plan, Tenant
     subs = db.query(Subscription).all()
     results = []
     for sub in subs:
@@ -233,7 +233,6 @@ def tenant_budget_status(
     db: Session = Depends(_get_db),
 ):
     """Get budget status for the current tenant."""
-    from app.core.models import Subscription
     sub = db.query(Subscription).filter(Subscription.tenant_id == user.tenant_id).first()
     if not sub:
         raise HTTPException(404, "No subscription found")
@@ -413,7 +412,6 @@ def _compute_budget_status(db: Session, tenant_id: int, budget: PlanAIBudget, pl
     is_over = usage_percent >= 100.0
 
     # Get plan name
-    from app.core.models import Plan
     plan = db.query(Plan).filter(Plan.id == plan_id).first()
 
     return BudgetStatus(

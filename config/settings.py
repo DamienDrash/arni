@@ -57,6 +57,13 @@ class Settings(BaseSettings):
     system_admin_email: str = "admin@ariia.io"
     system_admin_password: str = "Admin!Password2026"
 
+    # --- Legacy compatibility cutovers ---
+    enable_legacy_health_endpoint: bool = True
+    enable_legacy_telegram_webhook_alias: bool = True
+    enable_legacy_billing_admin_alias: bool = False  # V2 billing now serves /admin/billing/... directly
+    enable_legacy_voice_routes: bool = False
+    enable_legacy_ws_control: bool = True
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"

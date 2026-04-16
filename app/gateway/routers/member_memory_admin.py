@@ -13,7 +13,8 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import AuthContext, get_current_user, require_role
 from app.core.db import get_db
-from app.core.models import ChatSession, Tenant
+from app.domains.identity.models import Tenant
+from app.domains.support.models import ChatSession
 
 logger = structlog.get_logger()
 

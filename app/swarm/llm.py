@@ -225,10 +225,10 @@ class LLMClient:
         from app.ai_config.schemas import ResolvedLLMConfig
 
         try:
-            from app.core.db import SessionLocal
+            from app.shared.db import open_session
             from app.ai_config.service import AIConfigService
 
-            db = SessionLocal()
+            db = open_session()
             try:
                 svc = AIConfigService(db)
                 config = svc.resolve_llm_config(tenant_id, agent_slug=agent_name)

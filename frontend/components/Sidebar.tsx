@@ -50,6 +50,7 @@ import { apiFetch } from "@/lib/api";
 import { clearSession, getStoredUser } from "@/lib/auth";
 import { isPathAllowedForRole } from "@/lib/rbac";
 import { usePermissions } from "@/lib/permissions";
+import { getRouteAccessState, isRouteVisible, type RouteAccessState } from "@/lib/route-access";
 import { useI18n } from "@/lib/i18n/LanguageContext";
 import styles from "./Sidebar.module.css";
 
@@ -149,6 +150,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
 
   const user = getStoredUser();
   const isSystemAdmin = role === "system_admin";
+  const accessContext = { role, canPage, feature };
 
   useEffect(() => {
     if (isSystemAdmin) return;
@@ -174,7 +176,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
       ...section,
       items: section.items
         .filter((item) => isPathAllowedForRole(role, item.href))
-        .filter((item) => canPage(item.href))
+        .filter((item) => isRouteVisible(item.href, accessContext))
         .map((item) => ({
           ...item,
           badge: item.href === "/escalations" && handoffCount > 0 ? String(handoffCount) : undefined,
@@ -185,20 +187,24 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
   const renderItem = (item: NavItem) => {
     const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
     const Icon = item.icon;
-    const isLocked = item.feature && !feature(item.feature);
+    const accessState = getRouteAccessState(item.href, { role, canPage, feature });
+    const isLocked = accessState === "upgrade" || accessState === "coming_soon";
+    const targetHref = accessState === "upgrade" ? "/settings/billing" : item.href;
+    const statusBadge = getStatusBadge(accessState, t("pricing.hero.comingSoon"));
 
     return (
       <Link
         key={item.href}
-        href={isLocked ? "/settings/billing" : item.href}
+        href={targetHref}
         className={`${styles.item} ${isActive ? styles.itemActive : ""} ${isLocked ? styles.itemLocked : ""}`}
       >
         <Icon size={16} className={`${styles.itemIcon} ${isActive ? styles.itemIconActive : ""}`} />
         <span className={`${styles.itemText} ${isActive ? styles.itemTextActive : ""}`}>
           {item.name}
         </span>
-        {isLocked && <Zap size={12} className={styles.lockIcon} />}
-        {item.badge && !isLocked && (
+        {statusBadge && <span className={`${styles.itemBadge} ${statusBadge.className}`}>{statusBadge.label}</span>}
+        {isLocked && accessState === "upgrade" && <Zap size={12} className={styles.lockIcon} />}
+        {item.badge && !isLocked && !statusBadge && (
           <span className={styles.itemBadge}>{item.badge}</span>
         )}
       </Link>
@@ -246,7 +252,7 @@ export default function Sidebar({ appTitle, logoUrl }: { appTitle?: string; logo
                   ]),
             ]
               .filter((q) => !permissionsLoading && isPathAllowedForRole(role, q.href))
-              .filter((q) => canPage(q.href))
+              .filter((q) => isRouteVisible(q.href, accessContext))
               .map((q) => (
               <Link
                 key={q.href}
@@ -339,3 +345,13 @@ const T = {
   danger: "#FF6B6B",
   dangerDim: "rgba(255,107,107,0.12)",
 };
+
+function getStatusBadge(state: RouteAccessState, comingSoonLabel: string): { label: string; className: string } | null {
+  if (state === "coming_soon") {
+    return { label: comingSoonLabel, className: styles.itemBadgeSoon };
+  }
+  if (state === "upgrade") {
+    return { label: "Upgrade", className: styles.itemBadgeUpgrade };
+  }
+  return null;
+}
